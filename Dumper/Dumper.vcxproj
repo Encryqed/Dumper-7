@@ -24,6 +24,7 @@
     <ProjectGuid>{cf452592-4abf-4a97-96c3-606a96bf2a62}</ProjectGuid>
     <RootNamespace>Dumper</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>Dumper-7</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
