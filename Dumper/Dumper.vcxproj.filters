@@ -2,10 +2,39 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="UnrealTypes.cpp">
+      <Filter>Engine\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="ObjectArray.cpp">
+      <Filter>Engine\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Offsets.cpp">
+      <Filter>Engine\Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
       <UniqueIdentifier>{0b2e1251-929c-4f5b-bd97-9f43d1e3d1a5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\Private">
+      <UniqueIdentifier>{c14865ec-9225-40d7-ab6c-b7f7011841e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Public">
+      <UniqueIdentifier>{b5a6970c-66b5-4546-8bc3-8bc17d28045a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ObjectArray.h">
+      <Filter>Engine\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Offsets.h">
+      <Filter>Engine\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="UnrealTypes.h">
+      <Filter>Engine\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Enums.h">
+      <Filter>Engine\Public</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
