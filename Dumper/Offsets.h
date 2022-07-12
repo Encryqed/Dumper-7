@@ -7,17 +7,17 @@ namespace Off
 
 	namespace UObject
 	{
-		inline uint32 Vft = 0x00;
-		inline uint32 Flags = 0x04;
-		inline uint32 Index = 0x08;
-		inline uint32 Class = 0x10;
-		inline uint32 Name = 0x18;
-		inline uint32 Outer = 0x20;
+		inline constexpr const uint32 Vft = 0x00;
+		inline constexpr const uint32 Flags = 0x04;
+		inline constexpr const uint32 Index = 0x08;
+		inline constexpr const uint32 Class = 0x10;
+		inline constexpr const uint32 Name = 0x18;
+		inline constexpr const uint32 Outer = 0x20;
 	}
 
 	namespace UField
 	{
-		inline uint32 Next = 0x28;
+		inline constexpr const uint32 Next = 0x28;
 	}
 
 	namespace UEnum
@@ -29,7 +29,7 @@ namespace Off
 	{
 		inline uint32 SuperStruct;
 		inline uint32 Children;
-		inline uint32 PropertiesSize;
+		inline uint32 Size;
 	}
 
 	namespace UFunction

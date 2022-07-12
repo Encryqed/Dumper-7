@@ -3,28 +3,38 @@
 #include "Offsets.h"
 #include "UnrealTypes.h"
 #include <vector>
+#include <unordered_map>
 
 class UEClass;
 
 class UEObject
 {
 protected:
-	void* Object;
+	uint8* Object;
 
 public:
+
+	UEObject() = default;
+
+	UEObject(void* NewObject)
+		: Object(reinterpret_cast<uint8*>(NewObject))
+	{
+	}
+
 	void* GetAddress();
 
 	EObjectFlags GetFlags();
-	bool HasAnyFlags(EObjectFlags Flags);
 	int32 GetIndex();
 	UEClass GetClass();
 	FName GetFName();
 	UEObject GetOuter();
 
-	bool IsA(EClassCastFlags TypeFlags);
+	bool HasAnyFlags(EObjectFlags Flags);
 
-	template<typename UEType> 
-	bool IsA();
+	template<typename UEType>
+	UEType Cast();
+
+	bool IsA(EClassCastFlags TypeFlags);
 
 	UEObject GetOutermost();
 
@@ -32,23 +42,24 @@ public:
 	std::string GetValidName();
 	std::string GetCppName();
 	std::string GetFullName();
+
+	explicit operator bool();
 };
 
 class UEField : public UEObject
 {
 public:
-	bool IsNextValid();
 	UEField GetNext();
+	bool IsNextValid();
 };
 
-class UEnum : public UEField
+class UEEnum : public UEField
 {
 public:
-	std::string GetSingleName(int32_t Index);
+	TArray<TPair<FName, int64>>& GetNameValuePairs();
+	std::string GetSingleName(int32 Index);
 	std::vector<std::string> GetAllNames();
 	std::string GetEnumTypeAsStr();
-
-	std::string GetCppType();
 };
 
 class UEStruct : public UEField
@@ -77,8 +88,89 @@ public:
 class UEProperty : public UEField
 {
 public:
+	static std::unordered_map<std::string, uint32_t> UnknownProperties;
+
+public:
 	int32 GetSize();
 	int32 GetOffset();
 	EPropertyFlags GetFlags();
-	bool HasFlags(EPropertyFlags Flags);
+	bool HasPropertyFlags(EPropertyFlags Flags);
+
+	std::string GetCppType();
+};
+
+
+class UEByteProperty : public UEProperty
+{
+public:
+	UEEnum GetEnum();
+
+	std::string GetCppType();
+};
+
+class UEBoolProperty : public UEProperty
+{
+public:
+	uint8 GetBitIndex();
+	bool IsNativeBool();
+
+	std::string GetCppType();
+};
+
+class UEObjectProperty : public UEProperty
+{
+public:
+	UEClass GetPropertyClass();
+
+	std::string GetCppType();
+};
+
+class UEClassProperty : public UEProperty
+{
+public:
+	UEClass GetMetaClass();
+
+	std::string GetCppType();
+};
+
+class UEStructProperty : public UEProperty
+{
+public:
+	UEStruct GetUnderlayingStruct();
+
+	std::string GetCppType();
+};
+
+class UEArrayProperty : public UEProperty
+{
+public:
+	UEProperty GetInnerProperty();
+
+	std::string GetCppType();
+};
+
+class UEMapProperty : public UEProperty
+{
+public:
+	UEProperty GetKeyProperty();
+	UEProperty GetValueProperty();
+
+	std::string GetCppType();
+};
+
+class UESetProperty : public UEProperty
+{
+public:
+	UEProperty GetElementProperty();
+
+	std::string GetCppType();
+};
+
+class UEEnumProperty : public UEProperty
+{
+public:
+	UEProperty GetUnderlayingProperty();
+	UEEnum GetEnum();
+
+	std::string GetCppType();
 };
