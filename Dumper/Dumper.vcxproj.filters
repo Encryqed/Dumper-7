@@ -11,6 +11,9 @@
     <ClCompile Include="Offsets.cpp">
       <Filter>Engine\Private</Filter>
     </ClCompile>
+    <ClCompile Include="UnrealObjects.cpp">
+      <Filter>Engine\Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -34,6 +37,9 @@
       <Filter>Engine\Public</Filter>
     </ClInclude>
     <ClInclude Include="Enums.h">
+      <Filter>Engine\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="UnrealObjects.h">
       <Filter>Engine\Public</Filter>
     </ClInclude>
   </ItemGroup>

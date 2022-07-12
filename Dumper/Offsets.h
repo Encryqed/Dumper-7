@@ -5,6 +5,21 @@ namespace Off
 {
 	inline void Init();
 
+	namespace UObject
+	{
+		inline uint32 Vft = 0x00;
+		inline uint32 Flags = 0x04;
+		inline uint32 Index = 0x08;
+		inline uint32 Class = 0x10;
+		inline uint32 Name = 0x18;
+		inline uint32 Outer = 0x20;
+	}
+
+	namespace UField
+	{
+		inline uint32 Next = 0x28;
+	}
+
 	namespace UEnum
 	{
 		inline uint32 Names;
@@ -20,8 +35,6 @@ namespace Off
 	namespace UFunction
 	{
 		inline uint32 FunctionFlags;
-		inline uint32 NumParms;
-		inline uint32 ParmsSize;
 	}
 
 	namespace UClass

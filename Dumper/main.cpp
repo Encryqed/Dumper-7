@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <iostream>
+#include "Enums.h"
 
 DWORD MainThread()
 {

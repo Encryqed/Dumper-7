@@ -139,12 +139,14 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ObjectArray.cpp" />
     <ClCompile Include="Offsets.cpp" />
+    <ClCompile Include="UnrealObjects.cpp" />
     <ClCompile Include="UnrealTypes.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Enums.h" />
     <ClInclude Include="ObjectArray.h" />
     <ClInclude Include="Offsets.h" />
+    <ClInclude Include="UnrealObjects.h" />
     <ClInclude Include="UnrealTypes.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

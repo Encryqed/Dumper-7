@@ -1,16 +1,26 @@
 #pragma once
+#include "UnrealObjects.h"
 
-typedef __int8 int8;
-typedef __int16 int16;
-typedef __int32 int32;
-typedef __int64 int64;
-
-typedef unsigned __int8 uint8;
-typedef unsigned __int16 uint16;
-typedef unsigned __int32 uint32;
-typedef unsigned __int64 uint64;
-
-class FUObjectArray
+class ObjectArray
 {
+	static void DumpObjects();
+	static void GetByIndex();
+	static void GetAllPackages();
 
+
+
+	class ObjectsIterator& begin();
+	class ObjectsIterator& end();
+
+	class ObjectsIterator
+	{
+		ObjectArray& IteratedArray;
+		int32 CurrentIndex;
+
+		ObjectsIterator(ObjectArray& Array);
+		ObjectsIterator(ObjectArray& Array, int32 StartIndex = 0);
+
+		ObjectsIterator& operator++();
+		bool operator!=(ObjectsIterator& Other);
+	};
 };
