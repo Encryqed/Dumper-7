@@ -59,7 +59,7 @@ public:
 
 	inline void Free()
 	{
-		auto MemoryFree = reinterpret_cast<void(*)(void*)>(reinterpret_cast<uintptr>(GetModuleHandle(0)) + 0x15B96D0);
+		auto MemoryFree = reinterpret_cast<void(*)(void*)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x15B96D0);
 		MemoryFree(Data);
 		Data = nullptr;
 		NumElements = 0;
@@ -67,22 +67,22 @@ public:
 	}
 };
 
-class FString : public TArray<wchar>
+class FString : public TArray<wchar_t>
 {
 public:
 	inline FString() = default;
 
-	inline FString(const wchar* WChar)
+	inline FString(const wchar_t* WChar)
 	{
 		MaxElements = NumElements = *WChar ? std::wcslen(WChar) + 1 : 0;
 
 		if (NumElements)
 		{
-			Data = const_cast<wchar*>(WChar);
+			Data = const_cast<wchar_t*>(WChar);
 		}
 	}
 
-	inline FString operator=(const wchar*&& Other)
+	inline FString operator=(const wchar_t*&& Other)
 	{
 		return FString(Other);
 	}
@@ -115,13 +115,13 @@ public:
 	inline std::string ToString()
 	{
 		FString TempString;
-		auto FNameToString = reinterpret_cast<void(*)(void*, FString&)>(reinterpret_cast<uintptr>(GetModuleHandle(0)) + 0x168ED10);
+		auto FNameToString = reinterpret_cast<void(*)(void*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x168ED10);
 		FNameToString(this, TempString);
 
 		std::string OutputString = TempString.ToString();
 		TempString.Free();
 
-		size pos = OutputString.rfind('/');
+		size_t pos = OutputString.rfind('/');
 
 		if (pos == std::string::npos)
 			return OutputString;

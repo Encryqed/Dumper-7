@@ -45,7 +45,7 @@ UEType UEObject::Cast()
 
 bool UEObject::IsA(EClassCastFlags TypeFlags)
 {
-	return GetClass().IsType(TypeFlags);
+	return TypeFlags != EClassCastFlags::None ? GetClass().IsType(TypeFlags) : true;
 }
 
 UEObject UEObject::GetOutermost()
@@ -178,7 +178,7 @@ UEField UEStruct::GetChild()
 
 int32 UEStruct::GetStructSize()
 {
-	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size));
+	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
 }
 
 

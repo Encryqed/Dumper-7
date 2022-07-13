@@ -48,6 +48,8 @@ public:
 
 class UEField : public UEObject
 {
+	using UEObject::UEObject;
+
 public:
 	UEField GetNext();
 	bool IsNextValid();
@@ -55,6 +57,8 @@ public:
 
 class UEEnum : public UEField
 {
+	using UEField::UEField;
+
 public:
 	TArray<TPair<FName, int64>>& GetNameValuePairs();
 	std::string GetSingleName(int32 Index);
@@ -64,6 +68,8 @@ public:
 
 class UEStruct : public UEField
 {
+	using UEField::UEField;
+
 public:
 	UEStruct GetSuper();
 	UEField GetChild();
@@ -72,6 +78,8 @@ public:
 
 class UEClass : public UEStruct
 {
+	using UEStruct::UEStruct;
+
 public:
 	EClassCastFlags GetFlags();
 	bool IsType(EClassCastFlags TypeFlag);
@@ -80,6 +88,8 @@ public:
 
 class UEFunction : public UEStruct
 {
+	using UEStruct::UEStruct;
+
 public:
 	EFunctionFlags GetFunctionFlags();
 	bool HasFlags(EFunctionFlags Flags);
@@ -87,6 +97,8 @@ public:
 
 class UEProperty : public UEField
 {
+	using UEField::UEField;
+
 public:
 	static std::unordered_map<std::string, uint32_t> UnknownProperties;
 
@@ -102,6 +114,8 @@ public:
 
 class UEByteProperty : public UEProperty
 {
+	using UEProperty::UEProperty;
+
 public:
 	UEEnum GetEnum();
 
@@ -110,6 +124,8 @@ public:
 
 class UEBoolProperty : public UEProperty
 {
+	using UEProperty::UEProperty;
+
 public:
 	uint8 GetBitIndex();
 	bool IsNativeBool();
@@ -119,6 +135,8 @@ public:
 
 class UEObjectProperty : public UEProperty
 {
+	using UEProperty::UEProperty;
+
 public:
 	UEClass GetPropertyClass();
 
@@ -127,6 +145,8 @@ public:
 
 class UEClassProperty : public UEProperty
 {
+	using UEProperty::UEProperty;
+
 public:
 	UEClass GetMetaClass();
 
@@ -135,6 +155,8 @@ public:
 
 class UEStructProperty : public UEProperty
 {
+	using UEProperty::UEProperty;
+
 public:
 	UEStruct GetUnderlayingStruct();
 
@@ -143,6 +165,8 @@ public:
 
 class UEArrayProperty : public UEProperty
 {
+	using UEProperty::UEProperty;
+
 public:
 	UEProperty GetInnerProperty();
 
@@ -151,6 +175,8 @@ public:
 
 class UEMapProperty : public UEProperty
 {
+	using UEProperty::UEProperty;
+
 public:
 	UEProperty GetKeyProperty();
 	UEProperty GetValueProperty();
@@ -160,6 +186,8 @@ public:
 
 class UESetProperty : public UEProperty
 {
+	using UEProperty::UEProperty;
+
 public:
 	UEProperty GetElementProperty();
 
@@ -168,6 +196,8 @@ public:
 
 class UEEnumProperty : public UEProperty
 {
+	using UEProperty::UEProperty;
+
 public:
 	UEProperty GetUnderlayingProperty();
 	UEEnum GetEnum();

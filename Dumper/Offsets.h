@@ -5,6 +5,11 @@ namespace Off
 {
 	inline void Init();
 
+	namespace FUObjectArray
+	{
+		inline int32 Num;
+	}
+
 	namespace UObject
 	{
 		inline constexpr const uint32 Vft = 0x00;
