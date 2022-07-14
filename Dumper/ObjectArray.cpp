@@ -1,6 +1,7 @@
-#include "ObjectArray.h"
 #include <iostream>
 #include <fstream>
+#include "ObjectArray.h"
+#include "Offsets.h"
 
 
 /* Scuffed stuff up here */
@@ -100,6 +101,10 @@ struct FFixedUObjectArray
 };
 
 
+uint8* ObjectArray::GObjects = nullptr;
+uint32 ObjectArray::NumElementsPerChunk = 0x10000;
+
+/* We don't speak about this function... */
 void ObjectArray::Initialize()
 {
 	uintptr_t ImageBase = uintptr_t(GetModuleHandle(0));
@@ -132,17 +137,15 @@ void ObjectArray::Initialize()
 			GObjects = DataSection + i;
 			Off::FUObjectArray::Num = 0xC;
 
-			std::cout << "Found GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase<< "\n";
+			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase<< "\n";
 
-			ByIndex = [](void* ObjectsArray, int32 Index) -> void*
+			ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
 			{
-				ByIndex = [](void* ObjectsArray, int32 Index) -> void*
-				{
-					if (Index < 0 || Index > *(int32*)(uintptr_t(ObjectsArray) + Off::FUObjectArray::Num))
-						return nullptr;
+				if (Index < 0 || Index > Num())
+					return nullptr;
 
-					return reinterpret_cast<FFixedUObjectArray*>(ObjectsArray)->Objects[Index].Object;
-				};
+				return reinterpret_cast<FFixedUObjectArray*>(ObjectsArray)->Objects[Index].Object;
+				
 			};
 
 			break;
@@ -152,18 +155,23 @@ void ObjectArray::Initialize()
 			GObjects = DataSection + i;
 			Off::FUObjectArray::Num = 0x14;
 
-			std::cout << "Found GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase << "\n";
+			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase << "\n";
 			
-			ByIndex = [](void* ObjectsArray, int32 Index) -> void*
+			ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
 			{
-				if (Index < 0 || Index > *(int32*)(uintptr_t(ObjectsArray) + Off::FUObjectArray::Num))
+				if (Index < 0 || Index > Num())
 					return nullptr;
 
-				const int32 ChunkIndex = Index / 0x10000;
-				const int32 InChunkIdx = Index % 0x10000;
+				const int32 ChunkIndex = Index / PerChunk;
+				const int32 InChunkIdx = Index % PerChunk;
 
 				return reinterpret_cast<FChunkedFixedUObjectArray*>(ObjectsArray)->Objects[ChunkIndex][InChunkIdx].Object;
 			};
+
+			if (ObjectArray::GetByIndex(300000).GetIndex() != 300000)
+			{
+				NumElementsPerChunk = 0x10400;
+			}
 
 			break;
 		}
@@ -175,6 +183,9 @@ void ObjectArray::Initialize()
 void ObjectArray::DumpObjects()
 {
 	std::ofstream DumpStream("GObjects-Dump.txt");
+
+	DumpStream << "Object dump by Dumper-7\n\n";
+	DumpStream << "Count: " << Num() << "\n\n\n";
 
 	for (auto Object : ObjectArray())
 	{
@@ -208,17 +219,17 @@ int32 ObjectArray::Num()
 template<typename UEType>
 static UEType ObjectArray::GetByIndex(int32 Index)
 {
-	return UEType(ByIndex(GObjects, Index));
+	return UEType(ByIndex(GObjects, Index, NumElementsPerChunk));
 }
 
 template<typename UEType>
 UEType ObjectArray::FindObject(std::string FullName, EClassCastFlags RequiredType)
 {
-	for (UEObject Object : *this)
+	for (UEObject Object : ObjectArray())
 	{
 		if (Object.IsA(RequiredType) && Object.GetFullName() == FullName)
 		{
-			return UEType(Object);
+			return UEType(Object.GetAddress());
 		}
 	}
 
@@ -228,11 +239,11 @@ UEType ObjectArray::FindObject(std::string FullName, EClassCastFlags RequiredTyp
 template<typename UEType>
 UEType ObjectArray::FindObjectFast(std::string Name, EClassCastFlags RequiredType)
 {
-	for (UEObject Object : *this)
+	for (UEObject Object : ObjectArray())
 	{
 		if (Object.IsA(RequiredType) && Object.GetName() == Name)
 		{
-			return UEType(Object);
+			return UEType(Object.GetAddress());
 		}
 	}
 
@@ -260,23 +271,95 @@ ObjectArray::ObjectsIterator ObjectArray::end()
 
 
 ObjectArray::ObjectsIterator::ObjectsIterator(ObjectArray& Array, int32 StartIndex)
-	: IteratedArray(Array), CurrentIndex(StartIndex)
+	: IteratedArray(Array), CurrentIndex(StartIndex), CurrentObject(ObjectArray::GetByIndex(StartIndex))
 {
 }
 
 UEObject ObjectArray::ObjectsIterator::operator*()
 {
-	return ObjectArray::GetByIndex(CurrentIndex);
+	return CurrentObject;
 }
 
 ObjectArray::ObjectsIterator& ObjectArray::ObjectsIterator::operator++()
 {
-	++CurrentIndex;
+	CurrentObject = ObjectArray::GetByIndex(++CurrentIndex);
+
+	while (!CurrentObject)
+	{
+		CurrentObject = ObjectArray::GetByIndex(++CurrentIndex);
+	}
 
 	return *this;
 }
 
-bool ObjectArray::ObjectsIterator::operator!=(ObjectsIterator& Other)
+bool ObjectArray::ObjectsIterator::operator!=(const ObjectsIterator& Other)
 {
 	return CurrentIndex != Other.CurrentIndex;
+}
+
+int32 ObjectArray::ObjectsIterator::GetIndex() const
+{
+	return CurrentIndex;
+}
+
+
+/*
+* The compiler won't generate functions for a specific template type unless it's used in the .cpp file corresponding to the
+* header it was declatred in.
+* 
+* See https://stackoverflow.com/questions/456713/why-do-i-get-unresolved-external-symbol-errors-when-using-templates
+*/
+void TemplateTypeCreationForObjectArray(void)
+{
+	ObjectArray::FindObject<UEObject>("");
+	ObjectArray::FindObject<UEField>("");
+	ObjectArray::FindObject<UEEnum>("");
+	ObjectArray::FindObject<UEStruct>("");
+	ObjectArray::FindObject<UEClass>("");
+	ObjectArray::FindObject<UEFunction>("");
+	ObjectArray::FindObject<UEProperty>("");
+	ObjectArray::FindObject<UEByteProperty>("");
+	ObjectArray::FindObject<UEBoolProperty>("");
+	ObjectArray::FindObject<UEObjectProperty>("");
+	ObjectArray::FindObject<UEClassProperty>("");
+	ObjectArray::FindObject<UEStructProperty>("");
+	ObjectArray::FindObject<UEArrayProperty>("");
+	ObjectArray::FindObject<UEMapProperty>("");
+	ObjectArray::FindObject<UESetProperty>("");
+	ObjectArray::FindObject<UEEnumProperty>("");
+
+	ObjectArray::FindObjectFast<UEObject>("");
+	ObjectArray::FindObjectFast<UEField>("");
+	ObjectArray::FindObjectFast<UEEnum>("");
+	ObjectArray::FindObjectFast<UEStruct>("");
+	ObjectArray::FindObjectFast<UEClass>("");
+	ObjectArray::FindObjectFast<UEFunction>("");
+	ObjectArray::FindObjectFast<UEProperty>("");
+	ObjectArray::FindObjectFast<UEByteProperty>("");
+	ObjectArray::FindObjectFast<UEBoolProperty>("");
+	ObjectArray::FindObjectFast<UEObjectProperty>("");
+	ObjectArray::FindObjectFast<UEClassProperty>("");
+	ObjectArray::FindObjectFast<UEStructProperty>("");
+	ObjectArray::FindObjectFast<UEArrayProperty>("");
+	ObjectArray::FindObjectFast<UEMapProperty>("");
+	ObjectArray::FindObjectFast<UESetProperty>("");
+	ObjectArray::FindObjectFast<UEEnumProperty>("");
+
+
+	ObjectArray::GetByIndex<UEObject>(-1);
+	ObjectArray::GetByIndex<UEField>(-1);
+	ObjectArray::GetByIndex<UEEnum>(-1);
+	ObjectArray::GetByIndex<UEStruct>(-1);
+	ObjectArray::GetByIndex<UEClass>(-1);
+	ObjectArray::GetByIndex<UEFunction>(-1);
+	ObjectArray::GetByIndex<UEProperty>(-1);
+	ObjectArray::GetByIndex<UEByteProperty>(-1);
+	ObjectArray::GetByIndex<UEBoolProperty>(-1);
+	ObjectArray::GetByIndex<UEObjectProperty>(-1);
+	ObjectArray::GetByIndex<UEClassProperty>(-1);
+	ObjectArray::GetByIndex<UEStructProperty>(-1);
+	ObjectArray::GetByIndex<UEArrayProperty>(-1);
+	ObjectArray::GetByIndex<UEMapProperty>(-1);
+	ObjectArray::GetByIndex<UESetProperty>(-1);
+	ObjectArray::GetByIndex<UEEnumProperty>(-1);
 }

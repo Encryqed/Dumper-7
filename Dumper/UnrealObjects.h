@@ -1,9 +1,8 @@
 #pragma once
-#include "Enums.h"
-#include "Offsets.h"
-#include "UnrealTypes.h"
 #include <vector>
 #include <unordered_map>
+#include "Enums.h"
+#include "UnrealTypes.h"
 
 class UEClass;
 
@@ -18,6 +17,11 @@ public:
 
 	UEObject(void* NewObject)
 		: Object(reinterpret_cast<uint8*>(NewObject))
+	{
+	}
+
+	UEObject(const UEObject& OldObject)
+		: Object(reinterpret_cast<uint8*>(OldObject.Object))
 	{
 	}
 

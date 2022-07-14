@@ -1,5 +1,5 @@
 #pragma once
-#include "ObjectArray.h"
+#include "Enums.h"
 
 namespace Off
 {
@@ -7,14 +7,14 @@ namespace Off
 
 	namespace FUObjectArray
 	{
-		inline int32 Num;
+		inline uint32 Num;
 	}
 
 	namespace UObject
 	{
 		inline constexpr const uint32 Vft = 0x00;
-		inline constexpr const uint32 Flags = 0x04;
-		inline constexpr const uint32 Index = 0x08;
+		inline constexpr const uint32 Flags = 0x08;
+		inline constexpr const uint32 Index = 0x0C;
 		inline constexpr const uint32 Class = 0x10;
 		inline constexpr const uint32 Name = 0x18;
 		inline constexpr const uint32 Outer = 0x20;

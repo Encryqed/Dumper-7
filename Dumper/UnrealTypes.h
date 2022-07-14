@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <Windows.h>
+#include <iostream>
 #include "Enums.h"
 
 template<typename ValueType, typename KeyType>
@@ -22,9 +23,23 @@ protected:
 	int32 MaxElements;
 
 public:
+
+	TArray() = default;
+
+	inline TArray(int32 Num)
+		:NumElements(0), MaxElements(Num)
+	{
+		//Data = (T*)VirtualAlloc(nullptr, sizeof(T) * Num, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+		Data = (T*)malloc(sizeof(T) * Num);
+	}
+
 	inline T& operator[](uint32 Index)
 	{
-		return Index < NumElements ? Data[Index] : nullptr;
+		return Data[Index];
+	}
+	inline const T& operator[](uint32 Index) const
+	{
+		return Data[Index];
 	}
 
 	inline int32 Num()
@@ -65,12 +80,21 @@ public:
 		NumElements = 0;
 		MaxElements = 0;
 	}
+	inline void MallocFree()
+	{
+		//free(Data);
+		//Data = nullptr;
+		NumElements = 0;
+		//MaxElements = 0;
+	}
 };
 
 class FString : public TArray<wchar_t>
 {
 public:
 	inline FString() = default;
+
+	using TArray::TArray;
 
 	inline FString(const wchar_t* WChar)
 	{
@@ -114,12 +138,17 @@ public:
 
 	inline std::string ToString()
 	{
-		FString TempString;
+		static FString TempString(1024);
 		auto FNameToString = reinterpret_cast<void(*)(void*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x168ED10);
-		FNameToString(this, TempString);
+		auto FNameAppendChars = reinterpret_cast<void(*)(FName*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x167EA30);
+
+		//FNameToString(this, TempString);
+		FNameAppendChars(this, TempString);
 
 		std::string OutputString = TempString.ToString();
-		TempString.Free();
+
+		TempString.MallocFree();
+		//TempString.Free();
 
 		size_t pos = OutputString.rfind('/');
 

@@ -1,11 +1,7 @@
 #include "Offsets.h"
+#include "ObjectArray.h"
 
 void Off::Init()
 {
-	ObjectArray::ByIndex = [](void* Addr, int32 Index) -> void*
-	{
 
-	}
-
-	FUObjectArray::Num;
 }

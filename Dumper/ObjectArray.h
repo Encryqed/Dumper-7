@@ -1,13 +1,15 @@
 #pragma once
 #include <string>
+#include <vector>
 #include "UnrealObjects.h"
 
 class ObjectArray
 {
 private:
 	static uint8* GObjects;
+	static uint32 NumElementsPerChunk;
 
-	static inline void* (*ByIndex)(void* ObjectsArray, int32 Index) = nullptr;
+	static inline void* (*ByIndex)(void* ObjectsArray, int32 Index, uint32 PerChunk) = nullptr;
 
 public:
 	static void Initialize();
@@ -21,20 +23,25 @@ public:
 	static UEType GetByIndex(int32 Index);
 
 	template<typename UEType = UEObject>
-	UEType FindObject(std::string FullName, EClassCastFlags RequiredType = EClassCastFlags::None);
+	static UEType FindObject(std::string FullName, EClassCastFlags RequiredType = EClassCastFlags::None);
 
 	template<typename UEType = UEObject>
-	UEType FindObjectFast(std::string Name, EClassCastFlags RequiredType = EClassCastFlags::None);
+	static UEType FindObjectFast(std::string Name, EClassCastFlags RequiredType = EClassCastFlags::None);
 
 
-	UEClass FindClass(std::string FullName);
+	static UEClass FindClass(std::string FullName);
 
-	UEClass FindClassFast(std::string Name);
+	static UEClass FindClassFast(std::string Name);
 
+
+	//UEObject FindClass(std::string FullName);
+	//
+	//UEObject FindClassFast(std::string Name);
 
 	class ObjectsIterator
 	{
 		ObjectArray& IteratedArray;
+		UEObject CurrentObject;
 		int32 CurrentIndex;
 
 	public:
@@ -42,7 +49,9 @@ public:
 
 		UEObject operator*();
 		ObjectsIterator& operator++();
-		bool operator!=(ObjectsIterator& Other);
+		bool operator!=(const ObjectsIterator& Other);
+
+		int32 GetIndex() const;
 	};
 
 	ObjectsIterator begin();

@@ -311,6 +311,8 @@ std::string UEProperty::GetCppType()
 
 		UnknownProperties.insert({ CppName, GetSize() });
 
+		return CppName;
+
 		break;
 	}
 }
@@ -448,6 +450,34 @@ std::string UEEnumProperty::GetCppType()
 	return GetEnum().GetEnumTypeAsStr();
 }
 
+
+/*
+* The compiler won't generate functions for a specific template type unless it's used in the .cpp file corresponding to the
+* header it was declatred in.
+*
+* See https://stackoverflow.com/questions/456713/why-do-i-get-unresolved-external-symbol-errors-when-using-templates
+*/
+void TemplateTypeCreationForUnrealObjects(void)
+{
+	UEObject Dummy(nullptr);
+
+	Dummy.Cast<UEObject>();
+	Dummy.Cast<UEField>();
+	Dummy.Cast<UEEnum>();
+	Dummy.Cast<UEStruct>();
+	Dummy.Cast<UEClass>();
+	Dummy.Cast<UEFunction>();
+	Dummy.Cast<UEProperty>();
+	Dummy.Cast<UEByteProperty>();
+	Dummy.Cast<UEBoolProperty>();
+	Dummy.Cast<UEObjectProperty>();
+	Dummy.Cast<UEClassProperty>();
+	Dummy.Cast<UEStructProperty>();
+	Dummy.Cast<UEArrayProperty>();
+	Dummy.Cast<UEMapProperty>();
+	Dummy.Cast<UESetProperty>();
+	Dummy.Cast<UEEnumProperty>();
+}
 
 
 
