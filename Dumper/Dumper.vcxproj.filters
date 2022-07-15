@@ -42,5 +42,8 @@
     <ClInclude Include="UnrealObjects.h">
       <Filter>Engine\Public</Filter>
     </ClInclude>
+    <ClInclude Include="Utils.h">
+      <Filter>Engine\Public</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

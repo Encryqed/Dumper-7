@@ -1,7 +1,14 @@
 #include <Windows.h>
 #include <iostream>
+#include <chrono>
 #include "Enums.h"
 #include "ObjectArray.h"
+#include "Utils.h"
+
+using std::chrono::high_resolution_clock;
+using std::chrono::duration_cast;
+using std::chrono::duration;
+using std::chrono::milliseconds;
 
 DWORD MainThread(HMODULE Module)
 {
@@ -10,34 +17,24 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONOUT$", "w", stdout);
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
-
 	ObjectArray::Initialize();
 
-	//add core offsets before testing, retard
-	std::cout << ObjectArray::FindObject<UEObject>(ObjectArray::GetByIndex(ObjectArray::Num() - 1).GetFullName()).GetFullName() << "\n\n";
-
-	std::cout << ObjectArray::GetByIndex(80000).GetAddress() << "\n";
-
-	std::cout << "Objects[1500]: "   << std::dec << ObjectArray::GetByIndex(1500).GetIndex() << "\n";
-	std::cout << "Objects[15000]: "  << std::dec << ObjectArray::GetByIndex(15000).GetIndex() << "\n";
-	std::cout << "Objects[150000]: " << std::dec << ObjectArray::GetByIndex(150000).GetIndex() << "\n";
-	std::cout << "Objects[4587]: "   << std::dec << ObjectArray::GetByIndex(4587).GetIndex() << "\n";
-	std::cout << "Objects[300000]: " << std::dec << ObjectArray::GetByIndex(300000).GetIndex() << "\n\n";
-
-	std::cout << "Objects[300000]: " << std::dec << ObjectArray::GetByIndex(300000).GetName() << "\n\n";
-
-	int32 LastIndex = -1;
-	for (auto Object : ObjectArray())
 	{
-		if (Object.GetFullName().length() == LastIndex)
+		auto t_1 = high_resolution_clock::now();
+		for (int i = 0; i < 0x1; i++)
 		{
-			std::cout << "Non continuos! (" << Object.GetIndex() << ")\n";
+			if (ObjectArray::FindObject("HansMeier der krasse ficker!"))
+			{
+				std::cout << "ddl\n\n";
+			}
 		}
+		auto t_2 = high_resolution_clock::now();
+	
+		auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
+		duration<double, std::milli> ms_double_ = t_2 - t_1;
+	
+		std::cout << "\n\nComparing 1k times took (" << ms_int_.count() << "ms)\n\n\n";
 	}
-	std::cout << "Passed check!\n";
-
-	std::cout << ObjectArray::GetByIndex(300000).GetAddress() << "\n";
-
 
 	while (true)
 	{

@@ -2,25 +2,10 @@
 #include <fstream>
 #include "ObjectArray.h"
 #include "Offsets.h"
+#include "Utils.h"
 
 
 /* Scuffed stuff up here */
-static bool IsBadReadPtr(void* p)
-{
-	MEMORY_BASIC_INFORMATION mbi;
-	if (VirtualQuery(p, &mbi, sizeof(mbi)))
-	{
-		DWORD mask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
-		bool b = !(mbi.Protect & mask);
-		if (mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS))
-			b = true;
-
-		return b;
-	}
-
-	return true;
-};
-
 struct FChunkedFixedUObjectArray
 {
 	struct FUObjectItem
@@ -107,6 +92,8 @@ uint32 ObjectArray::NumElementsPerChunk = 0x10000;
 /* We don't speak about this function... */
 void ObjectArray::Initialize()
 {
+	std::cout << "\nDumper-7 by Encryqed & me\n\n\n";
+
 	uintptr_t ImageBase = uintptr_t(GetModuleHandle(0));
 	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
 	PIMAGE_NT_HEADERS NtHeader = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
@@ -137,7 +124,7 @@ void ObjectArray::Initialize()
 			GObjects = DataSection + i;
 			Off::FUObjectArray::Num = 0xC;
 
-			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase<< "\n";
+			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase << std::dec << "\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
 			{
@@ -155,7 +142,7 @@ void ObjectArray::Initialize()
 			GObjects = DataSection + i;
 			Off::FUObjectArray::Num = 0x14;
 
-			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase << "\n";
+			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase << std::dec << "\n";
 			
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
 			{
@@ -229,7 +216,7 @@ UEType ObjectArray::FindObject(std::string FullName, EClassCastFlags RequiredTyp
 	{
 		if (Object.IsA(RequiredType) && Object.GetFullName() == FullName)
 		{
-			return UEType(Object.GetAddress());
+			return Object.Cast<UEType>();
 		}
 	}
 
@@ -243,7 +230,7 @@ UEType ObjectArray::FindObjectFast(std::string Name, EClassCastFlags RequiredTyp
 	{
 		if (Object.IsA(RequiredType) && Object.GetName() == Name)
 		{
-			return UEType(Object.GetAddress());
+			return Object.Cast<UEType>();
 		}
 	}
 
@@ -284,7 +271,7 @@ ObjectArray::ObjectsIterator& ObjectArray::ObjectsIterator::operator++()
 {
 	CurrentObject = ObjectArray::GetByIndex(++CurrentIndex);
 
-	while (!CurrentObject)
+	while (!CurrentObject && CurrentIndex < ObjectArray::Num())
 	{
 		CurrentObject = ObjectArray::GetByIndex(++CurrentIndex);
 	}

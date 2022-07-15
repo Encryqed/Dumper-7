@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <iostream>
 #include "Enums.h"
+#include "Utils.h"
 
 template<typename ValueType, typename KeyType>
 class TPair
@@ -139,11 +140,13 @@ public:
 	inline std::string ToString()
 	{
 		static FString TempString(1024);
-		auto FNameToString = reinterpret_cast<void(*)(void*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x168ED10);
-		auto FNameAppendChars = reinterpret_cast<void(*)(FName*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x167EA30);
-
+		static auto FNameToString = reinterpret_cast<void(*)(void*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x168ED10);
+		//static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x167EA30);
+		static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(FindByString("ForwardShadingQuality_").GetCalledFunction(2));
+		//1.8 auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x1337530);
+		
 		//FNameToString(this, TempString);
-		FNameAppendChars(this, TempString);
+		AppendString(this, TempString);
 
 		std::string OutputString = TempString.ToString();
 
