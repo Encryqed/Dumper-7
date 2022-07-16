@@ -81,12 +81,9 @@ public:
 		NumElements = 0;
 		MaxElements = 0;
 	}
-	inline void MallocFree()
+	inline void ResetNum()
 	{
-		//free(Data);
-		//Data = nullptr;
 		NumElements = 0;
-		//MaxElements = 0;
 	}
 };
 
@@ -140,18 +137,12 @@ public:
 	inline std::string ToString()
 	{
 		static FString TempString(1024);
-		static auto FNameToString = reinterpret_cast<void(*)(void*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x168ED10);
-		//static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x167EA30);
 		static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(FindByString("ForwardShadingQuality_").GetCalledFunction(2));
-		//1.8 auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x1337530);
 		
-		//FNameToString(this, TempString);
 		AppendString(this, TempString);
 
 		std::string OutputString = TempString.ToString();
-
-		TempString.MallocFree();
-		//TempString.Free();
+		TempString.ResetNum();
 
 		size_t pos = OutputString.rfind('/');
 

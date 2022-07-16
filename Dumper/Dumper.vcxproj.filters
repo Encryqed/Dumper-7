@@ -25,6 +25,9 @@
     <Filter Include="Engine\Public">
       <UniqueIdentifier>{b5a6970c-66b5-4546-8bc3-8bc17d28045a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Utils">
+      <UniqueIdentifier>{da88a5f5-413a-4b03-9503-d846f46c9162}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ObjectArray.h">
@@ -43,6 +46,9 @@
       <Filter>Engine\Public</Filter>
     </ClInclude>
     <ClInclude Include="Utils.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="OffsetFinder.h">
       <Filter>Engine\Public</Filter>
     </ClInclude>
   </ItemGroup>

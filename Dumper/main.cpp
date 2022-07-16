@@ -1,9 +1,12 @@
 #include <Windows.h>
 #include <iostream>
 #include <chrono>
+#include <fstream>
 #include "Enums.h"
 #include "ObjectArray.h"
 #include "Utils.h"
+#include "OffsetFinder.h"
+#include "Offsets.h"
 
 using std::chrono::high_resolution_clock;
 using std::chrono::duration_cast;
@@ -18,22 +21,47 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
 	ObjectArray::Initialize();
+	Off::Init();
+	
+
+	std::cout << "Some FullName: " << ObjectArray::GetByIndex(69).GetFullName() << "\n";
+
+	auto t_1 = high_resolution_clock::now();
+	
+	std::ofstream DumpStream("Properties.txt");
+
+	DumpStream << "Properties:\n\n";
+
+	for (auto Object : ObjectArray())
+	{
+		if (Object.IsA(EClassCastFlags::UProperty) && !Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+		{
+			DumpStream << Object.GetFullName() << "\n";
+			DumpStream << Object.Cast<UEProperty>().GetCppType() << " " << Object.Cast<UEProperty>().GetValidName() << ";\n";
+		}
+	}
+	DumpStream.close();
+
+	auto t_2 = high_resolution_clock::now();
+
+
+
+	auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
+	duration<double, std::milli> ms_double_ = t_2 - t_1;
+
+	std::cout << "\n\Finding Offsets took (" << ms_int_.count() << "ms)\n\n\n";
+
+	std::cout << "Some FullName: " << ObjectArray::GetByIndex(69).GetFullName() << "\n";
+
 
 	{
 		auto t_1 = high_resolution_clock::now();
-		for (int i = 0; i < 0x1; i++)
-		{
-			if (ObjectArray::FindObject("HansMeier der krasse ficker!"))
-			{
-				std::cout << "ddl\n\n";
-			}
-		}
 		auto t_2 = high_resolution_clock::now();
 	
 		auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
 		duration<double, std::milli> ms_double_ = t_2 - t_1;
 	
-		std::cout << "\n\nComparing 1k times took (" << ms_int_.count() << "ms)\n\n\n";
+		std::cout << "\n\nComparing 0 times took (" << ms_int_.count() << "ms)\n\n\n";
 	}
 
 	while (true)

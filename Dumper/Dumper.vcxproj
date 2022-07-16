@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClInclude Include="Enums.h" />
     <ClInclude Include="ObjectArray.h" />
+    <ClInclude Include="OffsetFinder.h" />
     <ClInclude Include="Offsets.h" />
     <ClInclude Include="UnrealObjects.h" />
     <ClInclude Include="UnrealTypes.h" />

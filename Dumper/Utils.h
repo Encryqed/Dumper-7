@@ -123,7 +123,7 @@ public:
 				//opcode: call
 				if (Address[i + j] == 0xE8)
 				{
-					void* Func = (void*)(((0xFFFFFFFF00000000 | *(uint32*)(Address + j + i + 1)) + uintptr_t(Address + j + i)) + 5);
+					void* Func = (void*)(((0xFFFFFFFF00000000 | *(uint32*)(Address + i + j + 1)) + uintptr_t(Address + i + j)) + 5);
 
 					if (++NumCalls == FunctionIndex)
 					{

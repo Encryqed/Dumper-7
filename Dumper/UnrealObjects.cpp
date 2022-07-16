@@ -40,12 +40,12 @@ bool UEObject::HasAnyFlags(EObjectFlags Flags)
 template<typename UEType>
 UEType UEObject::Cast()
 {
-	return UEType(this->GetAddress());
+	return UEType(GetAddress());
 }
 
 bool UEObject::IsA(EClassCastFlags TypeFlags)
 {
-	return TypeFlags != EClassCastFlags::None ? GetClass().IsType(TypeFlags) : true;
+	return (TypeFlags != EClassCastFlags::None ? GetClass().IsType(TypeFlags) : true);
 }
 
 UEObject UEObject::GetOutermost()
@@ -61,7 +61,7 @@ UEObject UEObject::GetOutermost()
 
 std::string UEObject::GetName()
 {
-	return GetFName().ToString();
+	return Object ? GetFName().ToString() : "None";
 }
 
 std::string UEObject::GetValidName()
@@ -83,16 +83,17 @@ std::string UEObject::GetCppName()
 {
 	std::string Temp = GetValidName();
 
-	if (this->IsA(EClassCastFlags::AActor))
+	if (this->IsA(EClassCastFlags::UClass))
 	{
-		return 'A' + Temp;
-	}
-	else if (this->IsA(EClassCastFlags::UStruct))
-	{
-		return 'F' + Temp;
+		if (this->Cast<UEClass>().IsType(EClassCastFlags::AActor))
+		{
+			return 'A' + Temp;
+		}
+
+		return 'U' + Temp;
 	}
 
-	return 'U' + Temp;
+	return 'F' + Temp;
 }
 
 std::string UEObject::GetFullName()
@@ -233,87 +234,109 @@ std::string UEProperty::GetCppType()
 {
 	EClassCastFlags TypeFlags = GetClass().GetFlags();
 
-	switch (TypeFlags)
+	if(TypeFlags & EClassCastFlags::UInt8Property)
 	{
-	case EClassCastFlags::UInt8Property:
 		return "uint8";
-		break;
-	case EClassCastFlags::UUInt16Property:
+	}
+	else if (TypeFlags &  EClassCastFlags::UUInt16Property)
+	{
 		return "uint16";
-		break;
-	case EClassCastFlags::UUInt32Property:
+	}
+	else if (TypeFlags &  EClassCastFlags::UUInt32Property)
+	{
 		return "uint32";
-		break;
-	case EClassCastFlags::UUInt64Property:
+	}
+	else if (TypeFlags &  EClassCastFlags::UUInt64Property)
+	{
 		return "uint64";
-		break;
-	case EClassCastFlags::UByteProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UByteProperty)
+	{
 		return Cast<UEByteProperty>().GetCppType();
-		break;
-	case EClassCastFlags::UInt16Property:
+	}
+	else if (TypeFlags &  EClassCastFlags::UInt16Property)
+	{
 		return "int16";
-		break;
-	case EClassCastFlags::UIntProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UIntProperty)
+	{
 		return "int32";
-		break;
-	case EClassCastFlags::UInt64Property:
+	}
+	else if (TypeFlags &  EClassCastFlags::UInt64Property)
+	{
 		return "int64";
-		break;
-	case EClassCastFlags::UFloatProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UFloatProperty)
+	{
 		return "float";
-		break;
-	case EClassCastFlags::UDoubleProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UDoubleProperty)
+	{
 		return "double";
-		break;
-	case EClassCastFlags::UClassProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UClassProperty)
+	{
 		return Cast<UEClassProperty>().GetCppType();
-		break;
-	case EClassCastFlags::UNameProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UNameProperty)
+	{
 		return "FName";
-		break;
-	case EClassCastFlags::UStrProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UStrProperty)
+	{
 		return "FString";
-		break;
-	case EClassCastFlags::UBoolProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UBoolProperty)
+	{
 		return Cast<UEBoolProperty>().GetCppType();
-		break;
-	case EClassCastFlags::UStructProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UStructProperty)
+	{
 		return Cast<UEStructProperty>().GetCppType();
-		break;
-	case EClassCastFlags::UArrayProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UArrayProperty)
+	{
 		return Cast<UEArrayProperty>().GetCppType();
-		break;
-	//case EClassCastFlags::UWeakObjectProperty:
-	//	break;
-	//case EClassCastFlags::ULazyObjectProperty:
-	//	break;
-	//case EClassCastFlags::USoftObjectProperty:
-	//	break;
-	case EClassCastFlags::UTextProperty:
+	}
+	//else if (TypeFlags &  EClassCastFlags::UWeakObjectProperty)
+	//{
+	//}
+	//else if (TypeFlags &  EClassCastFlags::ULazyObjectProperty)
+	//{
+	//}
+	//else if (TypeFlags &  EClassCastFlags::USoftObjectProperty)
+	//{
+	//}
+	else if (TypeFlags &  EClassCastFlags::UTextProperty)
+	{
 		return "FText";
-		break;
-	//case EClassCastFlags::USoftClassProperty:
-	//	break;
-	case EClassCastFlags::UObjectProperty:
+	}
+	//else if (TypeFlags &  EClassCastFlags::USoftClassProperty)
+	//{
+	//}
+	else if (TypeFlags &  EClassCastFlags::UObjectProperty)
+	{
 		return Cast<UEObjectProperty>().GetCppType();
-		break;
-	case EClassCastFlags::UMapProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UMapProperty)
+	{
 		return Cast<UEMapProperty>().GetCppType();
-		break;
-	case EClassCastFlags::USetProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::USetProperty)
+	{
 		return Cast<UESetProperty>().GetCppType();
-		break;
-	case EClassCastFlags::UEnumProperty:
+	}
+	else if (TypeFlags &  EClassCastFlags::UEnumProperty)
+	{
 		return Cast<UEEnumProperty>().GetCppType();
-		break;
-	default:
+	}
+	else
+	{
 		std::string CppName = GetClass().GetCppName();
 
 		UnknownProperties.insert({ CppName, GetSize() });
 
 		return CppName;
-
-		break;
 	}
 }
 

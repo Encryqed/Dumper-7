@@ -3,7 +3,7 @@
 
 namespace Off
 {
-	inline void Init();
+	void Init();
 
 	//Offsets not to be used during generation but inside of the generated SDK
 	namespace InSDK
@@ -51,7 +51,7 @@ namespace Off
 
 	namespace UClass
 	{
-		inline uint8 ClassFlags;
+		inline uint32 ClassFlags;
 		inline uint32 ClassDefaultObject;
 	}
 
