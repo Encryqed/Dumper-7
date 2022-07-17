@@ -117,4 +117,24 @@ namespace Types
 
 		std::string GetGeneratedBody();
 	};
+
+	class Struct
+	{
+	private:
+		std::string Declaration;
+		std::string InnerBody;
+		std::string WholeBody;
+		std::string Comments;
+		std::vector<Member> StructMembers;
+
+	public:
+		Struct(std::string Name);
+		~Struct();
+
+		void AddComment(std::string Comment);
+		void AddMember(Member& NewMember);
+		void AddMembers(std::vector<Member>& NewMembers);
+
+		std::string GetGeneratedBody();
+	};
 }

@@ -1,4 +1,4 @@
-#include "Types.hpp"
+#include "Types.h"
 
 Types::Class::Class(std::string Name)
 {
@@ -213,6 +213,46 @@ std::string Types::Enum::GetGeneratedBody()
 	InnerBody += "};\n\n";
 
 	WholeBody = Declaration + InnerBody;
+
+	return WholeBody;
+}
+
+Types::Struct::Struct(std::string Name)
+{
+	Declaration = std::format("struct {}\n", Name);
+	InnerBody = "{\n";
+}
+
+Types::Struct::~Struct()
+{
+}
+
+void Types::Struct::AddComment(std::string Comment)
+{
+	Comments += "// " + Comment + "\n";
+}
+
+void Types::Struct::AddMember(Member& NewMember)
+{
+	StructMembers.push_back(NewMember);
+}
+
+void Types::Struct::AddMembers(std::vector<Member>& NewMembers)
+{
+	for (Member NewMember : NewMembers)
+	{
+		StructMembers.push_back(NewMember);
+	}
+}
+
+std::string Types::Struct::GetGeneratedBody()
+{
+	for (Member StructMember : StructMembers)
+	{
+		InnerBody += StructMember.GetGeneratedBody();
+	}
+
+	WholeBody = Comments + Declaration + InnerBody + "};\n\n";
 
 	return WholeBody;
 }
