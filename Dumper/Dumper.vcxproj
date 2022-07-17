@@ -136,6 +136,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Generator.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ObjectArray.cpp" />
     <ClCompile Include="Offsets.cpp" />
@@ -144,6 +145,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Enums.h" />
+    <ClInclude Include="Generator.h" />
     <ClInclude Include="ObjectArray.h" />
     <ClInclude Include="OffsetFinder.h" />
     <ClInclude Include="Offsets.h" />

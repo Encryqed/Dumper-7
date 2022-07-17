@@ -90,7 +90,7 @@ uint8* ObjectArray::GObjects = nullptr;
 uint32 ObjectArray::NumElementsPerChunk = 0x10000;
 
 /* We don't speak about this function... */
-void ObjectArray::Initialize()
+void ObjectArray::Init()
 {
 	std::cout << "\nDumper-7 by Encryqed & me\n\n\n";
 
@@ -124,7 +124,9 @@ void ObjectArray::Initialize()
 			GObjects = DataSection + i;
 			Off::FUObjectArray::Num = 0xC;
 
-			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase << std::dec << "\n";
+			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
+
+			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
 			{
@@ -135,14 +137,16 @@ void ObjectArray::Initialize()
 				
 			};
 
-			break;
+			return;
 		}
 		else if (ChunkedArray->IsValid())
 		{
 			GObjects = DataSection + i;
 			Off::FUObjectArray::Num = 0x14;
 
-			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << uintptr_t(DataSection + i) - ImageBase << std::dec << "\n";
+			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
+
+			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
 			
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
 			{
@@ -160,11 +164,11 @@ void ObjectArray::Initialize()
 				NumElementsPerChunk = 0x10400;
 			}
 
-			break;
+			return;
 		}
 	}
 
-	std::cout << "\nFinished searching!\n\n\n";
+	std::cout << "\nGObjects couldn't be found!\n\n\n";
 }
 
 void ObjectArray::DumpObjects()

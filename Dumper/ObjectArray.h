@@ -12,7 +12,7 @@ private:
 	static inline void* (*ByIndex)(void* ObjectsArray, int32 Index, uint32 PerChunk) = nullptr;
 
 public:
-	static void Initialize();
+	static void Init();
 
 	static void DumpObjects();
 	static std::vector<int32> GetAllPackages();

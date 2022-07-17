@@ -4,6 +4,7 @@
 #include <iostream>
 #include "Enums.h"
 #include "Utils.h"
+#include "Offsets.h"
 
 template<typename ValueType, typename KeyType>
 class TPair
@@ -130,15 +131,28 @@ public:
 
 class FName
 {
+	static void(*AppendString)(FName*, FString&);
+
 public:
 	int32 ComparisonIndex;
 	int32 Number;
 
+	static void Init()
+	{
+		AppendString = reinterpret_cast<void(*)(FName*, FString&)>(FindByString("ForwardShadingQuality_").GetCalledFunction(2));
+	
+		Off::InSDK::AppendNameToString = uintptr_t(AppendString) - uintptr_t(GetModuleHandle(0));
+
+		std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
+	}
+
 	inline std::string ToString()
 	{
 		static FString TempString(1024);
-		static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(FindByString("ForwardShadingQuality_").GetCalledFunction(2));
 		
+		if (!AppendString)
+			Init();
+
 		AppendString(this, TempString);
 
 		std::string OutputString = TempString.ToString();

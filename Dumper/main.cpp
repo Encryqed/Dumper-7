@@ -20,7 +20,8 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONOUT$", "w", stdout);
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
-	ObjectArray::Initialize();
+	ObjectArray::Init();
+	FName::Init();
 	Off::Init();
 	
 

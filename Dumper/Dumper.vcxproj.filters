@@ -14,6 +14,9 @@
     <ClCompile Include="UnrealObjects.cpp">
       <Filter>Engine\Private</Filter>
     </ClCompile>
+    <ClCompile Include="Generator.cpp">
+      <Filter>Generator</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -27,6 +30,9 @@
     </Filter>
     <Filter Include="Utils">
       <UniqueIdentifier>{da88a5f5-413a-4b03-9503-d846f46c9162}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Generator">
+      <UniqueIdentifier>{a6bcdd0a-a630-4efa-bd57-2592e3c779cd}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -50,6 +56,9 @@
     </ClInclude>
     <ClInclude Include="OffsetFinder.h">
       <Filter>Engine\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Generator.h">
+      <Filter>Generator</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

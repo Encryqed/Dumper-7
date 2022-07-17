@@ -280,11 +280,11 @@ std::string UEProperty::GetCppType()
 	}
 	else if (TypeFlags &  EClassCastFlags::UNameProperty)
 	{
-		return "FName";
+		return "class FName";
 	}
 	else if (TypeFlags &  EClassCastFlags::UStrProperty)
 	{
-		return "FString";
+		return "class FString";
 	}
 	else if (TypeFlags &  EClassCastFlags::UBoolProperty)
 	{
@@ -298,6 +298,10 @@ std::string UEProperty::GetCppType()
 	{
 		return Cast<UEArrayProperty>().GetCppType();
 	}
+	else if (TypeFlags & EClassCastFlags::UTextProperty)
+	{
+		return "class FText";
+	}
 	//else if (TypeFlags &  EClassCastFlags::UWeakObjectProperty)
 	//{
 	//}
@@ -307,10 +311,6 @@ std::string UEProperty::GetCppType()
 	//else if (TypeFlags &  EClassCastFlags::USoftObjectProperty)
 	//{
 	//}
-	else if (TypeFlags &  EClassCastFlags::UTextProperty)
-	{
-		return "FText";
-	}
 	//else if (TypeFlags &  EClassCastFlags::USoftClassProperty)
 	//{
 	//}
@@ -394,7 +394,7 @@ UEClass UEObjectProperty::GetPropertyClass()
 
 std::string UEObjectProperty::GetCppType()
 {
-	return std::format("{}*", GetPropertyClass().GetCppName());
+	return std::format("class {}*", GetPropertyClass().GetCppName());
 }
 
 
@@ -405,7 +405,7 @@ UEClass UEClassProperty::GetMetaClass()
 
 std::string UEClassProperty::GetCppType()
 {
-	return HasPropertyFlags(EPropertyFlags::UObjectWrapper) ? std::format("TSubclassOf<{}>", GetMetaClass().GetCppName()) : "UClass*";
+	return HasPropertyFlags(EPropertyFlags::UObjectWrapper) ? std::format("class TSubclassOf<{}>", GetMetaClass().GetCppName()) : "class UClass*";
 }
 
 
@@ -416,7 +416,7 @@ UEStruct UEStructProperty::GetUnderlayingStruct()
 
 std::string UEStructProperty::GetCppType()
 {
-	return GetUnderlayingStruct().GetCppName();
+	return std::format("struct {}", GetUnderlayingStruct().GetCppName());
 }
 
 
@@ -427,7 +427,7 @@ UEProperty UEArrayProperty::GetInnerProperty()
 
 std::string UEArrayProperty::GetCppType()
 {
-	return std::format("TArray<{}>", GetInnerProperty().GetCppType());
+	return std::format("class TArray<{}>", GetInnerProperty().GetCppType());
 }
 
 
@@ -443,7 +443,7 @@ UEProperty UEMapProperty::GetValueProperty()
 
 std::string UEMapProperty::GetCppType()
 {
-	return std::format("TMap<{}, {}>", GetKeyProperty().GetCppType(), GetValueProperty().GetCppType());
+	return std::format("class TMap<{}, {}>", GetKeyProperty().GetCppType(), GetValueProperty().GetCppType());
 }
 
 
@@ -454,7 +454,7 @@ UEProperty UESetProperty::GetElementProperty()
 
 std::string UESetProperty::GetCppType()
 {
-	return std::format("TSet<{}>", GetElementProperty().GetCppType());
+	return std::format("class TSet<{}>", GetElementProperty().GetCppType());
 }
 
 
