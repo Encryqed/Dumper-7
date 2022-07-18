@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "OffsetFinder.h"
 #include "Offsets.h"
+#include "Package.h"
 
 using std::chrono::high_resolution_clock;
 using std::chrono::duration_cast;
@@ -45,7 +46,27 @@ DWORD MainThread(HMODULE Module)
 
 	auto t_2 = high_resolution_clock::now();
 
+	
+	std::vector<UEProperty> Properties;
+	std::vector<Types::Member> Members;
 
+	Package Pack(nullptr);
+
+	UEStruct Super = ObjectArray::FindClassFast("FortPlayerController").Cast<UEStruct>();
+	Properties.push_back(ObjectArray::FindObjectFast("ActiveToyInstances", EClassCastFlags::UArrayProperty).Cast<UEProperty>());
+	Properties.push_back(ObjectArray::FindObjectFast("ToySummonCounts", EClassCastFlags::UMapProperty).Cast<UEProperty>());
+	Properties.push_back(ObjectArray::FindObjectFast("PendingEnterModeActor", EClassCastFlags::UObjectProperty).Cast<UEProperty>());
+	Properties.push_back(ObjectArray::FindObjectFast("RandomCharacterIndex", EClassCastFlags::UIntProperty).Cast<UEProperty>());
+	Properties.push_back(ObjectArray::FindObjectFast("AntiAddictionPlayTimeMultiplier", EClassCastFlags::UFloatProperty).Cast<UEProperty>());
+	Properties.push_back(ObjectArray::FindObjectFast("LockOnInfo", EClassCastFlags::UStructProperty).Cast<UEProperty>());
+	Properties.push_back(ObjectArray::FindObjectFast("IndicatorManager", EClassCastFlags::UObjectProperty).Cast<UEProperty>());
+	
+	Pack.GenerateMembers(Properties, Super, Members);
+
+	for (auto Member : Members)
+	{
+		std::cout << Member.GetGeneratedBody();
+	}
 
 	auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
 	duration<double, std::milli> ms_double_ = t_2 - t_1;

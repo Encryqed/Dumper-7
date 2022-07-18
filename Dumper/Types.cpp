@@ -82,11 +82,11 @@ std::string Types::Includes::GetGeneratedBody()
 	return Declaration + "\n";
 }
 
-Types::Member::Member(std::string Type, std::string Name)
+Types::Member::Member(std::string Type, std::string Name, std::string Comment)
 {
 	this->Type = Type;
 	this->Name = Name;
-	this->Comment = "";
+	this->Comment = Comment != "" ? "// " + Comment : "";
 }
 
 Types::Member::~Member()

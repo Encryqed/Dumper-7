@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <type_traits>
+#include <sstream>
+#include <vector>
 
 typedef __int8 int8;
 typedef __int16 int16;
@@ -231,3 +233,124 @@ ENUM_OPERATORS(EFunctionFlags);
 ENUM_OPERATORS(EPropertyFlags);
 ENUM_OPERATORS(EClassCastFlags);
 
+static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags)
+{
+	std::vector<const char*> Buffer;
+
+	if (FunctionFlags & EFunctionFlags::Final) { Buffer.push_back("Final"); }
+	if (FunctionFlags & EFunctionFlags::RequiredAPI) { Buffer.push_back("RequiredAPI"); }
+	if (FunctionFlags & EFunctionFlags::BlueprintAuthorityOnly) { Buffer.push_back("BlueprintAuthorityOnly"); }
+	if (FunctionFlags & EFunctionFlags::BlueprintCosmetic) { Buffer.push_back("BlueprintCosmetic"); }
+	if (FunctionFlags & EFunctionFlags::Net) { Buffer.push_back("Net"); }
+	if (FunctionFlags & EFunctionFlags::NetReliable) { Buffer.push_back("NetReliable"); }
+	if (FunctionFlags & EFunctionFlags::NetRequest) { Buffer.push_back("NetRequest"); }
+	if (FunctionFlags & EFunctionFlags::Exec) { Buffer.push_back("Exec"); }
+	if (FunctionFlags & EFunctionFlags::Native) { Buffer.push_back("Native"); }
+	if (FunctionFlags & EFunctionFlags::Event) { Buffer.push_back("Event"); }
+	if (FunctionFlags & EFunctionFlags::NetResponse) { Buffer.push_back("NetResponse"); }
+	if (FunctionFlags & EFunctionFlags::Static) { Buffer.push_back("Static"); }
+	if (FunctionFlags & EFunctionFlags::NetMulticast) { Buffer.push_back("NetMulticast"); }
+	if (FunctionFlags & EFunctionFlags::UbergraphFunction) { Buffer.push_back("UbergraphFunction"); }
+	if (FunctionFlags & EFunctionFlags::MulticastDelegate) { Buffer.push_back("MulticastDelegate"); }
+	if (FunctionFlags & EFunctionFlags::Public) { Buffer.push_back("Public"); }
+	if (FunctionFlags & EFunctionFlags::Private) { Buffer.push_back("Private"); }
+	if (FunctionFlags & EFunctionFlags::Protected) { Buffer.push_back("Protected"); }
+	if (FunctionFlags & EFunctionFlags::Delegate) { Buffer.push_back("Delegate"); }
+	if (FunctionFlags & EFunctionFlags::NetServer) { Buffer.push_back("NetServer"); }
+	if (FunctionFlags & EFunctionFlags::HasOutParms) { Buffer.push_back("HasOutParams"); }
+	if (FunctionFlags & EFunctionFlags::HasDefaults) { Buffer.push_back("HasDefaults"); }
+	if (FunctionFlags & EFunctionFlags::NetClient) { Buffer.push_back("NetClient"); }
+	if (FunctionFlags & EFunctionFlags::DLLImport) { Buffer.push_back("DLLImport"); }
+	if (FunctionFlags & EFunctionFlags::BlueprintCallable) { Buffer.push_back("BlueprintCallable"); }
+	if (FunctionFlags & EFunctionFlags::BlueprintEvent) { Buffer.push_back("BlueprintEvent"); }
+	if (FunctionFlags & EFunctionFlags::BlueprintPure) { Buffer.push_back("BlueprintPure"); }
+	if (FunctionFlags & EFunctionFlags::EditorOnly) { Buffer.push_back("EditorOnly"); }
+	if (FunctionFlags & EFunctionFlags::Const) { Buffer.push_back("Const"); }
+	if (FunctionFlags & EFunctionFlags::NetValidate) { Buffer.push_back("NetValidate"); }
+
+	switch (Buffer.size())
+	{
+	case 0:
+		return std::string("");
+		break;
+	case 1:
+		return std::string(Buffer[0]);
+		break;
+	default:
+		std::ostringstream os;
+		std::copy(Buffer.begin(), Buffer.end() - 1, std::ostream_iterator<const char*>(os, ", "));
+		os << *Buffer.rbegin();
+		return os.str();
+	}
+}
+
+static std::string StringifyPropertyFlags(EPropertyFlags PropertyFlags)
+{
+	std::vector<const char*> Buffer;
+
+	if (PropertyFlags & EPropertyFlags::Edit) { Buffer.push_back("Edit"); }
+	if (PropertyFlags & EPropertyFlags::ConstParm) { Buffer.push_back("ConstParm"); }
+	if (PropertyFlags & EPropertyFlags::BlueprintVisible) { Buffer.push_back("BlueprintVisible"); }
+	if (PropertyFlags & EPropertyFlags::ExportObject) { Buffer.push_back("ExportObject"); }
+	if (PropertyFlags & EPropertyFlags::BlueprintReadOnly) { Buffer.push_back("BlueprintReadOnly"); }
+	if (PropertyFlags & EPropertyFlags::Net) { Buffer.push_back("Net"); }
+	if (PropertyFlags & EPropertyFlags::EditFixedSize) { Buffer.push_back("EditFixedSize"); }
+	if (PropertyFlags & EPropertyFlags::Parm) { Buffer.push_back("Parm"); }
+	if (PropertyFlags & EPropertyFlags::OutParm) { Buffer.push_back("OutParm"); }
+	if (PropertyFlags & EPropertyFlags::ZeroConstructor) { Buffer.push_back("ZeroConstructor"); }
+	if (PropertyFlags & EPropertyFlags::ReturnParm) { Buffer.push_back("ReturnParm"); }
+	if (PropertyFlags & EPropertyFlags::DisableEditOnTemplate) { Buffer.push_back("DisableEditOnTemplate"); }
+	if (PropertyFlags & EPropertyFlags::Transient) { Buffer.push_back("Transient"); }
+	if (PropertyFlags & EPropertyFlags::Config) { Buffer.push_back("Config"); }
+	if (PropertyFlags & EPropertyFlags::DisableEditOnInstance) { Buffer.push_back("DisableEditOnInstance"); }
+	if (PropertyFlags & EPropertyFlags::EditConst) { Buffer.push_back("EditConst"); }
+	if (PropertyFlags & EPropertyFlags::GlobalConfig) { Buffer.push_back("GlobalConfig"); }
+	if (PropertyFlags & EPropertyFlags::InstancedReference) { Buffer.push_back("InstancedReference"); }
+	if (PropertyFlags & EPropertyFlags::DuplicateTransient) { Buffer.push_back("DuplicateTransient"); }
+	if (PropertyFlags & EPropertyFlags::SubobjectReference) { Buffer.push_back("SubobjectReference"); }
+	if (PropertyFlags & EPropertyFlags::SaveGame) { Buffer.push_back("SaveGame"); }
+	if (PropertyFlags & EPropertyFlags::NoClear) { Buffer.push_back("NoClear"); }
+	if (PropertyFlags & EPropertyFlags::ReferenceParm) { Buffer.push_back("ReferenceParm"); }
+	if (PropertyFlags & EPropertyFlags::BlueprintAssignable) { Buffer.push_back("BlueprintAssignable"); }
+	if (PropertyFlags & EPropertyFlags::Deprecated) { Buffer.push_back("Deprecated"); }
+	if (PropertyFlags & EPropertyFlags::IsPlainOldData) { Buffer.push_back("IsPlainOldData"); }
+	if (PropertyFlags & EPropertyFlags::RepSkip) { Buffer.push_back("RepSkip"); }
+	if (PropertyFlags & EPropertyFlags::RepNotify) { Buffer.push_back("RepNotify"); }
+	if (PropertyFlags & EPropertyFlags::Interp) { Buffer.push_back("Interp"); }
+	if (PropertyFlags & EPropertyFlags::NonTransactional) { Buffer.push_back("NonTransactional"); }
+	if (PropertyFlags & EPropertyFlags::EditorOnly) { Buffer.push_back("EditorOnly"); }
+	if (PropertyFlags & EPropertyFlags::NoDestructor) { Buffer.push_back("NoDestructor"); }
+	if (PropertyFlags & EPropertyFlags::AutoWeak) { Buffer.push_back("AutoWeak"); }
+	if (PropertyFlags & EPropertyFlags::ContainsInstancedReference) { Buffer.push_back("ContainsInstancedReference"); }
+	if (PropertyFlags & EPropertyFlags::AssetRegistrySearchable) { Buffer.push_back("AssetRegistrySearchable"); }
+	if (PropertyFlags & EPropertyFlags::SimpleDisplay) { Buffer.push_back("SimpleDisplay"); }
+	if (PropertyFlags & EPropertyFlags::AdvancedDisplay) { Buffer.push_back("AdvancedDisplay"); }
+	if (PropertyFlags & EPropertyFlags::Protected) { Buffer.push_back("Protected"); }
+	if (PropertyFlags & EPropertyFlags::BlueprintCallable) { Buffer.push_back("BlueprintCallable"); }
+	if (PropertyFlags & EPropertyFlags::BlueprintAuthorityOnly) { Buffer.push_back("BlueprintAuthorityOnly"); }
+	if (PropertyFlags & EPropertyFlags::TextExportTransient) { Buffer.push_back("TextExportTransient"); }
+	if (PropertyFlags & EPropertyFlags::NonPIEDuplicateTransient) { Buffer.push_back("NonPIEDuplicateTransient"); }
+	if (PropertyFlags & EPropertyFlags::ExposeOnSpawn) { Buffer.push_back("ExposeOnSpawn"); }
+	if (PropertyFlags & EPropertyFlags::PersistentInstance) { Buffer.push_back("PersistentInstance"); }
+	if (PropertyFlags & EPropertyFlags::UObjectWrapper) { Buffer.push_back("UObjectWrapper"); }
+	if (PropertyFlags & EPropertyFlags::HasGetValueTypeHash) { Buffer.push_back("HasGetValueTypeHash"); }
+	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierPublic) { Buffer.push_back("NativeAccessSpecifierPublic"); }
+	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierProtected) { Buffer.push_back("NativeAccessSpecifierProtected"); }
+	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierPrivate) { Buffer.push_back("NativeAccessSpecifierPrivate"); }
+
+
+	switch (Buffer.size())
+	{
+	case 0:
+		return std::string("");
+		break;
+	case 1:
+		return std::string(Buffer[0]);
+		break;
+	default:
+		std::ostringstream os;
+		std::copy(Buffer.begin(), Buffer.end() - 1, std::ostream_iterator<const char*>(os, ", "));
+		os << *Buffer.rbegin();
+		return os.str();
+	}
+}

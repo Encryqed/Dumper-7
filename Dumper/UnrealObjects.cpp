@@ -40,7 +40,7 @@ bool UEObject::HasAnyFlags(EObjectFlags Flags)
 template<typename UEType>
 UEType UEObject::Cast()
 {
-	return UEType(GetAddress());
+	return UEType(Object);
 }
 
 bool UEObject::IsA(EClassCastFlags TypeFlags)
@@ -121,6 +121,16 @@ std::string UEObject::GetFullName()
 UEObject::operator bool()
 {
 	return Object != nullptr;
+}
+
+bool UEObject::operator==(const UEObject& Other) const
+{
+	return Object == Other.Object;
+}
+
+bool UEObject::operator!=(const UEObject& Other) const
+{
+	return Object != Other.Object;
 }
 
 
@@ -209,6 +219,11 @@ bool UEFunction::HasFlags(EFunctionFlags FuncFlags)
 	return GetFunctionFlags() & FuncFlags;
 }
 
+std::string UEFunction::StringifyFlags() 
+{
+	return StringifyFunctionFlags(GetFunctionFlags());
+}
+
 
 int32 UEProperty::GetSize()
 {
@@ -220,14 +235,14 @@ int32 UEProperty::GetOffset()
 	return *reinterpret_cast<int32*>(Object + Off::UProperty::Offset_Internal);
 }
 
-EPropertyFlags UEProperty::GetFlags()
+EPropertyFlags UEProperty::GetPropertyFlags()
 {
 	return *reinterpret_cast<EPropertyFlags*>(Object + Off::UProperty::PropertyFlags);
 }
 
 bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag)
 {
-	return GetFlags() & PropertyFlag;
+	return GetPropertyFlags() & PropertyFlag;
 }
 
 std::string UEProperty::GetCppType()
@@ -340,6 +355,11 @@ std::string UEProperty::GetCppType()
 	}
 }
 
+std::string UEProperty::StringifyFlags()
+{
+	return StringifyPropertyFlags(GetPropertyFlags());
+}
+
 
 UEEnum UEByteProperty::GetEnum()
 {
@@ -356,11 +376,16 @@ std::string UEByteProperty::GetCppType()
 	return "uint8";
 }
 
+uint8 UEBoolProperty::GetFieldMask()
+{
+	return reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Object + Off::UBoolProperty::Base)->FieldMask;
+
+}
 
 uint8 UEBoolProperty::GetBitIndex()
 {
-	uint8 FieldMask = reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Object + Off::UBoolProperty::Base)->FieldMask;
-
+	uint8 FieldMask = GetFieldMask();
+	
 	if (FieldMask != 0xFF)
 	{
 		if (FieldMask == 0x01) { return 1; }
@@ -500,6 +525,23 @@ void TemplateTypeCreationForUnrealObjects(void)
 	Dummy.Cast<UEMapProperty>();
 	Dummy.Cast<UESetProperty>();
 	Dummy.Cast<UEEnumProperty>();
+
+	Dummy.Cast<UEObject&>();
+	Dummy.Cast<UEField&>();
+	Dummy.Cast<UEEnum&>();
+	Dummy.Cast<UEStruct&>();
+	Dummy.Cast<UEClass&>();
+	Dummy.Cast<UEFunction&>();
+	Dummy.Cast<UEProperty&>();
+	Dummy.Cast<UEByteProperty&>();
+	Dummy.Cast<UEBoolProperty&>();
+	Dummy.Cast<UEObjectProperty&>();
+	Dummy.Cast<UEClassProperty&>();
+	Dummy.Cast<UEStructProperty&>();
+	Dummy.Cast<UEArrayProperty&>();
+	Dummy.Cast<UEMapProperty&>();
+	Dummy.Cast<UESetProperty&>();
+	Dummy.Cast<UEEnumProperty&>();
 }
 
 

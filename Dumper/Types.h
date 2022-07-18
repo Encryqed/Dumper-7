@@ -1,5 +1,4 @@
 #pragma once
-
 #include <iostream>
 #include <format>
 #include <fstream>
@@ -49,7 +48,7 @@ namespace Types
 		std::string Declaration;
 
 	public:
-		Member(std::string Type, std::string Name);
+		Member(std::string Type, std::string Name, std::string Comment = "");
 		~Member();
 
 		void AddComment(std::string Comment);

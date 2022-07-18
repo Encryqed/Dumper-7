@@ -48,6 +48,8 @@ public:
 	std::string GetFullName();
 
 	explicit operator bool();
+	bool operator==(const UEObject& Other) const;
+	bool operator!=(const UEObject& Other) const;
 };
 
 class UEField : public UEObject
@@ -97,6 +99,8 @@ class UEFunction : public UEStruct
 public:
 	EFunctionFlags GetFunctionFlags();
 	bool HasFlags(EFunctionFlags Flags);
+
+	std::string StringifyFlags();
 };
 
 class UEProperty : public UEField
@@ -109,10 +113,12 @@ public:
 public:
 	int32 GetSize();
 	int32 GetOffset();
-	EPropertyFlags GetFlags();
+	EPropertyFlags GetPropertyFlags();
 	bool HasPropertyFlags(EPropertyFlags Flags);
 
 	std::string GetCppType();
+
+	std::string StringifyFlags();
 };
 
 
@@ -131,6 +137,7 @@ class UEBoolProperty : public UEProperty
 	using UEProperty::UEProperty;
 
 public:
+	uint8 GetFieldMask();
 	uint8 GetBitIndex();
 	bool IsNativeBool();
 
