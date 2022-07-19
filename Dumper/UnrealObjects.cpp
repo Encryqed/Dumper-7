@@ -224,6 +224,11 @@ std::string UEFunction::StringifyFlags()
 	return StringifyFunctionFlags(GetFunctionFlags());
 }
 
+std::string UEFunction::GetParamStructName()
+{
+	return GetOuter().GetCppName() + "_" + GetValidName() + "_Params";
+}
+
 
 int32 UEProperty::GetSize()
 {

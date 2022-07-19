@@ -101,6 +101,7 @@ public:
 	bool HasFlags(EFunctionFlags Flags);
 
 	std::string StringifyFlags();
+	std::string GetParamStructName();
 };
 
 class UEProperty : public UEField

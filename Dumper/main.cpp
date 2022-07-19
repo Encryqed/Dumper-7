@@ -52,21 +52,25 @@ DWORD MainThread(HMODULE Module)
 
 	Package Pack(nullptr);
 
-	UEStruct Super = ObjectArray::FindClassFast("FortPlayerController").Cast<UEStruct>();
-	Properties.push_back(ObjectArray::FindObjectFast("ActiveToyInstances", EClassCastFlags::UArrayProperty).Cast<UEProperty>());
-	Properties.push_back(ObjectArray::FindObjectFast("ToySummonCounts", EClassCastFlags::UMapProperty).Cast<UEProperty>());
-	Properties.push_back(ObjectArray::FindObjectFast("PendingEnterModeActor", EClassCastFlags::UObjectProperty).Cast<UEProperty>());
-	Properties.push_back(ObjectArray::FindObjectFast("RandomCharacterIndex", EClassCastFlags::UIntProperty).Cast<UEProperty>());
-	Properties.push_back(ObjectArray::FindObjectFast("AntiAddictionPlayTimeMultiplier", EClassCastFlags::UFloatProperty).Cast<UEProperty>());
-	Properties.push_back(ObjectArray::FindObjectFast("LockOnInfo", EClassCastFlags::UStructProperty).Cast<UEProperty>());
-	Properties.push_back(ObjectArray::FindObjectFast("IndicatorManager", EClassCastFlags::UObjectProperty).Cast<UEProperty>());
+	UEClass FortPC = ObjectArray::FindClassFast("FortPlayerController");
 	
-	Pack.GenerateMembers(Properties, Super, Members);
+	Types::Class Clss = Pack.GenerateClass(FortPC);
 
-	for (auto Member : Members)
+	int LowestOffset = 0xFFFFFF;
+	int Inherited = FortPC.GetSuper().GetStructSize();
+
+	for (UEField Child = FortPC.GetChild(); Child; Child = Child.GetNext())
 	{
-		std::cout << Member.GetGeneratedBody();
+		if (Child.IsA(EClassCastFlags::UProperty))
+		{
+			if (LowestOffset > Child.Cast<UEProperty>().GetOffset())
+			{
+				LowestOffset = Child.Cast<UEProperty>().GetOffset();
+			}
+		}
 	}
+
+	std::cout << std::format("\nMinOffset: 0x{:X}\nInhierited: 0x{:X}\n\n\n", LowestOffset, Inherited);
 
 	auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
 	duration<double, std::milli> ms_double_ = t_2 - t_1;
@@ -75,6 +79,9 @@ DWORD MainThread(HMODULE Module)
 
 	std::cout << "Some FullName: " << ObjectArray::GetByIndex(69).GetFullName() << "\n";
 
+	std::cout << "\n" << Clss.GetGeneratedBody() << "\n";
+
+	std::cout << "Body: NONEOENENENEOENEOENENENOEOENEO\n\n";
 
 	{
 		auto t_1 = high_resolution_clock::now();

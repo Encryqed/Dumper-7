@@ -78,5 +78,8 @@
     <ClInclude Include="Package.h">
       <Filter>Generator\Public</Filter>
     </ClInclude>
+    <ClInclude Include="Settings.h">
+      <Filter>Generator</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

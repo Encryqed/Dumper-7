@@ -152,6 +152,7 @@
     <ClInclude Include="OffsetFinder.h" />
     <ClInclude Include="Offsets.h" />
     <ClInclude Include="Package.h" />
+    <ClInclude Include="Settings.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="UnrealObjects.h" />
     <ClInclude Include="UnrealTypes.h" />

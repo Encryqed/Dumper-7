@@ -20,7 +20,7 @@ public:
 
 	void Process(std::vector<int32_t>& PackageMembers);
 
-	void GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, std::vector<Types::Member>& OutMembers);
+	void GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Class& Class);
 	Types::Function GenerateFunction(UEFunction& Function, UEStruct& Super);
 	Types::Struct GenerateStruct(UEStruct& Struct, bool bIsFunction = false);
 	Types::Class GenerateClass(UEClass& Class);

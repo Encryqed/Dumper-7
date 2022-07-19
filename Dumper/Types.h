@@ -45,7 +45,6 @@ namespace Types
 		std::string Type;
 		std::string Name;
 		std::string Comment = "";
-		std::string Declaration;
 
 	public:
 		Member(std::string Type, std::string Name, std::string Comment = "");
@@ -59,14 +58,15 @@ namespace Types
 	class Parameter
 	{
 	private:
-		std::string Declaration;
+		bool bIsOutPtr;
 		std::string Type;
 		std::string Name;
 
 	public:
-		Parameter(std::string Type, std::string Name);
+		Parameter(std::string Type, std::string Name, bool bIsOutPtr = false);
 		~Parameter();
 
+		std::string GetName();
 		std::string GetGeneratedBody();
 	};
 
@@ -86,6 +86,7 @@ namespace Types
 		Function(std::string Type, std::string Name, std::vector<Parameter> Parameters = {}, bool IsClassFunction = true);
 		~Function();
 
+		std::vector<Parameter>& GetParameters();
 		std::string GetParametersAsString();
 
 		void AddBody(std::string Body);
@@ -105,14 +106,16 @@ namespace Types
 
 	public:
 		Class(std::string Name);
-		Class(std::string Name, std::string InheritedName);
+		Class(std::string Name, std::string SuperName);
 		~Class();
 
 		void AddComment(std::string Comment);
 		void AddMember(Member& NewMember);
+		void AddMember(Member&& NewMember);
 		void AddMembers(std::vector<Member>& NewMembers);
 
 		void AddFunction(Function& NewFunction);
+		void AddFunction(Function&& NewFunction);
 
 		std::string GetGeneratedBody();
 	};

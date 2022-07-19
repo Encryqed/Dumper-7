@@ -6,9 +6,9 @@ Types::Class::Class(std::string Name)
 	InnerBody = "{\npublic:\n";
 }
 
-Types::Class::Class(std::string Name, std::string InheritedName)
+Types::Class::Class(std::string Name, std::string SuperName)
 {
-	Declaration = std::format("class {} : public {}\n", Name, InheritedName);
+	Declaration = std::format("class {} : public {}\n", Name, SuperName);
 	InnerBody = "{\npublic:\n";
 }
 
@@ -26,6 +26,11 @@ void Types::Class::AddMember(Member& NewMember)
 	ClassMembers.push_back(NewMember);
 }
 
+void Types::Class::AddMember(Member&& NewMember)
+{
+	ClassMembers.push_back(NewMember);
+}
+
 void Types::Class::AddMembers(std::vector<Member>& NewMembers)
 {
 	for (Member NewMember : NewMembers)
@@ -35,6 +40,11 @@ void Types::Class::AddMembers(std::vector<Member>& NewMembers)
 }
 
 void Types::Class::AddFunction(Function& NewFunction)
+{
+	ClassFunctions.push_back(NewFunction);
+}
+
+void Types::Class::AddFunction(Function&& NewFunction)
 {
 	ClassFunctions.push_back(NewFunction);
 }
@@ -100,9 +110,7 @@ void Types::Member::AddComment(std::string Comment)
 
 std::string Types::Member::GetGeneratedBody()
 {
-	Declaration = std::format("\t{:{}}{:{}} {}\n", Type, 40, Name + ";", 55, Comment);
-
-	return Declaration;
+	return std::format("\t{:{}}{:{}} {}\n", Type, 40, Name + ";", 55, Comment);
 }
 
 Types::Function::Function(std::string Type, std::string Name, std::vector<Parameter> Parameters, bool IsClassFunction)
@@ -127,6 +135,11 @@ Types::Function::Function(std::string Type, std::string Name, std::vector<Parame
 
 Types::Function::~Function()
 {
+}
+
+std::vector<Types::Parameter>& Types::Function::GetParameters()
+{
+	return Parameters;
 }
 
 std::string Types::Function::GetParametersAsString()
@@ -160,8 +173,9 @@ std::string Types::Function::GetGeneratedBody()
 	return WholeBody;
 }
 
-Types::Parameter::Parameter(std::string Type, std::string Name)
+Types::Parameter::Parameter(std::string Type, std::string Name, bool bIsOutPtr)
 {
+	this->bIsOutPtr = bIsOutPtr;
 	this->Type = Type;
 	this->Name = Name;
 }
@@ -170,11 +184,14 @@ Types::Parameter::~Parameter()
 {
 }
 
+std::string Types::Parameter::GetName()
+{
+	return Name;
+}
+
 std::string Types::Parameter::GetGeneratedBody()
 {
-	Declaration = std::format("{} {}, ", Type, Name);
-
-	return Declaration;
+	return std::format("{} {}, ", Type, Name);
 }
 
 Types::Enum::Enum(std::string Name)
