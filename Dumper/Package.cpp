@@ -274,6 +274,18 @@ Types::Class Package::GenerateClass(UEClass& Class)
 
 Types::Enum Package::GenerateEnum(UEEnum& Enum)
 {
+	Types::Enum Enm(Enum.GetEnumTypeAsStr(), "uint8");
+
+	auto NameValue = Enum.GetNameValuePairs();
+
+	for (int i = 0; i < NameValue.Num(); i++)
+	{
+		std::string TooFullOfAName = NameValue[i].First.ToString();
+
+		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
+	}
+
+	return Enm;
 }
 
 Types::Member Package::GenerateBytePadding(int32 Offset, int32 PadSize, std::string&& Reason)

@@ -4,6 +4,7 @@
 #include <fstream>
 #include <vector>
 #include <sstream>
+#include "Enums.h"
 
 namespace Types
 {
@@ -15,7 +16,6 @@ namespace Types
 
 	public:
 		Includes(std::vector<std::pair<std::string, bool>> HeaderFiles);
-		~Includes();
 
 		std::string GetGeneratedBody();
 	};
@@ -31,10 +31,9 @@ namespace Types
 	public:
 		Enum(std::string Name);
 		Enum(std::string Name, std::string Type);
-		~Enum();
 
 		void AddComment(std::string Comment);
-		void AddMember(std::string Name, std::string Value);
+		void AddMember(std::string Name, int64 Value);
 
 		std::string GetGeneratedBody();
 	};
@@ -48,7 +47,6 @@ namespace Types
 
 	public:
 		Member(std::string Type, std::string Name, std::string Comment = "");
-		~Member();
 
 		void AddComment(std::string Comment);
 
@@ -64,7 +62,6 @@ namespace Types
 
 	public:
 		Parameter(std::string Type, std::string Name, bool bIsOutPtr = false);
-		~Parameter();
 
 		std::string GetName();
 		std::string GetGeneratedBody();
@@ -84,7 +81,6 @@ namespace Types
 
 	public:
 		Function(std::string Type, std::string Name, std::vector<Parameter> Parameters = {}, bool IsClassFunction = true);
-		~Function();
 
 		std::vector<Parameter>& GetParameters();
 		std::string GetParametersAsString();
@@ -105,7 +101,6 @@ namespace Types
 
 	public:
 		Struct(std::string Name, std::string Super = "");
-		~Struct();
 
 		void AddComment(std::string Comment);
 		void AddMember(Member& NewMember);

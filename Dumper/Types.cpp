@@ -1,9 +1,6 @@
 #include "Types.h"
+#include "Enums.h"
 
-
-Types::Struct::~Struct()
-{
-}
 
 void Types::Struct::AddComment(std::string Comment)
 {
@@ -83,9 +80,6 @@ Types::Includes::Includes(std::vector<std::pair<std::string, bool>> HeaderFiles)
 	}
 }
 
-Types::Includes::~Includes()
-{
-}
 
 std::string Types::Includes::GetGeneratedBody()
 {
@@ -99,9 +93,6 @@ Types::Member::Member(std::string Type, std::string Name, std::string Comment)
 	this->Comment = Comment != "" ? "// " + Comment : "";
 }
 
-Types::Member::~Member()
-{
-}
 
 void Types::Member::AddComment(std::string Comment)
 {
@@ -131,10 +122,6 @@ Types::Function::Function(std::string Type, std::string Name, std::vector<Parame
 
 	Declaration = std::format("{}{} {}({})\n", Indent, Type, Name, GetParametersAsString());
 	InnerBody = std::format("{}{{", Indent);
-}
-
-Types::Function::~Function()
-{
 }
 
 std::vector<Types::Parameter>& Types::Function::GetParameters()
@@ -180,10 +167,6 @@ Types::Parameter::Parameter(std::string Type, std::string Name, bool bIsOutPtr)
 	this->Name = Name;
 }
 
-Types::Parameter::~Parameter()
-{
-}
-
 std::string Types::Parameter::GetName()
 {
 	return Name;
@@ -202,12 +185,8 @@ Types::Enum::Enum(std::string Name)
 
 Types::Enum::Enum(std::string Name, std::string Type)
 {
-	Declaration = std::format("enum class {} : {}\n", Name, Type);
+	Declaration = std::format("{} : {}\n", Name, Type);
 	InnerBody = "{\n";
-}
-
-Types::Enum::~Enum()
-{
 }
 
 void Types::Enum::AddComment(std::string Comment)
@@ -215,7 +194,7 @@ void Types::Enum::AddComment(std::string Comment)
 	Declaration = std::format("// {}\n{}", Comment, Declaration);
 }
 
-void Types::Enum::AddMember(std::string Name, std::string Value)
+void Types::Enum::AddMember(std::string Name, int64 Value)
 {
 	EnumMembers.push_back(std::format("\t{:{}} = {}", Name, 30, Value));
 }
