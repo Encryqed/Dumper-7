@@ -1,42 +1,42 @@
 #include "Types.h"
 
-Types::Class::Class(std::string Name)
-{
-	Declaration = std::format("class {}\n", Name);
-	InnerBody = "{\npublic:\n";
-}
 
-Types::Class::Class(std::string Name, std::string SuperName)
-{
-	Declaration = std::format("class {} : public {}\n", Name, SuperName);
-	InnerBody = "{\npublic:\n";
-}
-
-Types::Class::~Class()
+Types::Struct::~Struct()
 {
 }
 
-void Types::Class::AddComment(std::string Comment)
+void Types::Struct::AddComment(std::string Comment)
 {
-	Comments += std::format("// {}\n", Comment);
+	Comments += "// " + Comment + "\n";
 }
 
-void Types::Class::AddMember(Member& NewMember)
+void Types::Struct::AddMember(Member& NewMember)
 {
-	ClassMembers.push_back(NewMember);
+	StructMembers.push_back(NewMember);
+}
+void Types::Struct::AddMember(Member&& NewMember)
+{
+	StructMembers.push_back(NewMember);
 }
 
-void Types::Class::AddMember(Member&& NewMember)
-{
-	ClassMembers.push_back(NewMember);
-}
-
-void Types::Class::AddMembers(std::vector<Member>& NewMembers)
+void Types::Struct::AddMembers(std::vector<Member>& NewMembers)
 {
 	for (Member NewMember : NewMembers)
 	{
-		this->AddMember(NewMember);
+		StructMembers.push_back(NewMember);
 	}
+}
+
+std::string Types::Struct::GetGeneratedBody()
+{
+	for (Member StructMember : StructMembers)
+	{
+		InnerBody += StructMember.GetGeneratedBody();
+	}
+
+	WholeBody = Comments + Declaration + InnerBody + "};\n\n";
+
+	return WholeBody;
 }
 
 void Types::Class::AddFunction(Function& NewFunction)
@@ -51,7 +51,7 @@ void Types::Class::AddFunction(Function&& NewFunction)
 
 std::string Types::Class::GetGeneratedBody()
 {
-	for (Member ClassMember : ClassMembers)
+	for (Member ClassMember : StructMembers)
 	{
 		InnerBody += ClassMember.GetGeneratedBody();
 	}
@@ -234,42 +234,8 @@ std::string Types::Enum::GetGeneratedBody()
 	return WholeBody;
 }
 
-Types::Struct::Struct(std::string Name)
+Types::Struct::Struct(std::string Name, std::string Super)
 {
-	Declaration = std::format("struct {}\n", Name);
+	Declaration = (Super == "" ? std::format("struct {}\n", Name) : std::format("struct {} : public {}\n", Name, Super));
 	InnerBody = "{\n";
-}
-
-Types::Struct::~Struct()
-{
-}
-
-void Types::Struct::AddComment(std::string Comment)
-{
-	Comments += "// " + Comment + "\n";
-}
-
-void Types::Struct::AddMember(Member& NewMember)
-{
-	StructMembers.push_back(NewMember);
-}
-
-void Types::Struct::AddMembers(std::vector<Member>& NewMembers)
-{
-	for (Member NewMember : NewMembers)
-	{
-		StructMembers.push_back(NewMember);
-	}
-}
-
-std::string Types::Struct::GetGeneratedBody()
-{
-	for (Member StructMember : StructMembers)
-	{
-		InnerBody += StructMember.GetGeneratedBody();
-	}
-
-	WholeBody = Comments + Declaration + InnerBody + "};\n\n";
-
-	return WholeBody;
 }

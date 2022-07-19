@@ -29,7 +29,7 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 	}
 }
 
-void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Class& Class)
+void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct)
 {
 	int PrevPropertyEnd = Super.GetSuper() ? Super.GetSuper().GetStructSize() : 0;
 	int PrevBoolPropertyEnd = 0;
@@ -47,7 +47,7 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 		if (Offset > PrevPropertyEnd)
 		{
-			Class.AddMember(GenerateBytePadding(PrevPropertyEnd, Offset - PrevPropertyEnd, "Fixing Size after Last Property  [ Dumper-7 ]"));
+			Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Offset - PrevPropertyEnd, "Fixing Size after Last Property  [ Dumper-7 ]"));
 		}
 
 		if (Property.IsA(EClassCastFlags::UBoolProperty) &&  !Property.Cast<UEBoolProperty>().IsNativeBool())
@@ -63,7 +63,8 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 			if (PrevBoolPropertyBit < BitIndex)
 			{
-				Class.AddMember(GenerateBitPadding(Offset, BitIndex - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]"));
+				Types::Member mem = GenerateBitPadding(Offset, BitIndex - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]");
+				Struct.AddMember(mem);
 			}
 
 			PrevBoolPropertyBit = BitIndex + 1;
@@ -74,7 +75,7 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 		PrevPropertyEnd = Offset + Size;
 
-		Class.AddMember(Member);
+		Struct.AddMember(Member);
 	}
 }
 
@@ -148,7 +149,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	}
 
 	if(Function.HasFlags(EFunctionFlags::Native))
-		FuncBody += "\nauto Flags = Func->FunctionFlgas;\nFunc->FunctionFlgas |= 0x400;\n\n";
+		FuncBody += "\nauto Flags = Func->FunctionFlags;\nFunc->FunctionFlags |= 0x400;\n\n";
 
 	FuncBody += "UObject::ProcessEvent(Func, &Parms);";
 
@@ -171,13 +172,58 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 
 Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 {
+	std::string StructName = Struct.GetCppName();
+
+	Types::Struct RetStruct(StructName);
+
+	int Size = Struct.GetStructSize();
+	int SuperSize = 0;
+
+	if (UEStruct Super = Struct.GetSuper())
+	{
+		RetStruct = Types::Struct(StructName, Super.GetCppName());
+		SuperSize = Super.GetStructSize();
+	}
+
+	RetStruct.AddComment(std::format("0x{:X} (0x{:X} - 0x{:X})", Size - SuperSize, Size, SuperSize));
+	RetStruct.AddComment(Struct.GetFullName());
+
+	std::vector<UEProperty> Properties;
+
+	static int NumProps = 0;
+	static int NumFuncs = 0;
+
+	for (UEField Child = Struct.GetChild(); Child; Child = Child.GetNext())
+	{
+		if (Child.IsA(EClassCastFlags::UProperty))
+		{
+			Properties.push_back(Child.Cast<UEProperty>());
+		}
+	}
+
+	std::sort(Properties.begin(), Properties.end(), [](UEProperty Left, UEProperty Right) -> bool
+		{
+			if (Left.IsA(EClassCastFlags::UBoolProperty) && Right.IsA(EClassCastFlags::UBoolProperty))
+			{
+				if (Left.GetOffset() == Right.GetOffset())
+				{
+					return Left.Cast<UEBoolProperty>().GetFieldMask() < Right.Cast<UEBoolProperty>().GetFieldMask();
+				}
+			}
+
+			return Left.GetOffset() < Right.GetOffset();
+		});
+
+	GenerateMembers(Properties, Struct, RetStruct);
+
+	return RetStruct;
 }
 
 Types::Class Package::GenerateClass(UEClass& Class)
 {
 	std::string ClassName = Class.GetCppName();
 
-	Types::Class RetClass = Types::Class(ClassName);
+	Types::Class RetClass(ClassName);
 
 	int Size = Class.GetStructSize();
 	int SuperSize = 0;

@@ -94,35 +94,9 @@ namespace Types
 		std::string GetGeneratedBody();
 	};
 
-	class Class
-	{
-	private:
-		std::string Declaration;
-		std::string InnerBody;
-		std::string WholeBody;
-		std::string Comments;
-		std::vector<Member> ClassMembers;
-		std::vector<Function> ClassFunctions;
-
-	public:
-		Class(std::string Name);
-		Class(std::string Name, std::string SuperName);
-		~Class();
-
-		void AddComment(std::string Comment);
-		void AddMember(Member& NewMember);
-		void AddMember(Member&& NewMember);
-		void AddMembers(std::vector<Member>& NewMembers);
-
-		void AddFunction(Function& NewFunction);
-		void AddFunction(Function&& NewFunction);
-
-		std::string GetGeneratedBody();
-	};
-
 	class Struct
 	{
-	private:
+	protected:
 		std::string Declaration;
 		std::string InnerBody;
 		std::string WholeBody;
@@ -130,12 +104,28 @@ namespace Types
 		std::vector<Member> StructMembers;
 
 	public:
-		Struct(std::string Name);
+		Struct(std::string Name, std::string Super = "");
 		~Struct();
 
 		void AddComment(std::string Comment);
 		void AddMember(Member& NewMember);
+		void AddMember(Member&& NewMember);
 		void AddMembers(std::vector<Member>& NewMembers);
+
+		std::string GetGeneratedBody();
+	};
+
+	class Class : public Struct
+	{
+	private:
+		std::vector<Function> ClassFunctions;
+
+	public:
+
+		using Struct::Struct;
+
+		void AddFunction(Function& NewFunction);
+		void AddFunction(Function&& NewFunction);
 
 		std::string GetGeneratedBody();
 	};

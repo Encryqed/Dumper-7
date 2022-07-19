@@ -53,24 +53,10 @@ DWORD MainThread(HMODULE Module)
 	Package Pack(nullptr);
 
 	UEClass FortPC = ObjectArray::FindClassFast("FortPlayerController");
+	UEStruct FFortGameplayEffectContext = ObjectArray::FindObjectFast("FortGameplayEffectContext", EClassCastFlags::UScriptStruct).Cast<UEStruct>();
 	
 	Types::Class Clss = Pack.GenerateClass(FortPC);
-
-	int LowestOffset = 0xFFFFFF;
-	int Inherited = FortPC.GetSuper().GetStructSize();
-
-	for (UEField Child = FortPC.GetChild(); Child; Child = Child.GetNext())
-	{
-		if (Child.IsA(EClassCastFlags::UProperty))
-		{
-			if (LowestOffset > Child.Cast<UEProperty>().GetOffset())
-			{
-				LowestOffset = Child.Cast<UEProperty>().GetOffset();
-			}
-		}
-	}
-
-	std::cout << std::format("\nMinOffset: 0x{:X}\nInhierited: 0x{:X}\n\n\n", LowestOffset, Inherited);
+	Types::Struct Strct = Pack.GenerateStruct(FFortGameplayEffectContext);
 
 	auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
 	duration<double, std::milli> ms_double_ = t_2 - t_1;
@@ -79,7 +65,8 @@ DWORD MainThread(HMODULE Module)
 
 	std::cout << "Some FullName: " << ObjectArray::GetByIndex(69).GetFullName() << "\n";
 
-	std::cout << "\n" << Clss.GetGeneratedBody() << "\n";
+	std::cout << "\n" << Clss.GetGeneratedBody() << "\n\n\n\n";
+	std::cout << "\n" << Strct.GetGeneratedBody() << "\n";
 
 	std::cout << "Body: NONEOENENENEOENEOENENENOEOENEO\n\n";
 
@@ -121,3 +108,4 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 
 	return TRUE;
 }
+
