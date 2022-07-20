@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Types.h"
 #include "ObjectArray.h"
 
@@ -18,6 +19,7 @@ public:
 	{
 	}
 
+	//void Process(std::vector<int32_t>& PackageMembers);
 	void Process(std::vector<int32_t>& PackageMembers);
 
 	void GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct);
@@ -34,4 +36,3 @@ public:
 		return AllEnums.empty() && AllClasses.empty() && AllStructs.empty() && AllFunctions.empty();
 	}
 };
-

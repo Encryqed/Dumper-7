@@ -1,5 +1,17 @@
 #include "FileWriter.h"
 
+FileWriter::FileWriter(std::filesystem::path FilePath)
+{
+	FileStream.open(FilePath);
+}
+
+FileWriter::FileWriter(std::filesystem::path FilePath, FileType Type)
+{
+	CurrentFileType = Type;
+	SetFileType(Type);
+	FileStream.open(FilePath);
+}
+
 FileWriter::FileWriter(std::string FileName)
 {
 	CurrentFile = FileName;
@@ -57,14 +69,51 @@ void FileWriter::WriteStruct(Types::Struct& Struct)
 	Write(Struct.GetGeneratedBody());
 }
 
+void FileWriter::WriteStructs(std::vector<Types::Struct>& Structs)
+{
+	for (Types::Struct Struct : Structs)
+	{
+		WriteStruct(Struct);
+	}
+}
+
 void FileWriter::WriteEnum(Types::Enum& Enum)
 {
 	Write(Enum.GetGeneratedBody());
 }
 
+void FileWriter::WriteEnums(std::vector<Types::Enum>& Enums)
+{
+	for (Types::Enum Enum : Enums)
+	{
+		WriteEnum(Enum);
+	}
+}
+
+void FileWriter::WriteFunction(Types::Function& Function)
+{
+	Write(Function.GetGeneratedBody());
+}
+
+void FileWriter::WriteFunctions(std::vector<Types::Function>& Functions)
+{
+	for (Types::Function Function : Functions)
+	{
+		WriteFunction(Function);
+	}
+}
+
 void FileWriter::WriteClass(Types::Class& Class)
 {
 	Write(Class.GetGeneratedBody());
+}
+
+void FileWriter::WriteClasses(std::vector<Types::Class>& Classes)
+{
+	for (Types::Class Class : Classes)
+	{
+		WriteClass(Class);
+	}
 }
 
 void FileWriter::SetFileType(FileType& Type)

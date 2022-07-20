@@ -15,7 +15,8 @@ public:
 	static void Init();
 
 	static void DumpObjects();
-	static std::vector<int32> GetAllPackages();
+	//static std::vector<int32> GetAllPackages();
+	static std::unordered_map<int32_t, std::vector<int32_t>> GetAllPackages();
 
 	static int32 Num();
 

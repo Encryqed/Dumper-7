@@ -3,7 +3,7 @@
 #include <chrono>
 #include <fstream>
 #include "Enums.h"
-#include "ObjectArray.h"
+#include "Generator.h"
 #include "Utils.h"
 #include "OffsetFinder.h"
 #include "Offsets.h"
@@ -28,13 +28,12 @@ DWORD MainThread(HMODULE Module)
 	FILE* Dummy;
 	freopen_s(&Dummy, "CONOUT$", "w", stdout);
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
-
-	ObjectArray::Init();
-	FName::Init();
-	Off::Init();
 	
+	Generator Dumper;
 
-	std::cout << "Some FullName: " << ObjectArray::GetByIndex(69).GetFullName() << "\n";
+	Dumper.Start();
+
+	/*std::cout << "Some FullName: " << ObjectArray::GetByIndex(69).GetFullName() << "\n";
 
 	auto t_1 = high_resolution_clock::now();
 	
@@ -69,7 +68,18 @@ DWORD MainThread(HMODULE Module)
 
 	Package Test(nullptr);
 
-	Types::Class tS = Test.GenerateClass(Class);
+	Types::Class TestClass = Test.GenerateClass(Class);
+	Types::Enum TestEnum = Test.GenerateEnum(Enum);
+
+	UEStruct Super = Func.GetOuter().Cast<UEStruct>();
+	Types::Function TestFunc = Test.GenerateFunction(Func, Super);
+
+	std::cout << TestClass.GetGeneratedBody() << "\n\n";
+	std::cout << TestEnum.GetGeneratedBody() << "\n\n";
+	std::cout << TestFunc.GetGeneratedBody() << "\n\n";
+	std::cout << TestFunc.GetParamStruct().GetGeneratedBody() << "\n\n";
+
+	/*Types::Class TS = Test.GenerateClass(Class);
 
 	Types::Enum tE = Test.GenerateEnum(Enum);
 
@@ -79,11 +89,9 @@ DWORD MainThread(HMODULE Module)
 	std::cout << tS.GetGeneratedBody() << "\n\n";
 	std::cout << tE.GetGeneratedBody() << "\n\n";
 	std::cout << tF.GetGeneratedBody() << "\n\n";
-	std::cout << tF.GetParamStruct().GetGeneratedBody() << "\n\n";
+	std::cout << tF.GetParamStruct().GetGeneratedBody() << "\n\n";*/
 
-
-
-	{
+	/*{
 		auto t_1 = high_resolution_clock::now();
 		auto t_2 = high_resolution_clock::now();
 	
@@ -91,7 +99,7 @@ DWORD MainThread(HMODULE Module)
 		duration<double, std::milli> ms_double_ = t_2 - t_1;
 	
 		std::cout << "\n\nComparing 0 times took (" << ms_int_.count() << "ms)\n\n\n";
-	}
+	}*/
 
 	while (true)
 	{

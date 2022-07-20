@@ -2,7 +2,6 @@
 #include "Settings.h"
 #include <algorithm>
 
-
 void Package::Process(std::vector<int32_t>& PackageMembers)
 {
 	for (int32_t Index : PackageMembers)
@@ -10,6 +9,11 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 		UEObject Object = ObjectArray::GetByIndex(Index);
 
 		if (!Object || Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+		{
+			continue;
+		}
+
+		if (Object.GetOutermost() != PackageObject)
 		{
 			continue;
 		}
@@ -145,13 +149,13 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 		FuncBody += std::format("\tParms.{0} = {0};\n", Param.GetName());
 	}
 
-	if(Function.HasFlags(EFunctionFlags::Native))
+	if (Function.HasFlags(EFunctionFlags::Native))
 		FuncBody += "\n\tauto Flags = Func->FunctionFlags;\n\tFunc->FunctionFlags |= 0x400;\n\n";
 
 	FuncBody += "\tUObject::ProcessEvent(Func, &Parms);";
 
     if (Function.HasFlags(EFunctionFlags::Native))
-        FuncBody += "\n\n\tFunc->FunctionFlgas = Flags;\n\n";
+        FuncBody += "\n\n\tFunc->FunctionFlags = Flags;\n\n";
 
 
 	for (auto& Name : OutPtrParamNames)
@@ -164,6 +168,9 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 
 	Func.AddBody(FuncBody);
 	Func.SetParamStruct(GenerateStruct(Function, true));
+
+	AllFunctions.push_back(Func);
+
 	return Func;
 }
 
@@ -215,6 +222,8 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 
 	if (!bIsFunction)
 		AllStructs.push_back(RetStruct);
+
+	AllStructs.push_back(RetStruct);
 
 	return RetStruct;
 }
@@ -269,6 +278,8 @@ Types::Class Package::GenerateClass(UEClass& Class)
 
 	GenerateMembers(Properties, Class, RetClass);
 
+	AllClasses.push_back(RetClass);
+
 	return RetClass;
 }
 
@@ -284,6 +295,8 @@ Types::Enum Package::GenerateEnum(UEEnum& Enum)
 
 		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
 	}
+
+	AllEnums.push_back(Enm);
 
 	return Enm;
 }
