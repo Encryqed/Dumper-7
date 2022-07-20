@@ -67,9 +67,34 @@ namespace Types
 		std::string GetGeneratedBody();
 	};
 
+
+	class Struct
+	{
+	protected:
+		std::string Declaration;
+		std::string InnerBody;
+		std::string WholeBody;
+		std::string Comments;
+		std::vector<Member> StructMembers;
+
+	public:
+		Struct() = default;
+		Struct(std::string Name, std::string Super = "");
+
+		void AddComment(std::string Comment);
+		void AddMember(Member& NewMember);
+		void AddMember(Member&& NewMember);
+		void AddMembers(std::vector<Member>& NewMembers);
+
+		std::string GetGeneratedBody();
+	};
+
+
 	class Function
 	{
 	private:
+		Struct ParamStruct;
+
 		bool IsClassFunction;
 		std::string Indent;
 		std::string WholeBody;
@@ -86,28 +111,10 @@ namespace Types
 		std::string GetParametersAsString();
 
 		void AddBody(std::string Body);
+		void SetParamStruct(Struct&& Params);
 
 		std::string GetGeneratedBody();
-	};
-
-	class Struct
-	{
-	protected:
-		std::string Declaration;
-		std::string InnerBody;
-		std::string WholeBody;
-		std::string Comments;
-		std::vector<Member> StructMembers;
-
-	public:
-		Struct(std::string Name, std::string Super = "");
-
-		void AddComment(std::string Comment);
-		void AddMember(Member& NewMember);
-		void AddMember(Member&& NewMember);
-		void AddMembers(std::vector<Member>& NewMembers);
-
-		std::string GetGeneratedBody();
+		Struct GetParamStruct();
 	};
 
 	class Class : public Struct

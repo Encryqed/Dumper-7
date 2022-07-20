@@ -108,7 +108,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 			bIsRef = true;
 			bIsOut = true;
 		}
-		if (Param.HasPropertyFlags(EPropertyFlags::OutParm) && !bIsRef)
+		if (Param.HasPropertyFlags(EPropertyFlags::OutParm) && !bIsRef && !Param.HasPropertyFlags(EPropertyFlags::ReturnParm))
 		{
 			Type += "*";
 			bIsOut = true;
@@ -136,43 +136,40 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	
 	Types::Function Func(ReturnType, Function.GetValidName(), Params, false);
 
-	FuncBody += std::format("static auto Func = UObject::GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
+	FuncBody += std::format("\n\tstatic auto Func = UClass::GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
 
-	if (Settings::bUseNamespaceForParams)
-		FuncBody += "Params::";
-
-	FuncBody += std::format("{} Parms;\n", Function.GetParamStructName());
+	FuncBody += std::format("\t{}{} Parms;\n", (Settings::bUseNamespaceForParams ? Settings::ParamNamespaceName + std::string("::") : ""), Function.GetParamStructName());
 
 	for (auto& Param : Func.GetParameters())
 	{
-		FuncBody += std::format("Parms.{0} = {0};\n", Param.GetName());
+		FuncBody += std::format("\tParms.{0} = {0};\n", Param.GetName());
 	}
 
 	if(Function.HasFlags(EFunctionFlags::Native))
-		FuncBody += "\nauto Flags = Func->FunctionFlags;\nFunc->FunctionFlags |= 0x400;\n\n";
+		FuncBody += "\n\tauto Flags = Func->FunctionFlags;\n\tFunc->FunctionFlags |= 0x400;\n\n";
 
-	FuncBody += "UObject::ProcessEvent(Func, &Parms);";
+	FuncBody += "\tUObject::ProcessEvent(Func, &Parms);";
 
     if (Function.HasFlags(EFunctionFlags::Native))
-        FuncBody += "\n\nFunc->FunctionFlgas = Flags;\n\n";
+        FuncBody += "\n\n\tFunc->FunctionFlgas = Flags;\n\n";
 
 
 	for (auto& Name : OutPtrParamNames)
 	{
-		FuncBody += std::format("if ({0} != nullptr)\n\t{0} = Parms.{0}", Name);
+		FuncBody += std::format("\n\tif ({0} != nullptr)\n\t\t{0} = Parms.{0}\n", Name);
 	}
 
 	if (bHasRetType)
-		FuncBody += "\n\nreturn Parms.ReturnValue;\n";
+		FuncBody += "\n\treturn Parms.ReturnValue;\n";
 
 	Func.AddBody(FuncBody);
-
+	Func.SetParamStruct(GenerateStruct(Function, true));
 	return Func;
 }
 
 Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 {
-	std::string StructName = Struct.GetCppName();
+	std::string StructName = !bIsFunction ? Struct.GetCppName() : Struct.Cast<UEFunction>().GetParamStructName();
 
 	Types::Struct RetStruct(StructName);
 
@@ -215,6 +212,9 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 		});
 
 	GenerateMembers(Properties, Struct, RetStruct);
+
+	if (!bIsFunction)
+		AllStructs.push_back(RetStruct);
 
 	return RetStruct;
 }

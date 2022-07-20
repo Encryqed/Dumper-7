@@ -36,6 +36,7 @@ std::string Types::Struct::GetGeneratedBody()
 	return WholeBody;
 }
 
+
 void Types::Class::AddFunction(Function& NewFunction)
 {
 	ClassFunctions.push_back(NewFunction);
@@ -151,6 +152,15 @@ std::string Types::Function::GetParametersAsString()
 void Types::Function::AddBody(std::string Body)
 {
 	InnerBody += Body;
+}
+void Types::Function::SetParamStruct(Types::Struct&& Params)
+{
+	ParamStruct = Params;
+}
+
+Types::Struct Types::Function::GetParamStruct()
+{
+	return ParamStruct;
 }
 
 std::string Types::Function::GetGeneratedBody()

@@ -230,7 +230,9 @@ UEType ObjectArray::FindObject(std::string FullName, EClassCastFlags RequiredTyp
 template<typename UEType>
 UEType ObjectArray::FindObjectFast(std::string Name, EClassCastFlags RequiredType)
 {
-	for (UEObject Object : ObjectArray())
+	auto ObjArray = ObjectArray();
+
+	for (UEObject Object : ObjArray)
 	{
 		if (Object.IsA(RequiredType) && Object.GetName() == Name)
 		{

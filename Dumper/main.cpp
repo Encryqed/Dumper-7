@@ -55,31 +55,33 @@ DWORD MainThread(HMODULE Module)
 	auto t_2 = high_resolution_clock::now();
 
 	
-	std::vector<UEProperty> Properties;
-	std::vector<Types::Member> Members;
+	UEClass Class = ObjectArray::FindClassFast("FortItemDefinition");
+	UEEnum Enum = ObjectArray::FindObjectFast("EFortDayPhase", EClassCastFlags::UEnum).Cast<UEEnum>();
+	UEFunction Func = ObjectArray::FindObjectFast("CreateTemporaryInstanceFromExistingItemBP", EClassCastFlags::UFunction).Cast<UEFunction>();
 
-	Package Pack(nullptr);
+	std::cout << "Super: " << Class.GetSuper().GetFullName() << "\n\n";
 
-	UEClass FortPC = ObjectArray::FindClassFast("FortPlayerController");
-	UEStruct FFortGameplayEffectContext = ObjectArray::FindObjectFast("FortGameplayEffectContext", EClassCastFlags::UScriptStruct).Cast<UEStruct>();
-	UEEnum EFortToastType = ObjectArray::FindObjectFast("EFortToastType", EClassCastFlags::UEnum).Cast<UEEnum>();
+	for (auto Field = Class.GetChild(); Field; Field = Field.GetNext())
+	{
+		std::cout << Field.GetFullName() << "\n";
+	}
 
-	Types::Class Clss = Pack.GenerateClass(FortPC);
-	Types::Struct Strct = Pack.GenerateStruct(FFortGameplayEffectContext);
-	Types::Enum Enm = Pack.GenerateEnum(EFortToastType);
 
-	auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
-	duration<double, std::milli> ms_double_ = t_2 - t_1;
+	Package Test(nullptr);
 
-	std::cout << "\n\Finding Offsets took (" << ms_int_.count() << "ms)\n\n\n";
+	Types::Class tS = Test.GenerateClass(Class);
 
-	std::cout << "Some FullName: " << ObjectArray::GetByIndex(69).GetFullName() << "\n";
+	Types::Enum tE = Test.GenerateEnum(Enum);
 
-	std::cout << "\n" << Clss.GetGeneratedBody() << "\n\n\n\n";
-	std::cout << "\n" << Strct.GetGeneratedBody() << "\n\n\n";
-	std::cout << "\n" << Enm.GetGeneratedBody() << "\n\n";
+	UEStruct Super = Func.GetOuter().Cast<UEStruct>();
+	Types::Function tF = Test.GenerateFunction(Func, Super);
 
-	std::cout << "Body: NONEOENENENEOENEOENENENOEOENEO\n\n";
+	std::cout << tS.GetGeneratedBody() << "\n\n";
+	std::cout << tE.GetGeneratedBody() << "\n\n";
+	std::cout << tF.GetGeneratedBody() << "\n\n";
+	std::cout << tF.GetParamStruct().GetGeneratedBody() << "\n\n";
+
+
 
 	{
 		auto t_1 = high_resolution_clock::now();
@@ -119,4 +121,3 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 
 	return TRUE;
 }
-
