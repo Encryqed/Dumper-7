@@ -23,6 +23,9 @@
     <ClCompile Include="Package.cpp">
       <Filter>Generator\Private</Filter>
     </ClCompile>
+    <ClCompile Include="FileWriter.cpp">
+      <Filter>Generator\Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -80,6 +83,9 @@
     </ClInclude>
     <ClInclude Include="Settings.h">
       <Filter>Generator</Filter>
+    </ClInclude>
+    <ClInclude Include="FileWriter.h">
+      <Filter>Generator\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
