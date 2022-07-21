@@ -3,6 +3,7 @@
 FileWriter::FileWriter(std::filesystem::path FilePath)
 {
 	FileStream.open(FilePath);
+	SetFileHeader();
 }
 
 FileWriter::FileWriter(std::filesystem::path FilePath, std::string FileName, FileType Type)
@@ -11,12 +12,14 @@ FileWriter::FileWriter(std::filesystem::path FilePath, std::string FileName, Fil
 	CurrentFile = FileName;
 	SetFileType(Type);
 	FileStream.open(FilePath / CurrentFile);
+	SetFileHeader();
 }
 
 FileWriter::FileWriter(std::string FileName)
 {
 	CurrentFile = FileName;
 	Open(CurrentFile);
+	SetFileHeader();
 }
 
 FileWriter::FileWriter(std::string FileName, FileType Type)
@@ -25,6 +28,7 @@ FileWriter::FileWriter(std::string FileName, FileType Type)
 	CurrentFileType = Type;
 	SetFileType(Type);
 	Open(CurrentFile);
+	SetFileHeader();
 }
 
 FileWriter::~FileWriter()
