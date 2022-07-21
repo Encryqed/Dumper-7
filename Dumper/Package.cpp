@@ -1,6 +1,8 @@
+#include <algorithm>
+
 #include "Package.h"
 #include "Settings.h"
-#include <algorithm>
+#include "Generator.h"
 
 void Package::Process(std::vector<int32_t>& PackageMembers)
 {
@@ -39,6 +41,32 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 	int PrevBoolPropertyEnd = 0;
 	int PrevBoolPropertyBit = 1;
 
+	const int StructSize = Super.GetStructSize();
+	std::string SuperName = Super.GetCppName();
+
+	if (MemberVector.size() == 0)
+	{
+		if (Generator::PredefinedMembers.find(SuperName) != Generator::PredefinedMembers.end())
+		{
+			for (auto& Member : Generator::PredefinedMembers[SuperName])
+			{
+				if (Member.Offset > PrevPropertyEnd)
+					Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Member.Offset - PrevPropertyEnd, "Fixing Size After Last (Predefined) Property  [ Dumper-7 ]"));
+
+				Struct.AddMember(Types::Member(Member.Type, Member.Name, std::format("(0x{:02X}[0x{:02X}]) NOT AUTO-GENERATED PROPERTY", Member.Offset, Member.Size)));
+
+				PrevPropertyEnd = Member.Offset + Member.Size;
+			}
+
+			if (StructSize > PrevPropertyEnd)
+			{
+				Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, StructSize - PrevPropertyEnd, "Fixing Size Of Struct [ Dumper-7 ]"));
+			}
+
+			return;
+		}
+	}
+
 	for (auto& Property : MemberVector)
 	{
 		std::string CppType = Property.GetCppType();
@@ -51,7 +79,7 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 		if (Offset > PrevPropertyEnd)
 		{
-			Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Offset - PrevPropertyEnd, "Fixing Size after Last Property  [ Dumper-7 ]"));
+			Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Offset - PrevPropertyEnd, "Fixing Size After Last Property  [ Dumper-7 ]"));
 		}
 
 		if (Property.IsA(EClassCastFlags::UBoolProperty) &&  !Property.Cast<UEBoolProperty>().IsNativeBool())
@@ -81,6 +109,9 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 		Struct.AddMember(Member);
 	}
+
+	if (StructSize > PrevPropertyEnd)
+		Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, StructSize - PrevPropertyEnd, "Fixing Size Of Struct [ Dumper-7 ]"));
 }
 
 Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)

@@ -1,4 +1,5 @@
 #include "FileWriter.h"
+#include "Generator.h"
 
 FileWriter::FileWriter(fs::path FilePath)
 {
@@ -58,9 +59,13 @@ void FileWriter::Close()
 	FileStream.close();
 }
 
-void FileWriter::Write(std::string Text)
+void FileWriter::Write(std::string& Text)
 {
 	FileStream << Text;
+}
+void FileWriter::Write(std::string&& Text)
+{
+	FileStream << std::move(Text);
 }
 
 void FileWriter::WriteIncludes(Types::Includes& Includes)
@@ -75,7 +80,7 @@ void FileWriter::WriteStruct(Types::Struct& Struct)
 
 void FileWriter::WriteStructs(std::vector<Types::Struct>& Structs)
 {
-	for (Types::Struct Struct : Structs)
+	for (Types::Struct& Struct : Structs)
 	{
 		WriteStruct(Struct);
 	}
@@ -88,7 +93,7 @@ void FileWriter::WriteEnum(Types::Enum& Enum)
 
 void FileWriter::WriteEnums(std::vector<Types::Enum>& Enums)
 {
-	for (Types::Enum Enum : Enums)
+	for (Types::Enum& Enum : Enums)
 	{
 		WriteEnum(Enum);
 	}
@@ -101,7 +106,7 @@ void FileWriter::WriteFunction(Types::Function& Function)
 
 void FileWriter::WriteFunctions(std::vector<Types::Function>& Functions)
 {
-	for (Types::Function Function : Functions)
+	for (Types::Function& Function : Functions)
 	{
 		WriteFunction(Function);
 	}
@@ -114,7 +119,7 @@ void FileWriter::WriteClass(Types::Class& Class)
 
 void FileWriter::WriteClasses(std::vector<Types::Class>& Classes)
 {
-	for (Types::Class Class : Classes)
+	for (Types::Class& Class : Classes)
 	{
 		WriteClass(Class);
 	}

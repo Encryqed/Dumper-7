@@ -8,6 +8,7 @@ namespace Off
 	//Offsets not to be used during generation but inside of the generated SDK
 	namespace InSDK
 	{
+		inline int32 PEIndex;
 		inline int32 GObjects;
 		inline int32 AppendNameToString;
 	}

@@ -8,6 +8,8 @@ namespace fs = std::filesystem;
 
 class FileWriter
 {
+	friend class Generator;
+
 public:
 	enum class FileType
 	{
@@ -34,7 +36,8 @@ public:
 	void Open(std::string FileName);
 	void Open(std::string FileName, FileType Type);
 	void Close();
-	void Write(std::string Text);
+	void Write(std::string& Text);
+	void Write(std::string&& Text);
 	void WriteIncludes(Types::Includes& Includes);
 	void WriteStruct(Types::Struct& Struct);
 	void WriteStructs(std::vector<Types::Struct>& Structs);

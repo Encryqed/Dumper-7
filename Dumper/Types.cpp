@@ -1,5 +1,6 @@
 #include "Types.h"
 #include "Enums.h"
+#include "Generator.h"
 
 
 Types::Struct::Struct(std::string Name, bool bIsClass, std::string Super)
@@ -69,6 +70,19 @@ std::string Types::Class::GetGeneratedBody()
 	}
 
 	InnerBody += std::format("\n\tstatic class UClass* StaticClass() const\n\t{{\n\t\tstatic class UClass* Clss = UObject::FindClassFast(\"{}\");\n\t\treturn Clss;\n\t}}\n\n", RawName);
+
+	if (Generator::PredefinedFunctions.find(CppName) != Generator::PredefinedFunctions.end())
+	{
+		for (auto& PredefFunc : Generator::PredefinedFunctions[CppName].second)
+		{
+			InnerBody += "\n" + PredefFunc.DeclarationH;
+
+			if (PredefFunc.DeclarationCPP == "")
+				InnerBody += PredefFunc.Body;
+			
+			InnerBody += "\n";
+		}
+	}
 
 	for (Function ClassFunction : ClassFunctions)
 	{

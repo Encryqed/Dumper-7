@@ -9,9 +9,11 @@ namespace fs = std::filesystem;
 
 class Generator
 {
-private:
 	friend class Package;
+	friend class Types::Class;
+	friend class FileWriter;
 
+private:
 	struct PredefinedFunction
 	{
 		std::string DeclarationH;
@@ -19,8 +21,25 @@ private:
 		std::string Body;
 	};
 
+	struct PredefinedMember
+	{
+		std::string Type;
+		std::string Name;
+		uint32 Offset;
+		uint32 Size;
+	};
+
+	typedef std::unordered_map<std::string, std::pair<std::string, std::vector<PredefinedFunction>>> FunctionsMap;
+	typedef std::unordered_map<std::string, std::vector<PredefinedMember>> MemberMap;
+
+	static FunctionsMap PredefinedFunctions; // Package.cpp
+	static MemberMap PredefinedMembers; // Types.cpp
+
 public:
 	Generator();
+
+	static void InitPredefinedMembers();
+	static void InitPredefinedFunctions();
 
 	static void GenerateSDK();
 

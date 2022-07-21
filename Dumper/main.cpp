@@ -31,6 +31,11 @@ DWORD MainThread(HMODULE Module)
 	
 	Generator::GenerateSDK();
 
+	//Generator SDKGen;
+	//Package Pack(0);
+	//UEClass UObject = ObjectArray::FindClassFast("Object");
+	//Pack.GenerateClass(UObject);
+
 	/*std::cout << "Some FullName: " << ObjectArray::GetByIndex(69).GetFullName() << "\n";
 
 	auto t_1 = high_resolution_clock::now();
