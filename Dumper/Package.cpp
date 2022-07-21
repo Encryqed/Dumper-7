@@ -152,7 +152,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	if (Function.HasFlags(EFunctionFlags::Native))
 		FuncBody += "\n\tauto Flags = Func->FunctionFlags;\n\tFunc->FunctionFlags |= 0x400;\n\n";
 
-	FuncBody += "\tUObject::ProcessEvent(Func, &Parms);";
+	FuncBody += "\t\nUObject::ProcessEvent(Func, &Parms);";
 
     if (Function.HasFlags(EFunctionFlags::Native))
         FuncBody += "\n\n\tFunc->FunctionFlags = Flags;\n\n";
@@ -222,8 +222,6 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 
 	if (!bIsFunction)
 		AllStructs.push_back(RetStruct);
-
-	AllStructs.push_back(RetStruct);
 
 	return RetStruct;
 }

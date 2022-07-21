@@ -13,8 +13,8 @@ void Generator::Start()
 {
 	auto ObjectPackages = ObjectArray::GetAllPackages();
 
-	std::cout << "Dumper-7 started!\n";
-	std::cout << "Total Packages: " << (int)ObjectPackages.size() << "\n\n";
+	std::cout << "Started Generation [Dumper-7]!\n";
+	std::cout << "Total Packages: " << ObjectPackages.size() << "\n\n";
 
 	for (auto Pair : ObjectPackages)
 	{
@@ -23,22 +23,31 @@ void Generator::Start()
 		Package Pack(Object);
 		Pack.Process(Pair.second);
 
-		std::filesystem::create_directory("SDK");
 
-		FileWriter ClassFile("SDK/" + Object.GetName(), FileWriter::FileType::Class);
-		FileWriter StructsFile("SDK/" + Object.GetName(), FileWriter::FileType::Struct);
-		FileWriter FunctionFile("SDK/" + Object.GetName(), FileWriter::FileType::Function);
+		std::string PackageName = Object.GetName();
+		std::filesystem::path GenFolder(Settings::SDKGenerationPath);
+		std::filesystem::path SDKFolder = GenFolder / "SDK";
+
+		std::filesystem::create_directory(GenFolder);
+		std::filesystem::create_directory(SDKFolder);
 
 		if (!Pack.IsEmpty())
 		{
+			FileWriter ClassFile(SDKFolder, PackageName, FileWriter::FileType::Class);
+			FileWriter StructsFile(SDKFolder, PackageName, FileWriter::FileType::Struct);
+			FileWriter FunctionFile(SDKFolder, PackageName, FileWriter::FileType::Function);
+			FileWriter ParameterFile(SDKFolder, PackageName, FileWriter::FileType::Parameter);
+
 			ClassFile.WriteClasses(Pack.AllClasses);
 			StructsFile.WriteStructs(Pack.AllStructs);
-			// Parameter
 			FunctionFile.WriteFunctions(Pack.AllFunctions);
-		}
 
-		ClassFile.Close();
+			for (auto Function : Pack.AllFunctions)
+			{
+				ParameterFile.WriteStruct(Function.GetParamStruct());
+			}
+		}
 	}
 
-	std::cout << "\n\n[=] Done with Aids [=]\n\n";
+	std::cout << "\n\n[=] Done [=]\n\n";
 }

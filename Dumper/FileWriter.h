@@ -24,7 +24,7 @@ private:
 
 public:
 	FileWriter(std::filesystem::path FilePath);
-	FileWriter(std::filesystem::path FilePath, FileType Type);
+	FileWriter(std::filesystem::path FilePath, std::string FileName, FileType Type);
 	FileWriter(std::string FileName);
 	FileWriter(std::string FileName, FileType Type);
 	~FileWriter();

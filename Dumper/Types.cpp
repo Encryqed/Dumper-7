@@ -158,7 +158,7 @@ void Types::Function::SetParamStruct(Types::Struct&& Params)
 	ParamStruct = Params;
 }
 
-Types::Struct Types::Function::GetParamStruct()
+Types::Struct& Types::Function::GetParamStruct()
 {
 	return ParamStruct;
 }

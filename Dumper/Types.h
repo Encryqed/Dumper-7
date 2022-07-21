@@ -114,7 +114,7 @@ namespace Types
 		void SetParamStruct(Struct&& Params);
 
 		std::string GetGeneratedBody();
-		Struct GetParamStruct();
+		Struct& GetParamStruct();
 	};
 
 	class Class : public Struct

@@ -2,6 +2,9 @@
 
 namespace Settings
 {
+	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
+
+
 	inline constexpr const bool bUseNamespaceForParams = true;
 
 	inline constexpr const bool bUseNamespaceForSDK = true;
@@ -14,7 +17,4 @@ namespace Settings
 	inline constexpr const char* ParamNamespaceName = "Params";
 
 	inline constexpr const char* XORString = "XORSTR";
-
-	
-	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7/";
 }

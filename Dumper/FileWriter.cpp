@@ -5,11 +5,12 @@ FileWriter::FileWriter(std::filesystem::path FilePath)
 	FileStream.open(FilePath);
 }
 
-FileWriter::FileWriter(std::filesystem::path FilePath, FileType Type)
+FileWriter::FileWriter(std::filesystem::path FilePath, std::string FileName, FileType Type)
 {
 	CurrentFileType = Type;
+	CurrentFile = FileName;
 	SetFileType(Type);
-	FileStream.open(FilePath);
+	FileStream.open(FilePath / CurrentFile);
 }
 
 FileWriter::FileWriter(std::string FileName)
