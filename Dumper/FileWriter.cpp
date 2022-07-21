@@ -1,12 +1,12 @@
 #include "FileWriter.h"
 
-FileWriter::FileWriter(std::filesystem::path FilePath)
+FileWriter::FileWriter(fs::path FilePath)
 {
 	FileStream.open(FilePath);
 	SetFileHeader();
 }
 
-FileWriter::FileWriter(std::filesystem::path FilePath, std::string FileName, FileType Type)
+FileWriter::FileWriter(fs::path FilePath, std::string FileName, FileType Type)
 {
 	CurrentFileType = Type;
 	CurrentFile = FileName;
@@ -41,7 +41,6 @@ void FileWriter::Open(std::string FileName)
 	Close();
 	CurrentFile = FileName;
 	FileStream.open(CurrentFile);
-	SetFileHeader();
 }
 
 void FileWriter::Open(std::string FileName, FileType Type)

@@ -152,7 +152,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	if (Function.HasFlags(EFunctionFlags::Native))
 		FuncBody += "\n\tauto Flags = Func->FunctionFlags;\n\tFunc->FunctionFlags |= 0x400;\n\n";
 
-	FuncBody += "\t\nUObject::ProcessEvent(Func, &Parms);";
+	FuncBody += "\n\tUObject::ProcessEvent(Func, &Parms);";
 
     if (Function.HasFlags(EFunctionFlags::Native))
         FuncBody += "\n\n\tFunc->FunctionFlags = Flags;\n\n";
@@ -185,7 +185,7 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 
 	if (UEStruct Super = Struct.GetSuper())
 	{
-		RetStruct = Types::Struct(StructName, Super.GetCppName());
+		RetStruct = Types::Struct(StructName, false, Super.GetCppName());
 		SuperSize = Super.GetStructSize();
 	}
 
@@ -230,14 +230,14 @@ Types::Class Package::GenerateClass(UEClass& Class)
 {
 	std::string ClassName = Class.GetCppName();
 
-	Types::Class RetClass(ClassName);
+	Types::Class RetClass(ClassName, Class.GetName());
 
 	int Size = Class.GetStructSize();
 	int SuperSize = 0;
 
 	if (UEStruct Super = Class.GetSuper())
 	{
-		RetClass = Types::Class(ClassName, Super.GetCppName());
+		RetClass = Types::Class(ClassName, Class.GetName(), Super.GetCppName());
 		SuperSize = Super.GetStructSize();
 	}
 

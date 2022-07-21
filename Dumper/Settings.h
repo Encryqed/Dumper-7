@@ -3,6 +3,7 @@
 namespace Settings
 {
 	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
+	inline constexpr const char* GameName = "Fortnite";
 
 
 	inline constexpr const bool bUseNamespaceForParams = true;

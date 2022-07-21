@@ -29,9 +29,7 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONOUT$", "w", stdout);
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 	
-	Generator Dumper;
-
-	Dumper.Start();
+	Generator::GenerateSDK();
 
 	/*std::cout << "Some FullName: " << ObjectArray::GetByIndex(69).GetFullName() << "\n";
 

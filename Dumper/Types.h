@@ -71,15 +71,15 @@ namespace Types
 	class Struct
 	{
 	protected:
+		std::string CppName;
 		std::string Declaration;
 		std::string InnerBody;
-		std::string WholeBody;
 		std::string Comments;
 		std::vector<Member> StructMembers;
 
 	public:
 		Struct() = default;
-		Struct(std::string Name, std::string Super = "");
+		Struct(std::string Name, bool bIsClass = false, std::string Super = "");
 
 		void AddComment(std::string Comment);
 		void AddMember(Member& NewMember);
@@ -113,6 +113,8 @@ namespace Types
 		void AddBody(std::string Body);
 		void SetParamStruct(Struct&& Params);
 
+		std::string GetDeclaration();
+
 		std::string GetGeneratedBody();
 		Struct& GetParamStruct();
 	};
@@ -121,10 +123,16 @@ namespace Types
 	{
 	private:
 		std::vector<Function> ClassFunctions;
+		std::string RawName; //For StaticClass()
 
 	public:
 
 		using Struct::Struct;
+
+		Class(std::string CppName, std::string Name, std::string Super = "")
+			: Struct(CppName, false, Super), RawName(Name)
+		{
+		}
 
 		void AddFunction(Function& NewFunction);
 		void AddFunction(Function&& NewFunction);

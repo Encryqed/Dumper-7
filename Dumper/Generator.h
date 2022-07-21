@@ -5,6 +5,8 @@
 #include "Settings.h"
 #include "Package.h"
 
+namespace fs = std::filesystem;
+
 class Generator
 {
 private:
@@ -20,5 +22,8 @@ private:
 public:
 	Generator();
 
-	void Start();
+	static void GenerateSDK();
+
+	void GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t, std::vector<int32_t>>& Packages);
+	void GenerateFixupFile(fs::path& SdkPath);
 };

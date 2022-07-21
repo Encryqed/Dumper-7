@@ -4,6 +4,8 @@
 #include "Types.h"
 #include "Settings.h"
 
+namespace fs = std::filesystem;
+
 class FileWriter
 {
 public:
@@ -23,8 +25,8 @@ private:
 	std::string CurrentFile;
 
 public:
-	FileWriter(std::filesystem::path FilePath);
-	FileWriter(std::filesystem::path FilePath, std::string FileName, FileType Type);
+	FileWriter(fs::path FilePath);
+	FileWriter(fs::path FilePath, std::string FileName, FileType Type);
 	FileWriter(std::string FileName);
 	FileWriter(std::string FileName, FileType Type);
 	~FileWriter();

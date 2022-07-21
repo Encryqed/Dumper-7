@@ -2,6 +2,22 @@
 #include "Enums.h"
 
 
+Types::Struct::Struct(std::string Name, bool bIsClass, std::string Super)
+{
+	CppName = Name;
+
+	if (bIsClass)
+	{
+		Declaration = (Super == "" ? std::format("struct {}\n", Name) : std::format("struct {} : public {}\n", Name, Super));
+	}
+	else
+	{
+		Declaration = (Super == "" ? std::format("class {}\n", Name) : std::format("class {} : public {}\n", Name, Super));
+	}
+
+	InnerBody = "{\n";
+}
+
 void Types::Struct::AddComment(std::string Comment)
 {
 	Comments += "// " + Comment + "\n";
@@ -31,9 +47,7 @@ std::string Types::Struct::GetGeneratedBody()
 		InnerBody += StructMember.GetGeneratedBody();
 	}
 
-	WholeBody = Comments + Declaration + InnerBody + "};\n\n";
-
-	return WholeBody;
+	return Comments + Declaration + InnerBody + "};\n\n";
 }
 
 
@@ -54,14 +68,14 @@ std::string Types::Class::GetGeneratedBody()
 		InnerBody += ClassMember.GetGeneratedBody();
 	}
 
+	InnerBody += std::format("\n\tstatic class UClass* StaticClass() const\n\t{{\n\t\tstatic class UClass* Clss = UObject::FindClassFast(\"{}\");\n\t\treturn Clss;\n\t}}\n\n", RawName);
+
 	for (Function ClassFunction : ClassFunctions)
 	{
-		InnerBody += ClassFunction.GetGeneratedBody();
+		InnerBody += std::format("\t{};\n", ClassFunction.GetDeclaration());
 	}
 
-	WholeBody = Comments + Declaration + InnerBody + "};\n\n";
-
-	return WholeBody;
+	return Comments + Declaration + InnerBody + "};\n\n";
 }
 
 Types::Includes::Includes(std::vector<std::pair<std::string, bool>> HeaderFiles)
@@ -121,7 +135,7 @@ Types::Function::Function(std::string Type, std::string Name, std::vector<Parame
 		Indent = "";
 	}
 
-	Declaration = std::format("{}{} {}({})\n", Indent, Type, Name, GetParametersAsString());
+	Declaration = std::format("{}{} {}({})", Indent, Type, Name, GetParametersAsString());
 	InnerBody = std::format("{}{{", Indent);
 }
 
@@ -149,10 +163,15 @@ std::string Types::Function::GetParametersAsString()
 	return Output;
 }
 
+std::string Types::Function::GetDeclaration()
+{
+	 return Declaration;
+}
 void Types::Function::AddBody(std::string Body)
 {
 	InnerBody += Body;
 }
+
 void Types::Function::SetParamStruct(Types::Struct&& Params)
 {
 	ParamStruct = Params;
@@ -165,7 +184,7 @@ Types::Struct& Types::Function::GetParamStruct()
 
 std::string Types::Function::GetGeneratedBody()
 {
-	WholeBody = std::format("\n{}{}{}}}\n", Declaration, InnerBody, Indent);
+	WholeBody = std::format("\n{}\n{}{}}}\n", Declaration, InnerBody, Indent);
 
 	return WholeBody;
 }
@@ -221,10 +240,4 @@ std::string Types::Enum::GetGeneratedBody()
 	WholeBody = Declaration + InnerBody;
 
 	return WholeBody;
-}
-
-Types::Struct::Struct(std::string Name, std::string Super)
-{
-	Declaration = (Super == "" ? std::format("struct {}\n", Name) : std::format("struct {} : public {}\n", Name, Super));
-	InnerBody = "{\n";
 }
