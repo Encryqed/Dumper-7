@@ -51,6 +51,7 @@ void Generator::GenerateSDK()
 			FileWriter ParameterFile(SDKFolder, PackageName, FileWriter::FileType::Parameter);
 
 			ClassFile.WriteClasses(Pack.AllClasses);
+			StructsFile.WriteEnums(Pack.AllEnums);
 			StructsFile.WriteStructs(Pack.AllStructs);
 			//FunctionFile.WriteFunctions(Pack.AllFunctions);
 
