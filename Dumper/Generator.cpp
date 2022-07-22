@@ -10,6 +10,19 @@ Generator::Generator()
 	FName::Init();
 	Off::Init();
 
+	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
+	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
+
+	for (int i = 0; i < 0x150; i++)
+	{
+		if (Vft[i] == PeAddr)
+		{
+			Off::InSDK::PEIndex = i;
+			std::cout << "PE-Index: 0x" << std::hex << i << "\n";
+			break;
+		}
+	}
+
 	InitPredefinedMembers();
 	InitPredefinedFunctions();
 }
@@ -136,6 +149,7 @@ void Generator::GenerateFixupFile(fs::path& SdkPath)
 		FixupStream << std::format("class {}\n{{\n\tunsigned __int8 Pad[0x{:X}];\n}}\n\n", Property.first, Property.second);
 	}
 }
+
 
 void Generator::InitPredefinedMembers()
 {
@@ -396,3 +410,203 @@ R"(
 		}
 	};
 }
+
+
+void Generator::GenerateBasicFile(fs::path& SdkPath)
+{
+	FileWriter Writer(SdkPath, "Basic.h", FileWriter::FileType::Header);
+
+	//-TArray
+	//-FString
+	//-FName [AppendString()]
+	//-TSubclassOf<Type>
+	// TSet<Type>
+	// TMap<Type>
+	//-FText
+}
+
+//struct FText
+//{
+//	FString TextData;
+//	uint8 IdkTheRest[0x8];
+//};
+//
+//template<typename ClassType>
+//class TSubclassOf
+//{
+//	class UClass* ClassPtr;
+//
+//public:
+//	inline UClass* Get()
+//	{
+//		return ClassPtr;
+//	}
+//	inline UClass* operator->()
+//	{
+//		return ClassPtr;
+//	}
+//	inline TSubclassOf& operator=(UClass* Class)
+//	{
+//		Classptr = Class;
+//
+//		return *this;
+//	}
+//
+//	inline bool operator==(const TSubclassOf& Other) const
+//	{
+//		return ClassPtr == Other.ClassPtr;
+//	}
+//	inline bool operator!=(const TSubclassOf& Other) const
+//	{
+//		return ClassPtr != Other.ClassPtr;
+//	}
+//	inline bool operator==(UClass* Other) const
+//	{
+//		return ClassPtr == Other;
+//	}
+//	inline bool operator!=(UClass* Other) const
+//	{
+//		return ClassPtr != Other;
+//	}
+//};
+//
+//template<class T>
+//class TArray
+//{
+//protected:
+//	T* Data;
+//	int32 NumElements;
+//	int32 MaxElements;
+//
+//public:
+//
+//	TArray() = default;
+//
+//	inline TArray(int32 Size)
+//		:NumElements(0), MaxElements(Size), Data(reinterpret_cast<T*>(malloc(sizeof(T) * Size)))
+//	{
+//	}
+//
+//	inline T& operator[](uint32 Index)
+//	{
+//		return Data[Index];
+//	}
+//	inline const T& operator[](uint32 Index) const
+//	{
+//		return Data[Index];
+//	}
+//
+//	inline int32 Num()
+//	{
+//		return NumElements;
+//	}
+//
+//	inline int32 Max()
+//	{
+//		return MaxElements;
+//	}
+//
+//	inline int32 GetSlack()
+//	{
+//		return MaxElements - NumElements;
+//	}
+//
+//	inline bool IsValid()
+//	{
+//		return Data != nullptr;
+//	}
+//
+//	inline bool IsValidIndex(int32 Index)
+//	{
+//		return Index >= 0 && Index < NumElements;
+//	}
+//
+//	inline bool IsValidIndex(uint32 Index)
+//	{
+//		return Index < NumElements;
+//	}
+//
+//	inline void ResetNum()
+//	{
+//		NumElements = 0;
+//	}
+//};
+//
+//class FString : public TArray<wchar_t>
+//{
+//public:
+//	inline FString() = default;
+//
+//	using TArray::TArray;
+//
+//	inline FString(const wchar_t* WChar)
+//	{
+//		MaxElements = NumElements = *WChar ? std::wcslen(WChar) + 1 : 0;
+//
+//		if (NumElements)
+//		{
+//			Data = const_cast<wchar_t*>(WChar);
+//		}
+//	}
+//
+//	inline FString operator=(const wchar_t*&& Other)
+//	{
+//		return FString(Other);
+//	}
+//
+//	inline std::wstring ToWString()
+//	{
+//		if (IsValid())
+//		{
+//			return Data;
+//		}
+//
+//		return L"";
+//	}
+//
+//	inline std::string ToString()
+//	{
+//		if (IsValid())
+//		{
+//			std::wstring WData(Data);
+//			return std::string(WData.begin(), WData.end());
+//		}
+//
+//		return "";
+//	}
+//};
+//
+//class FName
+//{
+//public:
+//	int32 ComparisonIndex;
+//	int32 Number;
+//
+//	inline std::string ToString()
+//	{
+//		static FString TempString(1024);
+//		static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(uintptr_t(GetModuleHandle(0) + OFFSET));
+//
+//		AppendString(this, TempString);
+//
+//		std::string OutputString = TempString.ToString();
+//		TempString.ResetNum();
+//
+//		size_t pos = OutputString.rfind('/');
+//
+//		if (pos == std::string::npos)
+//			return OutputString;
+//
+//		return OutputString.substr(pos + 1);
+//	}
+//
+//	inline bool operator==(const FName& Other)
+//	{
+//		return ComparisonIndex == Other.ComparisonIndex;
+//	}
+//
+//	inline bool operator!=(const FName& Other)
+//	{
+//		return ComparisonIndex != Other.ComparisonIndex;
+//	}
+//};

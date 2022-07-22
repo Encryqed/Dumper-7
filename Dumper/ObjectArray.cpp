@@ -123,6 +123,7 @@ void ObjectArray::Init()
 		{
 			GObjects = DataSection + i;
 			Off::FUObjectArray::Num = 0xC;
+			NumElementsPerChunk = -1;
 
 			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
 
@@ -136,7 +137,6 @@ void ObjectArray::Init()
 				return reinterpret_cast<FFixedUObjectArray*>(ObjectsArray)->Objects[Index].Object;
 				
 			};
-
 			return;
 		}
 		else if (ChunkedArray->IsValid())
@@ -164,6 +164,7 @@ void ObjectArray::Init()
 				NumElementsPerChunk = 0x10400;
 			}
 
+			Off::InSDK::ChunkSize = NumElementsPerChunk;
 			return;
 		}
 	}
@@ -187,21 +188,8 @@ void ObjectArray::DumpObjects()
 }
 
 
-//std::vector<int32> ObjectArray::GetAllPackages()
 std::unordered_map<int32_t, std::vector<int32_t>> ObjectArray::GetAllPackages()
 {
-	/*std::vector<int32> ReturnPackages(100);
-
-	for (UEObject Object : ObjectArray())
-	{
-		if (Object.IsA(EClassCastFlags::UPackage))
-		{
-			ReturnPackages.push_back(Object.GetIndex());
-		}
-	}
-
-	return ReturnPackages;*/
-
 	std::unordered_map<int32_t, std::vector<int32_t>> OutPackages;
 
 	for (UEObject Object : ObjectArray())
@@ -218,9 +206,7 @@ std::unordered_map<int32_t, std::vector<int32_t>> ObjectArray::GetAllPackages()
 
 		if (!Object.IsA(EClassCastFlags::UPackage))
 		{
-			if (Object.IsA(EClassCastFlags::UClass) 
-				|| Object.IsA(EClassCastFlags::UEnum)
-				|| Object.IsA(EClassCastFlags::UStruct))
+			if (Object.IsA(EClassCastFlags::UClass) || Object.IsA(EClassCastFlags::UEnum) || Object.IsA(EClassCastFlags::UStruct))
 			{
 				OutPackages[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 			}

@@ -26,7 +26,7 @@ public:
 	uint8* Address;
 
 private:
-	//pated
+	//pasted
 	static std::vector<int32_t> PatternToBytes(const char* pattern)
 	{
 		auto bytes = std::vector<int>{};
@@ -46,11 +46,29 @@ private:
 		}
 		return bytes;
 	}
+	static bool IsFunctionRet(uint8* Address)
+	{
+		//if (Opcode == RET && (OpcodeBefore is a POP opcode || OpcodeTwoBefore is a different POP Opcode)
+		return Address[0] == 0xC3 & ((Address[-1] >= 0x58 & Address[-1] <= 0x5F) | (Address[-2] == 0x41 & (Address[-1] >= 0x58 & Address[-1] <= 0x5F)));
+	}
 
 public:
+	inline MemAddress(void* Addr)
+		: Address((uint8*)Addr)
+	{
+	}
+	inline MemAddress(uintptr_t Addr)
+		: Address((uint8*)Addr)
+	{
+	}
+
 	explicit operator void*()
 	{
 		return Address;
+	}
+	explicit operator uintptr_t()
+	{
+		return uintptr_t(Address);
 	}
 
 	template<typename T = void>
@@ -59,15 +77,23 @@ public:
 		return Address;
 	}
 
-	std::pair<int32_t, int32_t> FindFunctionExtend()
+	MemAddress FindFunctionEnd()
 	{
 		if (!Address)
-			return { 0, 0 };
+			return MemAddress(nullptr);
 
-		//I'll do it later
-		return  { 0, 0 };
+		for (int i = 0; i < 0xFFFF; i++)
+		{
+			if (IsFunctionRet(Address + i))
+			{
+				return MemAddress(Address + i);
+			}
+		}
+
+		return  MemAddress(nullptr);
 	}
 
+	//Needs work
 	//PlusMinus how many bytes forwards and backwards to search, if 0 it'll take function extend
 	inline void* RelativePattern(const char* Pattern, int32_t PlusMinus = 0, int32_t Relative = 0)
 	{
@@ -77,7 +103,7 @@ public:
 		std::vector<int32_t> Bytes = PatternToBytes(Pattern);
 		const int32_t NumBytes = Bytes.size();
 
-		const auto Extend = FindFunctionExtend();
+		const std::pair<int, int> Extend = { 0, 0 };
 		const int32_t IterationCount = PlusMinus ? 2 * PlusMinus : Extend.second - Extend.first;
 		uint8* StartAddress = Address - PlusMinus;
 
@@ -108,7 +134,7 @@ public:
 	}
 
 	// every occurence of E8 counts as a call, use for max 1-5 calls only
-	/* Negative index for search up, positive for search down  | goes beyond function */
+	/* Negative index for search up, positive for search down  | goes beyond function-boundaries */
 	inline void* GetCalledFunction(int32_t FunctionIndex)
 	{
 		if (!Address || FunctionIndex == 0)
@@ -135,9 +161,20 @@ public:
 
 		return nullptr;
 	}
+
+	inline MemAddress FindNextFunctionStart()
+	{
+		if (!Address)
+			return MemAddress(nullptr);
+
+		uintptr_t FuncEnd = (uintptr_t)FindFunctionEnd();
+
+		return FuncEnd + (0x10 - (FuncEnd % 0x10));
+	}
 };
 
-inline MemAddress FindByString(const char* RefStr)
+template<typename Type = const char*>
+inline MemAddress FindByString(Type RefStr)
 {
 	uintptr_t ImageBase = uintptr_t(GetModuleHandle(0));
 	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
@@ -171,33 +208,46 @@ inline MemAddress FindByString(const char* RefStr)
 
 	for (int i = 0; i < DataSize; i++)
 	{
-		if (strcmp(RefStr, (const char*)(DataSection + i)) == 0)
+		if (std::is_same<Type, const char*>())
 		{
-			std::cout << "FoundStr ref: " << (const char*)(DataSection + i) << "\n";
+			if (strcmp((const char*)RefStr, (const char*)(DataSection + i)) == 0)
+			{
+				std::cout << "FoundStr ref: " << (const char*)(DataSection + i) << "\n";
 
-			StringAddress = DataSection + i;
+				StringAddress = DataSection + i;
+			}
+		}
+		else
+		{
+			if (wcscmp((const wchar_t*)RefStr, (const wchar_t*)(DataSection + i)) == 0)
+			{
+				std::wcout << L"FoundStr ref: " << (const wchar_t*)(DataSection + i) << L"\n";
+
+				StringAddress = DataSection + i;
+			}
 		}
 	}
 
 	for (int i = 0; i < TextSize; i++)
 	{
 		// opcode: lea
-		if (TextSection[i] == uint8_t(0x4C) && TextSection[i + 1] == uint8_t(0x8D))
+		if ((TextSection[i] == uint8_t(0x4C) || TextSection[i] == uint8_t(0x48)) && TextSection[i + 1] == uint8_t(0x8D))
 		{
 			const uint8_t* StrPtr = *(uint32_t*)(TextSection + i + 3) + 7 + TextSection + i;
 
 			if (StrPtr == StringAddress)
 			{
-				//logic
-				std::cout << "\nfound\n\n";
-
 				return { TextSection + i };
 			}
 		}
 	}
 
-	return { 0 };
+	return nullptr;
 }
 
+inline MemAddress FindByWString(const wchar_t* RefStr)
+{
+	return FindByString<const wchar_t*>(RefStr);
+}
 
 

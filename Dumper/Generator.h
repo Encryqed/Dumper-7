@@ -45,4 +45,5 @@ public:
 
 	void GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t, std::vector<int32_t>>& Packages);
 	void GenerateFixupFile(fs::path& SdkPath);
+	void GenerateBasicFile(fs::path& SdkPath);
 };

@@ -163,9 +163,10 @@ void FileWriter::SetFileHeader()
 	#pragma pack(push, 0x08)
 #endif
 
-#include "../SDK.hpp"
-
 )";
+
+	if (CurrentFileType == FileType::Function || CurrentFileType == FileType::Parameter)
+		FileStream << "#include \"../SDK.hpp\"\n\n";
 
 	if (Settings::bUseNamespaceForSDK)
 		FileStream << std::format("namespace {}\n{{\n\n\n", Settings::SDKNamespaceName);
