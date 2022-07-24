@@ -169,10 +169,10 @@ void FileWriter::SetFileHeader()
 		FileStream << "#include \"../SDK.hpp\"\n\n";
 
 	if (Settings::bUseNamespaceForSDK)
-		FileStream << std::format("namespace {}\n{{\n\n\n", Settings::SDKNamespaceName);
+		FileStream << std::format("namespace {}\n{{\n", Settings::SDKNamespaceName);
 
 	if (CurrentFileType == FileType::Parameter && Settings::bUseNamespaceForParams)
-		FileStream << std::format("namespace {}\n{{\n\n\n", Settings::ParamNamespaceName);
+		FileStream << std::format("namespace {}\n{{\n", Settings::ParamNamespaceName);
 }
 
 void FileWriter::SetFileEnding()

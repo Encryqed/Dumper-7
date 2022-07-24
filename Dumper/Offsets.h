@@ -9,6 +9,7 @@ namespace Off
 	namespace InSDK
 	{
 		inline int32 PEIndex;
+		inline int32 PEOffset;
 		inline int32 GObjects;
 		inline int32 ChunkSize;
 		inline int32 AppendNameToString;

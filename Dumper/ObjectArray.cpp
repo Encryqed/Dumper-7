@@ -143,6 +143,7 @@ void ObjectArray::Init()
 		{
 			GObjects = DataSection + i;
 			Off::FUObjectArray::Num = 0x14;
+			NumElementsPerChunk = 0x10000;
 
 			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
 

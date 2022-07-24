@@ -13,6 +13,8 @@ Generator::Generator()
 	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
+	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
+
 	for (int i = 0; i < 0x150; i++)
 	{
 		if (Vft[i] == PeAddr)
@@ -98,6 +100,7 @@ void Generator::GenerateSDK()
 
 	SDKGen.GenerateSDKHeader(GenFolder, ObjectPackages);
 	SDKGen.GenerateFixupFile(GenFolder);
+	SDKGen.GenerateBasicFile(SDKFolder);
 
 	std::cout << "\n\n[=] Done [=]\n\n";
 }
@@ -376,7 +379,11 @@ R"(
 			},
 			{
 				"\tinline ProcessEvent(class UFunction* Function, void* Parms) const", "",
-				std::format("\n\t{{\n\t\treturn GetVFunction<void(*)(UObject*, class UFunction*, void*)>(this, {})(this, Function, Parms);\n\t}}", Off::InSDK::PEIndex)
+				std::format(
+R"(
+	{{
+		return GetVFunction<void(*)(UObject*, class UFunction*, void*)>(this, {} /*0x{:X}*/)(this, Function, Parms);
+	}})", Off::InSDK::PEIndex, Off::InSDK::PEOffset)
 			}
 		}
 	};
@@ -414,8 +421,280 @@ R"(
 
 void Generator::GenerateBasicFile(fs::path& SdkPath)
 {
-	FileWriter Writer(SdkPath, "Basic.h", FileWriter::FileType::Header);
+	FileWriter BasicFile(SdkPath, "Basic", FileWriter::FileType::Header);
 
+	if (Off::InSDK::ChunkSize == -1)
+	{
+		BasicFile.Write(
+R"(
+class TUObjectArray
+{
+	struct FUObjectItem
+	{
+		class UObject* Object;
+		uint8 Pad[0x10];
+	};
+
+	FUObjectItem* Objects;
+	int32 MaxElements;
+	int32 NumElements;
+
+public:
+	inline int Num() const
+	{
+		return NumElements;
+	}
+
+	inline class UObject* GetByIndex(const int32 Index) const
+	{
+		if (Index < 0 || Index > NumElements)
+			return nullptr;
+
+		return Objects[Index].Object;
+	}
+};
+)");
+	}
+	else
+	{
+		BasicFile.Write(
+			std::format(R"(
+class TUObjectArray
+{{
+	enum
+	{{
+		ElementsPerChunk = 0x{:X},
+	}};
+
+	struct FUObjectItem
+	{{
+		class UObject* Object;
+		uint8 Pad[0x10];
+	}};
+
+	FUObjectItem** Objects;
+	uint8 Pad_0[0x08];
+	int32 MaxElements;
+	int32 NumElements;
+	int32 MaxChunks;
+	int32 NumChunks;
+
+	inline int32 Num() const
+	{{
+		return NumElements;
+	}}
+
+	inline class UObject* GetByIndex(const int32 Index) const
+	{{
+		if (Index < 0 || Index > NumElements)
+			return nullptr;
+
+		const int32 ChunkIndex = Index / ElementsPerChunk;
+		const int32 InChunkIdx = Index % ElementsPerChunk;
+
+		return Objects[ChunkIndex][InChunkIdx].Object;
+	}}
+}};
+)", Off::InSDK::ChunkSize));
+	}
+
+	BasicFile.Write(
+		R"(
+template<class T>
+class TArray
+{
+protected:
+	T* Data;
+	int32 NumElements;
+	int32 MaxElements;
+
+public:
+
+	TArray() = default;
+
+	inline TArray(int32 Size)
+		:NumElements(0), MaxElements(Size), Data(reinterpret_cast<T*>(malloc(sizeof(T) * Size)))
+	{
+	}
+
+	inline T& operator[](uint32 Index)
+	{
+		return Data[Index];
+	}
+	inline const T& operator[](uint32 Index) const
+	{
+		return Data[Index];
+	}
+
+	inline int32 Num()
+	{
+		return NumElements;
+	}
+
+	inline int32 Max()
+	{
+		return MaxElements;
+	}
+
+	inline int32 GetSlack()
+	{
+		return MaxElements - NumElements;
+	}
+
+	inline bool IsValid()
+	{
+		return Data != nullptr;
+	}
+
+	inline bool IsValidIndex(int32 Index)
+	{
+		return Index >= 0 && Index < NumElements;
+	}
+
+	inline void ResetNum()
+	{
+		NumElements = 0;
+	}
+};
+)");
+
+	BasicFile.Write(
+R"(
+class FString : public TArray<wchar_t>
+{
+public:
+	inline FString() = default;
+
+	using TArray::TArray;
+
+	inline FString(const wchar_t* WChar)
+	{
+		MaxElements = NumElements = *WChar ? std::wcslen(WChar) + 1 : 0;
+
+		if (NumElements)
+		{
+			Data = const_cast<wchar_t*>(WChar);
+		}
+	}
+
+	inline FString operator=(const wchar_t*&& Other)
+	{
+		return FString(Other);
+	}
+
+	inline std::wstring ToWString()
+	{
+		if (IsValid())
+		{
+			return Data;
+		}
+
+		return L"";
+	}
+
+	inline std::string ToString()
+	{
+		if (IsValid())
+		{
+			std::wstring WData(Data);
+			return std::string(WData.begin(), WData.end());
+		}
+
+		return "";
+	}
+};
+)");
+
+	BasicFile.Write(
+std::format(R"(
+class FName
+{{
+public:
+	int32 ComparisonIndex;
+	int32 Number;
+
+	inline std::string ToString()
+	{{
+		static FString TempString(1024);
+		static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(uintptr_t(GetModuleHandle(0) + 0x{:X}));
+
+		AppendString(this, TempString);
+
+		std::string OutputString = TempString.ToString();
+		TempString.ResetNum();
+
+		size_t pos = OutputString.rfind('/');
+
+		if (pos == std::string::npos)
+			return OutputString;
+
+		return OutputString.substr(pos + 1);
+	}}
+
+	inline bool operator==(const FName& Other)
+	{{
+		return ComparisonIndex == Other.ComparisonIndex;
+	}}
+
+	inline bool operator!=(const FName& Other)
+	{{
+		return ComparisonIndex != Other.ComparisonIndex;
+	}}
+}};
+)", Off::InSDK::AppendNameToString));
+
+	BasicFile.Write(
+R"(
+template<typename ClassType>
+class TSubclassOf
+{
+	class UClass* ClassPtr;
+
+public:
+	inline UClass* Get()
+	{
+		return ClassPtr;
+	}
+	inline UClass* operator->()
+	{
+		return ClassPtr;
+	}
+	inline TSubclassOf& operator=(UClass* Class)
+	{
+		ClassPtr = Class;
+
+		return *this;
+	}
+
+	inline bool operator==(const TSubclassOf& Other) const
+	{
+		return ClassPtr == Other.ClassPtr;
+	}
+	inline bool operator!=(const TSubclassOf& Other) const
+	{
+		return ClassPtr != Other.ClassPtr;
+	}
+	inline bool operator==(UClass* Other) const
+	{
+		return ClassPtr == Other;
+	}
+	inline bool operator!=(UClass* Other) const
+	{
+		return ClassPtr != Other;
+	}
+};
+)");
+
+	BasicFile.Write(
+R"(
+struct FText
+{
+	FString TextData;
+	uint8 IdkTheRest[0x8];
+};
+)");
+
+	//-TUObjectArray
 	//-TArray
 	//-FString
 	//-FName [AppendString()]
@@ -425,51 +704,115 @@ void Generator::GenerateBasicFile(fs::path& SdkPath)
 	//-FText
 }
 
-//struct FText
+//class TUObjectArray
 //{
-//	FString TextData;
-//	uint8 IdkTheRest[0x8];
-//};
+//	struct FUObjectItem
+//	{
+//		class UObject* Object;
+//		uint8 Pad[0x10];
+//	};
 //
-//template<typename ClassType>
-//class TSubclassOf
-//{
-//	class UClass* ClassPtr;
+//	FUObjectItem* Objects;
+//	int32_t MaxElements;
+//	int32_t NumElements;
 //
 //public:
-//	inline UClass* Get()
+//	inline int Num() const
 //	{
-//		return ClassPtr;
-//	}
-//	inline UClass* operator->()
-//	{
-//		return ClassPtr;
-//	}
-//	inline TSubclassOf& operator=(UClass* Class)
-//	{
-//		Classptr = Class;
-//
-//		return *this;
+//		return NumElements;
 //	}
 //
-//	inline bool operator==(const TSubclassOf& Other) const
+//	inline class UObject* GetByIndex(const int32 Index) const
 //	{
-//		return ClassPtr == Other.ClassPtr;
-//	}
-//	inline bool operator!=(const TSubclassOf& Other) const
-//	{
-//		return ClassPtr != Other.ClassPtr;
-//	}
-//	inline bool operator==(UClass* Other) const
-//	{
-//		return ClassPtr == Other;
-//	}
-//	inline bool operator!=(UClass* Other) const
-//	{
-//		return ClassPtr != Other;
+//		if (Index < 0 || Index > NumElements)
+//			return nullptr;
+//
+//		return Objects[Index].Object;
 //	}
 //};
 //
+//class TUObjectArray
+//{
+//	enum
+//	{
+//		ElementsPerChunk = 0x{:X},
+//	};
+//
+//	struct FUObjectItem
+//	{
+//		class UObject* Object;
+//		uint8 Pad[0x10];
+//	};
+//
+//	FUObjectItem** Objects;
+//	uint8_t Pad_0[0x08];
+//	int32_t MaxElements;
+//	int32_t NumElements;
+//	int32_t MaxChunks;
+//	int32_t NumChunks;
+//
+//	inline int Num() const
+//	{
+//		return NumElements;
+//	}
+//
+//	inline class UObject* GetByIndex(const int32 Index) const
+//	{
+//		if (Index < 0 || Index > NumElements)
+//			return nullptr;
+//
+//		const int32 ChunkIndex = Index / ElementsPerChunk;
+//		const int32 InChunkIdx = Index % ElementsPerChunk;
+//
+//		return Objects[ChunkIndex][InChunkIdx].Object;
+//	}
+//};
+
+struct FText
+{
+	FString TextData;
+	uint8 IdkTheRest[0x8];
+};
+
+template<typename ClassType>
+class TSubclassOf
+{
+	class UClass* ClassPtr;
+
+public:
+	inline UClass* Get()
+	{
+		return ClassPtr;
+	}
+	inline UClass* operator->()
+	{
+		return ClassPtr;
+	}
+	inline TSubclassOf& operator=(UClass* Class)
+	{
+		ClassPtr = Class;
+
+		return *this;
+	}
+
+	inline bool operator==(const TSubclassOf& Other) const
+	{
+		return ClassPtr == Other.ClassPtr;
+	}
+	inline bool operator!=(const TSubclassOf& Other) const
+	{
+		return ClassPtr != Other.ClassPtr;
+	}
+	inline bool operator==(UClass* Other) const
+	{
+		return ClassPtr == Other;
+	}
+	inline bool operator!=(UClass* Other) const
+	{
+		return ClassPtr != Other;
+	}
+};
+
 //template<class T>
 //class TArray
 //{
@@ -531,7 +874,7 @@ void Generator::GenerateBasicFile(fs::path& SdkPath)
 //		NumElements = 0;
 //	}
 //};
-//
+
 //class FString : public TArray<wchar_t>
 //{
 //public:
@@ -575,7 +918,7 @@ void Generator::GenerateBasicFile(fs::path& SdkPath)
 //		return "";
 //	}
 //};
-//
+
 //class FName
 //{
 //public:
@@ -585,7 +928,7 @@ void Generator::GenerateBasicFile(fs::path& SdkPath)
 //	inline std::string ToString()
 //	{
 //		static FString TempString(1024);
-//		static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(uintptr_t(GetModuleHandle(0) + OFFSET));
+//		static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + OFFSET));
 //
 //		AppendString(this, TempString);
 //

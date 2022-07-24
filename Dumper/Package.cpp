@@ -171,7 +171,14 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	
 	Types::Function Func(ReturnType, Function.GetValidName(), Params, false);
 
-	FuncBody += std::format("\n\tstatic auto Func = UClass::GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
+	if (Settings::bShouldXorStrings)
+	{
+		FuncBody += std::format("\n\tstatic auto Func = GetFunction({0}(\"{}\"), {0}(\"{}\"));\n\n", Settings::XORString, Super.GetName(), Function.GetName());
+	}
+	else
+	{
+		FuncBody += std::format("\n\tstatic auto Func = GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
+	}
 
 	FuncBody += std::format("\t{}{} Parms;\n", (Settings::bUseNamespaceForParams ? Settings::ParamNamespaceName + std::string("::") : ""), Function.GetParamStructName());
 
