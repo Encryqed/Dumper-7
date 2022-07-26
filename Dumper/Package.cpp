@@ -4,33 +4,187 @@
 #include "Settings.h"
 #include "Generator.h"
 
+PackageDependencyManager Package::PackageSorter;
+
+void PackageDependencyManager::GenerateClassSorted(class Package& Pack, int32 ClassIdx)
+{
+	auto& PackageInfo = AllDependencies[ClassIdx];
+
+	if (!PackageInfo.first)
+	{
+		PackageInfo.first = true;
+
+		for (auto Dependency : PackageInfo.second)
+		{
+			GenerateClassSorted(Pack, Dependency);
+		}
+
+		UEClass Class = ObjectArray::GetByIndex<UEClass>(ClassIdx);
+
+		Pack.GenerateClass(Class);
+	}
+}
+
+void PackageDependencyManager::GenerateStructSorted(class Package& Pack, int32 StructIdx)
+{
+	auto& PackageInfo = AllDependencies[StructIdx];
+
+	if (!PackageInfo.first)
+	{
+		PackageInfo.first = true;
+
+		for (auto Dependency : PackageInfo.second)
+		{
+			GenerateStructSorted(Pack, Dependency);
+		}
+
+		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(StructIdx);
+
+		Pack.GenerateStruct(Struct);
+	}
+}
+
+void PackageDependencyManager::GetIncludesForPackage(int32 PackageIdx, std::string& OutRef)
+{
+	auto& PackageInfo = AllDependencies[PackageIdx];
+
+	if (!PackageInfo.first)
+	{
+		for (auto Dependency : PackageInfo.second)
+		{
+			GetIncludesForPackage(Dependency, OutRef);
+		}
+
+
+		std::string PackageName = ObjectArray::GetByIndex(PackageIdx).GetName();
+
+		OutRef += std::format("\n#include \"SDK/{}_structs.hpp\"", PackageName);
+		OutRef += std::format("\n#include \"SDK/{}_classes.hpp\"", PackageName);
+		OutRef += std::format("\n#include \"SDK/{}_parameters.hpp\"", PackageName);
+
+		PackageInfo.first = true;
+	}
+}
+
+void PackageDependencyManager::GetObjectDependency(UEObject Obj, std::unordered_set<int32>& Store)
+{
+	if (Obj.IsA(EClassCastFlags::UFunction))
+	{
+		for (UEField Field = Obj.Cast<UEStruct>().GetChild(); Field; Field = Field.GetNext())
+		{
+			PackageDependencyManager::GetObjectDependency(Field, Store);
+		}
+	}
+	if (Obj.IsA(EClassCastFlags::UStructProperty))
+	{
+		Store.insert(Obj.Cast<UEStructProperty>().GetUnderlayingStruct().GetIndex());
+	}
+	else if (Obj.IsA(EClassCastFlags::UEnumProperty))
+	{
+		Store.insert(Obj.Cast<UEEnumProperty>().GetEnum().GetIndex());
+	}
+	else if (Obj.IsA(EClassCastFlags::UByteProperty))
+	{
+		if (UEObject Enum = Obj.Cast<UEByteProperty>().GetEnum())
+		{
+			Store.insert(Enum.GetIndex());
+		}
+	}
+	else if (Obj.IsA(EClassCastFlags::UArrayProperty))
+	{
+		GetObjectDependency(Obj.Cast<UEArrayProperty>().GetInnerProperty(), Store);
+	}
+	else if (Obj.IsA(EClassCastFlags::USetProperty))
+	{
+		GetObjectDependency(Obj.Cast<UESetProperty>().GetElementProperty().Cast<UEField>(), Store);
+	}
+	else if (Obj.IsA(EClassCastFlags::UMapProperty))
+	{
+		GetObjectDependency(Obj.Cast<UEMapProperty>().GetKeyProperty().Cast<UEField>(), Store);
+		GetObjectDependency(Obj.Cast<UEMapProperty>().GetValueProperty().Cast<UEField>(), Store);
+	}
+}
+
+void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
+{
+	for (int32_t Index : PackageMembers)
+	{
+		std::unordered_set<int32> ObjectsToCheck;
+
+		UEObject Object = ObjectArray::GetByIndex(Index);
+
+		if (!Object)
+			continue;
+
+		const bool bIsClass = Object.IsA(EClassCastFlags::UClass);
+
+		if (Object.IsA(EClassCastFlags::UClass) || (Object.IsA(EClassCastFlags::UStruct) && !Object.IsA(EClassCastFlags::UFunction)))
+		{
+			UEStruct Struct = Object.Cast<UEStruct>();
+
+			if (UEStruct Super = Struct.GetSuper())
+			{
+				ObjectsToCheck.insert(Super.GetIndex());
+			}
+
+			for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
+			{
+				PackageDependencyManager::GetObjectDependency(Field, ObjectsToCheck);
+			}
+
+			for (auto& Idx : ObjectsToCheck)
+			{
+				UEObject Obj = ObjectArray::GetByIndex(Idx);
+
+				UEObject Outermost = Obj.GetOutermost();
+
+				if (PackageObject != Outermost)
+				{
+					Package::PackageSorter.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
+					continue;
+				}
+
+				if (bIsClass)
+				{
+					if (Obj.IsA(EClassCastFlags::UClass))
+					{
+						ClassSorter.AddDependency(Object.GetIndex(), Obj.GetIndex());
+					}
+				}
+				else
+				{
+					if (Obj.IsA(EClassCastFlags::UStruct))
+					{
+						StructSorter.AddDependency(Object.GetIndex(), Obj.GetIndex());
+					}
+				}
+			}
+		}
+	}
+}
+
 void Package::Process(std::vector<int32_t>& PackageMembers)
 {
+	GatherDependencies(PackageMembers);
+
 	for (int32_t Index : PackageMembers)
 	{
 		UEObject Object = ObjectArray::GetByIndex(Index);
 
-		if (!Object || Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
-		{
+		if (!Object)
 			continue;
-		}
-
-		if (Object.GetOutermost() != PackageObject)
-		{
-			continue;
-		}
-
+		
 		if (Object.IsA(EClassCastFlags::UEnum))
 		{
 			GenerateEnum(Object.Cast<UEEnum&>());
 		}
 		else if (Object.IsA(EClassCastFlags::UClass))
 		{
-			GenerateClass(Object.Cast<UEClass&>());
+			ClassSorter.GenerateClassSorted(*this, Index);
 		}
 		else if (Object.IsA(EClassCastFlags::UStruct) && !Object.IsA(EClassCastFlags::UFunction))
 		{
-			GenerateStruct(Object.Cast<UEStruct&>());
+			StructSorter.GenerateStructSorted(*this, Index);
 		}
 	}
 }
@@ -132,11 +286,11 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 
 		std::string Type = Param.GetCppType();
 
-		if (Param.HasPropertyFlags(EPropertyFlags::ConstParm))
-		{
-			Type = "const " + Type;
-			bIsConst = true;
-		}
+		//if (Param.HasPropertyFlags(EPropertyFlags::ConstParm))
+		//{
+		//	Type = "const " + Type;
+		//	bIsConst = true;
+		//}
 		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
 		{
 			Type += "&";
@@ -154,8 +308,8 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 		{
 			Type += "&";
 			
-			if(!bIsConst)
-				Type = "const " + Type;
+			//if(!bIsConst)
+			//	Type = "const " + Type;
 		}
 
 		if (Param.HasPropertyFlags(EPropertyFlags::ReturnParm))
@@ -169,22 +323,23 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 		}
 	}
 	
-	Types::Function Func(ReturnType, Function.GetValidName(), Params, false);
+	Types::Function Func(ReturnType, Function.GetValidName(), Super.GetCppName(), Params);
 
 	if (Settings::bShouldXorStrings)
 	{
-		FuncBody += std::format("\n\tstatic auto Func = GetFunction({0}(\"{}\"), {0}(\"{}\"));\n\n", Settings::XORString, Super.GetName(), Function.GetName());
+		FuncBody += std::format("\tstatic auto Func = Class->GetFunction({0}(\"{}\"), {0}(\"{}\"));\n\n", Settings::XORString, Super.GetName(), Function.GetName());
 	}
 	else
 	{
-		FuncBody += std::format("\n\tstatic auto Func = GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
+		FuncBody += std::format("\tstatic auto Func = Class->GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
 	}
 
 	FuncBody += std::format("\t{}{} Parms;\n", (Settings::bUseNamespaceForParams ? Settings::ParamNamespaceName + std::string("::") : ""), Function.GetParamStructName());
 
 	for (auto& Param : Func.GetParameters())
 	{
-		FuncBody += std::format("\tParms.{0} = {0};\n", Param.GetName());
+		if(!Param.IsParamOutPtr())
+			FuncBody += std::format("\tParms.{0} = {0};\n", Param.GetName());
 	}
 
 	if (Function.HasFlags(EFunctionFlags::Native))
@@ -198,7 +353,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 
 	for (auto& Name : OutPtrParamNames)
 	{
-		FuncBody += std::format("\n\tif ({0} != nullptr)\n\t\t{0} = Parms.{0}\n", Name);
+		FuncBody += std::format("\n\tif ({0} != nullptr)\n\t\t*{0} = Parms.{0};\n", Name);
 	}
 
 	if (bHasRetType)
@@ -221,10 +376,18 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 	int Size = Struct.GetStructSize();
 	int SuperSize = 0;
 
-	if (UEStruct Super = Struct.GetSuper())
+	if (!bIsFunction)
 	{
-		RetStruct = Types::Struct(StructName, false, Super.GetCppName());
-		SuperSize = Super.GetStructSize();
+		if (UEStruct Super = Struct.GetSuper())
+		{
+			RetStruct = Types::Struct(StructName, false, Super.GetCppName());
+			SuperSize = Super.GetStructSize();
+
+			UEObject SuperPackage = Super.GetOutermost();
+
+			//if (PackageObject != SuperPackage)
+			//	PackageSorter.AddDependency(PackageObject.GetIndex(), SuperPackage.GetIndex());
+		}
 	}
 
 	RetStruct.AddComment(std::format("0x{:X} (0x{:X} - 0x{:X})", Size - SuperSize, Size, SuperSize));
@@ -277,6 +440,11 @@ Types::Class Package::GenerateClass(UEClass& Class)
 	{
 		RetClass = Types::Class(ClassName, Class.GetName(), Super.GetCppName());
 		SuperSize = Super.GetStructSize();
+
+		UEObject SuperPackage = Super.GetOutermost();
+
+		//if (PackageObject != SuperPackage)
+		//	PackageSorter.AddDependency(PackageObject.GetIndex(), SuperPackage.GetIndex());
 	}
 
 	RetClass.AddComment(std::format("0x{:X} (0x{:X} - 0x{:X})", Size - SuperSize, Size, SuperSize));
@@ -312,6 +480,7 @@ Types::Class Package::GenerateClass(UEClass& Class)
 			return Left.GetOffset() < Right.GetOffset();
 		});
 
+	UEObject PackageObj = Class.GetOutermost();
 	GenerateMembers(Properties, Class, RetClass);
 
 	AllClasses.push_back(RetClass);
@@ -321,9 +490,11 @@ Types::Class Package::GenerateClass(UEClass& Class)
 
 Types::Enum Package::GenerateEnum(UEEnum& Enum)
 {
-	Types::Enum Enm(Enum.GetEnumTypeAsStr(), "uint8");
+	std::string EnumName = Enum.GetEnumTypeAsStr(); 
 
-	auto NameValue = Enum.GetNameValuePairs();
+	Types::Enum Enm(EnumName, "uint8");
+
+	auto& NameValue = Enum.GetNameValuePairs();
 
 	for (int i = 0; i < NameValue.Num(); i++)
 	{
@@ -331,6 +502,10 @@ Types::Enum Package::GenerateEnum(UEEnum& Enum)
 
 		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
 	}
+
+	if (EnumName.find("PixelFormat") != -1)
+		Enm.FixPFMAX();
+	
 
 	AllEnums.push_back(Enm);
 

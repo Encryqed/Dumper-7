@@ -36,7 +36,7 @@ public:
 	bool HasAnyFlags(EObjectFlags Flags);
 
 	template<typename UEType>
-	UEType Cast();
+	UEType Cast() const;
 
 	bool IsA(EClassCastFlags TypeFlags);
 
@@ -87,7 +87,7 @@ class UEClass : public UEStruct
 	using UEStruct::UEStruct;
 
 public:
-	EClassCastFlags GetFlags();
+	EClassCastFlags GetCastFlags();
 	bool IsType(EClassCastFlags TypeFlag);
 	UEObject GetDefaultObject();
 };

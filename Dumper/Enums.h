@@ -233,6 +233,7 @@ ENUM_OPERATORS(EFunctionFlags);
 ENUM_OPERATORS(EPropertyFlags);
 ENUM_OPERATORS(EClassCastFlags);
 
+
 static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags)
 {
 	std::vector<const char*> Buffer;

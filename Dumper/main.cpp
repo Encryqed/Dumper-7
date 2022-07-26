@@ -9,11 +9,6 @@
 #include "Offsets.h"
 #include "Package.h"
 
-using std::chrono::high_resolution_clock;
-using std::chrono::duration_cast;
-using std::chrono::duration;
-using std::chrono::milliseconds;
-
 enum class EFortToastType : uint8
 {
         Default                        = 0,
@@ -21,6 +16,7 @@ enum class EFortToastType : uint8
         Impactful                      = 2,
         EFortToastType_MAX             = 3,
 };
+
 
 DWORD MainThread(HMODULE Module)
 {
@@ -32,12 +28,47 @@ DWORD MainThread(HMODULE Module)
 	auto t_1 = high_resolution_clock::now();
 	Generator::GenerateSDK();
 	auto t_2 = high_resolution_clock::now();
-
+	
 	auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
 	duration<double, std::milli> ms_double_ = t_2 - t_1;
-
+	
 	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 
+	//Generator SDKGen;
+	//
+	//Package myPack(ObjectArray::FindObjectFast("Engine", EClassCastFlags::UPackage));
+	//
+	//std::vector<int32> PackageMembers;
+	//
+	//for (UEObject Obj : ObjectArray())
+	//{
+	//	if(Obj.IsA(EClassCastFlags::UStruct) && !Obj.IsA(EClassCastFlags::UFunction) && !Obj.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject) && Obj.GetOutermost().GetName() == "Engine")
+	//		PackageMembers.push_back(Obj.GetIndex());
+	//}
+	//
+	//std::cout << "Processing\n";
+	//myPack.Process(PackageMembers);
+	//
+	//fs::path GenFolder(Settings::SDKGenerationPath);
+	//fs::path SDKFolder = GenFolder / "SDK";
+	//
+	//if (fs::exists(GenFolder))
+	//	std::cout << "Removed: 0x" << fs::remove_all(GenFolder) << " Files!\n";
+	//
+	//fs::create_directory(GenFolder);
+	//fs::create_directory(SDKFolder);
+	//
+	//FileWriter fwc(SDKFolder, "Engine", FileWriter::FileType::Class);
+	//FileWriter fws(SDKFolder, "Engine", FileWriter::FileType::Struct);
+	//
+	//std::cout << "Writing\n";
+	//fwc.WriteClasses(myPack.AllClasses);
+	//fws.WriteStructs(myPack.AllStructs);
+	//
+	//fwc.Close();
+	//fws.Close();
+
+	std::cout << "done!\n";
 
 	while (true)
 	{

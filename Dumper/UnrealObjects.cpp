@@ -38,7 +38,7 @@ bool UEObject::HasAnyFlags(EObjectFlags Flags)
 }
 
 template<typename UEType>
-UEType UEObject::Cast()
+UEType UEObject::Cast() const
 {
 	return UEType(Object);
 }
@@ -52,7 +52,7 @@ UEObject UEObject::GetOutermost()
 {
 	UEObject Outermost;
 
-	for (UEObject Outer = GetOuter(); Outer; Outer = Outer.GetOuter())
+	for (UEObject Outer = *this; Outer; Outer = Outer.GetOuter())
 	{
 		Outermost = Outer;
 	}
@@ -67,6 +67,13 @@ std::string UEObject::GetName()
 std::string UEObject::GetValidName()
 {
 	std::string Name = GetName();
+
+	if (Name[0] <= '9' && Name[0] >= '0')
+		Name = '_' + Name;
+
+	//this way I don't need to bother checking for c++ types like int in the names
+	if (Name[0] <= 'z' && Name[0] >= 'a')
+		Name[0] = Name[0] - 20;
 
 	for (char& c : Name)
 	{
@@ -193,14 +200,14 @@ int32 UEStruct::GetStructSize()
 }
 
 
-EClassCastFlags UEClass::GetFlags()
+EClassCastFlags UEClass::GetCastFlags()
 {
 	return *reinterpret_cast<EClassCastFlags*>(Object + Off::UClass::ClassFlags);
 }
 
 bool UEClass::IsType(EClassCastFlags TypeFlag)
 {
-	return GetFlags() & TypeFlag;
+	return GetCastFlags() & TypeFlag;
 }
 
 UEObject UEClass::GetDefaultObject()
@@ -252,7 +259,7 @@ bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag)
 
 std::string UEProperty::GetCppType()
 {
-	EClassCastFlags TypeFlags = GetClass().GetFlags();
+	EClassCastFlags TypeFlags = GetClass().GetCastFlags();
 
 	if(TypeFlags & EClassCastFlags::UInt8Property)
 	{
@@ -435,7 +442,7 @@ UEClass UEClassProperty::GetMetaClass()
 
 std::string UEClassProperty::GetCppType()
 {
-	return HasPropertyFlags(EPropertyFlags::UObjectWrapper) ? std::format("class TSubclassOf<{}>", GetMetaClass().GetCppName()) : "class UClass*";
+	return HasPropertyFlags(EPropertyFlags::UObjectWrapper) ? std::format("class TSubclassOf<class {}>", GetMetaClass().GetCppName()) : "class UClass*";
 }
 
 

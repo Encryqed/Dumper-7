@@ -7,7 +7,7 @@ Types::Struct::Struct(std::string Name, bool bIsClass, std::string Super)
 {
 	CppName = Name;
 
-	if (bIsClass)
+	if (!bIsClass)
 	{
 		Declaration = (Super == "" ? std::format("struct {}\n", Name) : std::format("struct {} : public {}\n", Name, Super));
 	}
@@ -16,7 +16,7 @@ Types::Struct::Struct(std::string Name, bool bIsClass, std::string Super)
 		Declaration = (Super == "" ? std::format("class {}\n", Name) : std::format("class {} : public {}\n", Name, Super));
 	}
 
-	InnerBody = "{\n";
+	InnerBody = "{\npublic:\n";
 }
 
 void Types::Struct::AddComment(std::string Comment)
@@ -71,11 +71,11 @@ std::string Types::Class::GetGeneratedBody()
 
 	if (Settings::bShouldXorStrings)
 	{
-		InnerBody += std::format("\n\tstatic class UClass* StaticClass() const\n\t{{\n\t\tstatic class UClass* Clss = UObject::FindClassFast({}(\"{}\"));\n\t\treturn Clss;\n\t}}\n\n", Settings::XORString, RawName);
+		InnerBody += std::format("\n\tstatic class UClass* StaticClass()\n\t{{\n\t\tstatic class UClass* Clss = UObject::FindClassFast({}(\"{}\"));\n\t\treturn Clss;\n\t}}\n\n", Settings::XORString, RawName);
 	}
 	else
 	{
-		InnerBody += std::format("\n\tstatic class UClass* StaticClass() const\n\t{{\n\t\tstatic class UClass* Clss = UObject::FindClassFast(\"{}\");\n\t\treturn Clss;\n\t}}\n\n", RawName);
+		InnerBody += std::format("\n\tstatic class UClass* StaticClass()\n\t{{\n\t\tstatic class UClass* Clss = UObject::FindClassFast(\"{}\");\n\t\treturn Clss;\n\t}}\n\n", RawName);
 	}
 	
 	if (Generator::PredefinedFunctions.find(CppName) != Generator::PredefinedFunctions.end())
@@ -124,7 +124,7 @@ std::string Types::Includes::GetGeneratedBody()
 
 Types::Member::Member(std::string Type, std::string Name, std::string Comment)
 {
-	this->Type = Type;
+	this->Type = Type + " ";
 	this->Name = Name;
 	this->Comment = Comment != "" ? "// " + Comment : "";
 }
@@ -140,24 +140,16 @@ std::string Types::Member::GetGeneratedBody()
 	return std::format("\t{:{}}{:{}} {}\n", Type, 40, Name + ";", 55, Comment);
 }
 
-Types::Function::Function(std::string Type, std::string Name, std::vector<Parameter> Parameters, bool IsClassFunction)
+Types::Function::Function(std::string Type, std::string Name, std::string SuperName, std::vector<Parameter> Parameters)
 {
-	this->Type = Type;
-	this->Name = Name;
 	this->Parameters = Parameters;
-	this->IsClassFunction = IsClassFunction;
 
-	if (IsClassFunction)
-	{
-		Indent = "\t";
-	}
-	else
-	{
-		Indent = "";
-	}
+	std::string ParamStr = GetParametersAsString();
 
-	Declaration = std::format("{}{} {}({})", Indent, Type, Name, GetParametersAsString());
-	InnerBody = std::format("{}{{", Indent);
+	DeclarationH = std::format("{} {}({})", Type, Name, ParamStr);
+	DeclarationCPP = std::format("{} {}::{}({})", Type, SuperName, Name, ParamStr);
+
+	Body = "{";
 }
 
 std::vector<Types::Parameter>& Types::Function::GetParameters()
@@ -186,11 +178,11 @@ std::string Types::Function::GetParametersAsString()
 
 std::string Types::Function::GetDeclaration()
 {
-	 return Declaration;
+	 return DeclarationH;
 }
 void Types::Function::AddBody(std::string Body)
 {
-	InnerBody += Body;
+	this->Body = std::format("{{\n{}\n}}", Body);
 }
 
 void Types::Function::SetParamStruct(Types::Struct&& Params)
@@ -205,9 +197,7 @@ Types::Struct& Types::Function::GetParamStruct()
 
 std::string Types::Function::GetGeneratedBody()
 {
-	WholeBody = std::format("\n{}\n{}{}}}\n", Declaration, InnerBody, Indent);
-
-	return WholeBody;
+	return std::format("\n{}\n{}\n", DeclarationCPP, Body);
 }
 
 Types::Parameter::Parameter(std::string Type, std::string Name, bool bIsOutPtr)
@@ -225,6 +215,11 @@ std::string Types::Parameter::GetName()
 std::string Types::Parameter::GetGeneratedBody()
 {
 	return std::format("{} {}, ", Type, Name);
+}
+
+bool Types::Parameter::IsParamOutPtr()
+{
+	return bIsOutPtr;
 }
 
 Types::Enum::Enum(std::string Name)
@@ -247,6 +242,19 @@ void Types::Enum::AddComment(std::string Comment)
 void Types::Enum::AddMember(std::string Name, int64 Value)
 {
 	EnumMembers.push_back(std::format("\t{:{}} = {}", Name, 30, Value));
+}
+
+void Types::Enum::FixPFMAX()
+{
+	for (auto& Member : EnumMembers)
+	{
+		if (Member == "PF_MAX")
+		{
+			Member = "PF_MAX_";
+
+			break;
+		}
+	}
 }
 
 std::string Types::Enum::GetGeneratedBody()

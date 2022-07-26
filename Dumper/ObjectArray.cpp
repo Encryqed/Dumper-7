@@ -189,9 +189,8 @@ void ObjectArray::DumpObjects()
 }
 
 
-std::unordered_map<int32_t, std::vector<int32_t>> ObjectArray::GetAllPackages()
+void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t>>& OutPackagesWithMembers/*, std::unordered_map<int32_t, bool>& PackagesToInclude*/)
 {
-	std::unordered_map<int32_t, std::vector<int32_t>> OutPackages;
 
 	for (UEObject Object : ObjectArray())
 	{
@@ -209,12 +208,14 @@ std::unordered_map<int32_t, std::vector<int32_t>> ObjectArray::GetAllPackages()
 		{
 			if (Object.IsA(EClassCastFlags::UClass) || Object.IsA(EClassCastFlags::UEnum) || Object.IsA(EClassCastFlags::UStruct))
 			{
-				OutPackages[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
+				OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 			}
 		}
-	}
+		else if (Object.IsA(EClassCastFlags::UPackage))
+		{
 
-	return OutPackages;
+		}
+	}
 }
 
 int32 ObjectArray::Num()

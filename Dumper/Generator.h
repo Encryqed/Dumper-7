@@ -1,11 +1,18 @@
 #pragma once
 
+#include <unordered_set>
 #include <filesystem>
+#include <chrono>
 #include "FileWriter.h"
 #include "Settings.h"
 #include "Package.h"
 
 namespace fs = std::filesystem;
+
+using std::chrono::high_resolution_clock;
+using std::chrono::duration_cast;
+using std::chrono::duration;
+using std::chrono::milliseconds;
 
 class Generator
 {

@@ -4,6 +4,7 @@
 Generator::FunctionsMap Generator::PredefinedFunctions;
 Generator::MemberMap Generator::PredefinedMembers;
 
+
 Generator::Generator()
 {
 	ObjectArray::Init();
@@ -33,7 +34,9 @@ void Generator::GenerateSDK()
 {
 	Generator SDKGen;
 
-	auto ObjectPackages = ObjectArray::GetAllPackages();
+	std::unordered_map<int32_t, std::vector<int32_t>> ObjectPackages;
+	
+	ObjectArray::GetAllPackages(ObjectPackages);
 
 	std::cout << "Started Generation [Dumper-7]!\n";
 	std::cout << "Total Packages: " << ObjectPackages.size() << "\n\n";
@@ -42,7 +45,7 @@ void Generator::GenerateSDK()
 	fs::path SDKFolder = GenFolder / "SDK";
 
 	if (fs::exists(GenFolder))
-		std::cout << "Removed: " << fs::remove_all(GenFolder) << " Files!\n";
+		std::cout << "Removed: 0x" << fs::remove_all(GenFolder) << " Files!\n";
 	
 	fs::create_directory(GenFolder);
 	fs::create_directory(SDKFolder);
@@ -95,6 +98,7 @@ void Generator::GenerateSDK()
 		else
 		{
 			ObjectPackages.erase(Pair.first);
+			Package::PackageSorter.RemoveDependant(Pair.first);
 		}
 	}
 
@@ -130,14 +134,25 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 	HeaderStream << "#include \"PropertyFixup.hpp\"\n\n";
 	HeaderStream << "#include \"SDK/Basic.hpp\"\n";
 
-	for (auto& Pair : Packages)
+	for(auto& Package : Package::PackageSorter.AllDependencies)
 	{
-		std::string PackageName = ObjectArray::GetByIndex(Pair.first).GetName();
+		std::string IncludesString;
+		Package::PackageSorter.GetIncludesForPackage(Package.first, IncludesString);
 
-		HeaderStream << std::format("#include \"SDK/{}_structs.hpp\"\n", PackageName);
-		HeaderStream << std::format("#include \"SDK/{}_classes.hpp\"\n", PackageName);
-		HeaderStream << std::format("#include \"SDK/{}_parameters.hpp\"\n", PackageName);
+		std::cout << IncludesString;
+
+		HeaderStream << IncludesString;
 	}
+
+	//for (auto& Pair : Packages)
+	//{
+	//	std::string PackageName = ObjectArray::GetByIndex(Pair.first).GetName();
+	//
+	//	HeaderStream << std::format("#include \"SDK/{}_structs.hpp\"\n", PackageName);
+	//	HeaderStream << std::format("#include \"SDK/{}_classes.hpp\"\n", PackageName);
+	//	HeaderStream << std::format("#include \"SDK/{}_parameters.hpp\"\n", PackageName);
+	//}
+	HeaderStream.close();
 }
 void Generator::GenerateFixupFile(fs::path& SdkPath)
 {
@@ -149,7 +164,7 @@ void Generator::GenerateFixupFile(fs::path& SdkPath)
 
 	for (auto& Property : UEProperty::UnknownProperties)
 	{
-		FixupStream << std::format("class {}\n{{\n\tunsigned __int8 Pad[0x{:X}];\n}}\n\n", Property.first, Property.second);
+		FixupStream << std::format("class {}\n{{\n\tunsigned __int8 Pad[0x{:X}];\n}};\n\n", Property.first, Property.second);
 	}
 }
 
@@ -163,7 +178,7 @@ void Generator::InitPredefinedMembers()
 		{ "int32 ", "Flags", Off::UObject::Flags, 0x04 },
 		{ "int32", "Index", Off::UObject::Index, 0x04 },
 		{ "class UClass*", "Class", Off::UObject::Class, 0x08 },
-		{ "struct FName", "Name", Off::UObject::Name, 0x08 },
+		{ "class FName", "Name", Off::UObject::Name, 0x08 },
 		{ "class UObject*", "Outer", Off::UObject::Outer, 0x08 }
 	};
 
@@ -174,7 +189,7 @@ void Generator::InitPredefinedMembers()
 
 	PredefinedMembers["UEnum"] =
 	{
-		{ "class TArray<class TPair<struct FName, int64>>", "Names", Off::UEnum::Names, 0x0C }
+		{ "class TArray<class TPair<class FName, int64>>", "Names", Off::UEnum::Names, 0x0C }
 	};
 
 	PredefinedMembers["UStruct"] =
@@ -260,7 +275,8 @@ void Generator::InitPredefinedFunctions()
 		"CoreUObject",
 		{
 			{
-				"\tbool HasTypeFlag(EClassCastFlags TypeFlag) const", "",
+				"\tbool HasTypeFlag(EClassCastFlags TypeFlag) const;", 
+				"\tbool UObject::HasTypeFlag(EClassCastFlags TypeFlag) const",
 R"(
 	{
 		return TypeFlag != EClassCastFlags::None ? Class->CastFlags & TypeFlag : true;
@@ -272,7 +288,7 @@ R"(
 				"\tstd::string UObject::GetName() const",
 R"(
 	{
-		return this ? ToString() : "None";
+		return this ? Name.ToString() : "None";
 	}
 )"
 			},
@@ -285,9 +301,9 @@ R"(
 		{
 			std::string Temp;
 
-			for (UObject NextOuter = Outer; NextOuter; NextOuter = Outer.Outer)
+			for (UObject* NextOuter = Outer; NextOuter; NextOuter = NextOuter->Outer)
 			{
-				Temp = NextOuter.GetName() + "." + Temp;
+				Temp = NextOuter->GetName() + "." + Temp;
 			}
 
 			std::string Name = Class->GetName();
@@ -315,7 +331,7 @@ R"(
 			
 			if (Object->HasTypeFlag(RequiredType) && Object->GetFullName() == FullName)
 			{
-				return static_cast<T*>(object);
+				return static_cast<UEType*>(Object);
 			}
 		}
 
@@ -336,7 +352,7 @@ R"(
 			
 			if (Object->HasTypeFlag(RequiredType) && Object->GetName() == Name)
 			{
-				return static_cast<T*>(object);
+				return static_cast<UEType*>(Object);
 			}
 		}
 
@@ -345,15 +361,15 @@ R"(
 )"
 			},
 			{
-				"\tclass UClass* FindClass(const std::string& ClassFullName)", "",
+				"\tstatic class UClass* FindClass(const std::string& ClassFullName)", "",
 R"(
 	{
-		return FindObject<class UClass>(ClassName, EClassCastFlags::UClass);
+		return FindObject<class UClass>(ClassFullName, EClassCastFlags::UClass);
 	}
 )"
 			},
 			{
-				"\tclass UClass* FindClassFast(const std::string& ClassName)", "",
+				"\tstatic class UClass* FindClassFast(const std::string& ClassName)", "",
 R"(
 	{
 		return FindObjectFast<class UClass>(ClassName, EClassCastFlags::UClass);
@@ -365,7 +381,7 @@ R"(
 				"\tbool UObject::IsA(class UClass* Clss) const",
 R"(
 	{
-		for (UStruct Super = Class; Super; Super = Super->Super)
+		for (UStruct* Super = Class; Super; Super = Super->Super)
 		{
 			if (Super == Clss)
 			{
@@ -378,12 +394,13 @@ R"(
 )"
 			},
 			{
-				"\tinline ProcessEvent(class UFunction* Function, void* Parms) const", "",
+				"\tinline void ProcessEvent(class UFunction* Function, void* Parms) const", "",
 				std::format(
 R"(
 	{{
-		return GetVFunction<void(*)(UObject*, class UFunction*, void*)>(this, {} /*0x{:X}*/)(this, Function, Parms);
-	}})", Off::InSDK::PEIndex, Off::InSDK::PEOffset)
+		return GetVFunction<void(*)(const UObject*, class UFunction*, void*)>(this, 0x{:X} /*0x{:X}*/)(this, Function, Parms);
+	}}
+)", Off::InSDK::PEIndex, Off::InSDK::PEOffset)
 			}
 		}
 	};
@@ -393,11 +410,11 @@ R"(
 		"CoreUObject",
 		{
 			{
-				"\tclass UFunction* GetFunction(std::string& ClassName, std::string& FuncName);",
-				"\tclass UFunction* UClass::GetFunction(std::string& ClassName, std::string& FuncName)",
+				"\tclass UFunction* GetFunction(const std::string& ClassName, const std::string& FuncName);",
+				"\tclass UFunction* UClass::GetFunction(const std::string& ClassName, const std::string& FuncName)",
 R"(
 	{
-		for(UStruct* Clss = Class; Clss; Clss = Clss->Super)
+		for(UStruct* Clss = this; Clss; Clss = Clss->Super)
 		{
 			if (Clss->GetName() == ClassName)
 			{
@@ -405,7 +422,7 @@ R"(
 				{
 					if(Field->HasTypeFlag(EClassCastFlags::UFunction) && Field->GetName() == FuncName)
 					{
-						return Field;
+						return static_cast<class UFunction*>(Field);
 					}	
 				}
 			}
@@ -423,8 +440,19 @@ void Generator::GenerateBasicFile(fs::path& SdkPath)
 {
 	FileWriter BasicFile(SdkPath, "Basic", FileWriter::FileType::Header);
 
-	if (Off::InSDK::ChunkSize == -1)
+	if (Off::InSDK::ChunkSize <= 0)
 	{
+		BasicFile.Write(
+R"(
+template<typename Fn>
+inline Fn GetVFunction(const void* instance, std::size_t index)
+{
+	auto vtable = *reinterpret_cast<const void***>(const_cast<void*>(instance));
+	return reinterpret_cast<Fn>(vtable[index]);
+}
+)");
+
+
 		BasicFile.Write(
 R"(
 class TUObjectArray
@@ -613,10 +641,10 @@ public:
 	int32 ComparisonIndex;
 	int32 Number;
 
-	inline std::string ToString()
+	inline std::string ToString() const
 	{{
 		static FString TempString(1024);
-		static auto AppendString = reinterpret_cast<void(*)(FName*, FString&)>(uintptr_t(GetModuleHandle(0) + 0x{:X}));
+		static auto AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0) + 0x{:X}));
 
 		AppendString(this, TempString);
 
@@ -686,12 +714,114 @@ public:
 )");
 
 	BasicFile.Write(
-R"(
-struct FText
+		R"(
+template<typename ValueType, typename KeyType>
+class TPair
 {
+public:
+	ValueType First;
+	KeyType Second;
+};
+)");
+
+	BasicFile.Write(
+R"(
+class FText
+{
+public:
 	FString TextData;
 	uint8 IdkTheRest[0x8];
 };
+)");
+
+	BasicFile.Write(
+R"(
+template<typename ElementType>
+class TSet
+{
+	uint8 WaitTillIImplementIt[0x50];
+};
+)");
+
+	BasicFile.Write(
+R"(
+template<typename KeyType, typename ValueType>
+class TMap
+{
+	uint8 WaitTillIImplementIt[0x50];
+};
+)");
+
+	BasicFile.Write(
+R"(
+
+enum class EClassCastFlags : uint64_t
+{
+	None = 0x0000000000000000,
+
+	UField							= 0x0000000000000001,
+	UInt8Property					= 0x0000000000000002,
+	UEnum							= 0x0000000000000004,
+	UStruct							= 0x0000000000000008,
+	UScriptStruct					= 0x0000000000000010,
+	UClass							= 0x0000000000000020,
+	UByteProperty					= 0x0000000000000040,
+	UIntProperty					= 0x0000000000000080,
+	UFloatProperty					= 0x0000000000000100,
+	UUInt64Property					= 0x0000000000000200,
+	UClassProperty					= 0x0000000000000400,
+	UUInt32Property					= 0x0000000000000800,
+	UInterfaceProperty				= 0x0000000000001000,
+	UNameProperty					= 0x0000000000002000,
+	UStrProperty					= 0x0000000000004000,
+	UProperty						= 0x0000000000008000,
+	UObjectProperty					= 0x0000000000010000,
+	UBoolProperty					= 0x0000000000020000,
+	UUInt16Property					= 0x0000000000040000,
+	UFunction						= 0x0000000000080000,
+	UStructProperty					= 0x0000000000100000,
+	UArrayProperty					= 0x0000000000200000,
+	UInt64Property					= 0x0000000000400000,
+	UDelegateProperty				= 0x0000000000800000,
+	UNumericProperty				= 0x0000000001000000,
+	UMulticastDelegateProperty		= 0x0000000002000000,
+	UObjectPropertyBase				= 0x0000000004000000,
+	UWeakObjectProperty				= 0x0000000008000000,
+	ULazyObjectProperty				= 0x0000000010000000,
+	USoftObjectProperty				= 0x0000000020000000,
+	UTextProperty					= 0x0000000040000000,
+	UInt16Property					= 0x0000000080000000,
+	UDoubleProperty					= 0x0000000100000000,
+	USoftClassProperty				= 0x0000000200000000,
+	UPackage						= 0x0000000400000000,
+	ULevel							= 0x0000000800000000,
+	AActor							= 0x0000001000000000,
+	APlayerController				= 0x0000002000000000,
+	APawn							= 0x0000004000000000,
+	USceneComponent					= 0x0000008000000000,
+	UPrimitiveComponent				= 0x0000010000000000,
+	USkinnedMeshComponent			= 0x0000020000000000,
+	USkeletalMeshComponent			= 0x0000040000000000,
+	UBlueprint						= 0x0000080000000000,
+	UDelegateFunction				= 0x0000100000000000,
+	UStaticMeshComponent			= 0x0000200000000000,
+	UMapProperty					= 0x0000400000000000,
+	USetProperty					= 0x0000800000000000,
+	UEnumProperty					= 0x0001000000000000,
+};
+)");
+
+	BasicFile.Write(
+R"(
+inline constexpr EClassCastFlags operator|(EClassCastFlags Left, EClassCastFlags Right)
+{																																										
+	return (EClassCastFlags)((std::underlying_type<EClassCastFlags>::type)(Left) | (std::underlying_type<EClassCastFlags>::type)(Right));
+}																																										
+
+inline bool operator&(EClassCastFlags Left, EClassCastFlags Right)
+{																																										
+	return (((std::underlying_type<EClassCastFlags>::type)(Left) & (std::underlying_type<EClassCastFlags>::type)(Right)) == (std::underlying_type<EClassCastFlags>::type)(Right));
+}
 )");
 
 	//-TUObjectArray
@@ -811,6 +941,15 @@ public:
 	{
 		return ClassPtr != Other;
 	}
+};
+
+void SubclassUsingFunction(TSubclassOf<class UFfd> SubClss)
+{
+	std::cout << "hi";
+}
+class UFfd
+{
+	void* s = 0;
 };
 
 //template<class T>

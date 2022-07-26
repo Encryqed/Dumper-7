@@ -178,10 +178,10 @@ void FileWriter::SetFileHeader()
 void FileWriter::SetFileEnding()
 {
 	if (Settings::bUseNamespaceForSDK)
-		FileStream << "\n}\n";
+		FileStream << "}\n";
 
 	if (CurrentFileType == FileType::Parameter && Settings::bUseNamespaceForParams)
-		FileStream << "\n}\n";
+		FileStream << "}\n";
 
 	FileStream << R"(
 #ifdef _MSC_VER

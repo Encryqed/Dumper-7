@@ -34,6 +34,7 @@ namespace Types
 
 		void AddComment(std::string Comment);
 		void AddMember(std::string Name, int64 Value);
+		void FixPFMAX();
 
 		std::string GetGeneratedBody();
 	};
@@ -65,6 +66,8 @@ namespace Types
 
 		std::string GetName();
 		std::string GetGeneratedBody();
+
+		bool IsParamOutPtr();
 	};
 
 
@@ -95,17 +98,13 @@ namespace Types
 	private:
 		Struct ParamStruct;
 
-		bool IsClassFunction;
-		std::string Indent;
-		std::string WholeBody;
-		std::string InnerBody;
-		std::string Declaration;
-		std::string Type;
-		std::string Name;
+		std::string Body;
+		std::string DeclarationH;
+		std::string DeclarationCPP;
 		std::vector<Parameter> Parameters;
 
 	public:
-		Function(std::string Type, std::string Name, std::vector<Parameter> Parameters = {}, bool IsClassFunction = true);
+		Function(std::string Type, std::string Name, std::string SuperName, std::vector<Parameter> Parameters = {});
 
 		std::vector<Parameter>& GetParameters();
 		std::string GetParametersAsString();
@@ -130,7 +129,7 @@ namespace Types
 		using Struct::Struct;
 
 		Class(std::string CppName, std::string Name, std::string Super = "")
-			: Struct(CppName, false, Super), RawName(Name)
+			: Struct(CppName, true, Super), RawName(Name)
 		{
 		}
 
