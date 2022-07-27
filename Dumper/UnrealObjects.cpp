@@ -68,12 +68,14 @@ std::string UEObject::GetValidName()
 {
 	std::string Name = GetName();
 
-	if (Name[0] <= '9' && Name[0] >= '0')
+	char& FirstChar = Name[0];
+
+	if (FirstChar <= '9' && FirstChar >= '0')
 		Name = '_' + Name;
 
 	//this way I don't need to bother checking for c++ types like int in the names
-	if (Name[0] <= 'z' && Name[0] >= 'a')
-		Name[0] = Name[0] - 20;
+	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
+		FirstChar = FirstChar - 0x20;
 
 	for (char& c : Name)
 	{

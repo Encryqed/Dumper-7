@@ -102,6 +102,7 @@ namespace Types
 		std::string DeclarationH;
 		std::string DeclarationCPP;
 		std::vector<Parameter> Parameters;
+		std::string Comments;
 
 	public:
 		Function(std::string Type, std::string Name, std::string SuperName, std::vector<Parameter> Parameters = {});
@@ -116,6 +117,9 @@ namespace Types
 
 		std::string GetGeneratedBody();
 		Struct& GetParamStruct();
+
+		void AddComment(std::string& Comment);
+		void AddComment(std::string&& Comment);
 	};
 
 	class Class : public Struct

@@ -54,6 +54,9 @@ void Generator::GenerateSDK()
 	{
 		UEObject Object = ObjectArray::GetByIndex(Pair.first);
 
+		if (!Object)
+			continue;
+
 		Package Pack(Object);
 		Pack.Process(Pair.second);
 
@@ -72,6 +75,11 @@ void Generator::GenerateSDK()
 			StructsFile.WriteEnums(Pack.AllEnums);
 			StructsFile.WriteStructs(Pack.AllStructs);
 			//FunctionFile.WriteFunctions(Pack.AllFunctions);
+
+			if (PackageName == "CoreUObject")
+			{
+				FunctionFile.Write(std::format("\tTUObjectArray* UObject::GObjects = reinterpret_cast<TUObjectArray*>(uintptr_t(GetModuleHandle(0)) + 0x{:X});\n\n", Off::InSDK::GObjects));
+			}
 
 			for (auto& Function : Pack.AllFunctions)
 			{
@@ -173,7 +181,7 @@ void Generator::InitPredefinedMembers()
 {
 	PredefinedMembers["UObject"] =
 	{
-		{ "static class TUObjectArray*", "GObjects", 0x00, 0x00 },
+		{ "static class TUObjectArray*", "GObjects", 0x00, 0x00},
 		{ "void*", "Vft", Off::UObject::Vft, 0x08 },
 		{ "int32 ", "Flags", Off::UObject::Flags, 0x04 },
 		{ "int32", "Index", Off::UObject::Index, 0x04 },
@@ -440,10 +448,8 @@ void Generator::GenerateBasicFile(fs::path& SdkPath)
 {
 	FileWriter BasicFile(SdkPath, "Basic", FileWriter::FileType::Header);
 
-	if (Off::InSDK::ChunkSize <= 0)
-	{
-		BasicFile.Write(
-R"(
+	BasicFile.Write(
+		R"(
 template<typename Fn>
 inline Fn GetVFunction(const void* instance, std::size_t index)
 {
@@ -452,7 +458,8 @@ inline Fn GetVFunction(const void* instance, std::size_t index)
 }
 )");
 
-
+	if (Off::InSDK::ChunkSize <= 0)
+	{
 		BasicFile.Write(
 R"(
 class TUObjectArray
@@ -644,7 +651,7 @@ public:
 	inline std::string ToString() const
 	{{
 		static FString TempString(1024);
-		static auto AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0) + 0x{:X}));
+		static auto AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + 0x{:X});
 
 		AppendString(this, TempString);
 

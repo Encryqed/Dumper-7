@@ -195,9 +195,19 @@ Types::Struct& Types::Function::GetParamStruct()
 	return ParamStruct;
 }
 
+void Types::Function::AddComment(std::string& Comment)
+{
+	Comments += std::format("// {}\n", Comment);
+}
+
+void Types::Function::AddComment(std::string&& Comment)
+{
+	Comments += std::format("// {}\n", Comment);
+}
+
 std::string Types::Function::GetGeneratedBody()
 {
-	return std::format("\n{}\n{}\n", DeclarationCPP, Body);
+	return std::format("\n{}\n{}\n{}\n", Comments, DeclarationCPP, Body);
 }
 
 Types::Parameter::Parameter(std::string Type, std::string Name, bool bIsOutPtr)
@@ -246,15 +256,10 @@ void Types::Enum::AddMember(std::string Name, int64 Value)
 
 void Types::Enum::FixPFMAX()
 {
-	for (auto& Member : EnumMembers)
-	{
-		if (Member == "PF_MAX")
-		{
-			Member = "PF_MAX_";
+	std::string& PFMAX = EnumMembers.back();
+	std::string Temp = PFMAX.substr(PFMAX.find(" ") + 1);
 
-			break;
-		}
-	}
+	PFMAX = "\tPF_MAX_" + Temp;
 }
 
 std::string Types::Enum::GetGeneratedBody()

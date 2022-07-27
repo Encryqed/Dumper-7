@@ -282,15 +282,10 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	{
 		bool bIsRef = false;
 		bool bIsOut = false;
-		bool bIsConst = false;
+		bool bIsRet = Param.HasPropertyFlags(EPropertyFlags::ReturnParm);
 
 		std::string Type = Param.GetCppType();
 
-		//if (Param.HasPropertyFlags(EPropertyFlags::ConstParm))
-		//{
-		//	Type = "const " + Type;
-		//	bIsConst = true;
-		//}
 		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
 		{
 			Type += "&";
@@ -304,15 +299,14 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 			OutPtrParamNames.push_back(Param.GetValidName());
 		}
 
-		if (!bIsOut && !bIsRef && (Param.IsA(EClassCastFlags::UArrayProperty) || Param.IsA(EClassCastFlags::UStrProperty)))
+		if (!bIsRet && !bIsOut && !bIsRef && (Param.IsA(EClassCastFlags::UStructProperty) || Param.IsA(EClassCastFlags::UArrayProperty) || Param.IsA(EClassCastFlags::UStrProperty)))
 		{
 			Type += "&";
 			
-			//if(!bIsConst)
-			//	Type = "const " + Type;
+			Type = "const " + Type;
 		}
 
-		if (Param.HasPropertyFlags(EPropertyFlags::ReturnParm))
+		if (bIsRet)
 		{
 			ReturnType = Type;
 			bHasRetType = true;
@@ -325,9 +319,18 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	
 	Types::Function Func(ReturnType, Function.GetValidName(), Super.GetCppName(), Params);
 
+	Func.AddComment(Function.GetFullName());
+	Func.AddComment("(" + Function.StringifyFlags() + ")");
+	Func.AddComment("Parameters:");
+
+	for (UEProperty Param = Function.GetChild().Cast<UEProperty>(); Param; Param = Param.GetNext().Cast<UEProperty>())
+	{
+		Func.AddComment(std::format("{:{}}{:{}}({})", Param.GetCppType(), 35, Param.GetValidName(), 65, Param.StringifyFlags()));
+	}
+
 	if (Settings::bShouldXorStrings)
 	{
-		FuncBody += std::format("\tstatic auto Func = Class->GetFunction({0}(\"{}\"), {0}(\"{}\"));\n\n", Settings::XORString, Super.GetName(), Function.GetName());
+		FuncBody += std::format("\tstatic auto Func = Class->GetFunction({0}(\"{1}\"), {0}(\"{2}\"));\n\n", Settings::XORString, Super.GetName(), Function.GetName());
 	}
 	else
 	{
