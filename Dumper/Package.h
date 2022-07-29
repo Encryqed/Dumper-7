@@ -8,20 +8,14 @@ struct PackageDependencyManager
 {
 	friend class Package;
 
-	//Package-dependency managment only
-	enum DependencyFlags : int32
+	union DependencyInfo
 	{
-		None               = 0x00,
-						   
-		NeedsStructFile    = 0x01,
-		NeedsClassFile     = 0x02,
-		NeedsAllFiles      = 0x03,
-						   
-		StructIncluded     = 0x08,
-		ClassIncluded      = 0x10,
-		AllIncluded        = 0x18,
+		bool bWasProcessed;
 
-		CurrentlyProcessed = 0x20
+		struct
+		{
+
+		};
 	};
 
 	// int32 - PackageIndex
