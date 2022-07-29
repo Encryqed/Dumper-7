@@ -66,10 +66,15 @@ class UEEnum : public UEField
 	using UEField::UEField;
 
 public:
+	static std::unordered_map<int32, std::string> BigEnums; //ObjectArray::GetAllPackages()
+
 	TArray<TPair<FName, int64>>& GetNameValuePairs();
 	std::string GetSingleName(int32 Index);
 	std::vector<std::string> GetAllNames();
 	std::string GetEnumTypeAsStr();
+
+	std::string UNSAFEGetCPPType();
+	std::string UNSAFEGetDeclarationType();
 };
 
 class UEStruct : public UEField

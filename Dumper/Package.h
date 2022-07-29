@@ -6,20 +6,39 @@
 
 struct PackageDependencyManager
 {
+	friend class Package;
+
+	//Package-dependency managment only
+	enum DependencyFlags : int32
+	{
+		None               = 0x00,
+						   
+		NeedsStructFile    = 0x01,
+		NeedsClassFile     = 0x02,
+		NeedsAllFiles      = 0x03,
+						   
+		StructIncluded     = 0x08,
+		ClassIncluded      = 0x10,
+		AllIncluded        = 0x18,
+
+		CurrentlyProcessed = 0x20
+	};
+
 	// int32 - PackageIndex
 	// bool - bWasIncluded
-	// std::unordered_set<int32> - PackageDependencies
-	std::unordered_map<int32, std::pair<bool, std::unordered_set<int32>>> AllDependencies;
+	//		DepdendencyInfo - PackageFiles required by this packages
+	//std::unordered_map<int32, std::pair<DependencyInfo, std::unordered_set<int32>>> AllDependencies;
+	std::unordered_map<int32, std::pair<bool, std::unordered_map<int32, DependencyFlags>>> AllDependencies;
 
 	PackageDependencyManager() = default;
 
 	PackageDependencyManager(int32 PackageIdx)
 	{
 		if (AllDependencies.find(PackageIdx) == AllDependencies.end())
-			AllDependencies[PackageIdx] = { false, {/* 0 */}};
+			AllDependencies[PackageIdx] = { false, { }};
 	}
 
-	PackageDependencyManager(int32 PackageIdx, std::unordered_set<int32>& Dependencies)
+	PackageDependencyManager(int32 PackageIdx, std::unordered_map<int32, DependencyFlags>& Dependencies)
 	{
 		AllDependencies[PackageIdx].second = Dependencies;
 	}
@@ -29,19 +48,20 @@ struct PackageDependencyManager
 		AllDependencies.erase(PackageIndex);
 	}
 
-	inline void AddDependency(const int32 DepandantIdx, const int32 DependencyIndex)
+	inline void AddDependency(const int32 DepandantIdx, const int32 DependencyIndex, const DependencyFlags Info = None)
 	{
-		AllDependencies[DepandantIdx].second.insert(DependencyIndex);
+		//the following line hurts me, a lot!
+		(int&)AllDependencies[DepandantIdx].second[DependencyIndex] |= (int)Info;
 	}
-
-	/* Only use this when sorting package dependencies */
-	void GetIncludesForPackage(int32 PackageIdx, std::string& OutRef);
 
 	/* Only use this when sorting struct dependencies */
 	void GenerateStructSorted(class Package& Pack, int32 StructIdx);
 
 	/* Only use this when sorting class dependencies */
 	void GenerateClassSorted(class Package& Pack, int32 ClassIdx);
+
+	/* Only use this when sorting package dependencies */
+	void GetIncludesForPackage(int32 PackageIdx, std::string& OutRef, DependencyFlags Info = NeedsAllFiles);
 
 	static void GetObjectDependency(UEObject Obj, std::unordered_set<int32>& Store);
 };
@@ -86,5 +106,10 @@ public:
 	inline bool IsEmpty()
 	{
 		return AllEnums.empty() && AllClasses.empty() && AllStructs.empty() && AllFunctions.empty();
+	}
+
+	inline UEObject DebugGetObject()
+	{
+		return PackageObject;
 	}
 };

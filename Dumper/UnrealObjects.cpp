@@ -4,6 +4,7 @@
 #include <format>
 
 
+std::unordered_map<int32, std::string> UEEnum::BigEnums;
 std::unordered_map<std::string, uint32_t> UEProperty::UnknownProperties;
 
 void* UEObject::GetAddress()
@@ -185,6 +186,29 @@ std::string UEEnum::GetEnumTypeAsStr()
 	return "enum class " + (Temp[0] == 'E' ? Temp : 'E' + Temp);
 }
 
+std::string UEEnum::UNSAFEGetCPPType()
+{
+	return (*reinterpret_cast<FString*>(Object + Off::UEnum::Names - 0x10)).ToString();
+}
+
+std::string UEEnum::UNSAFEGetDeclarationType()
+{
+	int f = *reinterpret_cast<int*>(Object + Off::UEnum::Names + 0x10);
+
+	if (f == 0)
+	{
+		return "Regular";
+	}
+	else if (f == 1)
+	{
+		return "Namespaced";
+	}
+	else if (f == 2)
+	{
+		return "EnumClass";
+	}
+}
+
 
 UEStruct UEStruct::GetSuper()
 {
@@ -263,9 +287,9 @@ std::string UEProperty::GetCppType()
 {
 	EClassCastFlags TypeFlags = GetClass().GetCastFlags();
 
-	if(TypeFlags & EClassCastFlags::UInt8Property)
+	if (TypeFlags & EClassCastFlags::UByteProperty)
 	{
-		return "uint8";
+		return Cast<UEByteProperty>().GetCppType();
 	}
 	else if (TypeFlags &  EClassCastFlags::UUInt16Property)
 	{
@@ -279,9 +303,9 @@ std::string UEProperty::GetCppType()
 	{
 		return "uint64";
 	}
-	else if (TypeFlags &  EClassCastFlags::UByteProperty)
+	else if (TypeFlags & EClassCastFlags::UInt8Property)
 	{
-		return Cast<UEByteProperty>().GetCppType();
+		return "int8";
 	}
 	else if (TypeFlags &  EClassCastFlags::UInt16Property)
 	{
@@ -315,6 +339,10 @@ std::string UEProperty::GetCppType()
 	{
 		return "class FString";
 	}
+	else if (TypeFlags & EClassCastFlags::UTextProperty)
+	{
+		return "class FText";
+	}
 	else if (TypeFlags &  EClassCastFlags::UBoolProperty)
 	{
 		return Cast<UEBoolProperty>().GetCppType();
@@ -326,10 +354,6 @@ std::string UEProperty::GetCppType()
 	else if (TypeFlags &  EClassCastFlags::UArrayProperty)
 	{
 		return Cast<UEArrayProperty>().GetCppType();
-	}
-	else if (TypeFlags & EClassCastFlags::UTextProperty)
-	{
-		return "class FText";
 	}
 	//else if (TypeFlags &  EClassCastFlags::UWeakObjectProperty)
 	//{

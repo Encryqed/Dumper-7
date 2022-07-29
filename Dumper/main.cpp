@@ -35,19 +35,30 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 
 	//Generator SDKGen;
-	//
-	//Package myPack(ObjectArray::FindObjectFast("Engine", EClassCastFlags::UPackage));
+	
+	//for (auto Obj : ObjectArray())
+	//{
+	//	if (Obj.IsA(EClassCastFlags::UStructProperty) && !Obj.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+	//	{
+	//	}
+	//}
+	// 
+	//Package myPack(ObjectArray::FindObjectFast("GameplayTags", EClassCastFlags::UPackage));
 	//
 	//std::vector<int32> PackageMembers;
 	//
 	//for (UEObject Obj : ObjectArray())
 	//{
-	//	if(Obj.IsA(EClassCastFlags::UStruct) && !Obj.IsA(EClassCastFlags::UFunction) && !Obj.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject) && Obj.GetOutermost().GetName() == "Engine")
+	//	if(Obj.IsA(EClassCastFlags::UStruct) && !Obj.IsA(EClassCastFlags::UFunction) && !Obj.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject) && Obj.GetOutermost().GetName() == "GameplayTags")
 	//		PackageMembers.push_back(Obj.GetIndex());
 	//}
 	//
+	//std::unordered_map<int32, std::vector<int32>> Out;
+	//ObjectArray::GetAllPackages(Out);
+	//
 	//std::cout << "Processing\n";
-	//myPack.Process(PackageMembers);
+	////myPack.Process(PackageMembers);
+	//myPack.Process(Out[myPack.DebugGetObject().GetIndex()]);
 	//
 	//fs::path GenFolder(Settings::SDKGenerationPath);
 	//fs::path SDKFolder = GenFolder / "SDK";
@@ -58,10 +69,14 @@ DWORD MainThread(HMODULE Module)
 	//fs::create_directory(GenFolder);
 	//fs::create_directory(SDKFolder);
 	//
-	//FileWriter fwc(SDKFolder, "Engine", FileWriter::FileType::Class);
-	//FileWriter fws(SDKFolder, "Engine", FileWriter::FileType::Struct);
+	//FileWriter fwc(SDKFolder, "GameplayTags", FileWriter::FileType::Class);
+	//FileWriter fws(SDKFolder, "GameplayTags", FileWriter::FileType::Struct);
 	//
 	//std::cout << "Writing\n";
+	//
+	//std::cout << "myPack.AllClasses: 0x" << std::hex << myPack.AllClasses.size() << "\n";
+	//std::cout << "myPack.AllStructs: 0x" << std::hex << myPack.AllStructs.size() << "\n";
+	//
 	//fwc.WriteClasses(myPack.AllClasses);
 	//fws.WriteStructs(myPack.AllStructs);
 	//

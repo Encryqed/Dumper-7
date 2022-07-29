@@ -195,14 +195,11 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 	for (UEObject Object : ObjectArray())
 	{
 		if (!Object)
-		{
 			continue;
-		}
 
 		if (Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
-		{
 			continue;
-		}
+	
 
 		if (!Object.IsA(EClassCastFlags::UPackage))
 		{
@@ -211,9 +208,14 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 				OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 			}
 		}
-		else if (Object.IsA(EClassCastFlags::UPackage))
-		{
 
+
+		if (Object.IsA(EClassCastFlags::UEnumProperty))
+		{
+			if (!Object.Cast<UEEnumProperty>().GetUnderlayingProperty().IsA(EClassCastFlags::UByteProperty))
+			{
+				UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
+			}
 		}
 	}
 }

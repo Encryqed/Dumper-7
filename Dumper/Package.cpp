@@ -16,7 +16,7 @@ void PackageDependencyManager::GenerateClassSorted(class Package& Pack, int32 Cl
 
 		for (auto Dependency : PackageInfo.second)
 		{
-			GenerateClassSorted(Pack, Dependency);
+			GenerateClassSorted(Pack, Dependency.first);
 		}
 
 		UEClass Class = ObjectArray::GetByIndex<UEClass>(ClassIdx);
@@ -35,7 +35,7 @@ void PackageDependencyManager::GenerateStructSorted(class Package& Pack, int32 S
 
 		for (auto Dependency : PackageInfo.second)
 		{
-			GenerateStructSorted(Pack, Dependency);
+			GenerateStructSorted(Pack, Dependency.first);
 		}
 
 		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(StructIdx);
@@ -44,25 +44,46 @@ void PackageDependencyManager::GenerateStructSorted(class Package& Pack, int32 S
 	}
 }
 
-void PackageDependencyManager::GetIncludesForPackage(int32 PackageIdx, std::string& OutRef)
+void PackageDependencyManager::GetIncludesForPackage(int32 PackageIdx, std::string& OutRef, DependencyFlags Info)
 {
 	auto& PackageInfo = AllDependencies[PackageIdx];
+	int& PackageFlags = (int&)PackageInfo.second[PackageIdx];
 
-	if (!PackageInfo.first)
+	std::cout << "Obj: " << ObjectArray::GetByIndex(PackageIdx).GetName() << "\n";
+	//std::cout << "Obj: " << ObjectArray::GetByIndex(PackageInfo.first).GetName() << "\n";
+
+	if (!(PackageFlags & AllIncluded) && !(PackageFlags & CurrentlyProcessed))
 	{
+		PackageFlags &= CurrentlyProcessed;
+
 		for (auto Dependency : PackageInfo.second)
 		{
-			GetIncludesForPackage(Dependency, OutRef);
+			//GetIncludesForPackage(Dependency.first, OutRef, PackageInfo.second[Dependency.first]);
+			GetIncludesForPackage(Dependency.first, OutRef, Dependency.second);
 		}
-
 
 		std::string PackageName = ObjectArray::GetByIndex(PackageIdx).GetName();
 
-		OutRef += std::format("\n#include \"SDK/{}_structs.hpp\"", PackageName);
-		OutRef += std::format("\n#include \"SDK/{}_classes.hpp\"", PackageName);
-		OutRef += std::format("\n#include \"SDK/{}_parameters.hpp\"", PackageName);
+		if ((Info & NeedsStructFile) && !(PackageFlags & StructIncluded))
+		{
+			OutRef += std::format("\n#include \"SDK/{}_structs.hpp\"", PackageName);
 
-		PackageInfo.first = true;
+			PackageFlags &= StructIncluded;
+		}
+		if (Info & NeedsClassFile && !(PackageFlags & ClassIncluded))
+		{
+			if (!(PackageFlags & StructIncluded))
+			{
+				OutRef += std::format("\n#include \"SDK/{}_structs.hpp\"", PackageName); //Classes need structs
+			}
+
+			OutRef += std::format("\n#include \"SDK/{}_classes.hpp\"", PackageName);
+
+			PackageFlags &= AllIncluded;
+		}
+
+		PackageFlags &= ~CurrentlyProcessed;
+		//OutRef += std::format("\n#include \"SDK/{}_parameters.hpp\"", PackageName);
 	}
 }
 
@@ -140,7 +161,14 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 
 				if (PackageObject != Outermost)
 				{
-					Package::PackageSorter.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
+					
+					PackageDependencyManager::DependencyFlags Info = Obj.IsA(EClassCastFlags::UClass) ? PackageDependencyManager::NeedsClassFile : Obj.IsA(EClassCastFlags::UStruct) ? PackageDependencyManager::NeedsStructFile : PackageDependencyManager::None;
+
+					if (Info != PackageDependencyManager::None)
+					{
+						Package::PackageSorter.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex(), Info);
+					}
+
 					continue;
 				}
 
@@ -148,14 +176,14 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 				{
 					if (Obj.IsA(EClassCastFlags::UClass))
 					{
-						ClassSorter.AddDependency(Object.GetIndex(), Obj.GetIndex());
+						ClassSorter.AddDependency(Object.GetIndex(), Idx);
 					}
 				}
 				else
 				{
 					if (Obj.IsA(EClassCastFlags::UStruct))
 					{
-						StructSorter.AddDependency(Object.GetIndex(), Obj.GetIndex());
+						StructSorter.AddDependency(Object.GetIndex(), Idx);
 					}
 				}
 			}
@@ -493,11 +521,15 @@ Types::Class Package::GenerateClass(UEClass& Class)
 
 Types::Enum Package::GenerateEnum(UEEnum& Enum)
 {
-	std::string EnumName = Enum.GetEnumTypeAsStr(); 
-
-	Types::Enum Enm(EnumName, "uint8");
+	std::string EnumName = Enum.GetEnumTypeAsStr();
 
 	auto& NameValue = Enum.GetNameValuePairs();
+
+	Types::Enum Enm(EnumName, "uint8");
+	
+	if (UEEnum::BigEnums.find(Enum.GetIndex()) != UEEnum::BigEnums.end())
+		Enm = Types::Enum(EnumName, UEEnum::BigEnums[Enum.GetIndex()]);
+	
 
 	for (int i = 0; i < NameValue.Num(); i++)
 	{

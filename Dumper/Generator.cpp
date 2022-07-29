@@ -62,8 +62,6 @@ void Generator::GenerateSDK()
 
 		if (!Pack.IsEmpty())
 		{
-			bool bPackageHasPredefinedFunctions = false;
-
 			std::string PackageName = Object.GetName();
 
 			FileWriter ClassFile(SDKFolder, PackageName, FileWriter::FileType::Class);
@@ -107,6 +105,8 @@ void Generator::GenerateSDK()
 		{
 			ObjectPackages.erase(Pair.first);
 			Package::PackageSorter.RemoveDependant(Pair.first);
+
+			std::cout << "Removed package: " << Pack.DebugGetObject().GetName() << "\n";
 		}
 	}
 
@@ -150,6 +150,17 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 		std::cout << IncludesString;
 
 		HeaderStream << IncludesString;
+	}
+
+	// Param files don't need dependency sorting
+	for (auto& Pair : Packages)
+	{
+		UEObject PackageObj = ObjectArray::GetByIndex(Pair.first);
+
+		if (!PackageObj)
+			continue;
+
+		HeaderStream << std::format("#include \"SDK/{}_parameters.hpp\"\n", PackageObj.GetName());
 	}
 
 	//for (auto& Pair : Packages)
