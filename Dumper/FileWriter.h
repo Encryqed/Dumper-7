@@ -50,4 +50,6 @@ public:
 	void SetFileType(FileType& Type);
 	void SetFileHeader();
 	void SetFileEnding();
+
+	std::ofstream& DebugGetStream();
 };

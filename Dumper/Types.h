@@ -29,6 +29,7 @@ namespace Types
 		std::vector<std::string> EnumMembers;
 
 	public:
+		Enum() = default;
 		Enum(std::string Name);
 		Enum(std::string Name, std::string Type);
 

@@ -62,9 +62,12 @@ void Generator::GenerateSDK()
 
 		if (!Pack.IsEmpty())
 		{
-			bool bPackageHasPredefinedFunctions = false;
-
 			std::string PackageName = Object.GetName();
+
+			if (fs::exists(SDKFolder / (PackageName + "_classes.hpp")))
+			{
+				PackageName += "_1";
+			}
 
 			FileWriter ClassFile(SDKFolder, PackageName, FileWriter::FileType::Class);
 			FileWriter StructsFile(SDKFolder, PackageName, FileWriter::FileType::Struct);
@@ -107,6 +110,8 @@ void Generator::GenerateSDK()
 		{
 			ObjectPackages.erase(Pair.first);
 			Package::PackageSorter.RemoveDependant(Pair.first);
+
+			std::cout << "Removed package: " << Pack.DebugGetObject().GetName() << "\n";
 		}
 	}
 
@@ -145,11 +150,20 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 	for(auto& Package : Package::PackageSorter.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorter.GetIncludesForPackage(Package.first, IncludesString);
-
-		std::cout << IncludesString;
+		Package::PackageSorter.GetIncludesForPackage({ Package.first, true, true }, IncludesString);
 
 		HeaderStream << IncludesString;
+	}
+
+	// Param files don't need dependency sorting
+	for (auto& Pair : Packages)
+	{
+		UEObject PackageObj = ObjectArray::GetByIndex(Pair.first);
+
+		if (!PackageObj)
+			continue;
+
+		HeaderStream << std::format("\n#include \"SDK/{}_parameters.hpp\"", PackageObj.GetName());
 	}
 
 	//for (auto& Pair : Packages)
@@ -464,6 +478,8 @@ inline Fn GetVFunction(const void* instance, std::size_t index)
 R"(
 class TUObjectArray
 {
+public:
+
 	struct FUObjectItem
 	{
 		class UObject* Object;
@@ -496,6 +512,8 @@ public:
 			std::format(R"(
 class TUObjectArray
 {{
+public:
+
 	enum
 	{{
 		ElementsPerChunk = 0x{:X},
@@ -950,14 +968,6 @@ public:
 	}
 };
 
-void SubclassUsingFunction(TSubclassOf<class UFfd> SubClss)
-{
-	std::cout << "hi";
-}
-class UFfd
-{
-	void* s = 0;
-};
 
 //template<class T>
 //class TArray

@@ -10,13 +10,13 @@ void PackageDependencyManager::GenerateClassSorted(class Package& Pack, int32 Cl
 {
 	auto& PackageInfo = AllDependencies[ClassIdx];
 
-	if (!PackageInfo.first)
+	if (!PackageInfo.first.bIsIncluded)
 	{
-		PackageInfo.first = true;
+		PackageInfo.first.bIsIncluded = true;
 
-		for (auto Dependency : PackageInfo.second)
+		for (auto& Dependency : PackageInfo.second)
 		{
-			GenerateClassSorted(Pack, Dependency);
+			GenerateStructSorted(Pack, Dependency.Index);
 		}
 
 		UEClass Class = ObjectArray::GetByIndex<UEClass>(ClassIdx);
@@ -29,13 +29,13 @@ void PackageDependencyManager::GenerateStructSorted(class Package& Pack, int32 S
 {
 	auto& PackageInfo = AllDependencies[StructIdx];
 
-	if (!PackageInfo.first)
+	if (!PackageInfo.first.bIsIncluded)
 	{
-		PackageInfo.first = true;
+		PackageInfo.first.bIsIncluded = true;
 
-		for (auto Dependency : PackageInfo.second)
+		for (auto& Dependency : PackageInfo.second)
 		{
-			GenerateStructSorted(Pack, Dependency);
+			GenerateStructSorted(Pack, Dependency.Index);
 		}
 
 		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(StructIdx);
@@ -44,25 +44,40 @@ void PackageDependencyManager::GenerateStructSorted(class Package& Pack, int32 S
 	}
 }
 
-void PackageDependencyManager::GetIncludesForPackage(int32 PackageIdx, std::string& OutRef)
+void PackageDependencyManager::GetIncludesForPackage(const DependencyInfo& Info, std::string& OutRef)
 {
-	auto& PackageInfo = AllDependencies[PackageIdx];
+	auto& PackageInfo = AllDependencies[Info.Index];
 
-	if (!PackageInfo.first)
+	const bool bNeedsStructFile = Info.bStructFileNeeded && !PackageInfo.first.bIsStructFileIncluded;
+	const bool bNeedsClassFile = Info.bClassFileNeeded && !PackageInfo.first.bIsClassFileIncluded;
+
+	if (bNeedsStructFile || bNeedsClassFile)
 	{
-		for (auto Dependency : PackageInfo.second)
+		for (auto& Dependency : PackageInfo.second)
 		{
-			GetIncludesForPackage(Dependency, OutRef);
+			GetIncludesForPackage({ Dependency.Index, bNeedsStructFile, bNeedsClassFile }, OutRef);
 		}
 
+		std::string PackageName = ObjectArray::GetByIndex(Info.Index).GetName();
 
-		std::string PackageName = ObjectArray::GetByIndex(PackageIdx).GetName();
+		if (Info.bStructFileNeeded && !PackageInfo.first.bIsStructFileIncluded)
+		{
+			OutRef += std::format("\n#include \"SDK/{}_structs.hpp\"", PackageName);
 
-		OutRef += std::format("\n#include \"SDK/{}_structs.hpp\"", PackageName);
-		OutRef += std::format("\n#include \"SDK/{}_classes.hpp\"", PackageName);
-		OutRef += std::format("\n#include \"SDK/{}_parameters.hpp\"", PackageName);
+			PackageInfo.first.bIsStructFileIncluded = true;
+		}
+		if (Info.bClassFileNeeded && !PackageInfo.first.bIsClassFileIncluded)
+		{
+			if (!PackageInfo.first.bIsStructFileIncluded)
+			{
+				OutRef += std::format("\n#include \"SDK/{}_structs.hpp\"", PackageName); //Classes need structs
+			}
 
-		PackageInfo.first = true;
+			OutRef += std::format("\n#include \"SDK/{}_classes.hpp\"", PackageName);
+
+			PackageInfo.first.bIsStructFileIncluded = true;
+			PackageInfo.first.bIsClassFileIncluded = true;
+		}
 	}
 }
 
@@ -138,24 +153,30 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 
 				UEObject Outermost = Obj.GetOutermost();
 
+				const bool bDependencyIsClass = Obj.IsA(EClassCastFlags::UClass);
+				const bool bDependencyIsStruct = Obj.IsA(EClassCastFlags::UStruct) && !bDependencyIsClass;
+
 				if (PackageObject != Outermost)
 				{
-					Package::PackageSorter.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
+					PackageDependencyManager::DependencyInfo Info = { Outermost.GetIndex(), bDependencyIsStruct, bDependencyIsClass };
+
+					Package::PackageSorter.AddDependency(PackageObject.GetIndex(), Info);
+					
 					continue;
 				}
 
 				if (bIsClass)
 				{
-					if (Obj.IsA(EClassCastFlags::UClass))
+					if (bDependencyIsClass)
 					{
-						ClassSorter.AddDependency(Object.GetIndex(), Obj.GetIndex());
+						ClassSorter.AddDependency(Object.GetIndex(), Idx);
 					}
 				}
 				else
 				{
-					if (Obj.IsA(EClassCastFlags::UStruct))
+					if (bDependencyIsStruct)
 					{
-						StructSorter.AddDependency(Object.GetIndex(), Obj.GetIndex());
+						StructSorter.AddDependency(Object.GetIndex(), Idx);
 					}
 				}
 			}
@@ -205,7 +226,9 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 			for (auto& Member : Generator::PredefinedMembers[SuperName])
 			{
 				if (Member.Offset > PrevPropertyEnd)
+				{
 					Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Member.Offset - PrevPropertyEnd, "Fixing Size After Last (Predefined) Property  [ Dumper-7 ]"));
+				}
 
 				Struct.AddMember(Types::Member(Member.Type, Member.Name, std::format("(0x{:02X}[0x{:02X}]) NOT AUTO-GENERATED PROPERTY", Member.Offset, Member.Size)));
 
@@ -265,7 +288,9 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 	}
 
 	if (StructSize > PrevPropertyEnd)
+	{
 		Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, StructSize - PrevPropertyEnd, "Fixing Size Of Struct [ Dumper-7 ]"));
+	}
 }
 
 Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
@@ -493,11 +518,15 @@ Types::Class Package::GenerateClass(UEClass& Class)
 
 Types::Enum Package::GenerateEnum(UEEnum& Enum)
 {
-	std::string EnumName = Enum.GetEnumTypeAsStr(); 
-
-	Types::Enum Enm(EnumName, "uint8");
+	std::string EnumName = Enum.GetEnumTypeAsStr();
 
 	auto& NameValue = Enum.GetNameValuePairs();
+
+	Types::Enum Enm(EnumName, "uint8");
+	
+	if (UEEnum::BigEnums.find(Enum.GetIndex()) != UEEnum::BigEnums.end())
+		Enm = Types::Enum(EnumName, UEEnum::BigEnums[Enum.GetIndex()]);
+	
 
 	for (int i = 0; i < NameValue.Num(); i++)
 	{

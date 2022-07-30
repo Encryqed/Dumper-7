@@ -189,3 +189,9 @@ void FileWriter::SetFileEnding()
 #endif
 )";
 }
+
+
+std::ofstream& FileWriter::DebugGetStream()
+{
+	return FileStream;
+}
