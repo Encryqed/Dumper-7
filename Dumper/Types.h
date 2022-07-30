@@ -24,18 +24,16 @@ namespace Types
 	{
 	private:
 		std::string Declaration;
-		std::string InnerBody;
-		std::string WholeBody;
-		std::vector<std::string> EnumMembers;
+		std::vector<std::pair<std::string, int64>> EnumMembers;
 
 	public:
 		Enum() = default;
 		Enum(std::string Name);
 		Enum(std::string Name, std::string Type);
 
-		void AddComment(std::string Comment);
-		void AddMember(std::string Name, int64 Value);
-		void FixPFMAX();
+		void AddComment(std::string&& Comment);
+		void AddMember(std::string&& Name, int64 Value);
+		void FixWindowsConstant(std::string&& ConstantName);
 
 		std::string GetGeneratedBody();
 	};

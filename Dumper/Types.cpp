@@ -237,43 +237,42 @@ bool Types::Parameter::IsParamOutPtr()
 Types::Enum::Enum(std::string Name)
 {
 	Declaration = std::format("{}\n", Name);
-	InnerBody = "{\n";
 }
 
 Types::Enum::Enum(std::string Name, std::string Type)
 {
 	Declaration = std::format("{} : {}\n", Name, Type);
-	InnerBody = "{\n";
 }
 
-void Types::Enum::AddComment(std::string Comment)
+void Types::Enum::AddComment(std::string&& Comment)
 {
-	Declaration = std::format("// {}\n{}", Comment, Declaration);
+	Declaration = std::format("// {}\n{}", std::move(Comment), Declaration);
 }
 
-void Types::Enum::AddMember(std::string Name, int64 Value)
+void Types::Enum::AddMember(std::string&& Name, int64 Value)
 {
-	EnumMembers.push_back(std::format("\t{:{}} = {}", Name, 30, Value));
+	EnumMembers.emplace_back(std::move(Name), Value);
 }
 
-void Types::Enum::FixPFMAX()
+void Types::Enum::FixWindowsConstant(std::string&& ConstantName)
 {
-	std::string& PFMAX = EnumMembers.back();
-	std::string Temp = PFMAX.substr(PFMAX.find(" ") + 1);
-
-	PFMAX = "\tPF_MAX_" + Temp;
+	for (auto& EnumMember : EnumMembers)
+	{
+		if (EnumMember.first == ConstantName)
+		{
+			EnumMember.first += "_";
+		}
+	}
 }
 
 std::string Types::Enum::GetGeneratedBody()
 {
-	for (auto EnumMember : EnumMembers)
+	std::string Body = Declaration + "{\n";
+
+	for (const auto& EnumMember : EnumMembers)
 	{
-		InnerBody += (EnumMember + ",\n");
+		Body += std::format("\t{:{}} = {},\n", EnumMember.first, 30, EnumMember.second);
 	}
 
-	InnerBody += "};\n\n";
-
-	WholeBody = Declaration + InnerBody;
-
-	return WholeBody;
+	return Body + "};\n";
 }
