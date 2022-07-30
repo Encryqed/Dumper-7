@@ -78,6 +78,9 @@ std::string UEObject::GetValidName()
 		return Name;
 	}
 
+	if (Name == "TRUE")
+		return "TURR";
+
 	if (FirstChar <= '9' && FirstChar >= '0')
 		Name = '_' + Name;
 

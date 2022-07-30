@@ -536,7 +536,10 @@ Types::Enum Package::GenerateEnum(UEEnum& Enum)
 	}
 
 	if (EnumName.find("PixelFormat") != -1)
-		Enm.FixPFMAX();
+		Enm.FixWindowsConstant("PF_MAX");
+
+	if(EnumName.find("ERaMaterialName") != -1)
+		Enm.FixWindowsConstant("TRANSPARENT");
 	
 
 	AllEnums.push_back(Enm);
