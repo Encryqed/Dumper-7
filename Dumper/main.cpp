@@ -34,8 +34,61 @@ DWORD MainThread(HMODULE Module)
 	
 	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 
+
 	//Generator SDKGen;
+	//Package myPack(ObjectArray::FindObjectFast("GameplayTags", EClassCastFlags::UPackage));
+	//
+	//UEStruct myStruct = ObjectArray::FindObjectFast<UEStruct>("GameplayEffectQuery", EClassCastFlags::UStruct);
+	//
+	//std::vector<int32> PackageMembers;
+	//
+	//PackageMembers.push_back(myStruct.GetIndex());
+	//
+	//myPack.GatherDependencies(PackageMembers);
+	//
+	////for (auto& PackageDependency : Package::PackageSorter.AllDependencies)
+	////{
+	////	
+	////}
+	//
+	//std::string Includes;
+	//
+	//Package::PackageSorter.GetIncludesForPackage({ myPack.DebugGetObject().GetIndex(), true, true }, Includes);
+	//
+	//std::cout << Includes << "\n";
+
+	//for (UEObject Obj : ObjectArray())
+	//{
+	//	if(Obj.IsA(EClassCastFlags::UStruct) && !Obj.IsA(EClassCastFlags::UFunction) && !Obj.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject) && Obj.GetOutermost().GetName() == "GameplayTags")
+	//		PackageMembers.push_back(Obj.GetIndex());
+	//}
 	
+	//std::unordered_map<int32_t, std::vector<int32_t>> d;
+	//ObjectArray::GetAllPackages(d);
+	//
+	//myPack.Process(d[myPack.DebugGetObject().GetIndex()]);
+	//
+	//fs::path GenFolder(Settings::SDKGenerationPath);
+	//fs::path SDKFolder = GenFolder / "SDK";
+	//
+	//if (fs::exists(GenFolder))
+	//	std::cout << "Removed: 0x" << fs::remove_all(GenFolder) << " Files!\n";
+	//
+	//fs::create_directory(GenFolder);
+	//fs::create_directory(SDKFolder);
+	//
+	//FileWriter fws(SDKFolder, "GameplayTags", FileWriter::FileType::Struct);
+	//
+	//std::cout << "Writing\n";
+	//
+	//std::cout << "myPack.AllStructs: 0x" << std::hex << myPack.AllStructs.size() << "\n";
+	//
+	//fws.WriteStructs(myPack.AllStructs);
+	//
+	//fws.Close();
+
+
+
 	//for (auto Obj : ObjectArray())
 	//{
 	//	if (Obj.IsA(EClassCastFlags::UStructProperty) && !Obj.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))

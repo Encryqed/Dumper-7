@@ -71,6 +71,13 @@ std::string UEObject::GetValidName()
 
 	char& FirstChar = Name[0];
 
+	if (Name == "bool")
+	{
+		FirstChar -= 0x20;
+
+		return Name;
+	}
+
 	if (FirstChar <= '9' && FirstChar >= '0')
 		Name = '_' + Name;
 

@@ -5,6 +5,8 @@
 
 Types::Struct::Struct(std::string Name, bool bIsClass, std::string Super)
 {
+	StructMembers.reserve(50);
+
 	CppName = Name;
 
 	if (!bIsClass)
@@ -30,7 +32,7 @@ void Types::Struct::AddMember(Member& NewMember)
 }
 void Types::Struct::AddMember(Member&& NewMember)
 {
-	StructMembers.push_back(NewMember);
+	StructMembers.emplace_back(std::move(NewMember));
 }
 
 void Types::Struct::AddMembers(std::vector<Member>& NewMembers)
@@ -59,7 +61,7 @@ void Types::Class::AddFunction(Function& NewFunction)
 
 void Types::Class::AddFunction(Function&& NewFunction)
 {
-	ClassFunctions.push_back(NewFunction);
+	ClassFunctions.emplace_back(std::move(NewFunction));
 }
 
 std::string Types::Class::GetGeneratedBody()

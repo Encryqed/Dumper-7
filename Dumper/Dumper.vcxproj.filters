@@ -20,10 +20,10 @@
     <ClCompile Include="Types.cpp">
       <Filter>Generator\Private</Filter>
     </ClCompile>
-    <ClCompile Include="Package.cpp">
+    <ClCompile Include="FileWriter.cpp">
       <Filter>Generator\Private</Filter>
     </ClCompile>
-    <ClCompile Include="FileWriter.cpp">
+    <ClCompile Include="Package.cpp">
       <Filter>Generator\Private</Filter>
     </ClCompile>
   </ItemGroup>

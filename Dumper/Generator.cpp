@@ -64,6 +64,11 @@ void Generator::GenerateSDK()
 		{
 			std::string PackageName = Object.GetName();
 
+			if (fs::exists(SDKFolder / (PackageName + "_classes.hpp")))
+			{
+				PackageName += "_1";
+			}
+
 			FileWriter ClassFile(SDKFolder, PackageName, FileWriter::FileType::Class);
 			FileWriter StructsFile(SDKFolder, PackageName, FileWriter::FileType::Struct);
 			FileWriter FunctionFile(SDKFolder, PackageName, FileWriter::FileType::Function);
@@ -145,9 +150,7 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 	for(auto& Package : Package::PackageSorter.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorter.GetIncludesForPackage(Package.first, IncludesString);
-
-		std::cout << IncludesString;
+		Package::PackageSorter.GetIncludesForPackage({ Package.first, true, true }, IncludesString);
 
 		HeaderStream << IncludesString;
 	}
@@ -160,7 +163,7 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 		if (!PackageObj)
 			continue;
 
-		HeaderStream << std::format("#include \"SDK/{}_parameters.hpp\"\n", PackageObj.GetName());
+		HeaderStream << std::format("\n#include \"SDK/{}_parameters.hpp\"", PackageObj.GetName());
 	}
 
 	//for (auto& Pair : Packages)
@@ -475,6 +478,8 @@ inline Fn GetVFunction(const void* instance, std::size_t index)
 R"(
 class TUObjectArray
 {
+public:
+
 	struct FUObjectItem
 	{
 		class UObject* Object;
@@ -507,6 +512,8 @@ public:
 			std::format(R"(
 class TUObjectArray
 {{
+public:
+
 	enum
 	{{
 		ElementsPerChunk = 0x{:X},
@@ -961,14 +968,6 @@ public:
 	}
 };
 
-void SubclassUsingFunction(TSubclassOf<class UFfd> SubClss)
-{
-	std::cout << "hi";
-}
-class UFfd
-{
-	void* s = 0;
-};
 
 //template<class T>
 //class TArray
