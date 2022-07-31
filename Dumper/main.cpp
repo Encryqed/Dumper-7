@@ -26,7 +26,25 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
 	auto t_1 = high_resolution_clock::now();
+
+	std::cout << "Started Generation [Dumper - 7]!\n";
+
+	Generator::Init();
+
+
+	//Only Possible in Main()
+	FString Version;
+	UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
+	UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
+
+	Kismet.ProcessEvent(GetEngineVersion, &Version);
+
+	Settings::GameName = Version.ToString();
+
+
 	Generator::GenerateSDK();
+
+
 	auto t_2 = high_resolution_clock::now();
 	
 	auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);

@@ -8,6 +8,9 @@ class UEClass;
 
 class UEObject
 {
+private:
+	static void(*PE)(void*, void*, void*);
+
 protected:
 	uint8* Object;
 
@@ -50,6 +53,8 @@ public:
 	explicit operator bool();
 	bool operator==(const UEObject& Other) const;
 	bool operator!=(const UEObject& Other) const;
+
+	void ProcessEvent(class UEFunction Func, void* Params);
 };
 
 class UEField : public UEObject
@@ -87,16 +92,6 @@ public:
 	int32 GetStructSize();
 };
 
-class UEClass : public UEStruct
-{
-	using UEStruct::UEStruct;
-
-public:
-	EClassCastFlags GetCastFlags();
-	bool IsType(EClassCastFlags TypeFlag);
-	UEObject GetDefaultObject();
-};
-
 class UEFunction : public UEStruct
 {
 	using UEStruct::UEStruct;
@@ -107,6 +102,18 @@ public:
 
 	std::string StringifyFlags();
 	std::string GetParamStructName();
+};
+
+class UEClass : public UEStruct
+{
+	using UEStruct::UEStruct;
+
+public:
+	EClassCastFlags GetCastFlags();
+	bool IsType(EClassCastFlags TypeFlag);
+	UEObject GetDefaultObject();
+
+	UEFunction GetFunction(const std::string& ClassName, const std::string& FuncName);
 };
 
 class UEProperty : public UEField

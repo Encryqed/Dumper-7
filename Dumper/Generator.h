@@ -43,14 +43,14 @@ private:
 	static MemberMap PredefinedMembers; // Package.cpp
 
 public:
-	Generator();
+	static void Init();
 
 	static void InitPredefinedMembers();
 	static void InitPredefinedFunctions();
 
 	static void GenerateSDK();
 
-	void GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t, std::vector<int32_t>>& Packages);
-	void GenerateFixupFile(fs::path& SdkPath);
-	void GenerateBasicFile(fs::path& SdkPath);
+	static void GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t, std::vector<int32_t>>& Packages);
+	static void GenerateFixupFile(fs::path& SdkPath);
+	static void GenerateBasicFile(fs::path& SdkPath);
 };

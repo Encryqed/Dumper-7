@@ -5,7 +5,7 @@ Generator::FunctionsMap Generator::PredefinedFunctions;
 Generator::MemberMap Generator::PredefinedMembers;
 
 
-Generator::Generator()
+void Generator::Init()
 {
 	ObjectArray::Init();
 	FName::Init();
@@ -16,12 +16,14 @@ Generator::Generator()
 
 	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
 
+
 	for (int i = 0; i < 0x150; i++)
 	{
 		if (Vft[i] == PeAddr)
 		{
 			Off::InSDK::PEIndex = i;
-			std::cout << "PE-Index: 0x" << std::hex << i << "\n";
+			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
+			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
 			break;
 		}
 	}
@@ -32,14 +34,9 @@ Generator::Generator()
 
 void Generator::GenerateSDK()
 {
-	Generator SDKGen;
-
 	std::unordered_map<int32_t, std::vector<int32_t>> ObjectPackages;
 	
 	ObjectArray::GetAllPackages(ObjectPackages);
-
-	std::cout << "Started Generation [Dumper-7]!\n";
-	std::cout << "Total Packages: " << ObjectPackages.size() << "\n\n";
 
 	fs::path GenFolder(Settings::SDKGenerationPath);
 	fs::path SDKFolder = GenFolder / "SDK";
@@ -77,7 +74,6 @@ void Generator::GenerateSDK()
 			ClassFile.WriteClasses(Pack.AllClasses);
 			StructsFile.WriteEnums(Pack.AllEnums);
 			StructsFile.WriteStructs(Pack.AllStructs);
-			//FunctionFile.WriteFunctions(Pack.AllFunctions);
 
 			if (PackageName == "CoreUObject")
 			{
@@ -115,9 +111,9 @@ void Generator::GenerateSDK()
 		}
 	}
 
-	SDKGen.GenerateSDKHeader(GenFolder, ObjectPackages);
-	SDKGen.GenerateFixupFile(GenFolder);
-	SDKGen.GenerateBasicFile(SDKFolder);
+	GenerateSDKHeader(GenFolder, ObjectPackages);
+	GenerateFixupFile(GenFolder);
+	GenerateBasicFile(SDKFolder);
 
 	std::cout << "\n\n[=] Done [=]\n\n";
 }
@@ -127,13 +123,14 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 	std::ofstream HeaderStream(SdkPath / "SDK.hpp");
 
 	HeaderStream << "#pragma once\n\n";
-	HeaderStream << "// Made with <3 by Encryqed && me\n";
-	HeaderStream << std::format("// {} SDK\n\n", Settings::GameName);
-
+	HeaderStream << "// Made with <3 by Encryqed && me [Fischsalat]\n";
+	
+	HeaderStream << std::format("// {} \n\n", Settings::GameName);
+	
 	HeaderStream << "#include <string>\n";
 	HeaderStream << "#include <Windows.h>\n";
 	HeaderStream << "#include <iostream>\n\n";
-
+	
 	HeaderStream << "typedef __int8 int8;\n";
 	HeaderStream << "typedef __int16 int16;\n";
 	HeaderStream << "typedef __int32 int32;\n";
@@ -142,38 +139,33 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 	HeaderStream << "typedef unsigned __int8 uint8;\n";
 	HeaderStream << "typedef unsigned __int16 uint16;\n";
 	HeaderStream << "typedef unsigned __int32 uint32;\n";
-	HeaderStream << "typedef unsigned __int64 uint64;\n\n\n";
+	HeaderStream << "typedef unsigned __int64 uint64;\n\n";
 	
-	HeaderStream << "#include \"PropertyFixup.hpp\"\n\n";
-	HeaderStream << "#include \"SDK/Basic.hpp\"\n";
-
+	if (Settings::bShouldXorStrings)
+		HeaderStream << "#define XORSTR(str) str\n";
+	
+	HeaderStream << "\n#include \"PropertyFixup.hpp\"\n";
+	HeaderStream << "\n#include \"SDK/Basic.hpp\"\n";
+	
 	for(auto& Package : Package::PackageSorter.AllDependencies)
 	{
 		std::string IncludesString;
 		Package::PackageSorter.GetIncludesForPackage({ Package.first, true, true }, IncludesString);
-
+	
 		HeaderStream << IncludesString;
 	}
-
+	
 	// Param files don't need dependency sorting
 	for (auto& Pair : Packages)
 	{
 		UEObject PackageObj = ObjectArray::GetByIndex(Pair.first);
-
+	
 		if (!PackageObj)
 			continue;
-
+	
 		HeaderStream << std::format("\n#include \"SDK/{}_parameters.hpp\"", PackageObj.GetName());
 	}
 
-	//for (auto& Pair : Packages)
-	//{
-	//	std::string PackageName = ObjectArray::GetByIndex(Pair.first).GetName();
-	//
-	//	HeaderStream << std::format("#include \"SDK/{}_structs.hpp\"\n", PackageName);
-	//	HeaderStream << std::format("#include \"SDK/{}_classes.hpp\"\n", PackageName);
-	//	HeaderStream << std::format("#include \"SDK/{}_parameters.hpp\"\n", PackageName);
-	//}
 	HeaderStream.close();
 }
 void Generator::GenerateFixupFile(fs::path& SdkPath)

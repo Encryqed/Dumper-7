@@ -7,6 +7,8 @@
 std::unordered_map<int32, std::string> UEEnum::BigEnums;
 std::unordered_map<std::string, uint32_t> UEProperty::UnknownProperties;
 
+void(*UEObject::PE)(void*, void*, void*) = nullptr;
+
 void* UEObject::GetAddress()
 {
 	return Object;
@@ -84,7 +86,7 @@ std::string UEObject::GetValidName()
 	if (FirstChar <= '9' && FirstChar >= '0')
 		Name = '_' + Name;
 
-	//this way I don't need to bother checking for c++ types like int in the names
+	//this way I don't need to bother checking for c++ types (except bool) like int in the names
 	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
 		FirstChar = FirstChar - 0x20;
 
@@ -153,6 +155,14 @@ bool UEObject::operator!=(const UEObject& Other) const
 	return Object != Other.Object;
 }
 
+void  UEObject::ProcessEvent(UEFunction Func, void* Params)
+{
+	void** VFT = *reinterpret_cast<void***>(GetAddress());
+
+	void(*Prd)(void*, void*, void*) = decltype(Prd)(VFT[Off::InSDK::PEIndex]);
+
+	Prd(Object, Func.GetAddress(), Params);
+}
 
 UEField UEField::GetNext()
 {
@@ -249,6 +259,24 @@ bool UEClass::IsType(EClassCastFlags TypeFlag)
 UEObject UEClass::GetDefaultObject()
 {
 	return UEObject(*reinterpret_cast<void**>(Object + Off::UClass::ClassDefaultObject));
+}
+
+UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string& FuncName)
+{
+	for(UEStruct Struct = *this; Struct; Struct = Struct.GetSuper())
+	{
+		if (Struct.GetName() == ClassName)
+		{
+			for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
+			{
+				if(Field.IsA(EClassCastFlags::UFunction) && Field.GetName() == FuncName)
+				{
+					return Field.Cast<UEFunction>();
+				}	
+			}
+		}
+	}
+	return nullptr;
 }
 
 

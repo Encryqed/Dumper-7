@@ -29,10 +29,8 @@ public:
 	TArray() = default;
 
 	inline TArray(int32 Num)
-		:NumElements(0), MaxElements(Num)
+		:NumElements(0), MaxElements(Num), Data((T*)malloc(sizeof(T)* Num))
 	{
-		//Data = (T*)VirtualAlloc(nullptr, sizeof(T) * Num, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-		Data = (T*)malloc(sizeof(T) * Num);
 	}
 
 	inline T& operator[](uint32 Index)
@@ -74,14 +72,6 @@ public:
 		return Index < this->NumElements;
 	}
 
-	inline void Free()
-	{
-		auto MemoryFree = reinterpret_cast<void(*)(void*)>(reinterpret_cast<uintptr_t>(GetModuleHandle(0)) + 0x15B96D0);
-		MemoryFree(Data);
-		Data = nullptr;
-		NumElements = 0;
-		MaxElements = 0;
-	}
 	inline void ResetNum()
 	{
 		NumElements = 0;

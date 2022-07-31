@@ -212,7 +212,7 @@ inline MemAddress FindByString(Type RefStr)
 		{
 			if (strcmp((const char*)RefStr, (const char*)(DataSection + i)) == 0)
 			{
-				std::cout << "FoundStr ref: " << (const char*)(DataSection + i) << "\n";
+				//std::cout << "FoundStr ref: " << (const char*)(DataSection + i) << "\n";
 
 				StringAddress = DataSection + i;
 			}
@@ -221,7 +221,7 @@ inline MemAddress FindByString(Type RefStr)
 		{
 			if (wcscmp((const wchar_t*)RefStr, (const wchar_t*)(DataSection + i)) == 0)
 			{
-				std::wcout << L"FoundStr ref: " << (const wchar_t*)(DataSection + i) << L"\n";
+				//std::wcout << L"FoundStr ref: " << (const wchar_t*)(DataSection + i) << L"\n";
 
 				StringAddress = DataSection + i;
 			}
