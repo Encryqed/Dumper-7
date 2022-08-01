@@ -165,7 +165,7 @@ void FileWriter::SetFileHeader()
 
 )";
 
-	if (CurrentFileType == FileType::Function || CurrentFileType == FileType::Parameter)
+	if (CurrentFileType == FileType::Function || CurrentFileType == FileType::Parameter || CurrentFileType == FileType::Source)
 		FileStream << "#include \"../SDK.hpp\"\n\n";
 
 	if (Settings::bUseNamespaceForSDK)

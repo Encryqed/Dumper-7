@@ -452,9 +452,10 @@ R"(
 
 void Generator::GenerateBasicFile(fs::path& SdkPath)
 {
-	FileWriter BasicFile(SdkPath, "Basic", FileWriter::FileType::Header);
+	FileWriter BasicHeader(SdkPath, "Basic", FileWriter::FileType::Header);
+	FileWriter BasicSource(SdkPath, "Basic", FileWriter::FileType::Source);
 
-	BasicFile.Write(
+	BasicHeader.Write(
 		R"(
 template<typename Fn>
 inline Fn GetVFunction(const void* instance, std::size_t index)
@@ -466,8 +467,8 @@ inline Fn GetVFunction(const void* instance, std::size_t index)
 
 	if (Off::InSDK::ChunkSize <= 0)
 	{
-		BasicFile.Write(
-R"(
+		BasicHeader.Write(
+			R"(
 class TUObjectArray
 {
 public:
@@ -500,8 +501,8 @@ public:
 	}
 	else
 	{
-		BasicFile.Write(
-			std::format(R"(
+		BasicHeader.Write(
+std::format(R"(
 class TUObjectArray
 {{
 public:
@@ -543,8 +544,8 @@ public:
 )", Off::InSDK::ChunkSize));
 	}
 
-	BasicFile.Write(
-		R"(
+	BasicHeader.Write(
+			R"(
 template<class T>
 class TArray
 {
@@ -603,8 +604,8 @@ public:
 };
 )");
 
-	BasicFile.Write(
-R"(
+	BasicHeader.Write(
+			R"(
 class FString : public TArray<wchar_t>
 {
 public:
@@ -650,7 +651,7 @@ public:
 };
 )");
 
-	BasicFile.Write(
+	BasicHeader.Write(
 std::format(R"(
 class FName
 {{
@@ -688,14 +689,21 @@ public:
 }};
 )", Off::InSDK::AppendNameToString));
 
-	BasicFile.Write(
-R"(
+	BasicHeader.Write(
+			R"(
 template<typename ClassType>
 class TSubclassOf
 {
 	class UClass* ClassPtr;
 
 public:
+	TSubclassOf() = default();
+
+	inline TSubclassOf(UClass* Class)
+		: Classptr(Class)
+	{
+	}
+
 	inline UClass* Get()
 	{
 		return ClassPtr;
@@ -730,8 +738,8 @@ public:
 };
 )");
 
-	BasicFile.Write(
-		R"(
+	BasicHeader.Write(
+			R"(
 template<typename ValueType, typename KeyType>
 class TPair
 {
@@ -741,8 +749,8 @@ public:
 };
 )");
 
-	BasicFile.Write(
-R"(
+	BasicHeader.Write(
+			R"(
 class FText
 {
 public:
@@ -751,8 +759,8 @@ public:
 };
 )");
 
-	BasicFile.Write(
-R"(
+	BasicHeader.Write(
+			R"(
 template<typename ElementType>
 class TSet
 {
@@ -760,8 +768,8 @@ class TSet
 };
 )");
 
-	BasicFile.Write(
-R"(
+	BasicHeader.Write(
+			R"(
 template<typename KeyType, typename ValueType>
 class TMap
 {
@@ -769,8 +777,216 @@ class TMap
 };
 )");
 
-	BasicFile.Write(
-R"(
+	BasicHeader.Write(
+			R"(
+class FWeakObjectPtr
+{
+protected:
+	int32		ObjectIndex;
+	int32		ObjectSerialNumber;
+
+public:
+	class UObject* Get() const;
+
+	class UObject* operator->() const;
+
+	bool operator==(const FWeakObjectPtr& Other) const;
+	bool operator!=(const FWeakObjectPtr& Other) const;
+
+	bool operator==(const class UObject* Other) const;
+	bool operator!=(const class UObject* Other) const;
+};
+)");
+
+	BasicHeader.Write(
+			R"(
+template<typename UEType>
+class TWeakObjectPtr : FWeakObjectPtr
+{
+public:
+
+	UEType* Get() const
+	{
+		return static_cast<UEType*>(FWeakObjectPtr::Get());
+	}
+
+	UEType* operator->() const
+	{
+		return static_cast<UEType*>(FWeakObjectPtr::Get());
+	}
+};
+)");
+
+	BasicHeader.Write(
+		R"(
+
+struct FUniqueObjectGuid
+{
+	uint32 A;
+	uint32 B;
+	uint32 C;
+	uint32 D;
+};
+)");
+
+	BasicHeader.Write(
+		R"(
+template<typename TObjectID>
+class TPersistentObjectPtr
+{
+public:
+	FWeakObjectPtr WeakPtr;
+	int32 TagAtLastTest;
+	TObjectID ObjectID;
+
+	class UObject* Get() const
+	{
+		return WeakPtr.Get();
+	}
+	class UObject* operator->() const
+	{
+		return WeakPtr.Get();
+	}
+};
+)");
+
+	BasicHeader.Write(
+		R"(
+template<typename UEType>
+class TLazyObjectPtr : public TPersistentObjectPtr<FUniqueObjectGuid>
+{
+public:
+
+	UEType* Get() const
+	{
+		return static_cast<UEType*>(TPersistentObjectPtr::Get());
+	}
+
+	UEType* operator->() const
+	{
+		return static_cast<UEType*>(TPersistentObjectPtr::Get());
+	}
+};
+)");
+
+	BasicHeader.Write(
+		R"(
+class FSoftObjectPath_
+{
+public:
+	FName AssetPathName;
+	FString SubPathString;
+};
+)");
+
+	BasicHeader.Write(
+		R"(
+class FSoftObjectPtr : public TPersistentObjectPtr<FSoftObjectPath_>
+{
+public:
+
+	FName GetAssetPathName();
+	FString GetSubPathString();
+
+	std::string GetAssetPathNameStr();
+	std::string GetSubPathStringStr();
+};
+)");
+
+
+	BasicHeader.Write(
+		R"(
+template<typename UEType>
+class TSoftObjectPtr : public FSoftObjectPtr
+{
+public:
+
+	UEType* Get() const
+	{
+		return static_cast<UEType*>(TPersistentObjectPtr::Get());
+	}
+
+	UEType* operator->() const
+	{
+		return static_cast<UEType*>(TPersistentObjectPtr::Get());
+	}
+};
+)");
+
+	BasicHeader.Write(
+		R"(
+template<typename UEType>
+class TSoftClassPtr : public FSoftObjectPtr
+{
+public:
+
+	UEType* Get() const
+	{
+		return static_cast<UEType*>(TPersistentObjectPtr::Get());
+	}
+
+	UEType* operator->() const
+	{
+		return static_cast<UEType*>(TPersistentObjectPtr::Get());
+	}
+};
+)");
+
+	BasicSource.Write(
+		R"(
+FName FSoftObjectPtr::GetAssetPathName()
+{
+	return ObjectID.AssetPathName;
+}
+FString FSoftObjectPtr::GetSubPathString()
+{
+	return ObjectID.SubPathString;
+}
+
+std::string FSoftObjectPtr::GetAssetPathNameStr()
+{
+	return ObjectID.AssetPathName.ToString();
+}
+std::string FSoftObjectPtr::GetSubPathStringStr()
+{
+	return ObjectID.SubPathString.ToString();
+}
+)");
+
+
+	BasicSource.Write(
+			R"(
+class UObject* FWeakObjectPtr::Get() const
+{
+	return UObject::GObjects->GetByIndex(ObjectIndex);
+}
+
+class UObject* FWeakObjectPtr::operator->() const
+{
+	return UObject::GObjects->GetByIndex(ObjectIndex);
+}
+
+bool FWeakObjectPtr::operator==(const FWeakObjectPtr& Other) const
+{
+	return ObjectIndex == Other.ObjectIndex;
+}
+bool FWeakObjectPtr::operator!=(const FWeakObjectPtr& Other) const
+{
+	return ObjectIndex != Other.ObjectIndex;
+}
+
+bool FWeakObjectPtr::operator==(const class UObject* Other) const
+{
+	return ObjectIndex == Other->Index;
+}
+bool FWeakObjectPtr::operator!=(const class UObject* Other) const
+{
+	return ObjectIndex != Other->Index;
+}
+)");
+
+	BasicHeader.Write(
+			R"(
 
 enum class EClassCastFlags : uint64_t
 {
@@ -828,8 +1044,8 @@ enum class EClassCastFlags : uint64_t
 };
 )");
 
-	BasicFile.Write(
-R"(
+	BasicHeader.Write(
+			R"(
 inline constexpr EClassCastFlags operator|(EClassCastFlags Left, EClassCastFlags Right)
 {																																										
 	return (EClassCastFlags)((std::underlying_type<EClassCastFlags>::type)(Left) | (std::underlying_type<EClassCastFlags>::type)(Right));
@@ -850,6 +1066,73 @@ inline bool operator&(EClassCastFlags Left, EClassCastFlags Right)
 	// TMap<Type>
 	//-FText
 }
+
+//class FWeakObjectPtr
+//{
+//protected:
+//	int32		ObjectIndex;
+//	int32		ObjectSerialNumber;
+//
+//public:
+//	class UObject* Get() const;
+//
+//	class UObject* operator->() const;
+//
+//	bool operator==(const FWeakObjectPtr& Other) const;
+//	bool operator!=(const FWeakObjectPtr& Other) const;
+//
+//	bool operator==(const class UObject* Other) const;
+//	bool operator!=(const class UObject* Other) const;
+//};
+//
+//template<typename UEType>
+//struct TWeakObjectPtr : FWeakObjectPtr
+//{
+//public:
+//	class UEType* Get() const;
+//
+//	class UEType* operator->() const;
+//};
+//
+//class UObject* FWeakObjectPtr::Get() const
+//{
+//	return UObject::GObjects->GetByIndex(ObjectIndex);
+//}
+//
+//class UObject* FWeakObjectPtr::operator->() const
+//{
+//	return UObject::GObjects->GetByIndex(ObjectIndex);
+//}
+//
+//bool FWeakObjectPtr::operator==(const FWeakObjectPtr& Other) const
+//{
+//	return ObjectIndex == Other.ObjectIndex;
+//}
+//bool FWeakObjectPtr::operator!=(const FWeakObjectPtr& Other) const
+//{
+//	return ObjectIndex != Other.ObjectIndex;
+//}
+//
+//bool FWeakObjectPtr::operator==(const class UObject* Other) const
+//{
+//	return ObjectIndex == Obj->Index;
+//}
+//bool FWeakObjectPtr::operator!=(const class UObject* Other) const
+//{
+//	return ObjectIndex != Obj->Index;
+//}
+//
+//
+//class UEType* TWeakObjectPtr<UEType>::Get() const
+//{
+//	return UObject::GObjects->GetByIndex(ObjectIndex);
+//}
+//
+//class UEType* TWeakObjectPtr<UEType>::operator->() const
+//{
+//	return UObject::GObjects->GetByIndex(ObjectIndex);
+//}
+
 
 //class TUObjectArray
 //{

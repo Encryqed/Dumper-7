@@ -366,7 +366,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 
 	for (auto& Param : Func.GetParameters())
 	{
-		if(!Param.IsParamOutPtr())
+		if (!Param.IsParamOutPtr())
 			FuncBody += std::format("\tParms.{0} = {0};\n", Param.GetName());
 	}
 

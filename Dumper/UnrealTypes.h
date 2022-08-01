@@ -165,4 +165,9 @@ public:
 	{
 		return ComparisonIndex != Other.ComparisonIndex;
 	}
+
+	static inline void* DEBUGGetAppendString()
+	{
+		return (void*)(AppendString);
+	}
 };

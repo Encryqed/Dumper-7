@@ -57,4 +57,9 @@ public:
 
 	ObjectsIterator begin();
 	ObjectsIterator end();
+
+	static inline void* DEBUGGetGObjects()
+	{
+		return GObjects;
+	}
 };

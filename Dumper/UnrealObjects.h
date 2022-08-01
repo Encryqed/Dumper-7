@@ -167,13 +167,45 @@ public:
 	std::string GetCppType();
 };
 
-class UEClassProperty : public UEProperty
+class UEClassProperty : public UEObjectProperty
 {
-	using UEProperty::UEProperty;
+	using UEObjectProperty::UEObjectProperty;
 
 public:
 	UEClass GetMetaClass();
 
+	std::string GetCppType();
+};
+
+class UEWeakObjectProperty : public UEObjectProperty
+{
+	using UEObjectProperty::UEObjectProperty;
+
+public:
+	std::string GetCppType();
+};
+
+class UELazyObjectProperty : public UEObjectProperty
+{
+	using UEObjectProperty::UEObjectProperty;
+
+public:
+	std::string GetCppType();
+};
+
+class UESoftObjectProperty : public UEObjectProperty
+{
+	using UEObjectProperty::UEObjectProperty;
+
+public:
+	std::string GetCppType();
+};
+
+class UESoftClassProperty : public UEClassProperty
+{
+	using UEClassProperty::UEClassProperty;
+
+public:
 	std::string GetCppType();
 };
 

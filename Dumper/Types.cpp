@@ -139,7 +139,7 @@ void Types::Member::AddComment(std::string Comment)
 
 std::string Types::Member::GetGeneratedBody()
 {
-	return std::format("\t{:{}}{:{}} {}\n", Type, 40, Name + ";", 55, Comment);
+	return std::format("\t{:{}}{:{}} {}\n", Type, 45, Name + ";", 50, Comment);
 }
 
 Types::Function::Function(std::string Type, std::string Name, std::string SuperName, std::vector<Parameter> Parameters)

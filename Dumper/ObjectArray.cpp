@@ -148,7 +148,7 @@ void ObjectArray::Init()
 			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
 
 			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
-			
+
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
 			{
 				if (Index < 0 || Index > Num())
@@ -160,7 +160,7 @@ void ObjectArray::Init()
 				return reinterpret_cast<FChunkedFixedUObjectArray*>(ObjectsArray)->Objects[ChunkIndex][InChunkIdx].Object;
 			};
 
-			if (ObjectArray::GetByIndex(300000).GetIndex() != 300000)
+			if (ObjectArray::GetByIndex(0x10401).GetIndex() != 0x10401)
 			{
 				NumElementsPerChunk = 0x10400;
 			}
