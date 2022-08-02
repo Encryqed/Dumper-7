@@ -31,7 +31,7 @@ DWORD MainThread(HMODULE Module)
 	
 	Generator::Init();
 	
-	
+
 	//Only Possible in Main()
 	FString Version;
 	UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");

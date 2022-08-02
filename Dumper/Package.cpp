@@ -246,6 +246,8 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 	for (auto& Property : MemberVector)
 	{
+		bool bUpdatePrevPropertyEnd = true;
+
 		std::string CppType = Property.GetCppType();
 		std::string Name = Property.GetValidName();
 
@@ -257,6 +259,13 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 		if (Offset > PrevPropertyEnd)
 		{
 			Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Offset - PrevPropertyEnd, "Fixing Size After Last Property  [ Dumper-7 ]"));
+		}
+		else if (Offset < PrevPropertyEnd && !(Property.IsA(EClassCastFlags::UBoolProperty) && !Property.Cast<UEBoolProperty>().IsNativeBool()))
+		{
+			//example: on 1.7.2 UEngine has size 0xC90 but members have offsets of 0xC88 and 0xC8C
+			CppType = "//" + CppType;
+
+			bUpdatePrevPropertyEnd = false;
 		}
 
 		if (Property.IsA(EClassCastFlags::UBoolProperty) &&  !Property.Cast<UEBoolProperty>().IsNativeBool())
@@ -282,7 +291,10 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 		Types::Member Member(CppType, Name, Comment);
 
-		PrevPropertyEnd = Offset + Size;
+		if (bUpdatePrevPropertyEnd)
+		{
+			PrevPropertyEnd = Offset + Size;
+		}
 
 		Struct.AddMember(Member);
 	}
