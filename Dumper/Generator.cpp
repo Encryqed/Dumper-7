@@ -697,10 +697,10 @@ class TSubclassOf
 	class UClass* ClassPtr;
 
 public:
-	TSubclassOf() = default();
+	TSubclassOf() = default;
 
 	inline TSubclassOf(UClass* Class)
-		: Classptr(Class)
+		: ClassPtr(Class)
 	{
 	}
 
