@@ -77,7 +77,7 @@ void Generator::GenerateSDK()
 
 			if (PackageName == "CoreUObject")
 			{
-				FunctionFile.Write(std::format("\tTUObjectArray* UObject::GObjects = reinterpret_cast<TUObjectArray*>(uintptr_t(GetModuleHandle(0)) + 0x{:X});\n\n", Off::InSDK::GObjects));
+				FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
 			}
 
 			for (auto& Function : Pack.AllFunctions)
@@ -139,8 +139,18 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 	HeaderStream << "typedef unsigned __int8 uint8;\n";
 	HeaderStream << "typedef unsigned __int16 uint16;\n";
 	HeaderStream << "typedef unsigned __int32 uint32;\n";
-	HeaderStream << "typedef unsigned __int64 uint64;\n\n";
+	HeaderStream << "typedef unsigned __int64 uint64;\n";
 	
+	HeaderStream << std::format(
+		R"(
+namespace Offsets
+{{
+	inline int32 GObjects          = 0x{:08X};
+	inline int32 AppendString      = 0x{:08X};
+	inline int32 ProcessEvent      = 0x{:08X};
+}}
+)", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::PEOffset);
+
 	if (Settings::bShouldXorStrings)
 		HeaderStream << "#define XORSTR(str) str\n";
 	
@@ -294,6 +304,14 @@ void Generator::InitPredefinedFunctions()
 R"(
 	{
 		return TypeFlag != EClassCastFlags::None ? Class->CastFlags & TypeFlag : true;
+	}
+)"
+			},
+			{
+				"\tbool IsDefaultObject() const", "",
+R"(
+	{
+		return (Flags & 0x10) == 0x10;
 	}
 )"
 			},
@@ -457,6 +475,19 @@ void Generator::GenerateBasicFile(fs::path& SdkPath)
 
 	BasicHeader.Write(
 		R"(
+void InitGObjects();
+)");
+
+	BasicSource.Write(
+		R"(
+void InitGObjects()
+{{
+	UObject::GObjects = reinterpret_cast<TUObjectArray*>(uintptr_t(GetModuleHandle(0)) + Offsets::GObjects);
+}}			
+)");
+
+	BasicHeader.Write(
+		R"(
 template<typename Fn>
 inline Fn GetVFunction(const void* instance, std::size_t index)
 {
@@ -483,7 +514,8 @@ public:
 	int32 MaxElements;
 	int32 NumElements;
 
-public:
+	// Call InitGObjects() before using these functions
+
 	inline int Num() const
 	{
 		return NumElements;
@@ -524,6 +556,8 @@ public:
 	int32 NumElements;
 	int32 MaxChunks;
 	int32 NumChunks;
+
+	// Call InitGObjects() before using these functions
 
 	inline int32 Num() const
 	{{
@@ -662,7 +696,7 @@ public:
 	inline std::string ToString() const
 	{{
 		static FString TempString(1024);
-		static auto AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + 0x{:X});
+		static auto AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + Offsets::AppendString);
 
 		AppendString(this, TempString);
 
