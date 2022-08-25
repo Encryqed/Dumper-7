@@ -1,9 +1,7 @@
-# Fortnite-Dumper-7
+# Dumper-7
 
-Full support for every version from 1.2 (UE4.16) to 11.50 (UE4.24) 
-[Some properties are pending to be added (UWeakObjectProperty etc.)]
+SDK-Generator for every Fortnite version from 1.2 (UE4.16) to 11.50 (UE4.24)
 
-
-
-
-Note: When trying to compile in debug-mode you need to comment out the call to ProcessEvent in main.cpp, it always crashes when not in release mode
+Notes:
+- Comment the ProcessEvent call in Main.cpp when compiling on debug (crashes)
+- Make sure to initialize GObjects in the generated SDK by calling InitGObjects()
