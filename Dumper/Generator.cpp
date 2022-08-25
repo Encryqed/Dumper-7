@@ -109,7 +109,7 @@ void Generator::GenerateSDK()
 				}
 
 				FunctionFile.WriteFunction(Function);
-				ParameterFile.WriteStruct(Function.GetParamStruct());
+				ParameterFile.WriteParamStruct(Function.GetParamStruct());
 			}
 		}
 		else

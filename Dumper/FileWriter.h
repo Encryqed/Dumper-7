@@ -25,6 +25,8 @@ private:
 	std::ofstream FileStream;
 	FileType CurrentFileType;
 	std::string CurrentFile;
+	bool bWroteFunctionsBefore;
+	bool bWroteParametersBefore;
 
 public:
 	FileWriter(fs::path FilePath);
@@ -39,6 +41,7 @@ public:
 	void Write(std::string& Text);
 	void Write(std::string&& Text);
 	void WriteIncludes(Types::Includes& Includes);
+	void WriteParamStruct(Types::Struct& Struct);
 	void WriteStruct(Types::Struct& Struct);
 	void WriteStructs(std::vector<Types::Struct>& Structs);
 	void WriteEnum(Types::Enum& Enum);

@@ -74,6 +74,22 @@ void FileWriter::WriteIncludes(Types::Includes& Includes)
 	Write(Includes.GetGeneratedBody());
 }
 
+void FileWriter::WriteParamStruct(Types::Struct& Struct)
+{
+	if (!bWroteParametersBefore)
+	{
+		bWroteParametersBefore = true;
+
+		Write(
+			R"(//---------------------------------------------------------------------------------------------------------------------
+// PARAMETERS
+//---------------------------------------------------------------------------------------------------------------------
+
+)");
+	}
+	Write(Struct.GetGeneratedBody());
+}
+
 void FileWriter::WriteStruct(Types::Struct& Struct)
 {
 	Write(Struct.GetGeneratedBody());
@@ -81,6 +97,13 @@ void FileWriter::WriteStruct(Types::Struct& Struct)
 
 void FileWriter::WriteStructs(std::vector<Types::Struct>& Structs)
 {
+	Write(
+		R"(//---------------------------------------------------------------------------------------------------------------------
+// STRUCTS
+//---------------------------------------------------------------------------------------------------------------------
+
+)");
+
 	for (Types::Struct& Struct : Structs)
 	{
 		WriteStruct(Struct);
@@ -94,14 +117,35 @@ void FileWriter::WriteEnum(Types::Enum& Enum)
 
 void FileWriter::WriteEnums(std::vector<Types::Enum>& Enums)
 {
+	Write(
+		R"(//---------------------------------------------------------------------------------------------------------------------
+// ENUMS
+//---------------------------------------------------------------------------------------------------------------------
+
+)");
+
 	for (Types::Enum& Enum : Enums)
 	{
 		WriteEnum(Enum);
 	}
+
+	Write("\n");
 }
 
 void FileWriter::WriteFunction(Types::Function& Function)
 {
+	if(!bWroteFunctionsBefore)
+	{
+		bWroteFunctionsBefore = true;
+
+	Write(
+		R"(//---------------------------------------------------------------------------------------------------------------------
+// FUNCTIONS
+//---------------------------------------------------------------------------------------------------------------------
+
+)");
+	}
+
 	Write(Function.GetGeneratedBody());
 }
 
@@ -120,6 +164,12 @@ void FileWriter::WriteClass(Types::Class& Class)
 
 void FileWriter::WriteClasses(std::vector<Types::Class>& Classes)
 {
+	Write(
+		R"(//---------------------------------------------------------------------------------------------------------------------
+// CLASSES
+//---------------------------------------------------------------------------------------------------------------------
+
+)");
 	for (Types::Class& Class : Classes)
 	{
 		WriteClass(Class);

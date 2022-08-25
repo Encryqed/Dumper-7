@@ -274,5 +274,5 @@ std::string Types::Enum::GetGeneratedBody()
 		Body += std::format("\t{:{}} = {},\n", EnumMember.first, 30, EnumMember.second);
 	}
 
-	return Body + "};\n";
+	return Body + "};\n\n";
 }
