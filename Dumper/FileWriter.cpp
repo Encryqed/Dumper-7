@@ -1,5 +1,6 @@
 #include "FileWriter.h"
 #include "Generator.h"
+#include "Settings.h"
 
 FileWriter::FileWriter(fs::path FilePath)
 {
@@ -40,14 +41,14 @@ FileWriter::~FileWriter()
 void FileWriter::Open(std::string FileName)
 {
 	Close();
-	CurrentFile = FileName;
+	CurrentFile = Settings::FilePrefix != nullptr ? Settings::FilePrefix + FileName : FileName;
 	FileStream.open(CurrentFile);
 }
 
 void FileWriter::Open(std::string FileName, FileType Type)
 {
 	Close();
-	CurrentFile = FileName;
+	CurrentFile = Settings::FilePrefix != nullptr ? Settings::FilePrefix + FileName : FileName;
 	SetFileType(Type);
 	Open(CurrentFile);
 }

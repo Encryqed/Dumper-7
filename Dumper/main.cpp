@@ -26,22 +26,26 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
 	auto t_1 = high_resolution_clock::now();
-
+	
 	std::cout << "Started Generation [Dumper-7]!\n";
 	
 	Generator::Init();
-	
 
-	//Only Possible in Main()
-	FString Version;
-	UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
-	UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
-	
-	Kismet.ProcessEvent(GetEngineVersion, &Version);
-	
-	Settings::GameName = Version.ToString();
-	
-	
+	if (!Settings::GameName)
+	{
+		//Only Possible in Main()
+		FString Version;
+		UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
+		UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
+
+		Kismet.ProcessEvent(GetEngineVersion, &Version);
+
+		Settings::GameName = Version.ToString().c_str();
+	}
+
+	std::cout << "GameName: " << Settings::GameName << "\n\n";
+
+
 	Generator::GenerateSDK();
 	
 	
@@ -51,9 +55,6 @@ DWORD MainThread(HMODULE Module)
 	duration<double, std::milli> ms_double_ = t_2 - t_1;
 	
 	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
-
-
-	std::cout << "done!\n";
 
 	while (true)
 	{
@@ -70,6 +71,25 @@ DWORD MainThread(HMODULE Module)
 	}
 
 	return 0;
+}
+
+#define SYSTEM_MEMORY 16000000
+
+int Main()
+{
+	unsigned char* memory = 0;
+
+	std::string error;
+
+	for (int i = 0; i < SYSTEM_MEMORY; i++)
+	{
+		if (memory[i] < 0 || memory[i] > 0xFF)
+		{
+			error = "Found Error!";
+		}
+	}
+
+	std::cout << error << "\n";
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)

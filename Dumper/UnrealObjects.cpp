@@ -129,7 +129,7 @@ std::string UEObject::GetFullName()
 			Temp = Outer.GetName() + "." + Temp;
 		}
 
-		std::string Name = this->GetClass().GetName();
+		std::string Name = GetClass().GetName();
 		Name += " ";
 		Name += Temp;
 		Name += GetName();
@@ -499,7 +499,7 @@ UEClass UEObjectProperty::GetPropertyClass()
 
 std::string UEObjectProperty::GetCppType()
 {
-	return std::format("class {}*", GetPropertyClass().GetCppName());
+	return std::format("class {}*", GetPropertyClass() ? GetPropertyClass().GetCppName() : "UObject");
 }
 
 

@@ -9,14 +9,20 @@ void Generator::Init()
 {
 	ObjectArray::Init();
 	FName::Init();
+
+	/* manual overwrite*/
+	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
+	//FName::Init(/*FName::AppendString*/);
+
 	Off::Init();
+	
 
 	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
-
+	
 	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
-
-
+	
+	
 	for (int i = 0; i < 0x150; i++)
 	{
 		if (Vft[i] == PeAddr)
@@ -47,6 +53,9 @@ void Generator::GenerateSDK()
 	fs::create_directory(GenFolder);
 	fs::create_directory(SDKFolder);
 
+	int ObjIdx = 0;
+	int NumPacks = ObjectPackages.size();
+
 	for (auto& Pair : ObjectPackages)
 	{
 		UEObject Object = ObjectArray::GetByIndex(Pair.first);
@@ -60,22 +69,23 @@ void Generator::GenerateSDK()
 		if (!Pack.IsEmpty())
 		{
 			std::string PackageName = Object.GetName();
+			std::string FileName = Settings::FilePrefix ? Settings::FilePrefix + PackageName : PackageName;
 
-			if (fs::exists(SDKFolder / (PackageName + "_classes.hpp")))
+			if (fs::exists(SDKFolder / (FileName + "_classes.hpp")))
 			{
-				PackageName += "_1";
+				FileName += "_1";
 			}
 
-			FileWriter ClassFile(SDKFolder, PackageName, FileWriter::FileType::Class);
-			FileWriter StructsFile(SDKFolder, PackageName, FileWriter::FileType::Struct);
-			FileWriter FunctionFile(SDKFolder, PackageName, FileWriter::FileType::Function);
-			FileWriter ParameterFile(SDKFolder, PackageName, FileWriter::FileType::Parameter);
+			FileWriter ClassFile(SDKFolder, FileName, FileWriter::FileType::Class);
+			FileWriter StructsFile(SDKFolder, FileName, FileWriter::FileType::Struct);
+			FileWriter FunctionFile(SDKFolder, FileName, FileWriter::FileType::Function);
+			FileWriter ParameterFile(SDKFolder, FileName, FileWriter::FileType::Parameter);
 
 			ClassFile.WriteClasses(Pack.AllClasses);
 			StructsFile.WriteEnums(Pack.AllEnums);
 			StructsFile.WriteStructs(Pack.AllStructs);
 
-			if (PackageName == "CoreUObject")
+			if (PackageName == "CoreUObject" )
 			{
 				FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
 			}
@@ -155,7 +165,8 @@ namespace Offsets
 		HeaderStream << "#define XORSTR(str) str\n";
 	
 	HeaderStream << "\n#include \"PropertyFixup.hpp\"\n";
-	HeaderStream << "\n#include \"SDK/Basic.hpp\"\n";
+	HeaderStream << "\n#include \"SDK/" << (Settings::FilePrefix ? Settings::FilePrefix : "") << "Basic.hpp\"\n";
+	
 	
 	for(auto& Package : Package::PackageSorter.AllDependencies)
 	{
@@ -172,8 +183,8 @@ namespace Offsets
 	
 		if (!PackageObj)
 			continue;
-	
-		HeaderStream << std::format("\n#include \"SDK/{}_parameters.hpp\"", PackageObj.GetName());
+
+		HeaderStream << std::format("\n#include \"SDK/{}{}_parameters.hpp\"", (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageObj.GetName());
 	}
 
 	HeaderStream.close();
@@ -202,7 +213,11 @@ void Generator::InitPredefinedMembers()
 		{ "int32 ", "Flags", Off::UObject::Flags, 0x04 },
 		{ "int32", "Index", Off::UObject::Index, 0x04 },
 		{ "class UClass*", "Class", Off::UObject::Class, 0x08 },
+#ifndef WITH_CASE_PRESERVING_NAME
 		{ "class FName", "Name", Off::UObject::Name, 0x08 },
+#else
+		{ "class FName", "Name", Off::UObject::Name, 0x10 },
+#endif // WITH_CASE_PRESERVING_NAME
 		{ "class UObject*", "Outer", Off::UObject::Outer, 0x08 }
 	};
 
@@ -470,8 +485,8 @@ R"(
 
 void Generator::GenerateBasicFile(fs::path& SdkPath)
 {
-	FileWriter BasicHeader(SdkPath, "Basic", FileWriter::FileType::Header);
-	FileWriter BasicSource(SdkPath, "Basic", FileWriter::FileType::Source);
+	FileWriter BasicHeader(SdkPath, Settings::FilePrefix ? Settings::FilePrefix + std::string("Basic") : "Basic", FileWriter::FileType::Header);
+	FileWriter BasicSource(SdkPath, Settings::FilePrefix ? Settings::FilePrefix + std::string("Basic") : "Basic", FileWriter::FileType::Source);
 
 	BasicHeader.Write(
 		R"(
@@ -481,9 +496,9 @@ void InitGObjects();
 	BasicSource.Write(
 		R"(
 void InitGObjects()
-{{
+{
 	UObject::GObjects = reinterpret_cast<TUObjectArray*>(uintptr_t(GetModuleHandle(0)) + Offsets::GObjects);
-}}			
+}		
 )");
 
 	BasicHeader.Write(
@@ -686,13 +701,31 @@ public:
 )");
 
 	BasicHeader.Write(
-std::format(R"(
+		R"(
 class FName
-{{
-public:
+{
+public:)");
+
+#ifndef WITH_CASE_PRESERVING_NAME
+	BasicHeader.Write(
+		R"(
 	int32 ComparisonIndex;
 	int32 Number;
+)");
+#else
+	BasicHeader.Write(
+		R"(
+int32 ComparisonIndex;
+	int32 DisplayIndex;
+	int32 Number;
+	uint8 Pad[0x4];
+)");
+#endif // !WITH_CASE_PRESERVING_NAME
 
+
+	BasicHeader.Write(
+std::format(R"(
+	
 	inline std::string ToString() const
 	{{
 		static FString TempString(1024);

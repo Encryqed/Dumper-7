@@ -4,20 +4,21 @@
 
 void Off::Init()
 {
-	Off::UClass::ClassFlags = OffsetFinder::FindCastFlagsOffset();
-	Off::UClass::ClassDefaultObject = OffsetFinder::FindDefaultObjectOffset();
+	Off::UClass::ClassFlags = OffsetFinder::FindCastFlagsOffset();	
+	Off::UClass::ClassDefaultObject = OffsetFinder::FindDefaultObjectOffset();	
 
-	Off::UEnum::Names = OffsetFinder::FindEnumNamesOffset();
+	Off::UEnum::Names = OffsetFinder::FindEnumNamesOffset();	
 
 	Off::UStruct::SuperStruct = OffsetFinder::FindSuperOffset();
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	Off::UStruct::Size = OffsetFinder::FindStructSizeOffset();
 
 	Off::UFunction::FunctionFlags = OffsetFinder::FindFunctionFlagsOffset();
-
-	Off::UProperty::ElementSize = OffsetFinder::FindElementSizeOffset();
-	Off::UProperty::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
+	
+	Off::UProperty::ElementSize = OffsetFinder::FindElementSizeOffset();	
+	Off::UProperty::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();	
 	Off::UProperty::Offset_Internal = OffsetFinder::FindOffsetInternalOffset();
+
 
 	const int32 UPropertySize = OffsetFinder::FindInnerTypeOffset();
 

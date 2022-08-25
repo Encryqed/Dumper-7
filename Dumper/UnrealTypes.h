@@ -124,14 +124,30 @@ class FName
 	static void(*AppendString)(FName*, FString&);
 
 public:
+#ifndef WITH_CASE_PRESERVING_NAME
 	int32 ComparisonIndex;
 	int32 Number;
+#else // CASE_PRESERVING_NAME
+	int32 ComparisonIndex;
+	int32 DisplayIndex;
+	int32 Number;
+	uint8 Unk[0x4];
+#endif
 
 	static void Init()
 	{
 		AppendString = reinterpret_cast<void(*)(FName*, FString&)>(FindByString("ForwardShadingQuality_").GetCalledFunction(2));
 	
 		Off::InSDK::AppendNameToString = uintptr_t(AppendString) - uintptr_t(GetModuleHandle(0));
+
+		std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
+	}
+
+	static void Init(int32 AppendStringOffset)
+	{
+		AppendString = reinterpret_cast<void(*)(FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + AppendStringOffset);
+
+		Off::InSDK::AppendNameToString = AppendStringOffset;
 
 		std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
 	}

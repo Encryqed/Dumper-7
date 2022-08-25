@@ -194,6 +194,8 @@ inline MemAddress FindByString(Type RefStr)
 
 		std::string SectionName = (const char*)CurrentSection.Name;
 
+		//std::cout << "Section: " << SectionName << " at 0x" << (void*)(CurrentSection.VirtualAddress + ImageBase) << "\n";
+
 		if (SectionName == ".rdata" && !DataSection)
 		{
 			DataSection = (uint8_t*)(CurrentSection.VirtualAddress + ImageBase);
@@ -221,7 +223,7 @@ inline MemAddress FindByString(Type RefStr)
 		{
 			if (wcscmp((const wchar_t*)RefStr, (const wchar_t*)(DataSection + i)) == 0)
 			{
-				//std::wcout << L"FoundStr ref: " << (const wchar_t*)(DataSection + i) << L"\n";
+				//std::wcout << L"FoundStr wref: " << (const wchar_t*)(DataSection + i) << L"\n";
 
 				StringAddress = DataSection + i;
 			}
@@ -237,6 +239,8 @@ inline MemAddress FindByString(Type RefStr)
 
 			if (StrPtr == StringAddress)
 			{
+				//std::cout << "Found Address: 0x" << (void*)(TextSection + i) << "\n";
+
 				return { TextSection + i };
 			}
 		}

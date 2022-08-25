@@ -14,6 +14,8 @@ private:
 public:
 	static void Init();
 
+	static void Init(int32 GObjectsOffset, int32 NumElementsPerChunk, bool bIsChunked);
+
 	static void DumpObjects();
 	//static std::vector<int32> GetAllPackages();
 	static void GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t>>& OutPackagesWithMembers/*, std::unordered_map<int32_t, bool>& PackagesToInclude*/);
@@ -33,11 +35,6 @@ public:
 	static UEClass FindClass(std::string FullName);
 
 	static UEClass FindClassFast(std::string Name);
-
-
-	//UEObject FindClass(std::string FullName);
-	//
-	//UEObject FindClassFast(std::string Name);
 
 	class ObjectsIterator
 	{

@@ -209,7 +209,7 @@ void Types::Function::AddComment(std::string&& Comment)
 
 std::string Types::Function::GetGeneratedBody()
 {
-	return std::format("\n{}\n{}\n{}\n", Comments, DeclarationCPP, Body);
+	return std::format("\n{}\n{}\n{}\n\n", Comments, DeclarationCPP, Body);
 }
 
 Types::Parameter::Parameter(std::string Type, std::string Name, bool bIsOutPtr)

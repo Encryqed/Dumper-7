@@ -161,7 +161,6 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, EPropertyFlags>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("TargetViewRotation").GetAddress(), EPropertyFlags::ZeroConstructor | EPropertyFlags::IsPlainOldData | EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPublic });
 		Infos.push_back({ ObjectArray::FindObjectFast("HiddenActors").GetAddress(), EPropertyFlags::ZeroConstructor | EPropertyFlags::NativeAccessSpecifierPublic });
 		Infos.push_back({ ObjectArray::FindObjectFast("TextureObject").GetAddress(), EPropertyFlags::NoDestructor | EPropertyFlags::NativeAccessSpecifierPublic });
 		Infos.push_back({ ObjectArray::FindObjectFast("bActorEnableCollision").GetAddress(), EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPrivate });
@@ -173,8 +172,8 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("PrimaryActorTick").GetAddress(), 0x28 });
-		Infos.push_back({ ObjectArray::FindObjectFast("DebugCameraControllerClass").GetAddress(), 0x30 });
+		Infos.push_back({ ObjectArray::FindObjectFast("PrimaryActorTick").GetAddress(), Off::UObject::Outer + 0x8 });
+		Infos.push_back({ ObjectArray::FindObjectFast("DebugCameraControllerClass").GetAddress(), Off::UObject::Outer + 0x10 });
 
 		return FindOffset(Infos);
 	}
@@ -255,7 +254,7 @@ namespace OffsetFinder
 		std::vector<std::pair<void*, void*>> Infos;
 
 		Infos.push_back({ ObjectArray::FindObjectFast("PlayerArray").GetAddress(), ObjectArray::FindObject("ObjectProperty Engine.GameStateBase.PlayerArray.PlayerArray").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("InactivePlayerArray").GetAddress(), ObjectArray::FindObject("ObjectProperty Engine.GameMode.InactivePlayerArray.InactivePlayerArray").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("ClickEventKeys").GetAddress(), ObjectArray::FindObject("StructProperty Engine.PlayerController.ClickEventKeys.ClickEventKeys").GetAddress() });
 
 		return FindOffset(Infos);
 	}

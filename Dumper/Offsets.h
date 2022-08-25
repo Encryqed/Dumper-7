@@ -1,5 +1,6 @@
 #pragma once
 #include "Enums.h"
+#include "Settings.h"
 
 namespace Off
 {
@@ -27,14 +28,23 @@ namespace Off
 		inline constexpr const uint32 Index = 0x0C;
 		inline constexpr const uint32 Class = 0x10;
 		inline constexpr const uint32 Name = 0x18;
-		inline constexpr const uint32 Outer = 0x20;
-	}
+	
+#ifndef WITH_CASE_PRESERVING_NAME
+	inline constexpr const uint32 Outer = 0x18 + 0x08;
+#else
+	inline constexpr const uint32 Outer = 0x18 + 0x10;
+#endif // WITH_CASEPRESERVING_NAME
 
-	namespace UField
-	{
-		inline constexpr const uint32 Next = 0x28;
-	}
+}
 
+namespace UField
+{
+#ifndef WITH_CASE_PRESERVING_NAME
+	inline constexpr const uint32 Next = 0x18 + 0x10;
+#else
+	inline constexpr const uint32 Next = 0x18 + 0x18;
+#endif // WITH_CASEPRESERVING_NAME
+}
 	namespace UEnum
 	{
 		inline uint32 Names;

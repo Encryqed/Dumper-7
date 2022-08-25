@@ -1,10 +1,17 @@
 #pragma once
 
+
+//#define WITH_CASE_PRESERVING_NAME
+
 namespace Settings
 {
-	inline std::string GameName;
+	//Auto generated if no override is provided
+	inline const char* GameName = nullptr;
 
 	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
+
+	//use = nullptr if you don't want your files to be prefixed
+	inline constexpr const char* FilePrefix = nullptr;
 
 
 	inline constexpr const bool bUseNamespaceForParams = true;

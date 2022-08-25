@@ -62,7 +62,7 @@ void PackageDependencyManager::GetIncludesForPackage(const DependencyInfo& Info,
 
 		if (Info.bStructFileNeeded && !PackageInfo.first.bIsStructFileIncluded)
 		{
-			OutRef += std::format("\n#include \"SDK/{}_structs.hpp\"", PackageName);
+			OutRef += std::format("\n#include \"SDK/{}{}_structs.hpp\"", (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageName);
 
 			PackageInfo.first.bIsStructFileIncluded = true;
 		}
@@ -70,10 +70,10 @@ void PackageDependencyManager::GetIncludesForPackage(const DependencyInfo& Info,
 		{
 			if (!PackageInfo.first.bIsStructFileIncluded)
 			{
-				OutRef += std::format("\n#include \"SDK/{}_structs.hpp\"", PackageName); //Classes need structs
+				OutRef += std::format("\n#include \"SDK/{}{}_structs.hpp\"", (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageName);
 			}
 
-			OutRef += std::format("\n#include \"SDK/{}_classes.hpp\"", PackageName);
+			OutRef += std::format("\n#include \"SDK/{}{}_classes.hpp\"", (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageName);
 
 			PackageInfo.first.bIsStructFileIncluded = true;
 			PackageInfo.first.bIsClassFileIncluded = true;
@@ -194,7 +194,7 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 
 		if (!Object)
 			continue;
-		
+			
 		if (Object.IsA(EClassCastFlags::UEnum))
 		{
 			GenerateEnum(Object.Cast<UEEnum&>());
@@ -212,6 +212,8 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 
 void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct)
 {
+	const bool bIsSuperFunction = Super.IsA(EClassCastFlags::UFunction);
+
 	int PrevPropertyEnd = Super.GetSuper() ? Super.GetSuper().GetStructSize() : 0;
 	int PrevBoolPropertyEnd = 0;
 	int PrevBoolPropertyBit = 1;
@@ -260,7 +262,7 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 		{
 			Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Offset - PrevPropertyEnd, "Fixing Size After Last Property  [ Dumper-7 ]"));
 		}
-		else if (Offset < PrevPropertyEnd && !(Property.IsA(EClassCastFlags::UBoolProperty) && !Property.Cast<UEBoolProperty>().IsNativeBool()))
+		else if (!bIsSuperFunction && Offset < PrevPropertyEnd && !(Property.IsA(EClassCastFlags::UBoolProperty) && !Property.Cast<UEBoolProperty>().IsNativeBool()))
 		{
 			//example: on 1.7.2 UEngine has size 0xC90 but members have offsets of 0xC88 and 0xC8C
 			CppType = "//" + CppType;
@@ -559,14 +561,14 @@ Types::Enum Package::GenerateEnum(UEEnum& Enum)
 	return Enm;
 }
 
-Types::Member Package::GenerateBytePadding(int32 Offset, int32 PadSize, std::string&& Reason)
+Types::Member Package::GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
 	static uint32 PadNum = 0;
 
 	return Types::Member("uint8", std::format("Pad_{:X}[0x{:X}]", PadNum++, PadSize), Reason);
 }
 
-Types::Member Package::GenerateBitPadding(int32 Offset, int32 PadSize, std::string&& Reason)
+Types::Member Package::GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
 	return Types::Member("uint8", std::format(": {:X}", PadSize), Reason);
 }

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <format>
 #include "ObjectArray.h"
 #include "Offsets.h"
 #include "Utils.h"
@@ -173,6 +174,45 @@ void ObjectArray::Init()
 	std::cout << "\nGObjects couldn't be found!\n\n\n";
 }
 
+void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChunked)
+{
+	GObjects = (uint8*)(uintptr_t(GetModuleHandle(0)) + GObjectsOffset);
+
+	Off::InSDK::GObjects = GObjectsOffset;
+
+	if (!bIsChunked)
+	{
+		Off::FUObjectArray::Num = 0xC;
+
+		ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
+		{
+			if (Index < 0 || Index > Num())
+				return nullptr;
+
+			return reinterpret_cast<FFixedUObjectArray*>(ObjectsArray)->Objects[Index].Object;
+
+		};
+	}
+	else
+	{
+		Off::FUObjectArray::Num = 0x14;
+
+		ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
+		{
+			if (Index < 0 || Index > Num())
+				return nullptr;
+
+			const int32 ChunkIndex = Index / PerChunk;
+			const int32 InChunkIdx = Index % PerChunk;
+
+			return reinterpret_cast<FChunkedFixedUObjectArray*>(ObjectsArray)->Objects[ChunkIndex][InChunkIdx].Object;
+		};
+	}
+
+	NumElementsPerChunk = ElementsPerChunk;
+	Off::InSDK::ChunkSize = ElementsPerChunk;
+}
+
 void ObjectArray::DumpObjects()
 {
 	std::ofstream DumpStream("GObjects-Dump.txt");
@@ -295,7 +335,7 @@ ObjectArray::ObjectsIterator& ObjectArray::ObjectsIterator::operator++()
 {
 	CurrentObject = ObjectArray::GetByIndex(++CurrentIndex);
 
-	while (!CurrentObject && CurrentIndex < ObjectArray::Num())
+	while (!CurrentObject && CurrentIndex < ObjectArray::Num() - 1)
 	{
 		CurrentObject = ObjectArray::GetByIndex(++CurrentIndex);
 	}
