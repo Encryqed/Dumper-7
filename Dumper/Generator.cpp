@@ -44,11 +44,18 @@ void Generator::GenerateSDK()
 	
 	ObjectArray::GetAllPackages(ObjectPackages);
 
-	fs::path GenFolder(Settings::SDKGenerationPath);
+	fs::path DumperFolder(Settings::SDKGenerationPath); 
+	fs::path GenFolder(DumperFolder / Settings::GameName);
 	fs::path SDKFolder = GenFolder / "SDK";
 
 	if (fs::exists(GenFolder))
-		std::cout << "Removed: 0x" << fs::remove_all(GenFolder) << " Files!\n";
+	{
+		fs::path Old = GenFolder.generic_string() + "_OLD";
+
+		fs::remove_all(Old);
+
+		fs::rename(GenFolder, Old);
+	}
 	
 	fs::create_directory(GenFolder);
 	fs::create_directory(SDKFolder);
