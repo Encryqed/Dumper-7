@@ -6,7 +6,7 @@
 namespace Settings
 {
 	//Auto generated if no override is provided
-	inline const char* GameName = nullptr;
+	inline std::string GameName;
 
 	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
 

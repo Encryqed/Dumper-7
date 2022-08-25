@@ -31,7 +31,7 @@ DWORD MainThread(HMODULE Module)
 	
 	Generator::Init();
 
-	if (!Settings::GameName)
+	if (Settings::GameName.empty())
 	{
 		//Only Possible in Main()
 		FString Version;
@@ -40,7 +40,7 @@ DWORD MainThread(HMODULE Module)
 
 		Kismet.ProcessEvent(GetEngineVersion, &Version);
 
-		Settings::GameName = Version.ToString().c_str();
+		Settings::GameName = Version.ToString();
 	}
 
 	std::cout << "GameName: " << Settings::GameName << "\n\n";
