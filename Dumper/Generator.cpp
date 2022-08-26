@@ -60,9 +60,6 @@ void Generator::GenerateSDK()
 	fs::create_directory(GenFolder);
 	fs::create_directory(SDKFolder);
 
-	int ObjIdx = 0;
-	int NumPacks = ObjectPackages.size();
-
 	for (auto& Pair : ObjectPackages)
 	{
 		UEObject Object = ObjectArray::GetByIndex(Pair.first);

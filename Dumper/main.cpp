@@ -73,25 +73,6 @@ DWORD MainThread(HMODULE Module)
 	return 0;
 }
 
-#define SYSTEM_MEMORY 16000000
-
-int Main()
-{
-	unsigned char* memory = 0;
-
-	std::string error;
-
-	for (int i = 0; i < SYSTEM_MEMORY; i++)
-	{
-		if (memory[i] < 0 || memory[i] > 0xFF)
-		{
-			error = "Found Error!";
-		}
-	}
-
-	std::cout << error << "\n";
-}
-
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 {
 	switch (reason)
