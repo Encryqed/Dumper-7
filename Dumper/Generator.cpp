@@ -8,36 +8,34 @@ Generator::MemberMap Generator::PredefinedMembers;
 void Generator::Init()
 {
 	ObjectArray::Init();
-	//FName::Init();
+	FName::Init();
 
-
-	/* manual overwrite*/
+	/* manual overwrite */
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
 	//FName::Init(/*FName::AppendString*/);
-	//ObjectArray::Init(0x49849E0, 0x10000, true); //FUOBJECTITEMCHANGED!!!
-	FName::Init(0x211AF50);
+
+	/* ARK */
+	//FName::Init(0x211AF50);
+	//Off::InSDK::PEIndex = 0x43;
+	//Off::InSDK::PEOffset = 0x69420;
 		
 	Off::Init();
-	
-	Off::InSDK::PEIndex = 0x43;
-	Off::InSDK::PEOffset = 0x1337;
 
-	//void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
-	//void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
+	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
+	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 	
-	//Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
-	//
-	//
-	//for (int i = 0; i < 0x150; i++)
-	//{
-	//	if (Vft[i] == PeAddr)
-	//	{
-	//		Off::InSDK::PEIndex = i;
-	//		std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
-	//		std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
-	//		break;
-	//	}
-	//}
+	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
+		
+	for (int i = 0; i < 0x150; i++)
+	{
+		if (Vft[i] == PeAddr)
+		{
+			Off::InSDK::PEIndex = i;
+			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
+			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
+			break;
+		}
+	}
 
 	InitPredefinedMembers();
 	InitPredefinedFunctions();

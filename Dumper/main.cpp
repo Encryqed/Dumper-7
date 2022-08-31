@@ -29,6 +29,7 @@ DWORD MainThread(HMODULE Module)
 	
 	std::cout << "Started Generation [Dumper-7]!\n";
 	
+
 	Generator::Init();
 
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())
@@ -39,7 +40,7 @@ DWORD MainThread(HMODULE Module)
 		UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
 		UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName");
 		UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
-	
+			
 		Kismet.ProcessEvent(GetGameName, &Name);
 		Kismet.ProcessEvent(GetEngineVersion, &Version);
 	
@@ -49,9 +50,7 @@ DWORD MainThread(HMODULE Module)
 	
 	std::cout << "GameName: " << Settings::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
-	
 
-	
 	Generator::GenerateSDK();
 	
 	

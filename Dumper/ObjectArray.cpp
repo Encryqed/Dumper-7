@@ -130,11 +130,10 @@ void ObjectArray::Init()
 				if (Index < 0 || Index > Num())
 					return nullptr;
 
-				//return reinterpret_cast<FFixedUObjectArray*>(ObjectsArray)->Objects[Index].Object;
-				return *(void**)(*(uint64*)(uint64(ObjectsArray) + Index * FUObjectItemSize));
+				return *(void**)(*(uint64*)ObjectsArray + Index * FUObjectItemSize);
 				
 			};
-			for (int i = 1; i <= 0x30; i++)
+			for (int i = 1; i <= 0x30; i += 4)
 			{
 				if (!IsBadReadPtr(*(void**)((uint8*)(GObjects) + i)))
 				{
@@ -166,7 +165,7 @@ void ObjectArray::Init()
 
 				return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray) + ChunkIndex) + InChunkIdx * FUObjectItemSize);
 			};
-			for (int i = 0x8; i <= 0x30; i++)
+			for (int i = 0x8; i <= 0x30; i += 4)
 			{
 				if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects) + i)))
 				{
@@ -203,9 +202,9 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 			if (Index < 0 || Index > Num())
 				return nullptr;
 
-			return *(void**)(*(uint64*)(uint64(ObjectsArray) + Index * FUObjectItemSize));
+			return *(void**)(*(uint64*)ObjectsArray + Index * FUObjectItemSize);
 		};
-		for (int i = 1; i <= 0x30; i++)
+		for (int i = 1; i <= 0x30; i += 4)
 		{
 			if (!IsBadReadPtr(*(void**)((uint8*)(GObjects)+i)))
 			{
@@ -228,7 +227,7 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 			return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray)+ChunkIndex) + InChunkIdx * FUObjectItemSize);
 		};
-		for (int i = 0x8; i <= 0x30; i++)
+		for (int i = 0x8; i <= 0x30; i += 4)
 		{
 			if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects)+i)))
 			{
