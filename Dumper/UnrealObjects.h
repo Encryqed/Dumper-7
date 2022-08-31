@@ -111,6 +111,7 @@ class UEClass : public UEStruct
 public:
 	EClassCastFlags GetCastFlags();
 	bool IsType(EClassCastFlags TypeFlag);
+	bool HasType(UEClass TypeClass);
 	UEObject GetDefaultObject();
 
 	UEFunction GetFunction(const std::string& ClassName, const std::string& FuncName);

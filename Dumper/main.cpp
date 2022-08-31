@@ -31,21 +31,27 @@ DWORD MainThread(HMODULE Module)
 	
 	Generator::Init();
 
-	if (Settings::GameName.empty())
+	if (Settings::GameName.empty() && Settings::GameVersion.empty())
 	{
 		//Only Possible in Main()
+		FString Name;
 		FString Version;
 		UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
+		UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName");
 		UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
-
+	
+		Kismet.ProcessEvent(GetGameName, &Name);
 		Kismet.ProcessEvent(GetEngineVersion, &Version);
-
-		Settings::GameName = Version.ToString();
+	
+		Settings::GameName = Name.ToString();
+		Settings::GameVersion = Version.ToString();
 	}
+	
+	std::cout << "GameName: " << Settings::GameName << "\n";
+	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
+	
 
-	std::cout << "GameName: " << Settings::GameName << "\n\n";
-
-
+	
 	Generator::GenerateSDK();
 	
 	

@@ -8,31 +8,36 @@ Generator::MemberMap Generator::PredefinedMembers;
 void Generator::Init()
 {
 	ObjectArray::Init();
-	FName::Init();
+	//FName::Init();
+
 
 	/* manual overwrite*/
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
 	//FName::Init(/*FName::AppendString*/);
-
+	//ObjectArray::Init(0x49849E0, 0x10000, true); //FUOBJECTITEMCHANGED!!!
+	FName::Init(0x211AF50);
+		
 	Off::Init();
 	
+	Off::InSDK::PEIndex = 0x43;
+	Off::InSDK::PEOffset = 0x1337;
 
-	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
-	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
+	//void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
+	//void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 	
-	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
-	
-	
-	for (int i = 0; i < 0x150; i++)
-	{
-		if (Vft[i] == PeAddr)
-		{
-			Off::InSDK::PEIndex = i;
-			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
-			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
-			break;
-		}
-	}
+	//Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
+	//
+	//
+	//for (int i = 0; i < 0x150; i++)
+	//{
+	//	if (Vft[i] == PeAddr)
+	//	{
+	//		Off::InSDK::PEIndex = i;
+	//		std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
+	//		std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
+	//		break;
+	//	}
+	//}
 
 	InitPredefinedMembers();
 	InitPredefinedFunctions();
@@ -45,7 +50,7 @@ void Generator::GenerateSDK()
 	ObjectArray::GetAllPackages(ObjectPackages);
 
 	fs::path DumperFolder(Settings::SDKGenerationPath); 
-	fs::path GenFolder(DumperFolder / Settings::GameName);
+	fs::path GenFolder(DumperFolder / Settings::GameVersion);
 	fs::path SDKFolder = GenFolder / "SDK";
 
 	if (fs::exists(GenFolder))
@@ -137,9 +142,10 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 	std::ofstream HeaderStream(SdkPath / "SDK.hpp");
 
 	HeaderStream << "#pragma once\n\n";
-	HeaderStream << "// Made with <3 by Encryqed && me [Fischsalat]\n";
+	HeaderStream << "// Made with <3 by Encryqed && me [Fischsalat]\n\n";
 	
-	HeaderStream << std::format("// {} \n\n", Settings::GameName);
+	HeaderStream << std::format("// {} \n", Settings::GameName);
+	HeaderStream << std::format("// {} \n\n", Settings::GameVersion);
 	
 	HeaderStream << "#include <string>\n";
 	HeaderStream << "#include <Windows.h>\n";
@@ -508,26 +514,26 @@ void InitGObjects()
 	BasicHeader.Write(
 		R"(
 template<typename Fn>
-inline Fn GetVFunction(const void* instance, std::size_t index)
+inline Fn GetVFunction(const void* Instance, std::size_t Index)
 {
-	auto vtable = *reinterpret_cast<const void***>(const_cast<void*>(instance));
-	return reinterpret_cast<Fn>(vtable[index]);
+	auto Vtable = *reinterpret_cast<const void***>(const_cast<void*>(Instance));
+	return reinterpret_cast<Fn>(Vtable[Index]);
 }
 )");
 
 	if (Off::InSDK::ChunkSize <= 0)
 	{
 		BasicHeader.Write(
-			R"(
+	 std::format(R"(
 class TUObjectArray
-{
+{{
 public:
 
 	struct FUObjectItem
-	{
+	{{
 		class UObject* Object;
-		uint8 Pad[0x10];
-	};
+		uint8 Pad[0x{:02X}];
+	}};
 
 	FUObjectItem* Objects;
 	int32 MaxElements;
@@ -536,19 +542,19 @@ public:
 	// Call InitGObjects() before using these functions
 
 	inline int Num() const
-	{
+	{{
 		return NumElements;
-	}
+	}}
 
 	inline class UObject* GetByIndex(const int32 Index) const
-	{
+	{{
 		if (Index < 0 || Index > NumElements)
 			return nullptr;
 
 		return Objects[Index].Object;
-	}
-};
-)");
+	}}
+}};
+)",Off::InSDK::FUObjectItemSize - 0x8));
 	}
 	else
 	{
@@ -566,7 +572,7 @@ public:
 	struct FUObjectItem
 	{{
 		class UObject* Object;
-		uint8 Pad[0x10];
+		uint8 Pad[0x{:02X}];
 	}};
 
 	FUObjectItem** Objects;
@@ -594,7 +600,7 @@ public:
 		return Objects[ChunkIndex][InChunkIdx].Object;
 	}}
 }};
-)", Off::InSDK::ChunkSize));
+)", Off::InSDK::ChunkSize, Off::InSDK::FUObjectItemSize - 0x8));
 	}
 
 	BasicHeader.Write(

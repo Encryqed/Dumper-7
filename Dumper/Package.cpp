@@ -194,7 +194,7 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 
 		if (!Object)
 			continue;
-			
+
 		if (Object.IsA(EClassCastFlags::UEnum))
 		{
 			GenerateEnum(Object.Cast<UEEnum&>());
@@ -309,9 +309,16 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 {
+	static int NumUnnamedFunctions = 0;
+
 	std::string ReturnType = "void";
 	std::vector<Types::Parameter> Params;
 	std::string FuncBody;
+
+	std::string FunctionName = Function.GetValidName();
+
+	if (FunctionName.empty())
+		FunctionName = std::format("UnknownFunction_{:04X}", NumUnnamedFunctions++);
 
 	std::vector<std::string> OutPtrParamNames;
 
@@ -325,13 +332,13 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 
 		std::string Type = Param.GetCppType();
 
-		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
+		if (!bIsRet && Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
 		{
 			Type += "&";
 			bIsRef = true;
 			bIsOut = true;
 		}
-		if (Param.HasPropertyFlags(EPropertyFlags::OutParm) && !bIsRef && !Param.HasPropertyFlags(EPropertyFlags::ReturnParm))
+		if (!bIsRet && !bIsRef && Param.HasPropertyFlags(EPropertyFlags::OutParm))
 		{
 			Type += "*";
 			bIsOut = true;
@@ -356,7 +363,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 		}
 	}
 	
-	Types::Function Func(ReturnType, Function.GetValidName(), Super.GetCppName(), Params);
+	Types::Function Func(ReturnType, FunctionName, Super.GetCppName(), Params);
 
 	Func.AddComment(Function.GetFullName());
 	Func.AddComment("(" + Function.StringifyFlags() + ")");
@@ -387,10 +394,10 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	if (Function.HasFlags(EFunctionFlags::Native))
 		FuncBody += "\n\tauto Flags = Func->FunctionFlags;\n\tFunc->FunctionFlags |= 0x400;\n\n";
 
-	FuncBody += "\n\tUObject::ProcessEvent(Func, &Parms);";
+	FuncBody += "\n\tUObject::ProcessEvent(Func, &Parms);\n";
 
     if (Function.HasFlags(EFunctionFlags::Native))
-        FuncBody += "\n\n\tFunc->FunctionFlags = Flags;\n\n";
+        FuncBody += "\n\tFunc->FunctionFlags = Flags;\n";
 
 
 	for (auto& Name : OutPtrParamNames)
@@ -541,12 +548,25 @@ Types::Enum Package::GenerateEnum(UEEnum& Enum)
 	if (UEEnum::BigEnums.find(Enum.GetIndex()) != UEEnum::BigEnums.end())
 		Enm = Types::Enum(EnumName, UEEnum::BigEnums[Enum.GetIndex()]);
 	
-
-	for (int i = 0; i < NameValue.Num(); i++)
+	if (!Settings::Internal::bIsEnumNameOnly)
 	{
-		std::string TooFullOfAName = NameValue[i].First.ToString();
+		for (int i = 0; i < NameValue.Num(); i++)
+		{
+			std::string TooFullOfAName = NameValue[i].First.ToString();
 
-		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
+			Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
+		}
+	}
+	else
+	{
+		auto& NameOnly = reinterpret_cast<TArray<FName>&>(NameValue);
+
+		for (int i = 0; i < NameValue.Num(); i++)
+		{
+			std::string TooFullOfAName = NameOnly[i].ToString();
+
+			Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), i);
+		}
 	}
 
 	if (EnumName.find("PixelFormat") != -1)

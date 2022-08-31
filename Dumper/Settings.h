@@ -7,6 +7,7 @@ namespace Settings
 {
 	//Auto generated if no override is provided
 	inline std::string GameName;
+	inline std::string GameVersion;
 
 	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
 
@@ -26,4 +27,11 @@ namespace Settings
 	inline constexpr const char* ParamNamespaceName = "Params";
 
 	inline constexpr const char* XORString = "XORSTR";
+
+	// Dont touch this
+	namespace Internal
+	{
+		// UEEnum::Names
+		inline bool bIsEnumNameOnly = false;
+	}
 }

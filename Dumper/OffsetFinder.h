@@ -38,10 +38,14 @@ namespace OffsetFinder
 		std::vector<std::pair<void*, int32_t>> Infos;
 
 		Infos.push_back({ ObjectArray::FindObjectFast("ENetRole").GetAddress(), 0x5 });
-		Infos.push_back({ ObjectArray::FindObjectFast("EWindowTitleBarMode").GetAddress(), 0x3 });
 		Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery").GetAddress(), 0x22 });
 
-		return FindOffset(Infos) - 0x8;
+		int Ret = FindOffset(Infos) - 0x8;
+
+		if (reinterpret_cast<TArray<TPair<FName, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret)->operator[](1).Second != 1)
+			Settings::Internal::bIsEnumNameOnly = true;
+
+		return Ret;
 	}
 
 
@@ -64,10 +68,10 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("Vector").GetAddress(), ObjectArray::FindObject("FloatProperty CoreUObject.Vector.X").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("Vector4").GetAddress(), ObjectArray::FindObject("FloatProperty CoreUObject.Vector4.X").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("Vector2D").GetAddress(), ObjectArray::FindObject("FloatProperty CoreUObject.Vector2D.X").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("Guid").GetAddress(), ObjectArray::FindObject("IntProperty CoreUObject.Guid.A").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("Vector").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector").GetAddress()});
+		Infos.push_back({ ObjectArray::FindObjectFast("Vector4").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector4").GetAddress()});
+		Infos.push_back({ ObjectArray::FindObjectFast("Vector2D").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector2D").GetAddress()});
+		Infos.push_back({ ObjectArray::FindObjectFast("Guid").GetAddress(), ObjectArray::FindObjectFastInOuter("A","Guid").GetAddress()});
 
 		return FindOffset(Infos);
 	}
@@ -92,8 +96,7 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindObjectFast("WasInputKeyJustPressed").GetAddress(), EFunctionFlags::Final | EFunctionFlags::Native | EFunctionFlags::Public | EFunctionFlags::BlueprintCallable | EFunctionFlags::BlueprintPure | EFunctionFlags::Const });
 		Infos.push_back({ ObjectArray::FindObjectFast("ToggleSpeaking").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
-		Infos.push_back({ ObjectArray::FindObjectFast("StopHapticEffect").GetAddress(), EFunctionFlags::Final | EFunctionFlags::Native | EFunctionFlags::Public | EFunctionFlags::BlueprintCallable });
-
+		
 		return FindOffset(Infos);
 	}
 
@@ -162,10 +165,22 @@ namespace OffsetFinder
 		std::vector<std::pair<void*, EPropertyFlags>> Infos;
 
 		Infos.push_back({ ObjectArray::FindObjectFast("HiddenActors").GetAddress(), EPropertyFlags::ZeroConstructor | EPropertyFlags::NativeAccessSpecifierPublic });
-		Infos.push_back({ ObjectArray::FindObjectFast("TextureObject").GetAddress(), EPropertyFlags::NoDestructor | EPropertyFlags::NativeAccessSpecifierPublic });
+		Infos.push_back({ ObjectArray::FindObjectFast("bNewActorEnableCollision").GetAddress(), EPropertyFlags::Parm | EPropertyFlags::ZeroConstructor | EPropertyFlags::IsPlainOldData | EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPublic });
 		Infos.push_back({ ObjectArray::FindObjectFast("bActorEnableCollision").GetAddress(), EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPrivate });
 
-		return FindOffset(Infos);
+		int FlagsOffset = FindOffset(Infos);
+
+		//Same flags without AccessSpecifier or Hashing flags
+		if (FlagsOffset == 0x28)
+		{
+			Infos[0].second = EPropertyFlags::ZeroConstructor;
+			Infos[1].second = EPropertyFlags::Parm | EPropertyFlags::ZeroConstructor | EPropertyFlags::IsPlainOldData | EPropertyFlags::NoDestructor;
+			Infos[2].second = EPropertyFlags::NoDestructor;
+
+			FlagsOffset = FindOffset(Infos);
+		}
+
+		return FlagsOffset;
 	}
 
 	inline int32_t FindOffsetInternalOffset()
@@ -253,8 +268,8 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("PlayerArray").GetAddress(), ObjectArray::FindObject("ObjectProperty Engine.GameStateBase.PlayerArray.PlayerArray").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("ClickEventKeys").GetAddress(), ObjectArray::FindObject("StructProperty Engine.PlayerController.ClickEventKeys.ClickEventKeys").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("DebugProperties").GetAddress(), ObjectArray::FindObjectFastInOuter("DebugProperties", "DebugProperties").GetAddress()});
+		Infos.push_back({ ObjectArray::FindObjectFast("ComponentTags").GetAddress(), ObjectArray::FindObjectFastInOuter("ComponentTags", "ComponentTags").GetAddress()});
 
 		return FindOffset(Infos);
 	}
@@ -277,8 +292,8 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("Proxies").GetAddress(), ObjectArray::FindObject("ObjectProperty Landscape.LandscapeInfo.Proxies.Proxies").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("Levels").GetAddress(), ObjectArray::FindObject("ObjectProperty Engine.LevelCollection.Levels.Levels").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("Proxies").GetAddress(), ObjectArray::FindObjectFastInOuter("Proxies", "Proxies").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("Levels").GetAddress(), ObjectArray::FindObjectFastInOuter("Levels", "Levels").GetAddress()});
 
 		return FindOffset(Infos);
 	}
@@ -289,8 +304,8 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("RuntimeGeneration").GetAddress(), ObjectArray::FindObject("ByteProperty NavigationSystem.NavigationData.RuntimeGeneration.UnderlyingType").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("AutoPossessAI").GetAddress(), ObjectArray::FindObject("ByteProperty Engine.Pawn.AutoPossessAI.UnderlyingType").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("RuntimeGeneration").GetAddress(), ObjectArray::FindObjectFastInOuter("UnderlyingType", "RuntimeGeneration").GetAddress()});
+		Infos.push_back({ ObjectArray::FindObjectFast("AutoPossessAI").GetAddress(), ObjectArray::FindObjectFastInOuter("UnderlyingType", "AutoPossessAI").GetAddress()});
 
 		return FindOffset(Infos);
 	}

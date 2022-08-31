@@ -1,5 +1,6 @@
 #include "UnrealObjects.h"
 #include "Offsets.h"
+#include "ObjectArray.h"
 
 #include <format>
 
@@ -103,11 +104,13 @@ std::string UEObject::GetValidName()
 
 std::string UEObject::GetCppName()
 {
+	static UEClass ActorClass = ObjectArray::FindClassFast("Actor");
+
 	std::string Temp = GetValidName();
 
 	if (this->IsA(EClassCastFlags::UClass))
 	{
-		if (this->Cast<UEClass>().IsType(EClassCastFlags::AActor))
+		if (this->Cast<UEClass>().HasType(ActorClass))
 		{
 			return 'A' + Temp;
 		}
@@ -117,7 +120,6 @@ std::string UEObject::GetCppName()
 
 	return 'F' + Temp;
 }
-
 std::string UEObject::GetFullName()
 {
 	if (GetClass())
@@ -254,6 +256,20 @@ EClassCastFlags UEClass::GetCastFlags()
 bool UEClass::IsType(EClassCastFlags TypeFlag)
 {
 	return GetCastFlags() & TypeFlag;
+}
+
+bool UEClass::HasType(UEClass TypeClass)
+{
+	if (TypeClass == nullptr)
+		return false;
+
+	for (UEStruct S = *this; S; S = S.GetSuper())
+	{
+		if (S == TypeClass)
+			return true;
+	}
+
+	return false;
 }
 
 UEObject UEClass::GetDefaultObject()
