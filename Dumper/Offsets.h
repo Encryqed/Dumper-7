@@ -13,6 +13,7 @@ namespace Off
 		inline int32 PEOffset;
 		inline int32 GObjects;
 		inline int32 ChunkSize;
+		inline int32 FUObjectItemSize;
 		inline int32 AppendNameToString;
 	}
 
@@ -139,5 +140,4 @@ namespace UField
 
 		inline uint32 Base;
 	}
-
 }

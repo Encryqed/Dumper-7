@@ -8,8 +8,9 @@ class ObjectArray
 private:
 	static uint8* GObjects;
 	static uint32 NumElementsPerChunk;
+	static uint32 SizeOfFUObjectItem;
 
-	static inline void* (*ByIndex)(void* ObjectsArray, int32 Index, uint32 PerChunk) = nullptr;
+	static inline void*(*ByIndex)(void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) = nullptr;
 
 public:
 	static void Init();
@@ -30,6 +31,9 @@ public:
 
 	template<typename UEType = UEObject>
 	static UEType FindObjectFast(std::string Name, EClassCastFlags RequiredType = EClassCastFlags::None);
+
+	template<typename UEType = UEObject>
+	static UEType FindObjectFastInOuter(std::string Name, std::string Outer);
 
 
 	static UEClass FindClass(std::string FullName);

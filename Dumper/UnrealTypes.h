@@ -81,8 +81,6 @@ public:
 class FString : public TArray<wchar_t>
 {
 public:
-	inline FString() = default;
-
 	using TArray::TArray;
 
 	inline FString(const wchar_t* WChar)

@@ -9,13 +9,7 @@
 /* Scuffed stuff up here */
 struct FChunkedFixedUObjectArray
 {
-	struct FUObjectItem
-	{
-		void* Object;
-		uint8_t Pad[0x10];
-	};
-
-	FUObjectItem** Objects;
+	void** Objects;
 	uint8_t Pad_0[0x08];
 	int32_t MaxElements;
 	int32_t NumElements;
@@ -24,10 +18,10 @@ struct FChunkedFixedUObjectArray
 
 	inline bool IsValid()
 	{
-		if (NumChunks > 0x10 || NumChunks < 0x5)
+		if (NumChunks > 0x12 || NumChunks < 0x5)
 			return false;
 
-		if (MaxChunks > 0x25 || MaxChunks < 0x18)
+		if (MaxChunks > 0xD0 || MaxChunks < 0x18)
 			return false;
 
 		if (NumElements > MaxElements || NumChunks > MaxChunks)
@@ -89,6 +83,7 @@ struct FFixedUObjectArray
 
 uint8* ObjectArray::GObjects = nullptr;
 uint32 ObjectArray::NumElementsPerChunk = 0x10000;
+uint32 ObjectArray::SizeOfFUObjectItem = 0x18;
 
 /* We don't speak about this function... */
 void ObjectArray::Init()
@@ -130,14 +125,23 @@ void ObjectArray::Init()
 
 			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
 
-			ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
+			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 			{
 				if (Index < 0 || Index > Num())
 					return nullptr;
 
-				return reinterpret_cast<FFixedUObjectArray*>(ObjectsArray)->Objects[Index].Object;
+				return *(void**)(*(uint64*)ObjectsArray + Index * FUObjectItemSize);
 				
 			};
+			for (int i = 1; i <= 0x30; i += 4)
+			{
+				if (!IsBadReadPtr(*(void**)((uint8*)(GObjects) + i)))
+				{
+					SizeOfFUObjectItem = i;
+					break;
+				}
+			}
+			Off::InSDK::FUObjectItemSize = SizeOfFUObjectItem;
 			return;
 		}
 		else if (ChunkedArray->IsValid())
@@ -145,12 +149,13 @@ void ObjectArray::Init()
 			GObjects = DataSection + i;
 			Off::FUObjectArray::Num = 0x14;
 			NumElementsPerChunk = 0x10000;
+			SizeOfFUObjectItem = 0x18;
 
 			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
 
 			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
 
-			ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
+			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 			{
 				if (Index < 0 || Index > Num())
 					return nullptr;
@@ -158,15 +163,23 @@ void ObjectArray::Init()
 				const int32 ChunkIndex = Index / PerChunk;
 				const int32 InChunkIdx = Index % PerChunk;
 
-				return reinterpret_cast<FChunkedFixedUObjectArray*>(ObjectsArray)->Objects[ChunkIndex][InChunkIdx].Object;
+				return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray) + ChunkIndex) + InChunkIdx * FUObjectItemSize);
 			};
-
+			for (int i = 0x8; i <= 0x30; i += 4)
+			{
+				if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects) + i)))
+				{
+					SizeOfFUObjectItem = i;
+					break;
+				}
+			}
 			if (ObjectArray::GetByIndex(0x10401).GetIndex() != 0x10401)
 			{
 				NumElementsPerChunk = 0x10400;
 			}
 
 			Off::InSDK::ChunkSize = NumElementsPerChunk;
+			Off::InSDK::FUObjectItemSize = SizeOfFUObjectItem;
 			return;
 		}
 	}
@@ -184,20 +197,27 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 	{
 		Off::FUObjectArray::Num = 0xC;
 
-		ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
+		ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 		{
 			if (Index < 0 || Index > Num())
 				return nullptr;
 
-			return reinterpret_cast<FFixedUObjectArray*>(ObjectsArray)->Objects[Index].Object;
-
+			return *(void**)(*(uint64*)ObjectsArray + Index * FUObjectItemSize);
 		};
+		for (int i = 1; i <= 0x30; i += 4)
+		{
+			if (!IsBadReadPtr(*(void**)((uint8*)(GObjects)+i)))
+			{
+				SizeOfFUObjectItem = i;
+				break;
+			}
+		}
 	}
 	else
 	{
 		Off::FUObjectArray::Num = 0x14;
 
-		ByIndex = [](void* ObjectsArray, int32 Index, uint32 PerChunk) -> void*
+		ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 		{
 			if (Index < 0 || Index > Num())
 				return nullptr;
@@ -205,8 +225,16 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 			const int32 ChunkIndex = Index / PerChunk;
 			const int32 InChunkIdx = Index % PerChunk;
 
-			return reinterpret_cast<FChunkedFixedUObjectArray*>(ObjectsArray)->Objects[ChunkIndex][InChunkIdx].Object;
+			return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray)+ChunkIndex) + InChunkIdx * FUObjectItemSize);
 		};
+		for (int i = 0x8; i <= 0x30; i += 4)
+		{
+			if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects)+i)))
+			{
+				SizeOfFUObjectItem = i;
+				break;
+			}
+		}
 	}
 
 	NumElementsPerChunk = ElementsPerChunk;
@@ -268,7 +296,7 @@ int32 ObjectArray::Num()
 template<typename UEType>
 static UEType ObjectArray::GetByIndex(int32 Index)
 {
-	return UEType(ByIndex(GObjects, Index, NumElementsPerChunk));
+	return UEType(ByIndex(GObjects, Index, SizeOfFUObjectItem, NumElementsPerChunk));
 }
 
 template<typename UEType>
@@ -293,6 +321,22 @@ UEType ObjectArray::FindObjectFast(std::string Name, EClassCastFlags RequiredTyp
 	for (UEObject Object : ObjArray)
 	{
 		if (Object.IsA(RequiredType) && Object.GetName() == Name)
+		{
+			return Object.Cast<UEType>();
+		}
+	}
+
+	return UEType();
+}
+
+template<typename UEType>
+static UEType ObjectArray::FindObjectFastInOuter(std::string Name, std::string Outer)
+{
+	auto ObjArray = ObjectArray();
+
+	for (UEObject Object : ObjArray)
+	{
+		if (Object.GetName() == Name && Object.GetOuter().GetName() == Outer)
 		{
 			return Object.Cast<UEType>();
 		}
@@ -395,6 +439,23 @@ void TemplateTypeCreationForObjectArray(void)
 	ObjectArray::FindObjectFast<UEMapProperty>("");
 	ObjectArray::FindObjectFast<UESetProperty>("");
 	ObjectArray::FindObjectFast<UEEnumProperty>("");
+
+	ObjectArray::FindObjectFastInOuter<UEObject>("", "");
+	ObjectArray::FindObjectFastInOuter<UEField>("", "");
+	ObjectArray::FindObjectFastInOuter<UEEnum>("", "");
+	ObjectArray::FindObjectFastInOuter<UEStruct>("", "");
+	ObjectArray::FindObjectFastInOuter<UEClass>("", "");
+	ObjectArray::FindObjectFastInOuter<UEFunction>("", "");
+	ObjectArray::FindObjectFastInOuter<UEProperty>("", "");
+	ObjectArray::FindObjectFastInOuter<UEByteProperty>("", "");
+	ObjectArray::FindObjectFastInOuter<UEBoolProperty>("", "");
+	ObjectArray::FindObjectFastInOuter<UEObjectProperty>("", "");
+	ObjectArray::FindObjectFastInOuter<UEClassProperty>("", "");
+	ObjectArray::FindObjectFastInOuter<UEStructProperty>("", "");
+	ObjectArray::FindObjectFastInOuter<UEArrayProperty>("", "");
+	ObjectArray::FindObjectFastInOuter<UEMapProperty>("", "");
+	ObjectArray::FindObjectFastInOuter<UESetProperty>("", "");
+	ObjectArray::FindObjectFastInOuter<UEEnumProperty>("", "");
 
 
 	ObjectArray::GetByIndex<UEObject>(-1);
