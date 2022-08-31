@@ -259,6 +259,7 @@ void ObjectArray::DumpObjects()
 
 void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t>>& OutPackagesWithMembers/*, std::unordered_map<int32_t, bool>& PackagesToInclude*/)
 {
+	UEStruct::StructSizes.reserve(0x600);
 
 	for (UEObject Object : ObjectArray())
 	{
@@ -267,18 +268,57 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 
 		if (Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
 			continue;
-	
+
 
 		if (!Object.IsA(EClassCastFlags::UPackage))
 		{
-			if (Object.IsA(EClassCastFlags::UClass) || Object.IsA(EClassCastFlags::UEnum) || Object.IsA(EClassCastFlags::UStruct))
+			if (Object.IsA(EClassCastFlags::UStruct))
+			{
+				OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
+
+				if (!Object.IsA(EClassCastFlags::UFunction))
+				{
+					UEStruct ObjAsStruct = Object.Cast<UEStruct>();
+
+					int32 LowestOffset = 0xFFFFFF;
+
+					if (UEStruct Super = ObjAsStruct.GetSuper())
+					{
+						for (UEField F = ObjAsStruct.GetChild(); F; F = F.GetNext())
+						{
+							if (F.IsA(EClassCastFlags::UProperty))
+							{
+								if (F.Cast<UEProperty>().GetOffset() < LowestOffset)
+								{
+									LowestOffset = F.Cast<UEProperty>().GetOffset();
+								}
+							}
+						}
+
+						if (LowestOffset != 0xFFFFFF)
+						{
+							auto It = UEStruct::StructSizes.find(Super.GetIndex());
+							if (It != UEStruct::StructSizes.end())
+							{
+								if (It->second > LowestOffset)
+								{
+									It->second = LowestOffset;
+								}
+							}
+							else
+							{
+								UEStruct::StructSizes[Super.GetIndex()] = LowestOffset;
+							}
+						}
+					}
+				}
+			}
+			else if (Object.IsA(EClassCastFlags::UEnum))
 			{
 				OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 			}
 		}
-
-
-		if (Object.IsA(EClassCastFlags::UEnumProperty))
+		else if (Object.IsA(EClassCastFlags::UEnumProperty))
 		{
 			if (!Object.Cast<UEEnumProperty>().GetUnderlayingProperty().IsA(EClassCastFlags::UByteProperty))
 			{

@@ -6,7 +6,8 @@
 
 
 std::unordered_map<int32, std::string> UEEnum::BigEnums;
-std::unordered_map<std::string, uint32_t> UEProperty::UnknownProperties;
+std::unordered_map<std::string, uint32> UEProperty::UnknownProperties;
+std::unordered_map<int32, uint32> UEStruct::StructSizes;
 
 void(*UEObject::PE)(void*, void*, void*) = nullptr;
 
@@ -144,7 +145,8 @@ std::string UEObject::GetFullName()
 
 UEObject::operator bool()
 {
-	return Object != nullptr;
+	// if an object is 0x10000F000 it passes the nullptr check
+	return Object != nullptr && reinterpret_cast<void*>(Object + Off::UObject::Class) != nullptr;
 }
 
 bool UEObject::operator==(const UEObject& Other) const
