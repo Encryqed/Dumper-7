@@ -87,6 +87,9 @@ class UEStruct : public UEField
 	using UEField::UEField;
 
 public:
+	static std::unordered_map<int32 /*StructIdx*/, uint32 /*RealSize*/> StructSizes;
+
+public:
 	UEStruct GetSuper();
 	UEField GetChild();
 	int32 GetStructSize();
@@ -122,7 +125,7 @@ class UEProperty : public UEField
 	using UEField::UEField;
 
 public:
-	static std::unordered_map<std::string, uint32_t> UnknownProperties;
+	static std::unordered_map<std::string, uint32> UnknownProperties;
 
 public:
 	int32 GetSize();

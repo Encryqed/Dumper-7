@@ -210,11 +210,11 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 	}
 }
 
-void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct)
+void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 SuperSize)
 {
 	const bool bIsSuperFunction = Super.IsA(EClassCastFlags::UFunction);
 
-	int PrevPropertyEnd = Super.GetSuper() ? Super.GetSuper().GetStructSize() : 0;
+	int PrevPropertyEnd = SuperSize;
 	int PrevBoolPropertyEnd = 0;
 	int PrevBoolPropertyBit = 1;
 
@@ -425,6 +425,12 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 	int Size = Struct.GetStructSize();
 	int SuperSize = 0;
 
+	auto It = UEStruct::StructSizes.find(Struct.GetIndex());
+	if (It != UEStruct::StructSizes.end())
+	{
+		Size = It->second;
+	}
+
 	if (!bIsFunction)
 	{
 		if (UEStruct Super = Struct.GetSuper())
@@ -434,8 +440,11 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 
 			UEObject SuperPackage = Super.GetOutermost();
 
-			//if (PackageObject != SuperPackage)
-			//	PackageSorter.AddDependency(PackageObject.GetIndex(), SuperPackage.GetIndex());
+			auto It = UEStruct::StructSizes.find(Super.GetIndex());
+			if (It != UEStruct::StructSizes.end())
+			{
+				SuperSize = It->second;
+			}
 		}
 	}
 
@@ -468,7 +477,7 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 			return Left.GetOffset() < Right.GetOffset();
 		});
 
-	GenerateMembers(Properties, Struct, RetStruct);
+	GenerateMembers(Properties, Struct, RetStruct, SuperSize);
 
 	if (!bIsFunction)
 		AllStructs.push_back(RetStruct);
@@ -485,15 +494,22 @@ Types::Class Package::GenerateClass(UEClass& Class)
 	int Size = Class.GetStructSize();
 	int SuperSize = 0;
 
+	auto It = UEStruct::StructSizes.find(Class.GetIndex());
+	if (It != UEStruct::StructSizes.end())
+	{
+		Size = It->second;
+	}
+
 	if (UEStruct Super = Class.GetSuper())
 	{
 		RetClass = Types::Class(ClassName, Class.GetName(), Super.GetCppName());
 		SuperSize = Super.GetStructSize();
 
-		UEObject SuperPackage = Super.GetOutermost();
-
-		//if (PackageObject != SuperPackage)
-		//	PackageSorter.AddDependency(PackageObject.GetIndex(), SuperPackage.GetIndex());
+		auto It = UEStruct::StructSizes.find(Super.GetIndex());
+		if (It != UEStruct::StructSizes.end())
+		{
+			SuperSize = It->second;
+		}
 	}
 
 	RetClass.AddComment(std::format("0x{:X} (0x{:X} - 0x{:X})", Size - SuperSize, Size, SuperSize));
@@ -530,7 +546,7 @@ Types::Class Package::GenerateClass(UEClass& Class)
 		});
 
 	UEObject PackageObj = Class.GetOutermost();
-	GenerateMembers(Properties, Class, RetClass);
+	GenerateMembers(Properties, Class, RetClass, SuperSize);
 
 	AllClasses.push_back(RetClass);
 
