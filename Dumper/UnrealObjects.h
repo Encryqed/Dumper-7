@@ -93,6 +93,8 @@ public:
 	UEStruct GetSuper();
 	UEField GetChild();
 	int32 GetStructSize();
+
+	bool HasMembers();
 };
 
 class UEFunction : public UEStruct

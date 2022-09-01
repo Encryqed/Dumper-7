@@ -28,6 +28,11 @@ namespace Settings
 
 	inline constexpr const char* XORString = "XORSTR";
 
+	namespace Debug
+	{
+		inline constexpr bool bGenerateAssertionFile = false;
+	}
+
 	// Dont touch this
 	namespace Internal
 	{

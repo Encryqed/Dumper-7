@@ -9,6 +9,9 @@ namespace Off
 	//Offsets not to be used during generation but inside of the generated SDK
 	namespace InSDK
 	{
+		void InitPE();
+		void InitPE(int32 Index);
+
 		inline int32 PEIndex;
 		inline int32 PEOffset;
 		inline int32 GObjects;

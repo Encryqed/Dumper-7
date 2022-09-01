@@ -4,6 +4,8 @@
 #include "Settings.h"
 #include "Generator.h"
 
+
+std::ofstream Package::DebugAssertionStream;
 PackageDependencyManager Package::PackageSorter;
 
 void PackageDependencyManager::GenerateClassSorted(class Package& Pack, int32 ClassIdx)
@@ -117,6 +119,25 @@ void PackageDependencyManager::GetObjectDependency(UEObject Obj, std::unordered_
 	{
 		GetObjectDependency(Obj.Cast<UEMapProperty>().GetKeyProperty().Cast<UEField>(), Store);
 		GetObjectDependency(Obj.Cast<UEMapProperty>().GetValueProperty().Cast<UEField>(), Store);
+	}
+}
+
+void Package::InitAssertionStream(fs::path& GenPath)
+{
+	if (Settings::Debug::bGenerateAssertionFile)
+	{
+		DebugAssertionStream.open(GenPath / "Assertions.h");
+
+		DebugAssertionStream << "#pragma once\n#include\"SDK.hpp\"\n\n";
+	}
+}
+
+void Package::CloseAssertionStream()
+{
+	if (Settings::Debug::bGenerateAssertionFile)
+	{
+		DebugAssertionStream.flush();
+		DebugAssertionStream.close();
 	}
 }
 
@@ -245,10 +266,17 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 		}
 	}
 
+	if (Settings::Debug::bGenerateAssertionFile)
+	{
+		if (!Super.IsA(EClassCastFlags::UFunction) && !MemberVector.empty())
+		{
+			Package::DebugAssertionStream << "\n//" << SuperName << "\n";
+			Package::DebugAssertionStream << std::format("static_assert(sizeof({}) == 0x{:04X}, \"Class {} has wrong size!\");\n", SuperName, StructSize, SuperName);
+		}
+	}
+
 	for (auto& Property : MemberVector)
 	{
-		bool bUpdatePrevPropertyEnd = true;
-
 		std::string CppType = Property.GetCppType();
 		std::string Name = Property.GetValidName();
 
@@ -260,13 +288,6 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 		if (Offset > PrevPropertyEnd)
 		{
 			Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Offset - PrevPropertyEnd, "Fixing Size After Last Property  [ Dumper-7 ]"));
-		}
-		else if (!bIsSuperFunction && Offset < PrevPropertyEnd && !(Property.IsA(EClassCastFlags::UBoolProperty) && !Property.Cast<UEBoolProperty>().IsNativeBool()))
-		{
-			//example: on 1.7.2 UEngine has size 0xC90 but members have offsets of 0xC88 and 0xC8C
-			CppType = "//" + CppType;
-
-			bUpdatePrevPropertyEnd = false;
 		}
 
 		if (Property.IsA(EClassCastFlags::UBoolProperty) &&  !Property.Cast<UEBoolProperty>().IsNativeBool())
@@ -292,12 +313,18 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 		Types::Member Member(CppType, Name, Comment);
 
-		if (bUpdatePrevPropertyEnd)
-		{
-			PrevPropertyEnd = Offset + Size;
-		}
+		PrevPropertyEnd = Offset + Size;
+		
 
 		Struct.AddMember(Member);
+
+		if (Settings::Debug::bGenerateAssertionFile)
+		{
+			if (!Super.IsA(EClassCastFlags::UFunction) && PrevBoolPropertyEnd != Offset)
+			{
+				Package::DebugAssertionStream << std::format("static_assert(offsetof({}, {}) == 0x{:04X}, \"Wrong offset on {}::{}!\");\n", SuperName, Name, Offset, SuperName, Name);
+			}
+		}
 	}
 
 	if (StructSize > PrevPropertyEnd)

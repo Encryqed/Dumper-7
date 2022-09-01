@@ -1,8 +1,12 @@
 #pragma once
 
+#include <unordered_set>
+#include <filesystem>
+
 #include "Types.h"
 #include "ObjectArray.h"
-#include <unordered_set>
+
+namespace fs = std::filesystem;
 
 struct PackageDependencyManager
 {
@@ -117,6 +121,7 @@ class Package
 	friend PackageDependencyManager;
 
 public:
+	static std::ofstream DebugAssertionStream;
 	static PackageDependencyManager PackageSorter;
 
 	PackageDependencyManager StructSorter;
@@ -135,6 +140,9 @@ public:
 		: PackageObject(_Object)
 	{
 	}
+
+	static void InitAssertionStream(fs::path& GenPath);
+	static void CloseAssertionStream();
 
 	void GatherDependencies(std::vector<int32_t>& PackageMembers);
 

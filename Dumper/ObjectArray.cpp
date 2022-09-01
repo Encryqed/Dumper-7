@@ -294,17 +294,23 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 
 						if (LowestOffset != 0xFFFFFF)
 						{
-							auto It = UEStruct::StructSizes.find(Super.GetIndex());
-							if (It != UEStruct::StructSizes.end())
+							for (UEStruct S = Super; S; S = S.GetSuper())
 							{
-								if (It->second > LowestOffset)
+								auto It = UEStruct::StructSizes.find(S.GetIndex());
+								if (It != UEStruct::StructSizes.end())
 								{
-									It->second = LowestOffset;
+									if (It->second > LowestOffset)
+									{
+										It->second = LowestOffset;
+									}
 								}
-							}
-							else
-							{
-								UEStruct::StructSizes[Super.GetIndex()] = (LowestOffset < Super.GetStructSize() ? LowestOffset : Super.GetStructSize());
+								else
+								{
+									UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
+								}
+
+								if (S.HasMembers())
+									break;
 							}
 						}
 					}

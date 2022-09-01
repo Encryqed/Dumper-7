@@ -13,29 +13,14 @@ void Generator::Init()
 	/* manual overwrite */
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
 	//FName::Init(/*FName::AppendString*/);
+	//Off::InSDK::InitPE(/*PEIndex*/);
 
 	/* ARK */
 	//FName::Init(0x211AF50);
-	//Off::InSDK::PEIndex = 0x43;
-	//Off::InSDK::PEOffset = 0x69420;
+	//Off::InSDK::InitPE(0x43);
 		
 	Off::Init();
-
-	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
-	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
-	
-	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
-		
-	for (int i = 0; i < 0x150; i++)
-	{
-		if (Vft[i] == PeAddr)
-		{
-			Off::InSDK::PEIndex = i;
-			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
-			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
-			break;
-		}
-	}
+	Off::InSDK::InitPE();
 
 	InitPredefinedMembers();
 	InitPredefinedFunctions();
@@ -62,6 +47,8 @@ void Generator::GenerateSDK()
 	
 	fs::create_directory(GenFolder);
 	fs::create_directory(SDKFolder);
+
+	Package::InitAssertionStream(GenFolder);
 
 	for (auto& Pair : ObjectPackages)
 	{
@@ -127,6 +114,8 @@ void Generator::GenerateSDK()
 			std::cout << "Removed package: " << Pack.DebugGetObject().GetName() << "\n";
 		}
 	}
+
+	Package::CloseAssertionStream();
 
 	GenerateSDKHeader(GenFolder, ObjectPackages);
 	GenerateFixupFile(GenFolder);

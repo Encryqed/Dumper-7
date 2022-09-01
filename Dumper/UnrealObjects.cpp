@@ -249,6 +249,20 @@ int32 UEStruct::GetStructSize()
 	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
 }
 
+bool UEStruct::HasMembers()
+{
+	if (!Object)
+		return false;
+
+	for (UEField F = GetChild(); F; F = F.GetNext())
+	{
+		if (F.IsA(EClassCastFlags::UProperty))
+			return true;
+	}
+
+	return false;
+}
+
 
 EClassCastFlags UEClass::GetCastFlags()
 {

@@ -2,6 +2,34 @@
 #include "ObjectArray.h"
 #include "OffsetFinder.h"
 
+
+void Off::InSDK::InitPE()
+{
+	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
+	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
+
+	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
+
+	for (int i = 0; i < 0x150; i++)
+	{
+		if (Vft[i] == PeAddr)
+		{
+			Off::InSDK::PEIndex = i;
+			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
+			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
+			break;
+		}
+	}
+}
+void Off::InSDK::InitPE(int32 Index)
+{
+	Off::InSDK::PEIndex = Index;
+
+	void** VFT = *reinterpret_cast<void***>(ObjectArray::GetByIndex(0).GetAddress());
+
+	Off::InSDK::PEOffset = uintptr_t(VFT[Off::InSDK::PEIndex]) - uintptr_t(GetModuleHandle(0));
+}
+
 void Off::Init()
 {
 	Off::UClass::ClassFlags = OffsetFinder::FindCastFlagsOffset();	
