@@ -286,12 +286,9 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 					{
 						for (UEField F = ObjAsStruct.GetChild(); F; F = F.GetNext())
 						{
-							if (F.IsA(EClassCastFlags::UProperty))
+							if (F.IsA(EClassCastFlags::UProperty) && F.Cast<UEProperty>().GetOffset() < LowestOffset)
 							{
-								if (F.Cast<UEProperty>().GetOffset() < LowestOffset)
-								{
-									LowestOffset = F.Cast<UEProperty>().GetOffset();
-								}
+								LowestOffset = F.Cast<UEProperty>().GetOffset();
 							}
 						}
 
@@ -307,7 +304,7 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 							}
 							else
 							{
-								UEStruct::StructSizes[Super.GetIndex()] = LowestOffset;
+								UEStruct::StructSizes[Super.GetIndex()] = (LowestOffset < Super.GetStructSize() ? LowestOffset : Super.GetStructSize());
 							}
 						}
 					}

@@ -210,7 +210,7 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 	}
 }
 
-void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 SuperSize)
+void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
 {
 	const bool bIsSuperFunction = Super.IsA(EClassCastFlags::UFunction);
 
@@ -218,7 +218,6 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 	int PrevBoolPropertyEnd = 0;
 	int PrevBoolPropertyBit = 1;
 
-	const int StructSize = Super.GetStructSize();
 	std::string SuperName = Super.GetCppName();
 
 	if (MemberVector.size() == 0)
@@ -477,7 +476,7 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 			return Left.GetOffset() < Right.GetOffset();
 		});
 
-	GenerateMembers(Properties, Struct, RetStruct, SuperSize);
+	GenerateMembers(Properties, Struct, RetStruct, Size, SuperSize);
 
 	if (!bIsFunction)
 		AllStructs.push_back(RetStruct);
@@ -546,7 +545,7 @@ Types::Class Package::GenerateClass(UEClass& Class)
 		});
 
 	UEObject PackageObj = Class.GetOutermost();
-	GenerateMembers(Properties, Class, RetClass, SuperSize);
+	GenerateMembers(Properties, Class, RetClass, Size, SuperSize);
 
 	AllClasses.push_back(RetClass);
 
