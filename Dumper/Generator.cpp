@@ -36,6 +36,11 @@ void Generator::GenerateSDK()
 	fs::path GenFolder(DumperFolder / Settings::GameVersion);
 	fs::path SDKFolder = GenFolder / "SDK";
 
+	if (!fs::exists(DumperFolder))
+	{
+		fs::create_directories(DumperFolder);
+	}
+
 	if (fs::exists(GenFolder))
 	{
 		fs::path Old = GenFolder.generic_string() + "_OLD";

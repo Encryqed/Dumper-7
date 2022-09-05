@@ -53,7 +53,7 @@ DWORD MainThread(HMODULE Module)
 
 	Generator::GenerateSDK();
 	
-	
+
 	auto t_2 = high_resolution_clock::now();
 	
 	auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
