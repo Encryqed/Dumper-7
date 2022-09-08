@@ -128,7 +128,7 @@ void Package::InitAssertionStream(fs::path& GenPath)
 	{
 		DebugAssertionStream.open(GenPath / "Assertions.h");
 
-		DebugAssertionStream << "#pragma once\n#include\"SDK.hpp\"\n\n";
+		DebugAssertionStream << "#pragma once\n#include\"SDK.hpp\"\n\nusing namespace SDK;\n\n";
 	}
 }
 
@@ -182,7 +182,7 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 					PackageDependencyManager::DependencyInfo Info = { Outermost.GetIndex(), bDependencyIsStruct, bDependencyIsClass };
 
 					Package::PackageSorter.AddDependency(PackageObject.GetIndex(), Info);
-					
+
 					continue;
 				}
 
@@ -207,6 +207,8 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 
 void Package::Process(std::vector<int32_t>& PackageMembers)
 {
+	Package::PackageSorter.AddPackage(PackageObject.GetIndex());
+
 	GatherDependencies(PackageMembers);
 
 	for (int32_t Index : PackageMembers)
@@ -234,6 +236,8 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
 {
 	const bool bIsSuperFunction = Super.IsA(EClassCastFlags::UFunction);
+
+	bool bLastPropertyWasBitField = false;
 
 	int PrevPropertyEnd = SuperSize;
 	int PrevBoolPropertyEnd = 0;
@@ -281,40 +285,51 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 		std::string Name = Property.GetValidName();
 
 		const int Offset = Property.GetOffset();
-		const int Size = Property.GetSize();
+		const int Size = !Property.IsA(EClassCastFlags::UStructProperty) ? Property.GetSize() : Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetStructSize();
 
 		std::string Comment = std::format("0x{:X}(0x{:X})({})", Offset, Size, Property.StringifyFlags());
 
-		if (Offset > PrevPropertyEnd)
+		if (Offset >= PrevPropertyEnd)
 		{
-			Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Offset - PrevPropertyEnd, "Fixing Size After Last Property  [ Dumper-7 ]"));
+			if (bLastPropertyWasBitField && PrevBoolPropertyBit != 9)
+			{
+				Struct.AddMember(GenerateBitPadding(Offset, 9 - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]"));
+			}
+			if (Offset > PrevPropertyEnd)
+			{
+				Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Offset - PrevPropertyEnd, "Fixing Size After Last Property  [ Dumper-7 ]"));
+			}
 		}
 
-		if (Property.IsA(EClassCastFlags::UBoolProperty) &&  !Property.Cast<UEBoolProperty>().IsNativeBool())
+		if (Property.IsA(EClassCastFlags::UBoolProperty) && !Property.Cast<UEBoolProperty>().IsNativeBool())
 		{
 			Name += " : 1";
 
 			const uint8 BitIndex = Property.Cast<UEBoolProperty>().GetBitIndex();
 
-			Comment = std::format("Mask : 0x{:X} {}", Property.Cast<UEBoolProperty>().GetFieldMask(), Comment);
+			Comment = std::format("Mask: 0x{:X}, PropSize: 0x{:X}{}", Property.Cast<UEBoolProperty>().GetFieldMask(), Size, Comment);
 
 			if (PrevBoolPropertyEnd < Offset)
 				PrevBoolPropertyBit = 1;
 
 			if (PrevBoolPropertyBit < BitIndex)
 			{
-				Types::Member mem = GenerateBitPadding(Offset, BitIndex - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]");
-				Struct.AddMember(mem);
+				Struct.AddMember(GenerateBitPadding(Offset, BitIndex - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]"));
 			}
 
 			PrevBoolPropertyBit = BitIndex + 1;
 			PrevBoolPropertyEnd = Offset;
+
+			bLastPropertyWasBitField = true;
+		}
+		else
+		{
+			bLastPropertyWasBitField = false;
 		}
 
 		Types::Member Member(CppType, Name, Comment);
 
 		PrevPropertyEnd = Offset + Size;
-		
 
 		Struct.AddMember(Member);
 
@@ -349,7 +364,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	std::vector<std::string> OutPtrParamNames;
 
 	bool bHasRetType = false;
-	
+
 	for (UEProperty Param = Function.GetChild().Cast<UEProperty>(); Param; Param = Param.GetNext().Cast<UEProperty>())
 	{
 		bool bIsRef = false;
@@ -374,7 +389,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 		if (!bIsRet && !bIsOut && !bIsRef && (Param.IsA(EClassCastFlags::UStructProperty) || Param.IsA(EClassCastFlags::UArrayProperty) || Param.IsA(EClassCastFlags::UStrProperty)))
 		{
 			Type += "&";
-			
+
 			Type = "const " + Type;
 		}
 
@@ -388,7 +403,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 			Params.push_back(Types::Parameter(Type, Param.GetValidName(), bIsOut && !bIsRef));
 		}
 	}
-	
+
 	Types::Function Func(ReturnType, FunctionName, Super.GetCppName(), Params);
 
 	Func.AddComment(Function.GetFullName());
@@ -422,8 +437,8 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 
 	FuncBody += "\n\tUObject::ProcessEvent(Func, &Parms);\n";
 
-    if (Function.HasFlags(EFunctionFlags::Native))
-        FuncBody += "\n\tFunc->FunctionFlags = Flags;\n";
+	if (Function.HasFlags(EFunctionFlags::Native))
+		FuncBody += "\n\tFunc->FunctionFlags = Flags;\n";
 
 
 	for (auto& Name : OutPtrParamNames)
@@ -586,10 +601,10 @@ Types::Enum Package::GenerateEnum(UEEnum& Enum)
 	auto& NameValue = Enum.GetNameValuePairs();
 
 	Types::Enum Enm(EnumName, "uint8");
-	
+
 	if (UEEnum::BigEnums.find(Enum.GetIndex()) != UEEnum::BigEnums.end())
 		Enm = Types::Enum(EnumName, UEEnum::BigEnums[Enum.GetIndex()]);
-	
+
 	if (!Settings::Internal::bIsEnumNameOnly)
 	{
 		for (int i = 0; i < NameValue.Num(); i++)
@@ -614,9 +629,9 @@ Types::Enum Package::GenerateEnum(UEEnum& Enum)
 	if (EnumName.find("PixelFormat") != -1)
 		Enm.FixWindowsConstant("PF_MAX");
 
-	if(EnumName.find("ERaMaterialName") != -1)
+	if (EnumName.find("ERaMaterialName") != -1)
 		Enm.FixWindowsConstant("TRANSPARENT");
-	
+
 
 	AllEnums.push_back(Enm);
 
@@ -632,5 +647,7 @@ Types::Member Package::GenerateBytePadding(const int32 Offset, const int32 PadSi
 
 Types::Member Package::GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
-	return Types::Member("uint8", std::format(": {:X}", PadSize), Reason);
+	static int BitPadNum = 0;
+
+	return Types::Member("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::move(Reason));
 }

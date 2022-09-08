@@ -18,7 +18,7 @@ void Generator::Init()
 	/* ARK */
 	//FName::Init(0x211AF50);
 	//Off::InSDK::InitPE(0x43);
-		
+
 	Off::Init();
 	Off::InSDK::InitPE();
 
@@ -29,10 +29,10 @@ void Generator::Init()
 void Generator::GenerateSDK()
 {
 	std::unordered_map<int32_t, std::vector<int32_t>> ObjectPackages;
-	
+
 	ObjectArray::GetAllPackages(ObjectPackages);
 
-	fs::path DumperFolder(Settings::SDKGenerationPath); 
+	fs::path DumperFolder(Settings::SDKGenerationPath);
 	fs::path GenFolder(DumperFolder / Settings::GameVersion);
 	fs::path SDKFolder = GenFolder / "SDK";
 
@@ -49,7 +49,7 @@ void Generator::GenerateSDK()
 
 		fs::rename(GenFolder, Old);
 	}
-	
+
 	fs::create_directory(GenFolder);
 	fs::create_directory(SDKFolder);
 
@@ -84,7 +84,7 @@ void Generator::GenerateSDK()
 			StructsFile.WriteEnums(Pack.AllEnums);
 			StructsFile.WriteStructs(Pack.AllStructs);
 
-			if (PackageName == "CoreUObject" )
+			if (PackageName == "CoreUObject")
 			{
 				FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
 			}
@@ -135,24 +135,26 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 
 	HeaderStream << "#pragma once\n\n";
 	HeaderStream << "// Made with <3 by Encryqed && me [Fischsalat]\n\n";
-	
-	HeaderStream << std::format("// {} \n", Settings::GameName);
-	HeaderStream << std::format("// {} \n\n", Settings::GameVersion);
-	
+
+	HeaderStream << std::format("// {}\n", Settings::GameName);
+	HeaderStream << std::format("// {}\n\n", Settings::GameVersion);
+
+	HeaderStream << "#define WINDOWS_IGNORE_PACKING_MISMATCH\n\n";
+
 	HeaderStream << "#include <string>\n";
 	HeaderStream << "#include <Windows.h>\n";
 	HeaderStream << "#include <iostream>\n\n";
-	
+
 	HeaderStream << "typedef __int8 int8;\n";
 	HeaderStream << "typedef __int16 int16;\n";
 	HeaderStream << "typedef __int32 int32;\n";
 	HeaderStream << "typedef __int64 int64;\n\n";
-	
+
 	HeaderStream << "typedef unsigned __int8 uint8;\n";
 	HeaderStream << "typedef unsigned __int16 uint16;\n";
 	HeaderStream << "typedef unsigned __int32 uint32;\n";
 	HeaderStream << "typedef unsigned __int64 uint64;\n";
-	
+
 	HeaderStream << std::format(
 		R"(
 namespace Offsets
@@ -165,24 +167,24 @@ namespace Offsets
 
 	if (Settings::bShouldXorStrings)
 		HeaderStream << "#define XORSTR(str) str\n";
-	
+
 	HeaderStream << "\n#include \"PropertyFixup.hpp\"\n";
 	HeaderStream << "\n#include \"SDK/" << (Settings::FilePrefix ? Settings::FilePrefix : "") << "Basic.hpp\"\n";
-	
-	
-	for(auto& Package : Package::PackageSorter.AllDependencies)
+
+
+	for (auto& Pack : Package::PackageSorter.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorter.GetIncludesForPackage({ Package.first, true, true }, IncludesString);
-	
+		Package::PackageSorter.GetIncludesForPackage({ Pack.first, true, true }, IncludesString);
+
 		HeaderStream << IncludesString;
 	}
-	
+
 	// Param files don't need dependency sorting
 	for (auto& Pair : Packages)
 	{
 		UEObject PackageObj = ObjectArray::GetByIndex(Pair.first);
-	
+
 		if (!PackageObj)
 			continue;
 
@@ -230,7 +232,7 @@ void Generator::InitPredefinedMembers()
 
 	PredefinedMembers["UEnum"] =
 	{
-		{ "class TArray<class TPair<class FName, int64>>", "Names", Off::UEnum::Names, 0x0C }
+		{ "class TArray<class TPair<class FName, int64>>", "Names", Off::UEnum::Names, 0x10 }
 	};
 
 	PredefinedMembers["UStruct"] =
@@ -316,7 +318,7 @@ void Generator::InitPredefinedFunctions()
 		"CoreUObject",
 		{
 			{
-				"\tbool HasTypeFlag(EClassCastFlags TypeFlag) const;", 
+				"\tbool HasTypeFlag(EClassCastFlags TypeFlag) const;",
 				"\tbool UObject::HasTypeFlag(EClassCastFlags TypeFlag) const",
 R"(
 	{
@@ -516,7 +518,7 @@ inline Fn GetVFunction(const void* Instance, std::size_t Index)
 	if (Off::InSDK::ChunkSize <= 0)
 	{
 		BasicHeader.Write(
-	 std::format(R"(
+			std::format(R"(
 class TUObjectArray
 {{
 public:
@@ -546,12 +548,12 @@ public:
 		return Objects[Index].Object;
 	}}
 }};
-)",Off::InSDK::FUObjectItemSize - 0x8));
+)", Off::InSDK::FUObjectItemSize - 0x8));
 	}
 	else
 	{
 		BasicHeader.Write(
-std::format(R"(
+			std::format(R"(
 class TUObjectArray
 {{
 public:
@@ -596,7 +598,7 @@ public:
 	}
 
 	BasicHeader.Write(
-			R"(
+		R"(
 template<class T>
 class TArray
 {
@@ -656,7 +658,7 @@ public:
 )");
 
 	BasicHeader.Write(
-			R"(
+		R"(
 class FString : public TArray<wchar_t>
 {
 public:
@@ -726,7 +728,7 @@ int32 ComparisonIndex;
 
 
 	BasicHeader.Write(
-std::format(R"(
+		std::format(R"(
 	
 	inline std::string ToString() const
 	{{
@@ -759,7 +761,7 @@ std::format(R"(
 )", Off::InSDK::AppendNameToString));
 
 	BasicHeader.Write(
-			R"(
+		R"(
 template<typename ClassType>
 class TSubclassOf
 {
@@ -808,7 +810,7 @@ public:
 )");
 
 	BasicHeader.Write(
-			R"(
+		R"(
 template<typename ValueType, typename KeyType>
 class TPair
 {
@@ -819,7 +821,7 @@ public:
 )");
 
 	BasicHeader.Write(
-			R"(
+		R"(
 class FText
 {
 public:
@@ -829,7 +831,7 @@ public:
 )");
 
 	BasicHeader.Write(
-			R"(
+		R"(
 template<typename ElementType>
 class TSet
 {
@@ -838,7 +840,7 @@ class TSet
 )");
 
 	BasicHeader.Write(
-			R"(
+		R"(
 template<typename KeyType, typename ValueType>
 class TMap
 {
@@ -847,7 +849,7 @@ class TMap
 )");
 
 	BasicHeader.Write(
-			R"(
+		R"(
 class FWeakObjectPtr
 {
 protected:
@@ -868,7 +870,7 @@ public:
 )");
 
 	BasicHeader.Write(
-			R"(
+		R"(
 template<typename UEType>
 class TWeakObjectPtr : FWeakObjectPtr
 {
@@ -950,7 +952,7 @@ public:
 
 	BasicHeader.Write(
 		R"(
-class FSoftObjectPtr : public TPersistentObjectPtr<FSoftObjectPath_>
+class alignas(8) FSoftObjectPtr : public TPersistentObjectPtr<FSoftObjectPath_>
 {
 public:
 
@@ -1024,7 +1026,7 @@ std::string FSoftObjectPtr::GetSubPathStringStr()
 
 
 	BasicSource.Write(
-			R"(
+		R"(
 class UObject* FWeakObjectPtr::Get() const
 {
 	return UObject::GObjects->GetByIndex(ObjectIndex);
@@ -1055,7 +1057,7 @@ bool FWeakObjectPtr::operator!=(const class UObject* Other) const
 )");
 
 	BasicHeader.Write(
-			R"(
+		R"(
 
 enum class EClassCastFlags : uint64_t
 {
@@ -1114,7 +1116,7 @@ enum class EClassCastFlags : uint64_t
 )");
 
 	BasicHeader.Write(
-			R"(
+		R"(
 inline constexpr EClassCastFlags operator|(EClassCastFlags Left, EClassCastFlags Right)
 {																																										
 	return (EClassCastFlags)((std::underlying_type<EClassCastFlags>::type)(Left) | (std::underlying_type<EClassCastFlags>::type)(Right));

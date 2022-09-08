@@ -89,6 +89,12 @@ struct PackageDependencyManager
 		AllDependencies.erase(PackageIndex);
 	}
 
+	inline void AddPackage(const int32 PackageIdx)
+	{
+		if(AllDependencies.find(PackageIdx) == AllDependencies.end())
+			AllDependencies[PackageIdx] = { { false }, { } };
+	}
+
 	inline void AddDependency(const int32 DepandantIdx, const int32 DependencyIndex)
 	{
 		AllDependencies[DepandantIdx].second.insert(DependencyIndex);

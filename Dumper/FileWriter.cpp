@@ -134,12 +134,12 @@ void FileWriter::WriteEnums(std::vector<Types::Enum>& Enums)
 
 void FileWriter::WriteFunction(Types::Function& Function)
 {
-	if(!bWroteFunctionsBefore)
+	if (!bWroteFunctionsBefore)
 	{
 		bWroteFunctionsBefore = true;
 
-	Write(
-		R"(//---------------------------------------------------------------------------------------------------------------------
+		Write(
+			R"(//---------------------------------------------------------------------------------------------------------------------
 // FUNCTIONS
 //---------------------------------------------------------------------------------------------------------------------
 
@@ -211,7 +211,7 @@ void FileWriter::SetFileHeader()
 // Dumped with Dumper-7!
 
 #ifdef _MSC_VER
-	#pragma pack(push, 0x08)
+	#pragma pack(push, 0x01)
 #endif
 
 )";

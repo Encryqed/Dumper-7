@@ -54,10 +54,10 @@ DWORD MainThread(HMODULE Module)
 	Generator::GenerateSDK();
 	
 
-	auto t_2 = high_resolution_clock::now();
+	auto t_C = high_resolution_clock::now();
 	
-	auto ms_int_ = duration_cast<milliseconds>(t_2 - t_1);
-	duration<double, std::milli> ms_double_ = t_2 - t_1;
+	auto ms_int_ = duration_cast<milliseconds>(t_C - t_1);
+	duration<double, std::milli> ms_double_ = t_C - t_1;
 	
 	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 

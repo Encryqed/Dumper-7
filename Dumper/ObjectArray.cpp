@@ -131,11 +131,11 @@ void ObjectArray::Init()
 					return nullptr;
 
 				return *(void**)(*(uint64*)ObjectsArray + Index * FUObjectItemSize);
-				
+
 			};
 			for (int i = 1; i <= 0x30; i += 4)
 			{
-				if (!IsBadReadPtr(*(void**)((uint8*)(GObjects) + i)))
+				if (!IsBadReadPtr(*(void**)((uint8*)(GObjects)+i)))
 				{
 					SizeOfFUObjectItem = i;
 					break;
@@ -163,11 +163,11 @@ void ObjectArray::Init()
 				const int32 ChunkIndex = Index / PerChunk;
 				const int32 InChunkIdx = Index % PerChunk;
 
-				return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray) + ChunkIndex) + InChunkIdx * FUObjectItemSize);
+				return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray)+ChunkIndex) + InChunkIdx * FUObjectItemSize);
 			};
 			for (int i = 0x8; i <= 0x30; i += 4)
 			{
-				if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects) + i)))
+				if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects)+i)))
 				{
 					SizeOfFUObjectItem = i;
 					break;
@@ -269,64 +269,57 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 		if (Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
 			continue;
 
-
-		if (!Object.IsA(EClassCastFlags::UPackage))
+		if (Object.IsA(EClassCastFlags::UStruct))
 		{
-			if (Object.IsA(EClassCastFlags::UStruct))
+			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
+
+			if (!Object.IsA(EClassCastFlags::UFunction))
 			{
-				OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
+				UEStruct ObjAsStruct = Object.Cast<UEStruct>();
 
-				if (!Object.IsA(EClassCastFlags::UFunction))
+				int32 LowestOffset = 0xFFFFFF;
+
+				if (UEStruct Super = ObjAsStruct.GetSuper())
 				{
-					UEStruct ObjAsStruct = Object.Cast<UEStruct>();
-
-					int32 LowestOffset = 0xFFFFFF;
-
-					if (UEStruct Super = ObjAsStruct.GetSuper())
+					for (UEField F = ObjAsStruct.GetChild(); F; F = F.GetNext())
 					{
-						for (UEField F = ObjAsStruct.GetChild(); F; F = F.GetNext())
+						if (F.IsA(EClassCastFlags::UProperty) && F.Cast<UEProperty>().GetOffset() < LowestOffset)
 						{
-							if (F.IsA(EClassCastFlags::UProperty) && F.Cast<UEProperty>().GetOffset() < LowestOffset)
-							{
-								LowestOffset = F.Cast<UEProperty>().GetOffset();
-							}
+							LowestOffset = F.Cast<UEProperty>().GetOffset();
 						}
+					}
 
-						if (LowestOffset != 0xFFFFFF)
+					if (LowestOffset != 0xFFFFFF)
+					{
+						for (UEStruct S = Super; S; S = S.GetSuper())
 						{
-							for (UEStruct S = Super; S; S = S.GetSuper())
+							auto It = UEStruct::StructSizes.find(S.GetIndex());
+							if (It != UEStruct::StructSizes.end())
 							{
-								auto It = UEStruct::StructSizes.find(S.GetIndex());
-								if (It != UEStruct::StructSizes.end())
+								if (It->second > LowestOffset)
 								{
-									if (It->second > LowestOffset)
-									{
-										It->second = LowestOffset;
-									}
+									It->second = LowestOffset;
 								}
-								else
-								{
-									UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
-								}
-
-								if (S.HasMembers())
-									break;
 							}
+							else
+							{
+								UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
+							}
+
+							if (S.HasMembers())
+								break;
 						}
 					}
 				}
 			}
-			else if (Object.IsA(EClassCastFlags::UEnum))
-			{
-				OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
-			}
 		}
-		else if (Object.IsA(EClassCastFlags::UEnumProperty))
+		else if (Object.IsA(EClassCastFlags::UEnum))
 		{
-			if (!Object.Cast<UEEnumProperty>().GetUnderlayingProperty().IsA(EClassCastFlags::UByteProperty))
-			{
-				UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
-			}
+			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
+		}
+		else if (Object.IsA(EClassCastFlags::UEnumProperty) && Object.Cast<UEEnumProperty>().GetSize() != 1)
+		{
+			UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
 		}
 	}
 }
@@ -444,7 +437,7 @@ int32 ObjectArray::ObjectsIterator::GetIndex() const
 /*
 * The compiler won't generate functions for a specific template type unless it's used in the .cpp file corresponding to the
 * header it was declatred in.
-* 
+*
 * See https://stackoverflow.com/questions/456713/why-do-i-get-unresolved-external-symbol-errors-when-using-templates
 */
 void TemplateTypeCreationForObjectArray(void)
