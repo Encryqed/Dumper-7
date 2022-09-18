@@ -29,7 +29,7 @@ DWORD MainThread(HMODULE Module)
 	
 	std::cout << "Started Generation [Dumper-7]!\n";
 	
-
+	
 	Generator::Init();
 
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())

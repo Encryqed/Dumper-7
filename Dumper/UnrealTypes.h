@@ -7,7 +7,7 @@
 #include "Offsets.h"
 
 template<typename ValueType, typename KeyType>
-class TPair
+class alignas(4) TPair
 {
 public:
 	ValueType First;

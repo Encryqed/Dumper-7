@@ -455,10 +455,16 @@ std::string UEProperty::GetCppType()
 	}
 	else if (TypeFlags &  EClassCastFlags::UEnumProperty)
 	{
+		static auto DelegateInlinePropertyClass = ObjectArray::FindClassFast("MulticastInlineDelegateProperty");
+
+		if (GetClass().HasType(DelegateInlinePropertyClass))
+			goto DelagesBelongHere;
+
 		return Cast<UEEnumProperty>().GetCppType();
 	}
 	else
 	{
+	DelagesBelongHere:
 		std::string CppName = GetClass().GetCppName() + "_";
 
 		UnknownProperties.insert({ CppName, GetSize() });

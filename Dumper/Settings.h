@@ -37,6 +37,9 @@ namespace Settings
 	namespace Internal
 	{
 		// UEEnum::Names
-		inline bool bIsEnumNameOnly = false;
+		// -1 -> TPair<FName, int64>
+		//  0 -> FName
+		// +1 -> TPair<FName, uint8>
+		inline int8 EnumNameArrayType = -1;
 	}
 }

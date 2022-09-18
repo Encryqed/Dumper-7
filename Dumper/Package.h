@@ -15,7 +15,7 @@ struct PackageDependencyManager
 	struct DependencyInfo
 	{
 		int32 Index;
-		
+
 		//PackageSorting vars
 		mutable bool bStructFileNeeded;
 		mutable bool bClassFileNeeded;
@@ -56,7 +56,7 @@ struct PackageDependencyManager
 			bool bIsClassFileIncluded;
 		};
 	};
-	
+
 	struct DependencyInfoHasher
 	{
 		size_t operator()(const DependencyInfo& R) const
@@ -65,11 +65,10 @@ struct PackageDependencyManager
 		}
 	};
 
-	// int32 - PackageIndex
-	// bool - bWasIncluded
-	//		DepdendencyInfo - PackageFiles required by this packages
-	//std::unordered_map<int32, std::pair<DependencyInfo, std::unordered_set<int32>>> AllDependencies;
-	std::unordered_map<int32, std::pair<IncludeStatus, std::unordered_set<DependencyInfo, DependencyInfoHasher>>> AllDependencies;
+	//PackageIdx
+	//bIsIncluded
+	//Dependencies
+	std::unordered_map<int32, std::pair<bool, std::unordered_set<int32>>> AllDependencies;
 
 	PackageDependencyManager() = default;
 
@@ -79,11 +78,6 @@ struct PackageDependencyManager
 			AllDependencies[PackageIdx] = { { false }, { } };
 	}
 
-	PackageDependencyManager(int32 PackageIdx, std::unordered_set<DependencyInfo, DependencyInfoHasher>& Dependencies)
-	{
-		AllDependencies[PackageIdx].second = Dependencies;
-	}
-
 	void RemoveDependant(const int32 PackageIndex)
 	{
 		AllDependencies.erase(PackageIndex);
@@ -91,8 +85,10 @@ struct PackageDependencyManager
 
 	inline void AddPackage(const int32 PackageIdx)
 	{
-		if(AllDependencies.find(PackageIdx) == AllDependencies.end())
+		if (AllDependencies.find(PackageIdx) == AllDependencies.end())
+		{
 			AllDependencies[PackageIdx] = { { false }, { } };
+		}
 	}
 
 	inline void AddDependency(const int32 DepandantIdx, const int32 DependencyIndex)
@@ -100,24 +96,14 @@ struct PackageDependencyManager
 		AllDependencies[DepandantIdx].second.insert(DependencyIndex);
 	}
 
-	inline void AddDependency(const int32 DepandantIdx, const DependencyInfo& Info)
-	{
-		auto IteratorBoolPair = AllDependencies[DepandantIdx].second.insert(Info);
-
-		if (!IteratorBoolPair.second)
-		{
-			*IteratorBoolPair.first = Info;
-		}
-	}
-
 	/* Only use this when sorting struct dependencies */
-	void GenerateStructSorted(class Package& Pack, int32 StructIdx);
+	void GenerateStructSorted(class Package& Pack, const int32 StructIdx);
 
 	/* Only use this when sorting class dependencies */
-	void GenerateClassSorted(class Package& Pack, int32 ClassIdx);
+	void GenerateClassSorted(class Package& Pack, const int32 ClassIdx);
 
 	/* Only use this when sorting package dependencies */
-	void GetIncludesForPackage(const DependencyInfo& Info, std::string& OutRef);
+	void GetIncludesForPackage(const int32 Index, bool bIsClass, std::string& OutRef);
 
 	static void GetObjectDependency(UEObject Obj, std::unordered_set<int32>& Store);
 };
@@ -128,7 +114,8 @@ class Package
 
 public:
 	static std::ofstream DebugAssertionStream;
-	static PackageDependencyManager PackageSorter;
+	static PackageDependencyManager PackageSorterClasses; // "PackageName_classes.hpp"
+	static PackageDependencyManager PackageSorterStructs; // "PackageName_structs.hpp"
 
 	PackageDependencyManager StructSorter;
 	PackageDependencyManager ClassSorter;
