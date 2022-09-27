@@ -17,7 +17,6 @@ enum class EFortToastType : uint8
         EFortToastType_MAX             = 3,
 };
 
-
 DWORD MainThread(HMODULE Module)
 {
 	AllocConsole();
@@ -29,8 +28,29 @@ DWORD MainThread(HMODULE Module)
 	
 	std::cout << "Started Generation [Dumper-7]!\n";
 	
+	ObjectArray::Init();
+	FName::Init();
+	Off::Init();
 
-	Generator::Init();
+	ObjectArray::DumpObjects();
+
+	// this stuff here just for debug reasons 
+	//UEObject Vec4Object = ObjectArray::FindObject("ScriptStruct CoreUObject.Vector4");
+	/*UEObject Vec4Object = ObjectArray::FindObject("Class Engine.PlayerController");
+
+	std::cout << Vec4Object.Cast<UEStruct>().HasFMembers() << "\n" << std::endl;
+
+	std::cout << Vec4Object.GetFullName() << " has Members!\n";
+		
+	for (UEFField Field = Vec4Object.Cast<UEStruct>().GetChildProperties(); Field; Field = Field.GetNext())
+	{
+		if (Field.IsOwnerUObject())
+		{
+			std::cout << "->    " << Field.GetClass().GetName() << "." << Field.GetName() << std::endl;
+		}
+	}*/
+
+	/*Generator::Init();
 
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())
 	{
@@ -59,7 +79,7 @@ DWORD MainThread(HMODULE Module)
 	auto ms_int_ = duration_cast<milliseconds>(t_C - t_1);
 	duration<double, std::milli> ms_double_ = t_C - t_1;
 	
-	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
+	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";*/
 
 	while (true)
 	{

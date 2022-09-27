@@ -4,10 +4,120 @@
 
 #include <format>
 
-
 std::unordered_map<int32, std::string> UEEnum::BigEnums;
 std::unordered_map<std::string, uint32> UEProperty::UnknownProperties;
 std::unordered_map<int32, uint32> UEStruct::StructSizes;
+
+void* UEFFieldClass::GetAddress()
+{
+	return Class;
+}
+
+uint64 UEFFieldClass::GetId()
+{
+	return *reinterpret_cast<uint64*>(Class + Off::FFieldClass::Id);
+}
+
+EFClassCastFlags UEFFieldClass::GetCastFlags()
+{
+	return *reinterpret_cast<EFClassCastFlags*>(Class + Off::FFieldClass::Id);
+}
+
+EClassFlags UEFFieldClass::GetClassFlags()
+{
+	return *reinterpret_cast<EClassFlags*>(Class + Off::FFieldClass::ClassFlags);
+}
+
+UEFFieldClass UEFFieldClass::GetSuper()
+{
+	return UEFFieldClass(*reinterpret_cast<void**>(Class + Off::FFieldClass::SuperClass));
+}
+
+FName UEFFieldClass::GetFName()
+{
+	return *reinterpret_cast<FName*>(Class + Off::FFieldClass::Name);
+}
+
+bool UEFFieldClass::IsType(EFClassCastFlags Flags)
+{
+	return GetCastFlags() & Flags;
+}
+
+std::string UEFFieldClass::GetName()
+{
+	return Class ? GetFName().ToString() : "None";
+}
+
+void* UEFField::GetAddress()
+{
+	return Field;
+}
+
+UEFField::FFieldObjectStruct UEFField::GetOwner()
+{
+	return* reinterpret_cast<FFieldObjectStruct*>(Field + Off::FField::Owner);
+}
+
+EObjectFlags UEFField::GetFlags()
+{
+	return *reinterpret_cast<EObjectFlags*>(Field + Off::FField::Flags);
+}
+
+UEFFieldClass UEFField::GetClass()
+{
+	return UEFFieldClass(*reinterpret_cast<void**>(Field + Off::FField::Class));
+}
+
+FName UEFField::GetFName()
+{
+	return *reinterpret_cast<FName*>(Field + Off::FField::Name);
+}
+
+UEFField UEFField::GetNext()
+{
+	return UEFField(*reinterpret_cast<void**>(Field + Off::FField::Next));
+}
+
+template<typename UEType>
+UEType UEFField::Cast() const
+{
+	return UEType(Field);
+}
+
+bool UEFField::IsOwnerUObject()
+{
+	bool IsUObject = *reinterpret_cast<bool*>(Field + Off::FField::Owner + 0x8);
+
+	if (IsUObject)
+		return true;
+	
+	return false;
+}
+
+bool UEFField::IsA(EFClassCastFlags Flags)
+{
+	return (Flags != EFClassCastFlags::None ? GetClass().IsType(Flags) : true);
+}
+
+std::string UEFField::GetName()
+{
+	return Field ? GetFName().ToString() : "None";
+}
+
+UEFField::operator bool()
+{
+	return Field != nullptr && reinterpret_cast<void*>(Field + Off::FField::Class) != nullptr;
+}
+
+bool UEFField::operator==(const UEFField& Other) const
+{
+	return Field == Other.Field;
+}
+
+bool UEFField::operator!=(const UEFField& Other) const
+{
+	return Field != Other.Field;
+}
 
 void(*UEObject::PE)(void*, void*, void*) = nullptr;
 
@@ -20,18 +130,22 @@ EObjectFlags UEObject::GetFlags()
 {
 	return *reinterpret_cast<EObjectFlags*>(Object + Off::UObject::Flags);
 }
+
 int32 UEObject::GetIndex()
 {
 	return *reinterpret_cast<int32*>(Object + Off::UObject::Index);
 }
+
 UEClass UEObject::GetClass()
 {
 	return UEClass(*reinterpret_cast<void**>(Object + Off::UObject::Class));
 }
+
 FName UEObject::GetFName()
 {
 	return *reinterpret_cast<FName*>(Object + Off::UObject::Name);
 }
+
 UEObject UEObject::GetOuter()
 {
 	return UEObject(*reinterpret_cast<void**>(Object + Off::UObject::Outer));
@@ -121,6 +235,7 @@ std::string UEObject::GetCppName()
 
 	return 'F' + Temp;
 }
+
 std::string UEObject::GetFullName()
 {
 	if (GetClass())
@@ -159,7 +274,7 @@ bool UEObject::operator!=(const UEObject& Other) const
 	return Object != Other.Object;
 }
 
-void  UEObject::ProcessEvent(UEFunction Func, void* Params)
+void UEObject::ProcessEvent(UEFunction Func, void* Params)
 {
 	void** VFT = *reinterpret_cast<void***>(GetAddress());
 
@@ -177,7 +292,6 @@ bool UEField::IsNextValid()
 {
 	return (bool)GetNext();
 }
-
 
 TArray<TPair<FName, int64>>& UEEnum::GetNameValuePairs()
 {
@@ -233,7 +347,6 @@ std::string UEEnum::UNSAFEGetDeclarationType()
 	}
 }
 
-
 UEStruct UEStruct::GetSuper()
 {
 	return UEStruct(*reinterpret_cast<void**>(Object + Off::UStruct::SuperStruct));
@@ -244,12 +357,17 @@ UEField UEStruct::GetChild()
 	return UEField(*reinterpret_cast<void**>(Object + Off::UStruct::Children));
 }
 
+UEFField UEStruct::GetChildProperties()
+{
+	return UEFField(*reinterpret_cast<void**>(Object + Off::UStruct::ChildProperties));
+}
+
 int32 UEStruct::GetStructSize()
 {
 	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
 }
 
-bool UEStruct::HasMembers()
+bool UEStruct::HasUMembers()
 {
 	if (!Object)
 		return false;
@@ -263,6 +381,21 @@ bool UEStruct::HasMembers()
 	return false;
 }
 
+bool UEStruct::HasFMembers()
+{
+	// idk why but that doesnt seem to work (or i am just stupid)
+
+	if (!Object)
+		return false;
+
+	for (UEFField Field = GetChildProperties(); Field; Field = Field.GetNext())
+	{
+		if (Field.IsA(EFClassCastFlags::FProperty))
+			return true;
+	}
+
+	return false;
+}
 
 EClassCastFlags UEClass::GetCastFlags()
 {
@@ -311,7 +444,6 @@ UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string&
 	return nullptr;
 }
 
-
 EFunctionFlags UEFunction::GetFunctionFlags()
 {
 	return *reinterpret_cast<EFunctionFlags*>(Object + Off::UFunction::FunctionFlags);
@@ -331,7 +463,6 @@ std::string UEFunction::GetParamStructName()
 {
 	return GetOuter().GetCppName() + "_" + GetValidName() + "_Params";
 }
-
 
 int32 UEProperty::GetSize()
 {
@@ -472,7 +603,6 @@ std::string UEProperty::StringifyFlags()
 	return StringifyPropertyFlags(GetPropertyFlags());
 }
 
-
 UEEnum UEByteProperty::GetEnum()
 {
 	return UEEnum(*reinterpret_cast<void**>(Object + Off::UByteProperty::Enum));
@@ -523,7 +653,6 @@ std::string UEBoolProperty::GetCppType()
 	return IsNativeBool() ? "bool" : "uint8";
 }
 
-
 UEClass UEObjectProperty::GetPropertyClass()
 {
 	return UEClass(*reinterpret_cast<void**>(Object + Off::UObjectProperty::PropertyClass));
@@ -534,7 +663,6 @@ std::string UEObjectProperty::GetCppType()
 	return std::format("class {}*", GetPropertyClass() ? GetPropertyClass().GetCppName() : "UObject");
 }
 
-
 UEClass UEClassProperty::GetMetaClass()
 {
 	return UEClass(*reinterpret_cast<void**>(Object + Off::UClassProperty::MetaClass));
@@ -544,7 +672,6 @@ std::string UEClassProperty::GetCppType()
 {
 	return HasPropertyFlags(EPropertyFlags::UObjectWrapper) ? std::format("TSubclassOf<class {}>", GetMetaClass().GetCppName()) : "class UClass*";
 }
-
 
 std::string UEWeakObjectProperty::GetCppType()
 {
@@ -566,7 +693,6 @@ std::string UESoftClassProperty::GetCppType()
 	return std::format("TSoftClassPtr<class {}>", GetMetaClass() ? GetMetaClass().GetCppName() : GetPropertyClass().GetCppName());
 }
 
-
 UEStruct UEStructProperty::GetUnderlayingStruct()
 {
 	return UEStruct(*reinterpret_cast<void**>(Object + Off::UStructProperty::Struct));
@@ -577,7 +703,6 @@ std::string UEStructProperty::GetCppType()
 	return std::format("struct {}", GetUnderlayingStruct().GetCppName());
 }
 
-
 UEProperty UEArrayProperty::GetInnerProperty()
 {
 	return UEProperty(*reinterpret_cast<void**>(Object + Off::UArrayProperty::Inner));
@@ -587,8 +712,6 @@ std::string UEArrayProperty::GetCppType()
 {
 	return std::format("TArray<{}>", GetInnerProperty().GetCppType());
 }
-
-
 
 UEProperty UEMapProperty::GetKeyProperty()
 {
@@ -604,7 +727,6 @@ std::string UEMapProperty::GetCppType()
 	return std::format("TMap<{}, {}>", GetKeyProperty().GetCppType(), GetValueProperty().GetCppType());
 }
 
-
 UEProperty UESetProperty::GetElementProperty()
 {
 	return UEProperty(*reinterpret_cast<void**>(Object + Off::USetProperty::ElementProp));
@@ -614,7 +736,6 @@ std::string UESetProperty::GetCppType()
 {
 	return std::format("TSet<{}>", GetElementProperty().GetCppType());
 }
-
 
 UEProperty UEEnumProperty::GetUnderlayingProperty()
 {
@@ -631,7 +752,6 @@ std::string UEEnumProperty::GetCppType()
 	return GetEnum().GetEnumTypeAsStr();
 }
 
-
 /*
 * The compiler won't generate functions for a specific template type unless it's used in the .cpp file corresponding to the
 * header it was declatred in.
@@ -641,6 +761,11 @@ std::string UEEnumProperty::GetCppType()
 void TemplateTypeCreationForUnrealObjects(void)
 {
 	UEObject Dummy(nullptr);
+	UEFField FDummy(nullptr);
+
+	FDummy.Cast<UEFField>();
+
+	FDummy.Cast<UEFField&>();
 
 	Dummy.Cast<UEObject>();
 	Dummy.Cast<UEField>();
@@ -676,6 +801,3 @@ void TemplateTypeCreationForUnrealObjects(void)
 	Dummy.Cast<UESetProperty&>();
 	Dummy.Cast<UEEnumProperty&>();
 }
-
-
-

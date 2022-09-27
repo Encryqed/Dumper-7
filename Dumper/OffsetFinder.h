@@ -37,8 +37,9 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("ENetRole").GetAddress(), 0x5 });
-		Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery").GetAddress(), 0x22 });
+		// on BPM its offset 0x48
+		Infos.push_back({ ObjectArray::FindObjectFast("ENetRole").GetAddress(), 0x5 });			
+		Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery").GetAddress(), 0x22 }); 
 
 		int Ret = FindOffset(Infos) - 0x8;
 
@@ -54,12 +55,13 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("Field").GetAddress(), ObjectArray::FindObjectFast("Object").GetAddress() });
+		// on BPM its offset 0x40
 		Infos.push_back({ ObjectArray::FindObjectFast("Struct").GetAddress(), ObjectArray::FindObjectFast("Field").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("Class").GetAddress(), ObjectArray::FindObjectFast("Struct").GetAddress() });
 		
-		//Thanks to the ue4 dev who decided UStruct should be spelled Ustruct
-		if (Infos[1].first == nullptr)
-			Infos[1].first = ObjectArray::FindObjectFast("struct").GetAddress();
+		// Thanks to the ue4 dev who decided UStruct should be spelled Ustruct
+		if (Infos[1].second == nullptr)
+			Infos[1].second = ObjectArray::FindObjectFast("struct").GetAddress();
 
 		return FindOffset(Infos);
 	}
@@ -68,18 +70,39 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("Vector").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector").GetAddress()});
+		// idk if these work on ue 4.24 and lower
+		// on BPM its offset 0x48
+		Infos.push_back({
+			ObjectArray::FindObjectFast("PlayerController").GetAddress(),
+			ObjectArray::FindObjectFastInOuter("WasInputKeyJustReleased", "PlayerController").GetAddress()
+		});
+
+		Infos.push_back({
+			ObjectArray::FindObjectFast("Controller").GetAddress(),
+			ObjectArray::FindObjectFastInOuter("UnPossess", "Controller").GetAddress()
+		});
+
+		/*Infos.push_back({ObjectArray::FindObjectFast("Vector").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector").GetAddress()});
 		Infos.push_back({ ObjectArray::FindObjectFast("Vector4").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector4").GetAddress()});
 		Infos.push_back({ ObjectArray::FindObjectFast("Vector2D").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector2D").GetAddress()});
-		Infos.push_back({ ObjectArray::FindObjectFast("Guid").GetAddress(), ObjectArray::FindObjectFastInOuter("A","Guid").GetAddress()});
+		Infos.push_back({ ObjectArray::FindObjectFast("Guid").GetAddress(), ObjectArray::FindObjectFastInOuter("A","Guid").GetAddress()});*/
 
 		return FindOffset(Infos);
+	}
+
+	inline int32_t FindChildPropertiesOffset()
+	{
+		// on BPM its offset 0x50
+		// idk how to get it so :/
+
+		return Off::UStruct::Children + 0x08;
 	}
 
 	inline int32_t FindStructSizeOffset()
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
+		// on BPM its offset 0x58
 		Infos.push_back({ ObjectArray::FindObjectFast("Vector2D").GetAddress(), 0x08 });
 		Infos.push_back({ ObjectArray::FindObjectFast("Vector").GetAddress(), 0x0C });
 		Infos.push_back({ ObjectArray::FindObjectFast("Vector4").GetAddress(), 0x10 });
@@ -93,6 +116,7 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, EFunctionFlags>> Infos;
 
+		// idk if this works on ue 4.25 and higher
 		Infos.push_back({ ObjectArray::FindObjectFast("WasInputKeyJustPressed").GetAddress(), EFunctionFlags::Final | EFunctionFlags::Native | EFunctionFlags::Public | EFunctionFlags::BlueprintCallable | EFunctionFlags::BlueprintPure | EFunctionFlags::Const });
 		Infos.push_back({ ObjectArray::FindObjectFast("ToggleSpeaking").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
@@ -104,6 +128,7 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, uint8_t>> Infos;
 
+		// on BPM its offset 0xB4
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), 0x1 });
 		Infos.push_back({ ObjectArray::FindObjectFast("SetViewTargetWithBlend").GetAddress(), 0x5 });
 		Infos.push_back({ ObjectArray::FindObjectFast("SetHapticsByValue").GetAddress(), 0x3 });
@@ -116,6 +141,8 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, uint16_t>> Infos;
 
+		// TODO: Fix (doesnt work rn, one byte off?)
+		// on BPM its offset 0xB5
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), 0x10 });
 		Infos.push_back({ ObjectArray::FindObjectFast("SetViewTargetWithBlend").GetAddress(), 0x15 });
 		Infos.push_back({ ObjectArray::FindObjectFast("SetHapticsByValue").GetAddress(), 0x9 });
@@ -130,6 +157,7 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, EClassCastFlags>> Infos;
 
+		// idk if this works on ue 4.25 and higher
 		Infos.push_back({ ObjectArray::FindObjectFast("Actor").GetAddress(), EClassCastFlags::AActor });
 		Infos.push_back({ ObjectArray::FindObjectFast("Class").GetAddress(), EClassCastFlags::UField | EClassCastFlags::UStruct | EClassCastFlags::UClass });
 		
@@ -140,6 +168,7 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
+		// on BPM its offset 0x118
 		Infos.push_back({ ObjectArray::FindObjectFast("Object").GetAddress(), ObjectArray::FindObjectFast("Default__Object").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("Field").GetAddress(), ObjectArray::FindObjectFast("Default__Field").GetAddress() });
 

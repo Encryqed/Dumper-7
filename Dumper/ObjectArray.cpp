@@ -5,7 +5,6 @@
 #include "Offsets.h"
 #include "Utils.h"
 
-
 /* Scuffed stuff up here */
 struct FChunkedFixedUObjectArray
 {
@@ -18,7 +17,7 @@ struct FChunkedFixedUObjectArray
 
 	inline bool IsValid()
 	{
-		if (NumChunks > 0x12 || NumChunks < 0x5)
+		if (NumChunks > 0x12 || NumChunks < 0x1)
 			return false;
 
 		if (MaxChunks > 0xD0 || MaxChunks < 0x18)
@@ -29,7 +28,6 @@ struct FChunkedFixedUObjectArray
 
 		if (((NumElements / 0x10000) + 1) != NumChunks || MaxElements / 0x10000 != MaxChunks)
 			return false;
-
 
 		if (IsBadReadPtr(Objects))
 			return false;
@@ -80,7 +78,6 @@ struct FFixedUObjectArray
 	}
 };
 
-
 uint8* ObjectArray::GObjects = nullptr;
 uint32 ObjectArray::NumElementsPerChunk = 0x10000;
 uint32 ObjectArray::SizeOfFUObjectItem = 0x18;
@@ -88,7 +85,7 @@ uint32 ObjectArray::SizeOfFUObjectItem = 0x18;
 /* We don't speak about this function... */
 void ObjectArray::Init()
 {
-	std::cout << "\nDumper-7 by Encryqed & me\n\n\n";
+	std::cout << "\nDumper-7 by me & you\n\n\n";
 
 	uintptr_t ImageBase = uintptr_t(GetModuleHandle(0));
 	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
@@ -110,6 +107,7 @@ void ObjectArray::Init()
 	}
 
 	std::cout << "Searching for GObjects...\n\n";
+
 	for (int i = 0; i < DataSize; i += 0x4)
 	{
 		auto FixedArray = reinterpret_cast<FFixedUObjectArray*>(DataSection + i);
@@ -123,7 +121,7 @@ void ObjectArray::Init()
 
 			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
 
-			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
+			std::cout << "[*] Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 			{
@@ -133,6 +131,7 @@ void ObjectArray::Init()
 				return *(void**)(*(uint64*)ObjectsArray + Index * FUObjectItemSize);
 
 			};
+
 			for (int i = 1; i <= 0x30; i += 4)
 			{
 				if (!IsBadReadPtr(*(void**)((uint8*)(GObjects)+i)))
@@ -141,7 +140,9 @@ void ObjectArray::Init()
 					break;
 				}
 			}
+
 			Off::InSDK::FUObjectItemSize = SizeOfFUObjectItem;
+
 			return;
 		}
 		else if (ChunkedArray->IsValid())
@@ -153,7 +154,7 @@ void ObjectArray::Init()
 
 			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
 
-			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
+			std::cout << "[*] Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 			{
@@ -165,6 +166,7 @@ void ObjectArray::Init()
 
 				return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray)+ChunkIndex) + InChunkIdx * FUObjectItemSize);
 			};
+
 			for (int i = 0x8; i <= 0x30; i += 4)
 			{
 				if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects)+i)))
@@ -173,13 +175,22 @@ void ObjectArray::Init()
 					break;
 				}
 			}
-			if (ObjectArray::GetByIndex(0x10401).GetIndex() != 0x10401)
+
+			if (ObjectArray::Num() > 0x10401)
 			{
-				NumElementsPerChunk = 0x10400;
+				if (ObjectArray::GetByIndex(0x10401).GetIndex() != 0x10401)
+				{
+					NumElementsPerChunk = 0x10400;
+				}
+			}
+			else
+			{
+				std::cout << "[!] Game has a too low GObjects count and therefore dumper 7 could not find out how many elements are per chunk!" << std::endl;
 			}
 
 			Off::InSDK::ChunkSize = NumElementsPerChunk;
 			Off::InSDK::FUObjectItemSize = SizeOfFUObjectItem;
+
 			return;
 		}
 	}
@@ -250,7 +261,7 @@ void ObjectArray::DumpObjects()
 
 	for (auto Object : ObjectArray())
 	{
-		DumpStream << "[" << (void*)(Object.GetIndex()) << "] " << Object.GetFullName() << "\n";
+		DumpStream << std::format("[{}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
 	}
 
 	DumpStream.close();
@@ -306,7 +317,7 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 								UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
 							}
 
-							if (S.HasMembers())
+							if (S.HasUMembers())
 								break;
 						}
 					}

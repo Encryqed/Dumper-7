@@ -1,10 +1,92 @@
 #pragma once
+
 #include <vector>
 #include <unordered_map>
 #include "Enums.h"
 #include "UnrealTypes.h"
 
 class UEClass;
+class UEFField;
+class UEObject;
+
+class UEFFieldClass
+{
+protected:
+	uint8* Class;
+
+public:
+
+	UEFFieldClass() = default;
+
+	UEFFieldClass(void* NewFieldClass)
+		: Class(reinterpret_cast<uint8*>(NewFieldClass))
+	{
+	}
+
+	UEFFieldClass(const UEFFieldClass& OldFieldClass)
+		: Class(reinterpret_cast<uint8*>(OldFieldClass.Class))
+	{
+	}
+
+	void* GetAddress();
+
+	uint64 GetId();
+	EFClassCastFlags GetCastFlags();
+	EClassFlags GetClassFlags();
+	UEFFieldClass GetSuper();
+	FName GetFName();
+
+	bool IsType(EFClassCastFlags Flags);
+	
+	std::string GetName();
+};
+
+class UEFField
+{
+private:
+	struct FFieldObjectStruct
+	{
+		UEFField* Field;
+		UEObject* Object;
+	};
+
+protected:
+	uint8* Field;
+
+public:
+
+	UEFField() = default;
+
+	UEFField(void* NewField)
+		: Field(reinterpret_cast<uint8*>(NewField))
+	{
+	}
+
+	UEFField(const UEFField& OldField)
+		: Field(reinterpret_cast<uint8*>(OldField.Field))
+	{
+	}
+
+	void* GetAddress();
+
+	EObjectFlags GetFlags();
+	FFieldObjectStruct GetOwner();
+	UEFFieldClass GetClass();
+	FName GetFName();
+	UEFField GetNext();
+
+	template<typename UEType>
+	UEType Cast() const;
+
+	bool IsOwnerUObject();
+	bool IsA(EFClassCastFlags Flags);
+
+	std::string GetName();
+
+	explicit operator bool();
+	bool operator==(const UEFField& Other) const;
+	bool operator!=(const UEFField& Other) const;
+};
 
 class UEObject
 {
@@ -92,9 +174,11 @@ public:
 public:
 	UEStruct GetSuper();
 	UEField GetChild();
+	UEFField GetChildProperties();
 	int32 GetStructSize();
 
-	bool HasMembers();
+	bool HasUMembers();
+	bool HasFMembers();
 };
 
 class UEFunction : public UEStruct
