@@ -121,7 +121,7 @@ void ObjectArray::Init()
 
 			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
 
-			std::cout << "[*] Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
+			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 			{
@@ -154,7 +154,7 @@ void ObjectArray::Init()
 
 			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
 
-			std::cout << "[*] Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
+			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 			{
@@ -280,11 +280,11 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 		if (Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
 			continue;
 
-		if (Object.IsA(EClassCastFlags::UStruct))
+		if (Object.IsA(EClassCastFlags::Struct))
 		{
 			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 
-			if (!Object.IsA(EClassCastFlags::UFunction))
+			if (!Object.IsA(EClassCastFlags::Function))
 			{
 				UEStruct ObjAsStruct = Object.Cast<UEStruct>();
 
@@ -292,11 +292,24 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 
 				if (UEStruct Super = ObjAsStruct.GetSuper())
 				{
-					for (UEField F = ObjAsStruct.GetChild(); F; F = F.GetNext())
+					if (Settings::Internal::bUseFProperty)
 					{
-						if (F.IsA(EClassCastFlags::UProperty) && F.Cast<UEProperty>().GetOffset() < LowestOffset)
+						for (UEFField Field = ObjAsStruct.GetChildProperties(); Field; Field = Field.GetNext())
 						{
-							LowestOffset = F.Cast<UEProperty>().GetOffset();
+							if (Field.IsA(EClassCastFlags::Property) && Field.Cast<UEProperty>().GetOffset() < LowestOffset)
+							{
+								LowestOffset = Field.Cast<UEProperty>().GetOffset();
+							}
+						}
+					}
+					else
+					{
+						for (UEField Field = ObjAsStruct.GetChild(); Field; Field = Field.GetNext())
+						{
+							if (Field.IsA(EClassCastFlags::Property) && Field.Cast<UEProperty>().GetOffset() < LowestOffset)
+							{
+								LowestOffset = Field.Cast<UEProperty>().GetOffset();
+							}
 						}
 					}
 
@@ -305,6 +318,7 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 						for (UEStruct S = Super; S; S = S.GetSuper())
 						{
 							auto It = UEStruct::StructSizes.find(S.GetIndex());
+
 							if (It != UEStruct::StructSizes.end())
 							{
 								if (It->second > LowestOffset)
@@ -317,18 +331,18 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 								UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
 							}
 
-							if (S.HasUMembers())
+							if (S.HasMembers())
 								break;
 						}
 					}
 				}
 			}
 		}
-		else if (Object.IsA(EClassCastFlags::UEnum))
+		else if (Object.IsA(EClassCastFlags::Enum))
 		{
 			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 		}
-		else if (Object.IsA(EClassCastFlags::UEnumProperty) && Object.Cast<UEEnumProperty>().GetSize() != 1)
+		else if (Object.IsA(EClassCastFlags::EnumProperty) && Object.Cast<UEEnumProperty>().GetSize() != 1)
 		{
 			UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
 		}
@@ -392,14 +406,36 @@ static UEType ObjectArray::FindObjectFastInOuter(std::string Name, std::string O
 	return UEType();
 }
 
+template<typename UEType>
+static UEType ObjectArray::FindMemberInObjectFast(std::string ObjectName, std::string MemberName)
+{
+	UEStruct Struct = ObjectArray::FindObjectFast(ObjectName).Cast<UEStruct>();
+
+	if (Settings::Internal::bUseFProperty)
+	{
+		for (UEFField Field = Struct.GetChildProperties(); Field; Field = Field.GetNext())
+		{
+			if (Field.GetName() == MemberName)
+			{
+				return Field.Cast<UEType>();
+			}
+		}
+
+		return UEType();
+	}
+
+	// probably FindObjectFastInOuter for ue4.24-
+	return UEType(FindObjectFastInOuter(MemberName, ObjectName).GetAddress());
+}
+
 UEClass ObjectArray::FindClass(std::string FullName)
 {
-	return FindObject<UEClass>(FullName, EClassCastFlags::UClass);
+	return FindObject<UEClass>(FullName, EClassCastFlags::Class);
 }
 
 UEClass ObjectArray::FindClassFast(std::string Name)
 {
-	return FindObjectFast<UEClass>(Name, EClassCastFlags::UClass);
+	return FindObjectFast<UEClass>(Name, EClassCastFlags::Class);
 }
 
 ObjectArray::ObjectsIterator ObjectArray::begin()
@@ -504,6 +540,7 @@ void TemplateTypeCreationForObjectArray(void)
 	ObjectArray::FindObjectFastInOuter<UESetProperty>("", "");
 	ObjectArray::FindObjectFastInOuter<UEEnumProperty>("", "");
 
+	ObjectArray::FindMemberInObjectFast<UEFField>("", "");
 
 	ObjectArray::GetByIndex<UEObject>(-1);
 	ObjectArray::GetByIndex<UEField>(-1);

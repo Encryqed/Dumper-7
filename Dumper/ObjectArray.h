@@ -35,6 +35,8 @@ public:
 	template<typename UEType = UEObject>
 	static UEType FindObjectFastInOuter(std::string Name, std::string Outer);
 
+	template<typename UEType = UEFField>
+	static UEType FindMemberInObjectFast(std::string ClassName, std::string MemberName);
 
 	static UEClass FindClass(std::string FullName);
 
