@@ -7,7 +7,7 @@ and also for some other games.
 ## Notes
 
 * Make sure when you use the sdk to initialize it first by calling `SDK::InitGObjects()`
-* Call functions from classes like "UKismetSystemLibrary" or "UGameplayStatics" only on their DefaultObject
+* Call functions from classes like `UKismetSystemLibrary` or `UGameplayStatics` only on their DefaultObject
 * For some odd reason, you can't call ProcessEvent in Debug Mode, so if you compile in debug just comment out the ProcessEvent call.
 ## Issues
 
