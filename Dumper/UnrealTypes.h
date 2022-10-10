@@ -139,7 +139,7 @@ public:
 	
 		Off::InSDK::AppendNameToString = uintptr_t(AppendString) - uintptr_t(GetModuleHandle(0));
 
-		std::cout << "[*] Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
+		std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
 	}
 
 	static void Init(int32 AppendStringOffset)
@@ -148,7 +148,7 @@ public:
 
 		Off::InSDK::AppendNameToString = AppendStringOffset;
 
-		std::cout << "[*] Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
+		std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
 	}
 
 	inline std::string ToString()

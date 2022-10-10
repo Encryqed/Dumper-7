@@ -27,34 +27,14 @@ DWORD MainThread(HMODULE Module)
 	auto t_1 = high_resolution_clock::now();
 	
 	std::cout << "Started Generation [Dumper-7]!\n";
-	
-	ObjectArray::Init();
-	FName::Init();
-	Off::Init();
+
+	Generator::Init();
 
 	ObjectArray::DumpObjects();
 
-	// this stuff here just for debug reasons 
-	//UEObject Vec4Object = ObjectArray::FindObject("ScriptStruct CoreUObject.Vector4");
-	/*UEObject Vec4Object = ObjectArray::FindObject("Class Engine.PlayerController");
-
-	std::cout << Vec4Object.Cast<UEStruct>().HasFMembers() << "\n" << std::endl;
-
-	std::cout << Vec4Object.GetFullName() << " has Members!\n";
-		
-	for (UEFField Field = Vec4Object.Cast<UEStruct>().GetChildProperties(); Field; Field = Field.GetNext())
-	{
-		if (Field.IsOwnerUObject())
-		{
-			std::cout << "->    " << Field.GetClass().GetName() << "." << Field.GetName() << std::endl;
-		}
-	}*/
-
-	/*Generator::Init();
-
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())
 	{
-		//Only Possible in Main()
+		// Only Possible in Main()
 		FString Name;
 		FString Version;
 		UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
@@ -72,14 +52,13 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
 	Generator::GenerateSDK();
-	
 
 	auto t_C = high_resolution_clock::now();
 	
 	auto ms_int_ = duration_cast<milliseconds>(t_C - t_1);
 	duration<double, std::milli> ms_double_ = t_C - t_1;
 	
-	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";*/
+	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 
 	while (true)
 	{

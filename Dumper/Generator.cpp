@@ -1,15 +1,10 @@
 #include "Generator.h"
 
-
 Generator::FunctionsMap Generator::PredefinedFunctions;
 Generator::MemberMap Generator::PredefinedMembers;
 
-
 void Generator::Init()
 {
-	ObjectArray::Init();
-	FName::Init();
-
 	/* manual overwrite */
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
 	//FName::Init(/*FName::AppendString*/);
@@ -19,6 +14,8 @@ void Generator::Init()
 	//FName::Init(0x211AF50);
 	//Off::InSDK::InitPE(0x43);
 
+	ObjectArray::Init();
+	FName::Init();
 	Off::Init();
 	Off::InSDK::InitPE();
 
@@ -134,7 +131,7 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 	std::ofstream HeaderStream(SdkPath / "SDK.hpp");
 
 	HeaderStream << "#pragma once\n\n";
-	HeaderStream << "// Made with <3 by Encryqed && me [Fischsalat]\n\n";
+	HeaderStream << "// Made with <3 by me [Encryqed] && you [Fischsalat]\n\n";
 
 	HeaderStream << std::format("// {}\n", Settings::GameName);
 	HeaderStream << std::format("// {}\n\n", Settings::GameVersion);
@@ -171,7 +168,6 @@ namespace Offsets
 	HeaderStream << "\n#include \"PropertyFixup.hpp\"\n";
 	HeaderStream << "\n#include \"SDK/" << (Settings::FilePrefix ? Settings::FilePrefix : "") << "Basic.hpp\"\n";
 
-
 	for (auto& Pack : Package::PackageSorter.AllDependencies)
 	{
 		std::string IncludesString;
@@ -193,20 +189,20 @@ namespace Offsets
 
 	HeaderStream.close();
 }
+
 void Generator::GenerateFixupFile(fs::path& SdkPath)
 {
 	std::ofstream FixupStream(SdkPath / "PropertyFixup.hpp");
 
 	FixupStream << "#pragma once\n\n";
 
-	FixupStream << "//Definitions for missing Properties\n\n";
+	FixupStream << "// Definitions for missing Properties\n\n";
 
 	for (auto& Property : UEProperty::UnknownProperties)
 	{
 		FixupStream << std::format("class {}\n{{\n\tunsigned __int8 Pad[0x{:X}];\n}};\n\n", Property.first, Property.second);
 	}
 }
-
 
 void Generator::InitPredefinedMembers()
 {
@@ -485,7 +481,6 @@ R"(
 		}
 	};
 }
-
 
 void Generator::GenerateBasicFile(fs::path& SdkPath)
 {

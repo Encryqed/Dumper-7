@@ -171,7 +171,7 @@ enum class EObjectFlags
 	RF_WillBeLoaded = 0x08000000, // This object was constructed during load and will be loaded shortly
 };
 
-enum class EFieldClassID : uint64_t
+enum class EFieldClassID : uint64
 {
 	Int8 = 1llu << 1,
 	Byte = 1llu << 6,

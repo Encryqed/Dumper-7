@@ -4,7 +4,6 @@
 #include "Settings.h"
 #include "Generator.h"
 
-
 std::ofstream Package::DebugAssertionStream;
 PackageDependencyManager Package::PackageSorter;
 
@@ -85,37 +84,37 @@ void PackageDependencyManager::GetIncludesForPackage(const DependencyInfo& Info,
 
 void PackageDependencyManager::GetObjectDependency(UEObject Obj, std::unordered_set<int32>& Store)
 {
-	if (Obj.IsA(EClassCastFlags::UFunction))
+	if (Obj.IsA(EClassCastFlags::Function))
 	{
 		for (UEField Field = Obj.Cast<UEStruct>().GetChild(); Field; Field = Field.GetNext())
 		{
 			PackageDependencyManager::GetObjectDependency(Field, Store);
 		}
 	}
-	if (Obj.IsA(EClassCastFlags::UStructProperty))
+	if (Obj.IsA(EClassCastFlags::StructProperty))
 	{
 		Store.insert(Obj.Cast<UEStructProperty>().GetUnderlayingStruct().GetIndex());
 	}
-	else if (Obj.IsA(EClassCastFlags::UEnumProperty))
+	else if (Obj.IsA(EClassCastFlags::EnumProperty))
 	{
 		Store.insert(Obj.Cast<UEEnumProperty>().GetEnum().GetIndex());
 	}
-	else if (Obj.IsA(EClassCastFlags::UByteProperty))
+	else if (Obj.IsA(EClassCastFlags::ByteProperty))
 	{
 		if (UEObject Enum = Obj.Cast<UEByteProperty>().GetEnum())
 		{
 			Store.insert(Enum.GetIndex());
 		}
 	}
-	else if (Obj.IsA(EClassCastFlags::UArrayProperty))
+	else if (Obj.IsA(EClassCastFlags::ArrayProperty))
 	{
-		GetObjectDependency(Obj.Cast<UEArrayProperty>().GetInnerProperty(), Store);
+		GetObjectDependency(Obj.Cast<UEArrayProperty>().GetInnerProperty().GetAddress(), Store);
 	}
-	else if (Obj.IsA(EClassCastFlags::USetProperty))
+	else if (Obj.IsA(EClassCastFlags::SetProperty))
 	{
 		GetObjectDependency(Obj.Cast<UESetProperty>().GetElementProperty().Cast<UEField>(), Store);
 	}
-	else if (Obj.IsA(EClassCastFlags::UMapProperty))
+	else if (Obj.IsA(EClassCastFlags::MapProperty))
 	{
 		GetObjectDependency(Obj.Cast<UEMapProperty>().GetKeyProperty().Cast<UEField>(), Store);
 		GetObjectDependency(Obj.Cast<UEMapProperty>().GetValueProperty().Cast<UEField>(), Store);
@@ -152,9 +151,9 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 		if (!Object)
 			continue;
 
-		const bool bIsClass = Object.IsA(EClassCastFlags::UClass);
+		const bool bIsClass = Object.IsA(EClassCastFlags::Class);
 
-		if (Object.IsA(EClassCastFlags::UClass) || (Object.IsA(EClassCastFlags::UStruct) && !Object.IsA(EClassCastFlags::UFunction)))
+		if (Object.IsA(EClassCastFlags::Class) || (Object.IsA(EClassCastFlags::Struct) && !Object.IsA(EClassCastFlags::Function)))
 		{
 			UEStruct Struct = Object.Cast<UEStruct>();
 
@@ -174,8 +173,8 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 
 				UEObject Outermost = Obj.GetOutermost();
 
-				const bool bDependencyIsClass = Obj.IsA(EClassCastFlags::UClass);
-				const bool bDependencyIsStruct = Obj.IsA(EClassCastFlags::UStruct) && !bDependencyIsClass;
+				const bool bDependencyIsClass = Obj.IsA(EClassCastFlags::Class);
+				const bool bDependencyIsStruct = Obj.IsA(EClassCastFlags::Struct) && !bDependencyIsClass;
 
 				if (PackageObject != Outermost)
 				{
@@ -218,15 +217,15 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 		if (!Object)
 			continue;
 
-		if (Object.IsA(EClassCastFlags::UEnum))
+		if (Object.IsA(EClassCastFlags::Enum))
 		{
 			GenerateEnum(Object.Cast<UEEnum&>());
 		}
-		else if (Object.IsA(EClassCastFlags::UClass))
+		else if (Object.IsA(EClassCastFlags::Class))
 		{
 			ClassSorter.GenerateClassSorted(*this, Index);
 		}
-		else if (Object.IsA(EClassCastFlags::UStruct) && !Object.IsA(EClassCastFlags::UFunction))
+		else if (Object.IsA(EClassCastFlags::Struct) && !Object.IsA(EClassCastFlags::Function))
 		{
 			StructSorter.GenerateStructSorted(*this, Index);
 		}
@@ -235,7 +234,7 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 
 void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
 {
-	const bool bIsSuperFunction = Super.IsA(EClassCastFlags::UFunction);
+	const bool bIsSuperFunction = Super.IsA(EClassCastFlags::Function);
 
 	bool bLastPropertyWasBitField = false;
 
@@ -272,7 +271,7 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 	if (Settings::Debug::bGenerateAssertionFile)
 	{
-		if (!Super.IsA(EClassCastFlags::UFunction) && !MemberVector.empty())
+		if (!Super.IsA(EClassCastFlags::Function) && !MemberVector.empty())
 		{
 			Package::DebugAssertionStream << "\n//" << SuperName << "\n";
 			Package::DebugAssertionStream << std::format("static_assert(sizeof({}) == 0x{:04X}, \"Class {} has wrong size!\");\n", SuperName, StructSize, SuperName);
@@ -285,7 +284,7 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 		std::string Name = Property.GetValidName();
 
 		const int Offset = Property.GetOffset();
-		const int Size = !Property.IsA(EClassCastFlags::UStructProperty) ? Property.GetSize() : Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetStructSize();
+		const int Size = !Property.IsA(EClassCastFlags::StructProperty) ? Property.GetSize() : Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetStructSize();
 
 		std::string Comment = std::format("0x{:X}(0x{:X})({})", Offset, Size, Property.StringifyFlags());
 
@@ -301,7 +300,7 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 			}
 		}
 
-		if (Property.IsA(EClassCastFlags::UBoolProperty) && !Property.Cast<UEBoolProperty>().IsNativeBool())
+		if (Property.IsA(EClassCastFlags::BoolProperty) && !Property.Cast<UEBoolProperty>().IsNativeBool())
 		{
 			Name += " : 1";
 
@@ -335,7 +334,7 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 		if (Settings::Debug::bGenerateAssertionFile)
 		{
-			if (!Super.IsA(EClassCastFlags::UFunction) && PrevBoolPropertyEnd != Offset)
+			if (!Super.IsA(EClassCastFlags::Function) && PrevBoolPropertyEnd != Offset)
 			{
 				Package::DebugAssertionStream << std::format("static_assert(offsetof({}, {}) == 0x{:04X}, \"Wrong offset on {}::{}!\");\n", SuperName, Name, Offset, SuperName, Name);
 			}
@@ -365,7 +364,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 
 	bool bHasRetType = false;
 
-	for (UEProperty Param = Function.GetChild().Cast<UEProperty>(); Param; Param = Param.GetNext().Cast<UEProperty>())
+	for (UEProperty Param : Function.GetProperties())
 	{
 		bool bIsRef = false;
 		bool bIsOut = false;
@@ -379,6 +378,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 			bIsRef = true;
 			bIsOut = true;
 		}
+
 		if (!bIsRet && !bIsRef && Param.HasPropertyFlags(EPropertyFlags::OutParm))
 		{
 			Type += "*";
@@ -386,7 +386,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 			OutPtrParamNames.push_back(Param.GetValidName());
 		}
 
-		if (!bIsRet && !bIsOut && !bIsRef && (Param.IsA(EClassCastFlags::UStructProperty) || Param.IsA(EClassCastFlags::UArrayProperty) || Param.IsA(EClassCastFlags::UStrProperty)))
+		if (!bIsRet && !bIsOut && !bIsRef && (Param.IsA(EClassCastFlags::StructProperty) || Param.IsA(EClassCastFlags::ArrayProperty) || Param.IsA(EClassCastFlags::StrProperty)))
 		{
 			Type += "&";
 
@@ -403,14 +403,14 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 			Params.push_back(Types::Parameter(Type, Param.GetValidName(), bIsOut && !bIsRef));
 		}
 	}
-
+	
 	Types::Function Func(ReturnType, FunctionName, Super.GetCppName(), Params);
 
 	Func.AddComment(Function.GetFullName());
 	Func.AddComment("(" + Function.StringifyFlags() + ")");
 	Func.AddComment("Parameters:");
 
-	for (UEProperty Param = Function.GetChild().Cast<UEProperty>(); Param; Param = Param.GetNext().Cast<UEProperty>())
+	for (UEProperty Param : Function.GetProperties())
 	{
 		Func.AddComment(std::format("{:{}}{:{}}({})", Param.GetCppType(), 35, Param.GetValidName(), 65, Param.StringifyFlags()));
 	}
@@ -467,6 +467,7 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 	int SuperSize = 0;
 
 	auto It = UEStruct::StructSizes.find(Struct.GetIndex());
+
 	if (It != UEStruct::StructSizes.end())
 	{
 		Size = It->second;
@@ -482,6 +483,7 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 			UEObject SuperPackage = Super.GetOutermost();
 
 			auto It = UEStruct::StructSizes.find(Super.GetIndex());
+
 			if (It != UEStruct::StructSizes.end())
 			{
 				SuperSize = It->second;
@@ -492,22 +494,14 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 	RetStruct.AddComment(std::format("0x{:X} (0x{:X} - 0x{:X})", Size - SuperSize, Size, SuperSize));
 	RetStruct.AddComment(Struct.GetFullName());
 
-	std::vector<UEProperty> Properties;
+	std::vector<UEProperty> Properties = Struct.GetProperties();
 
 	static int NumProps = 0;
 	static int NumFuncs = 0;
 
-	for (UEField Child = Struct.GetChild(); Child; Child = Child.GetNext())
-	{
-		if (Child.IsA(EClassCastFlags::UProperty))
-		{
-			Properties.push_back(Child.Cast<UEProperty>());
-		}
-	}
-
 	std::sort(Properties.begin(), Properties.end(), [](UEProperty Left, UEProperty Right) -> bool
 		{
-			if (Left.IsA(EClassCastFlags::UBoolProperty) && Right.IsA(EClassCastFlags::UBoolProperty))
+			if (Left.IsA(EClassCastFlags::BoolProperty) && Right.IsA(EClassCastFlags::BoolProperty))
 			{
 				if (Left.GetOffset() == Right.GetOffset())
 				{
@@ -536,6 +530,7 @@ Types::Class Package::GenerateClass(UEClass& Class)
 	int SuperSize = 0;
 
 	auto It = UEStruct::StructSizes.find(Class.GetIndex());
+
 	if (It != UEStruct::StructSizes.end())
 	{
 		Size = It->second;
@@ -547,6 +542,7 @@ Types::Class Package::GenerateClass(UEClass& Class)
 		SuperSize = Super.GetStructSize();
 
 		auto It = UEStruct::StructSizes.find(Super.GetIndex());
+
 		if (It != UEStruct::StructSizes.end())
 		{
 			SuperSize = It->second;
@@ -556,26 +552,22 @@ Types::Class Package::GenerateClass(UEClass& Class)
 	RetClass.AddComment(std::format("0x{:X} (0x{:X} - 0x{:X})", Size - SuperSize, Size, SuperSize));
 	RetClass.AddComment(Class.GetFullName());
 
-	std::vector<UEProperty> Properties;
+	std::vector<UEProperty> Properties = Class.GetProperties();
 
 	static int NumProps = 0;
 	static int NumFuncs = 0;
-
+	
 	for (UEField Child = Class.GetChild(); Child; Child = Child.GetNext())
 	{
-		if (Child.IsA(EClassCastFlags::UProperty))
-		{
-			Properties.push_back(Child.Cast<UEProperty>());
-		}
-		else if (Child.IsA(EClassCastFlags::UFunction))
+		if (Child.IsA(EClassCastFlags::Function))
 		{
 			RetClass.AddFunction(GenerateFunction(Child.Cast<UEFunction&>(), Class));
 		}
 	}
-
+	
 	std::sort(Properties.begin(), Properties.end(), [](UEProperty Left, UEProperty Right) -> bool
 		{
-			if (Left.IsA(EClassCastFlags::UBoolProperty) && Right.IsA(EClassCastFlags::UBoolProperty))
+			if (Left.IsA(EClassCastFlags::BoolProperty) && Right.IsA(EClassCastFlags::BoolProperty))
 			{
 				if (Left.GetOffset() == Right.GetOffset())
 				{
@@ -632,7 +624,6 @@ Types::Enum Package::GenerateEnum(UEEnum& Enum)
 	if (EnumName.find("ERaMaterialName") != -1)
 		Enm.FixWindowsConstant("TRANSPARENT");
 
-
 	AllEnums.push_back(Enm);
 
 	return Enm;
@@ -647,7 +638,7 @@ Types::Member Package::GenerateBytePadding(const int32 Offset, const int32 PadSi
 
 Types::Member Package::GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
-	static int BitPadNum = 0;
+	static uint32 BitPadNum = 0;
 
 	return Types::Member("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::move(Reason));
 }

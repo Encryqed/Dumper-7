@@ -1,8 +1,8 @@
+#include <format>
+
 #include "UnrealObjects.h"
 #include "Offsets.h"
 #include "ObjectArray.h"
-
-#include <format>
 
 std::unordered_map<int32, std::string> UEEnum::BigEnums;
 std::unordered_map<std::string, uint32> UEProperty::UnknownProperties;
@@ -13,14 +13,14 @@ void* UEFFieldClass::GetAddress()
 	return Class;
 }
 
-uint64 UEFFieldClass::GetId()
+EFieldClassID UEFFieldClass::GetId()
 {
-	return *reinterpret_cast<uint64*>(Class + Off::FFieldClass::Id);
+	return *reinterpret_cast<EFieldClassID*>(Class + Off::FFieldClass::Id);
 }
 
-EFClassCastFlags UEFFieldClass::GetCastFlags()
+EClassCastFlags UEFFieldClass::GetCastFlags()
 {
-	return *reinterpret_cast<EFClassCastFlags*>(Class + Off::FFieldClass::Id);
+	return *reinterpret_cast<EClassCastFlags*>(Class + Off::FFieldClass::CastFlags);
 }
 
 EClassFlags UEFFieldClass::GetClassFlags()
@@ -38,7 +38,7 @@ FName UEFFieldClass::GetFName()
 	return *reinterpret_cast<FName*>(Class + Off::FFieldClass::Name);
 }
 
-bool UEFFieldClass::IsType(EFClassCastFlags Flags)
+bool UEFFieldClass::IsType(EClassCastFlags Flags)
 {
 	return GetCastFlags() & Flags;
 }
@@ -94,14 +94,67 @@ bool UEFField::IsOwnerUObject()
 	return false;
 }
 
-bool UEFField::IsA(EFClassCastFlags Flags)
+bool UEFField::IsA(EClassCastFlags Flags)
 {
-	return (Flags != EFClassCastFlags::None ? GetClass().IsType(Flags) : true);
+	return (Flags != EClassCastFlags::None ? GetClass().IsType(Flags) : true);
 }
 
 std::string UEFField::GetName()
 {
 	return Field ? GetFName().ToString() : "None";
+}
+
+std::string UEFField::GetValidName()
+{
+	std::string Name = GetName();
+
+	char& FirstChar = Name[0];
+
+	if (Name == "bool")
+	{
+		FirstChar -= 0x20;
+
+		return Name;
+	}
+
+	if (Name == "TRUE")
+		return "TURR";
+
+	if (FirstChar <= '9' && FirstChar >= '0')
+		Name = '_' + Name;
+
+	// this way I don't need to bother checking for c++ types (except bool) like int in the names
+	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
+		FirstChar = FirstChar - 0x20;
+
+	for (char& c : Name)
+	{
+		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
+		{
+			c = '_';
+		}
+	}
+
+	return Name;
+}
+
+std::string UEFField::GetCppName()
+{
+	static UEClass ActorClass = ObjectArray::FindClassFast("Actor");
+
+	std::string Temp = GetValidName();
+
+	if (IsA(EClassCastFlags::Class))
+	{
+		if (Cast<UEClass>().HasType(ActorClass))
+		{
+			return 'A' + Temp;
+		}
+
+		return 'U' + Temp;
+	}
+
+	return 'F' + Temp;
 }
 
 UEFField::operator bool()
@@ -202,7 +255,7 @@ std::string UEObject::GetValidName()
 	if (FirstChar <= '9' && FirstChar >= '0')
 		Name = '_' + Name;
 
-	//this way I don't need to bother checking for c++ types (except bool) like int in the names
+	// this way I don't need to bother checking for c++ types (except bool) like int in the names
 	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
 		FirstChar = FirstChar - 0x20;
 
@@ -223,7 +276,7 @@ std::string UEObject::GetCppName()
 
 	std::string Temp = GetValidName();
 
-	if (this->IsA(EClassCastFlags::UClass))
+	if (this->IsA(EClassCastFlags::Class))
 	{
 		if (this->Cast<UEClass>().HasType(ActorClass))
 		{
@@ -367,31 +420,58 @@ int32 UEStruct::GetStructSize()
 	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
 }
 
-bool UEStruct::HasUMembers()
+std::vector<UEProperty> UEStruct::GetProperties()
 {
-	if (!Object)
-		return false;
+	std::vector<UEProperty> Properties;
 
-	for (UEField F = GetChild(); F; F = F.GetNext())
+	if (Settings::Internal::bUseFProperty)
 	{
-		if (F.IsA(EClassCastFlags::UProperty))
-			return true;
+		for (UEFField Field = GetChildProperties(); Field; Field = Field.GetNext())
+		{
+			if (Field.IsA(EClassCastFlags::Property))
+			{
+				Properties.push_back(Field.Cast<UEProperty>());
+			}
+		}
+
+		return Properties;
 	}
 
-	return false;
+	for (UEField Field = GetChild(); Field; Field = Field.GetNext())
+	{
+		if (Field.IsA(EClassCastFlags::Property))
+		{
+			Properties.push_back(Field.Cast<UEProperty>());
+		}
+	}
+
+	return Properties;
 }
 
-bool UEStruct::HasFMembers()
+bool UEStruct::HasMembers()
 {
-	// idk why but that doesnt seem to work (or i am just stupid)
-
 	if (!Object)
 		return false;
 
-	for (UEFField Field = GetChildProperties(); Field; Field = Field.GetNext())
+	if (Settings::Internal::bUseFProperty)
 	{
-		if (Field.IsA(EFClassCastFlags::FProperty))
-			return true;
+		for (UEFField Field = GetChildProperties(); Field; Field = Field.GetNext())
+		{
+			if (Field.IsA(EClassCastFlags::Property))
+			{
+				return true;
+			}
+		}
+	}
+	else
+	{
+		for (UEField F = GetChild(); F; F = F.GetNext())
+		{
+			if (F.IsA(EClassCastFlags::Property))
+			{
+				return true;
+			}
+		}
 	}
 
 	return false;
@@ -428,19 +508,20 @@ UEObject UEClass::GetDefaultObject()
 
 UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string& FuncName)
 {
-	for(UEStruct Struct = *this; Struct; Struct = Struct.GetSuper())
+	for (UEStruct Struct = *this; Struct; Struct = Struct.GetSuper())
 	{
 		if (Struct.GetName() == ClassName)
 		{
 			for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
 			{
-				if (Field.IsA(EClassCastFlags::UFunction) && Field.GetName() == FuncName)
+				if (Field.IsA(EClassCastFlags::Function) && Field.GetName() == FuncName)
 				{
 					return Field.Cast<UEFunction>();
 				}	
 			}
 		}
 	}
+
 	return nullptr;
 }
 
@@ -464,19 +545,60 @@ std::string UEFunction::GetParamStructName()
 	return GetOuter().GetCppName() + "_" + GetValidName() + "_Params";
 }
 
+void* UEProperty::GetAddress()
+{
+	return Base;
+}
+
+std::pair<UEClass, UEFField> UEProperty::GetClass()
+{
+	if (Settings::Internal::bUseFProperty)
+	{
+		return std::pair<UEClass, UEFField>(UEClass(nullptr), UEFField(Base));
+	}
+
+	return std::pair<UEClass, UEFField>(UEClass(Base + Off::UObject::Class), UEFField(nullptr));
+}
+	
+template<typename UEType>
+inline UEType UEProperty::Cast()
+{
+	return UEType(Base);
+}
+
+bool UEProperty::IsA(EClassCastFlags TypeFlags)
+{
+	if (GetClass().first)
+	{
+		return GetClass().first.IsA(TypeFlags);
+	}
+
+	return GetClass().second.IsA(TypeFlags);
+}
+
+FName UEProperty::GetFName()
+{
+	if (Settings::Internal::bUseFProperty)
+	{
+		return *reinterpret_cast<FName*>(Base + Off::FField::Name);
+	}
+
+	return *reinterpret_cast<FName*>(Base + Off::UObject::Name);
+}
+
 int32 UEProperty::GetSize()
 {
-	return *reinterpret_cast<int32*>(Object + Off::UProperty::ElementSize);
+	return *reinterpret_cast<int32*>(Base + Off::UProperty::ElementSize);
 }
 
 int32 UEProperty::GetOffset()
 {
-	return *reinterpret_cast<int32*>(Object + Off::UProperty::Offset_Internal);
+	return *reinterpret_cast<int32*>(Base + Off::UProperty::Offset_Internal);
 }
 
 EPropertyFlags UEProperty::GetPropertyFlags()
 {
-	return *reinterpret_cast<EPropertyFlags*>(Object + Off::UProperty::PropertyFlags);
+	return *reinterpret_cast<EPropertyFlags*>(Base + Off::UProperty::PropertyFlags);
 }
 
 bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag)
@@ -484,27 +606,66 @@ bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag)
 	return GetPropertyFlags() & PropertyFlag;
 }
 
+std::string UEProperty::GetName()
+{
+	return Base ? GetFName().ToString() : "None";
+}
+
+std::string UEProperty::GetValidName()
+{
+	std::string Name = GetName();
+
+	char& FirstChar = Name[0];
+
+	if (Name == "bool")
+	{
+		FirstChar -= 0x20;
+
+		return Name;
+	}
+
+	if (Name == "TRUE")
+		return "TURR";
+
+	if (FirstChar <= '9' && FirstChar >= '0')
+		Name = '_' + Name;
+
+	// this way I don't need to bother checking for c++ types (except bool) like int in the names
+	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
+		FirstChar = FirstChar - 0x20;
+
+	for (char& c : Name)
+	{
+		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
+		{
+			c = '_';
+		}
+	}
+
+	return Name;
+}
+
 std::string UEProperty::GetCppType()
 {
-	EClassCastFlags TypeFlags = GetClass().GetCastFlags();
+	EClassCastFlags TypeFlags = this->GetClass().first ? this->GetClass().first.GetCastFlags() : this->GetClass().second.GetClass().GetCastFlags();
 
-	if (TypeFlags & EClassCastFlags::UByteProperty)
+	if (TypeFlags & EClassCastFlags::ByteProperty)
 	{
 		return Cast<UEByteProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::UUInt16Property)
+	else if (TypeFlags &  EClassCastFlags::UInt16Property)
 	{
 		return "uint16";
 	}
-	else if (TypeFlags &  EClassCastFlags::UUInt32Property)
+	else if (TypeFlags &  EClassCastFlags::UInt32Property)
 	{
 		return "uint32";
 	}
-	else if (TypeFlags &  EClassCastFlags::UUInt64Property)
+	else if (TypeFlags &  EClassCastFlags::UInt64Property)
 	{
 		return "uint64";
 	}
-	else if (TypeFlags & EClassCastFlags::UInt8Property)
+	else if (TypeFlags & EClassCastFlags::Int8Property)
 	{
 		return "int8";
 	}
@@ -512,7 +673,7 @@ std::string UEProperty::GetCppType()
 	{
 		return "int16";
 	}
-	else if (TypeFlags &  EClassCastFlags::UIntProperty)
+	else if (TypeFlags &  EClassCastFlags::IntProperty)
 	{
 		return "int32";
 	}
@@ -520,77 +681,77 @@ std::string UEProperty::GetCppType()
 	{
 		return "int64";
 	}
-	else if (TypeFlags &  EClassCastFlags::UFloatProperty)
+	else if (TypeFlags &  EClassCastFlags::FloatProperty)
 	{
 		return "float";
 	}
-	else if (TypeFlags &  EClassCastFlags::UDoubleProperty)
+	else if (TypeFlags &  EClassCastFlags::DoubleProperty)
 	{
 		return "double";
 	}
-	else if (TypeFlags &  EClassCastFlags::UClassProperty)
+	else if (TypeFlags &  EClassCastFlags::ClassProperty)
 	{
 		return Cast<UEClassProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::UNameProperty)
+	else if (TypeFlags &  EClassCastFlags::NameProperty)
 	{
 		return "class FName";
 	}
-	else if (TypeFlags &  EClassCastFlags::UStrProperty)
+	else if (TypeFlags &  EClassCastFlags::StrProperty)
 	{
 		return "class FString";
 	}
-	else if (TypeFlags & EClassCastFlags::UTextProperty)
+	else if (TypeFlags & EClassCastFlags::TextProperty)
 	{
 		return "class FText";
 	}
-	else if (TypeFlags &  EClassCastFlags::UBoolProperty)
+	else if (TypeFlags &  EClassCastFlags::BoolProperty)
 	{
 		return Cast<UEBoolProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::UStructProperty)
+	else if (TypeFlags &  EClassCastFlags::StructProperty)
 	{
 		return Cast<UEStructProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::UArrayProperty)
+	else if (TypeFlags &  EClassCastFlags::ArrayProperty)
 	{
 		return Cast<UEArrayProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::UWeakObjectProperty)
+	else if (TypeFlags &  EClassCastFlags::WeakObjectProperty)
 	{
 		return Cast<UEWeakObjectProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::ULazyObjectProperty)
+	else if (TypeFlags &  EClassCastFlags::LazyObjectProperty)
 	{
 		return Cast<UELazyObjectProperty>().GetCppType();
 	}
-	else if (TypeFlags & EClassCastFlags::USoftClassProperty)
+	else if (TypeFlags & EClassCastFlags::SoftClassProperty)
 	{
 		return Cast<UESoftClassProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::USoftObjectProperty)
+	else if (TypeFlags &  EClassCastFlags::SoftObjectProperty)
 	{
 		return Cast<UESoftObjectProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::UObjectProperty)
+	else if (TypeFlags &  EClassCastFlags::ObjectProperty)
 	{
 		return Cast<UEObjectProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::UMapProperty)
+	else if (TypeFlags &  EClassCastFlags::MapProperty)
 	{
 		return Cast<UEMapProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::USetProperty)
+	else if (TypeFlags &  EClassCastFlags::SetProperty)
 	{
 		return Cast<UESetProperty>().GetCppType();
 	}
-	else if (TypeFlags &  EClassCastFlags::UEnumProperty)
+	else if (TypeFlags &  EClassCastFlags::EnumProperty)
 	{
 		return Cast<UEEnumProperty>().GetCppType();
 	}
 	else
 	{
-		std::string CppName = GetClass().GetCppName() + "_";
+		std::string CppName = GetClass().first ? GetClass().first.GetCppName() + "_" : GetClass().second.GetCppName() + "_";
 
 		UnknownProperties.insert({ CppName, GetSize() });
 
@@ -605,7 +766,7 @@ std::string UEProperty::StringifyFlags()
 
 UEEnum UEByteProperty::GetEnum()
 {
-	return UEEnum(*reinterpret_cast<void**>(Object + Off::UByteProperty::Enum));
+	return UEEnum(*reinterpret_cast<void**>(Base + Off::UByteProperty::Enum));
 }
 
 std::string UEByteProperty::GetCppType()
@@ -620,8 +781,7 @@ std::string UEByteProperty::GetCppType()
 
 uint8 UEBoolProperty::GetFieldMask()
 {
-	return reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Object + Off::UBoolProperty::Base)->FieldMask;
-
+	return reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Base + Off::UBoolProperty::Base)->FieldMask;
 }
 
 uint8 UEBoolProperty::GetBitIndex()
@@ -645,7 +805,7 @@ uint8 UEBoolProperty::GetBitIndex()
 
 bool UEBoolProperty::IsNativeBool()
 {
-	return reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Object + Off::UBoolProperty::Base)->FieldMask == 0xFF;
+	return reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Base + Off::UBoolProperty::Base)->FieldMask == 0xFF;
 }
 
 std::string UEBoolProperty::GetCppType()
@@ -655,7 +815,7 @@ std::string UEBoolProperty::GetCppType()
 
 UEClass UEObjectProperty::GetPropertyClass()
 {
-	return UEClass(*reinterpret_cast<void**>(Object + Off::UObjectProperty::PropertyClass));
+	return UEClass(*reinterpret_cast<void**>(Base + Off::UObjectProperty::PropertyClass));
 }
 
 std::string UEObjectProperty::GetCppType()
@@ -665,7 +825,7 @@ std::string UEObjectProperty::GetCppType()
 
 UEClass UEClassProperty::GetMetaClass()
 {
-	return UEClass(*reinterpret_cast<void**>(Object + Off::UClassProperty::MetaClass));
+	return UEClass(*reinterpret_cast<void**>(Base + Off::UClassProperty::MetaClass));
 }
 
 std::string UEClassProperty::GetCppType()
@@ -695,7 +855,7 @@ std::string UESoftClassProperty::GetCppType()
 
 UEStruct UEStructProperty::GetUnderlayingStruct()
 {
-	return UEStruct(*reinterpret_cast<void**>(Object + Off::UStructProperty::Struct));
+	return UEStruct(*reinterpret_cast<void**>(Base + Off::UStructProperty::Struct));
 }
 
 std::string UEStructProperty::GetCppType()
@@ -705,7 +865,7 @@ std::string UEStructProperty::GetCppType()
 
 UEProperty UEArrayProperty::GetInnerProperty()
 {
-	return UEProperty(*reinterpret_cast<void**>(Object + Off::UArrayProperty::Inner));
+	return UEProperty(*reinterpret_cast<void**>(Base + Off::UArrayProperty::Inner));
 }
 
 std::string UEArrayProperty::GetCppType()
@@ -715,11 +875,11 @@ std::string UEArrayProperty::GetCppType()
 
 UEProperty UEMapProperty::GetKeyProperty()
 {
-	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Object + Off::UMapProperty::Base)->KeyProperty);
+	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Base + Off::UMapProperty::Base)->KeyProperty);
 }
 UEProperty UEMapProperty::GetValueProperty()
 {
-	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Object + Off::UMapProperty::Base)->ValueProperty);
+	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Base + Off::UMapProperty::Base)->ValueProperty);
 }
 
 std::string UEMapProperty::GetCppType()
@@ -729,7 +889,7 @@ std::string UEMapProperty::GetCppType()
 
 UEProperty UESetProperty::GetElementProperty()
 {
-	return UEProperty(*reinterpret_cast<void**>(Object + Off::USetProperty::ElementProp));
+	return UEProperty(*reinterpret_cast<void**>(Base + Off::USetProperty::ElementProp));
 }
 
 std::string UESetProperty::GetCppType()
@@ -739,12 +899,12 @@ std::string UESetProperty::GetCppType()
 
 UEProperty UEEnumProperty::GetUnderlayingProperty()
 {
-	return UEProperty(reinterpret_cast<Off::UEnumProperty::UEnumPropertyBase*>(Object + Off::UEnumProperty::Base)->UnderlayingProperty);
+	return UEProperty(reinterpret_cast<Off::UEnumProperty::UEnumPropertyBase*>(Base + Off::UEnumProperty::Base)->UnderlayingProperty);
 }
 
 UEEnum UEEnumProperty::GetEnum()
 {
-	return UEEnum(reinterpret_cast<Off::UEnumProperty::UEnumPropertyBase*>(Object + Off::UEnumProperty::Base)->Enum);
+	return UEEnum(reinterpret_cast<Off::UEnumProperty::UEnumPropertyBase*>(Base + Off::UEnumProperty::Base)->Enum);
 }
 
 std::string UEEnumProperty::GetCppType()
@@ -762,10 +922,35 @@ void TemplateTypeCreationForUnrealObjects(void)
 {
 	UEObject Dummy(nullptr);
 	UEFField FDummy(nullptr);
+	UEProperty PDummy(nullptr);
+
+	PDummy.Cast<UEField>();
+
+	PDummy.Cast<UEField&>();
 
 	FDummy.Cast<UEFField>();
+	FDummy.Cast<UEProperty>();
+	FDummy.Cast<UEByteProperty>();
+	FDummy.Cast<UEBoolProperty>();
+	FDummy.Cast<UEObjectProperty>();
+	FDummy.Cast<UEClassProperty>();
+	FDummy.Cast<UEStructProperty>();
+	FDummy.Cast<UEArrayProperty>();
+	FDummy.Cast<UEMapProperty>();
+	FDummy.Cast<UESetProperty>();
+	FDummy.Cast<UEEnumProperty>();
 
 	FDummy.Cast<UEFField&>();
+	FDummy.Cast<UEProperty&>();
+	FDummy.Cast<UEByteProperty&>();
+	FDummy.Cast<UEBoolProperty&>();
+	FDummy.Cast<UEObjectProperty&>();
+	FDummy.Cast<UEClassProperty&>();
+	FDummy.Cast<UEStructProperty&>();
+	FDummy.Cast<UEArrayProperty&>();
+	FDummy.Cast<UEMapProperty&>();
+	FDummy.Cast<UESetProperty&>();
+	FDummy.Cast<UEEnumProperty&>();
 
 	Dummy.Cast<UEObject>();
 	Dummy.Cast<UEField>();

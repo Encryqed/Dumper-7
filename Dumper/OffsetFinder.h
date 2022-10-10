@@ -1,14 +1,12 @@
 #pragma once
+
 #include <vector>
 #include "ObjectArray.h"
 
 namespace OffsetFinder
 {
-
-	inline constexpr const int MaxOffset = 0x1A0;
-
 	template<int Alignement = 4, typename T>
-	inline int32_t FindOffset(std::vector<std::pair<void*, T>>& ObjectValuePair)
+	inline int32_t FindOffset(std::vector<std::pair<void*, T>>& ObjectValuePair, int MaxOffset = 0x1A0)
 	{
 		int32_t HighestFoundOffset = 0x28;
 
@@ -37,7 +35,6 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		// on BPM its offset 0x48
 		Infos.push_back({ ObjectArray::FindObjectFast("ENetRole").GetAddress(), 0x5 });			
 		Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery").GetAddress(), 0x22 }); 
 
@@ -49,19 +46,17 @@ namespace OffsetFinder
 		return Ret;
 	}
 
-
 	/* UStruct */
 	inline int32_t FindSuperOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		// on BPM its offset 0x40
 		Infos.push_back({ ObjectArray::FindObjectFast("Struct").GetAddress(), ObjectArray::FindObjectFast("Field").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("Class").GetAddress(), ObjectArray::FindObjectFast("Struct").GetAddress() });
 		
 		// Thanks to the ue4 dev who decided UStruct should be spelled Ustruct
-		if (Infos[1].second == nullptr)
-			Infos[1].second = ObjectArray::FindObjectFast("struct").GetAddress();
+		if (Infos[0].first == nullptr)
+			Infos[0].first = Infos[1].second = ObjectArray::FindObjectFast("struct").GetAddress();
 
 		return FindOffset(Infos);
 	}
@@ -70,31 +65,30 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		// idk if these work on ue 4.24 and lower
-		// on BPM its offset 0x48
-		Infos.push_back({
-			ObjectArray::FindObjectFast("PlayerController").GetAddress(),
-			ObjectArray::FindObjectFastInOuter("WasInputKeyJustReleased", "PlayerController").GetAddress()
-		});
+		Infos.push_back({ ObjectArray::FindObjectFast("PlayerController").GetAddress(), ObjectArray::FindObjectFastInOuter("WasInputKeyJustReleased", "PlayerController").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("Controller").GetAddress(), ObjectArray::FindObjectFastInOuter("UnPossess", "Controller").GetAddress() });
 
-		Infos.push_back({
-			ObjectArray::FindObjectFast("Controller").GetAddress(),
-			ObjectArray::FindObjectFastInOuter("UnPossess", "Controller").GetAddress()
-		});
+		if (FindOffset(Infos) == 0x28)
+		{
+			Infos.clear();
 
-		/*Infos.push_back({ObjectArray::FindObjectFast("Vector").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector").GetAddress()});
-		Infos.push_back({ ObjectArray::FindObjectFast("Vector4").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector4").GetAddress()});
-		Infos.push_back({ ObjectArray::FindObjectFast("Vector2D").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector2D").GetAddress()});
-		Infos.push_back({ ObjectArray::FindObjectFast("Guid").GetAddress(), ObjectArray::FindObjectFastInOuter("A","Guid").GetAddress()});*/
+			Infos.push_back({ ObjectArray::FindObjectFast("Vector").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector").GetAddress() });
+			Infos.push_back({ ObjectArray::FindObjectFast("Vector4").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector4").GetAddress() });
+			Infos.push_back({ ObjectArray::FindObjectFast("Vector2D").GetAddress(), ObjectArray::FindObjectFastInOuter("X", "Vector2D").GetAddress() });
+			Infos.push_back({ ObjectArray::FindObjectFast("Guid").GetAddress(), ObjectArray::FindObjectFastInOuter("A","Guid").GetAddress() });
+
+			return FindOffset(Infos);
+		}
+
+		Settings::Internal::bUseFProperty = true;
 
 		return FindOffset(Infos);
 	}
 
 	inline int32_t FindChildPropertiesOffset()
 	{
-		// on BPM its offset 0x50
-		// idk how to get it so :/
-
+		// TODO (encryqed) : Get Valid ChildProperties Offset for UStruct :)
+		
 		return Off::UStruct::Children + 0x08;
 	}
 
@@ -102,7 +96,6 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		// on BPM its offset 0x58
 		Infos.push_back({ ObjectArray::FindObjectFast("Vector2D").GetAddress(), 0x08 });
 		Infos.push_back({ ObjectArray::FindObjectFast("Vector").GetAddress(), 0x0C });
 		Infos.push_back({ ObjectArray::FindObjectFast("Vector4").GetAddress(), 0x10 });
@@ -110,13 +103,11 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
-
 	/* UFunction */
 	inline int32_t FindFunctionFlagsOffset()
 	{
 		std::vector<std::pair<void*, EFunctionFlags>> Infos;
 
-		// idk if this works on ue 4.25 and higher
 		Infos.push_back({ ObjectArray::FindObjectFast("WasInputKeyJustPressed").GetAddress(), EFunctionFlags::Final | EFunctionFlags::Native | EFunctionFlags::Public | EFunctionFlags::BlueprintCallable | EFunctionFlags::BlueprintPure | EFunctionFlags::Const });
 		Infos.push_back({ ObjectArray::FindObjectFast("ToggleSpeaking").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
@@ -128,7 +119,6 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, uint8_t>> Infos;
 
-		// on BPM its offset 0xB4
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), 0x1 });
 		Infos.push_back({ ObjectArray::FindObjectFast("SetViewTargetWithBlend").GetAddress(), 0x5 });
 		Infos.push_back({ ObjectArray::FindObjectFast("SetHapticsByValue").GetAddress(), 0x3 });
@@ -141,25 +131,29 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, uint16_t>> Infos;
 
-		// TODO: Fix (doesnt work rn, one byte off?)
-		// on BPM its offset 0xB5
+		// TODO (encryqed) : Fix it anyways somehow, for some reason its one byte off? Idk why i just add a byte manually
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), 0x10 });
 		Infos.push_back({ ObjectArray::FindObjectFast("SetViewTargetWithBlend").GetAddress(), 0x15 });
 		Infos.push_back({ ObjectArray::FindObjectFast("SetHapticsByValue").GetAddress(), 0x9 });
 		Infos.push_back({ ObjectArray::FindObjectFast("SphereTraceSingleForObjects").GetAddress(), 0x109 });
 
-		return FindOffset<1>(Infos);
-	}
+		int ParamSizeOffset = FindOffset<1>(Infos);
 
+		if (Settings::Internal::bUseFProperty)
+		{
+			return ParamSizeOffset + 0x1;
+		}
+
+		return ParamSizeOffset;
+	}
 
 	/* UClass */
 	inline int32_t FindCastFlagsOffset()
 	{
 		std::vector<std::pair<void*, EClassCastFlags>> Infos;
 
-		// idk if this works on ue 4.25 and higher
-		Infos.push_back({ ObjectArray::FindObjectFast("Actor").GetAddress(), EClassCastFlags::AActor });
-		Infos.push_back({ ObjectArray::FindObjectFast("Class").GetAddress(), EClassCastFlags::UField | EClassCastFlags::UStruct | EClassCastFlags::UClass });
+		Infos.push_back({ ObjectArray::FindObjectFast("Actor").GetAddress(), EClassCastFlags::Actor });
+		Infos.push_back({ ObjectArray::FindObjectFast("Class").GetAddress(), EClassCastFlags::Field | EClassCastFlags::Struct | EClassCastFlags::Class });
 		
 		return FindOffset(Infos);
 	}
@@ -168,23 +162,19 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		// on BPM its offset 0x118
 		Infos.push_back({ ObjectArray::FindObjectFast("Object").GetAddress(), ObjectArray::FindObjectFast("Default__Object").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("Field").GetAddress(), ObjectArray::FindObjectFast("Default__Field").GetAddress() });
 
 		return FindOffset(Infos);
 	}
 
-	
 	/* UProperty */
 	inline int32_t FindElementSizeOffset()
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("Default__Int8Property").GetAddress(), 0x1 });
-		Infos.push_back({ ObjectArray::FindObjectFast("Default__Int16Property").GetAddress(), 0x2 });
-		Infos.push_back({ ObjectArray::FindObjectFast("Default__IntProperty").GetAddress(), 0x4 });
-		Infos.push_back({ ObjectArray::FindObjectFast("Default__Int64Property").GetAddress(), 0x8 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector", "X").GetAddress(), 0x4 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector", "Y").GetAddress(), 0x4 });
 
 		return FindOffset(Infos);
 	}
@@ -193,18 +183,16 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, EPropertyFlags>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("HiddenActors").GetAddress(), EPropertyFlags::ZeroConstructor | EPropertyFlags::NativeAccessSpecifierPublic });
-		Infos.push_back({ ObjectArray::FindObjectFast("bNewActorEnableCollision").GetAddress(), EPropertyFlags::Parm | EPropertyFlags::ZeroConstructor | EPropertyFlags::IsPlainOldData | EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPublic });
-		Infos.push_back({ ObjectArray::FindObjectFast("bActorEnableCollision").GetAddress(), EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPrivate });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Actor", "bActorEnableCollision").GetAddress(), EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPrivate });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("PlayerController", "HiddenActors").GetAddress(), EPropertyFlags::ZeroConstructor | EPropertyFlags::NativeAccessSpecifierPublic });
 
 		int FlagsOffset = FindOffset(Infos);
 
-		//Same flags without AccessSpecifier or Hashing flags
+		// Same flags without AccessSpecifier or Hashing flags
 		if (FlagsOffset == 0x28)
 		{
-			Infos[0].second = EPropertyFlags::ZeroConstructor;
-			Infos[1].second = EPropertyFlags::Parm | EPropertyFlags::ZeroConstructor | EPropertyFlags::IsPlainOldData | EPropertyFlags::NoDestructor;
-			Infos[2].second = EPropertyFlags::NoDestructor;
+			Infos[1].second = EPropertyFlags::ZeroConstructor;
+			Infos[0].second = EPropertyFlags::NoDestructor;
 
 			FlagsOffset = FindOffset(Infos);
 		}
@@ -216,12 +204,12 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("PrimaryActorTick").GetAddress(), Off::UObject::Outer + 0x8 });
-		Infos.push_back({ ObjectArray::FindObjectFast("DebugCameraControllerClass").GetAddress(), Off::UObject::Outer + 0x10 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector4", "X").GetAddress(), 0x00 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector4", "Y").GetAddress(), 0x04 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector4", "Z").GetAddress(), 0x08 });
 
-		return FindOffset(Infos);
+		return FindOffset(Infos, 0x60);
 	}
-
 
 	/* UByteProperty */
 	inline int32_t FindEnumOffset()
@@ -229,55 +217,52 @@ namespace OffsetFinder
 		std::vector<std::pair<void*, void*>> Infos;
 
 		void* ENetRoleObject = ObjectArray::FindObjectFast("ENetRole").GetAddress();
-		Infos.push_back({ ObjectArray::FindObjectFast("RemoteRole").GetAddress(), ENetRoleObject });
-		Infos.push_back({ ObjectArray::FindObjectFast("Role").GetAddress(), ENetRoleObject });
+
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Actor", "RemoteRole").GetAddress(), ENetRoleObject });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Actor", "Role").GetAddress(), ENetRoleObject });
 
 		return FindOffset(Infos);
 	}
-
 
 	/* UBoolProperty */
 	inline int32_t FindBoolPropertyBaseOffset()
 	{
 		std::vector<std::pair<void*, uint8_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("bReplicatedHasBegunPlay").GetAddress(), 0xFF });
-		Infos.push_back({ ObjectArray::FindObjectFast("bRequiresPushToTalk").GetAddress(), 0xFF });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("GameStateBase", "bReplicatedHasBegunPlay").GetAddress(), 0xFF });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("PlayerController", "bAutoManageActiveCameraTarget").GetAddress(), 0xFF });
 
 		return (FindOffset<1>(Infos) - 0x3);
 	}
-
 
 	/* UObjectPropertyBase */
 	inline int32_t FindPropertyClassOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
-	
+
+		// TODO (encryqed) : Gonna fix it later 
 		Infos.push_back({ ObjectArray::FindObjectFast("AuthorityGameMode").GetAddress(), ObjectArray::FindObjectFast("GameModeBase").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("NetworkManager").GetAddress(), ObjectArray::FindObjectFast("GameNetworkManager").GetAddress() });
 	
 		return FindOffset(Infos);
 	}
 
-
 	/* UClassProperty */
 	inline int32_t FindMetaClassOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("GameSessionClass").GetAddress(), ObjectArray::FindObjectFast("GameSession").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("GameStateClass").GetAddress(), ObjectArray::FindObjectFast("GameStateBase").GetAddress() });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("GameModeBase", "GameSessionClass").GetAddress(), ObjectArray::FindObjectFast("GameSession").GetAddress() });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("GameModeBase", "GameStateClass").GetAddress(), ObjectArray::FindObjectFast("GameStateBase").GetAddress() });
 
 		return FindOffset(Infos);
 	}
 	
-
 	/* UScriptProperty */
 	// Mabybe later
 
-
 	/* UWeakObjectProperty */
-
+	// idk later
 
 	/* UStructProperty */
 	inline int32_t FindStructTypeOffset()
@@ -285,58 +270,57 @@ namespace OffsetFinder
 		std::vector<std::pair<void*, void*>> Infos;
 
 		void* VectorStruct = ObjectArray::FindObjectFast("Vector").GetAddress();
-		Infos.push_back({ ObjectArray::FindObjectFast("Scale3D").GetAddress(),VectorStruct });
-		Infos.push_back({ ObjectArray::FindObjectFast("Translation").GetAddress(), VectorStruct });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Transform", "Scale3D").GetAddress(), VectorStruct });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Transform", "Translation").GetAddress(), VectorStruct });
 
 		return FindOffset(Infos);
 	}
-
 
 	/* UArrayProperty */
 	inline int32_t FindInnerTypeOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
+		// TODO (encryqed) : Gonna fix it later 
 		Infos.push_back({ ObjectArray::FindObjectFast("DebugProperties").GetAddress(), ObjectArray::FindObjectFastInOuter("DebugProperties", "DebugProperties").GetAddress()});
 		Infos.push_back({ ObjectArray::FindObjectFast("ComponentTags").GetAddress(), ObjectArray::FindObjectFastInOuter("ComponentTags", "ComponentTags").GetAddress()});
 
 		return FindOffset(Infos);
 	}
 
-
 	/* UMapProperty */
 	inline int32_t FindMapPropertyBaseOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
+		// TODO (encryqed) : Gonna fix it later 
 		Infos.push_back({ ObjectArray::FindObjectFast("ProfileTable").GetAddress(), ObjectArray::FindObjectFast("ProfileTable_Key").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("CurrentCategorizedQuestsMap").GetAddress(), ObjectArray::FindObjectFast("CurrentCategorizedQuestsMap_Key").GetAddress() });
 
 		return FindOffset(Infos);
 	}
 
-
 	/* USetProperty */
 	inline int32_t FindSetPropertyBaseOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
+		// TODO (encryqed) : Gonna fix it later 
 		Infos.push_back({ ObjectArray::FindObjectFast("Proxies").GetAddress(), ObjectArray::FindObjectFastInOuter("Proxies", "Proxies").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("Levels").GetAddress(), ObjectArray::FindObjectFastInOuter("Levels", "Levels").GetAddress()});
 
 		return FindOffset(Infos);
 	}
 
-
 	/* UEnumProperty */
 	inline int32_t FindEnumPropertyBaseOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 
+		// TODO (encryqed) : Gonna fix it later 
 		Infos.push_back({ ObjectArray::FindObjectFast("RuntimeGeneration").GetAddress(), ObjectArray::FindObjectFastInOuter("UnderlyingType", "RuntimeGeneration").GetAddress()});
 		Infos.push_back({ ObjectArray::FindObjectFast("AutoPossessAI").GetAddress(), ObjectArray::FindObjectFastInOuter("UnderlyingType", "AutoPossessAI").GetAddress()});
 
 		return FindOffset(Infos);
 	}
-
 }

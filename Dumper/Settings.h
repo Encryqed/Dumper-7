@@ -6,14 +6,13 @@
 namespace Settings
 {
 	//Auto generated if no override is provided
-	inline std::string GameName;
-	inline std::string GameVersion;
+	inline std::string GameName = "";
+	inline std::string GameVersion = "";
 
 	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
 
 	//use = nullptr if you don't want your files to be prefixed
 	inline constexpr const char* FilePrefix = nullptr;
-
 
 	inline constexpr const bool bUseNamespaceForParams = true;
 
@@ -38,5 +37,7 @@ namespace Settings
 	{
 		// UEEnum::Names
 		inline bool bIsEnumNameOnly = false;
+
+		inline bool bUseFProperty = false;
 	}
 }

@@ -185,7 +185,7 @@ void ObjectArray::Init()
 			}
 			else
 			{
-				std::cout << "[!] Game has a too low GObjects count and therefore dumper 7 could not find out how many elements are per chunk!" << std::endl;
+				std::cout << "Game has a too low GObjects count and therefore dumper 7 could not find out how many elements are per chunk!" << std::endl;
 			}
 
 			Off::InSDK::ChunkSize = NumElementsPerChunk;

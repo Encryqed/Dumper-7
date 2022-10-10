@@ -8,6 +8,7 @@
 class UEClass;
 class UEFField;
 class UEObject;
+class UEProperty;
 
 class UEFFieldClass
 {
@@ -30,14 +31,15 @@ public:
 
 	void* GetAddress();
 
-	uint64 GetId();
-	EFClassCastFlags GetCastFlags();
+	EFieldClassID GetId();
+
+	EClassCastFlags GetCastFlags();
 	EClassFlags GetClassFlags();
 	UEFFieldClass GetSuper();
 	FName GetFName();
 
-	bool IsType(EFClassCastFlags Flags);
-	
+	bool IsType(EClassCastFlags Flags);
+
 	std::string GetName();
 };
 
@@ -79,9 +81,11 @@ public:
 	UEType Cast() const;
 
 	bool IsOwnerUObject();
-	bool IsA(EFClassCastFlags Flags);
+	bool IsA(EClassCastFlags Flags);
 
 	std::string GetName();
+	std::string GetValidName();
+	std::string GetCppName();
 
 	explicit operator bool();
 	bool operator==(const UEFField& Other) const;
@@ -177,8 +181,9 @@ public:
 	UEFField GetChildProperties();
 	int32 GetStructSize();
 
-	bool HasUMembers();
-	bool HasFMembers();
+	std::vector<UEProperty> GetProperties();
+
+	bool HasMembers();
 };
 
 class UEFunction : public UEStruct
@@ -206,24 +211,48 @@ public:
 	UEFunction GetFunction(const std::string& ClassName, const std::string& FuncName);
 };
 
-class UEProperty : public UEField
+class UEProperty
 {
-	using UEField::UEField;
+protected:
+	uint8* Base;
 
 public:
-	static std::unordered_map<std::string, uint32> UnknownProperties;
+	static std::unordered_map<std::string /* Property Name */, uint32 /* Property Size */> UnknownProperties;
 
-public:
+	UEProperty() = default;
+
+	UEProperty(void* NewProperty)
+		: Base(reinterpret_cast<uint8*>(NewProperty))
+	{
+	}
+
+	UEProperty(const UEProperty& OldProperty)
+		: Base(reinterpret_cast<uint8*>(OldProperty.Base))
+	{
+	}
+
+	void* GetAddress();
+
+	std::pair<UEClass, UEFField> GetClass();
+
+	template<typename UEType>
+	UEType Cast();
+
+	bool IsA(EClassCastFlags TypeFlags);
+
+	FName GetFName();
 	int32 GetSize();
 	int32 GetOffset();
 	EPropertyFlags GetPropertyFlags();
-	bool HasPropertyFlags(EPropertyFlags Flags);
+	bool HasPropertyFlags(EPropertyFlags PropertyFlag);
+
+	std::string GetName();
+	std::string GetValidName();
 
 	std::string GetCppType();
 
 	std::string StringifyFlags();
 };
-
 
 class UEByteProperty : public UEProperty
 {
