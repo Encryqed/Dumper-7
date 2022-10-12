@@ -292,24 +292,11 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 
 				if (UEStruct Super = ObjAsStruct.GetSuper())
 				{
-					if (Settings::Internal::bUseFProperty)
+					for (UEProperty Property : ObjAsStruct.GetProperties())
 					{
-						for (UEFField Field = ObjAsStruct.GetChildProperties(); Field; Field = Field.GetNext())
+						if (Property.Cast<UEProperty>().GetOffset() < LowestOffset)
 						{
-							if (Field.IsA(EClassCastFlags::Property) && Field.Cast<UEProperty>().GetOffset() < LowestOffset)
-							{
-								LowestOffset = Field.Cast<UEProperty>().GetOffset();
-							}
-						}
-					}
-					else
-					{
-						for (UEField Field = ObjAsStruct.GetChild(); Field; Field = Field.GetNext())
-						{
-							if (Field.IsA(EClassCastFlags::Property) && Field.Cast<UEProperty>().GetOffset() < LowestOffset)
-							{
-								LowestOffset = Field.Cast<UEProperty>().GetOffset();
-							}
+							LowestOffset = Property.Cast<UEProperty>().GetOffset();
 						}
 					}
 
@@ -424,7 +411,6 @@ static UEType ObjectArray::FindMemberInObjectFast(std::string ObjectName, std::s
 		return UEType();
 	}
 
-	// probably FindObjectFastInOuter for ue4.24-
 	return UEType(FindObjectFastInOuter(MemberName, ObjectName).GetAddress());
 }
 
@@ -479,7 +465,6 @@ int32 ObjectArray::ObjectsIterator::GetIndex() const
 {
 	return CurrentIndex;
 }
-
 
 /*
 * The compiler won't generate functions for a specific template type unless it's used in the .cpp file corresponding to the
