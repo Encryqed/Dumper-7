@@ -124,8 +124,6 @@ void Generator::GenerateSDK()
 
 	Package::CloseAssertionStream();
 
-	std::cout << "\n\n\nGenerateSDKHeader(GenFolder, ObjectPackages);\n\n\n" << std::endl;
-
 	GenerateSDKHeader(GenFolder, ObjectPackages);
 	GenerateFixupFile(GenFolder);
 	GenerateBasicFile(SDKFolder);
@@ -174,9 +172,6 @@ namespace Offsets
 
 	HeaderStream << "\n#include \"PropertyFixup.hpp\"\n";
 	HeaderStream << "\n#include \"SDK/" << (Settings::FilePrefix ? Settings::FilePrefix : "") << "Basic.hpp\"\n";
-
-	std::cout << "\PackageSorterStructs: " << Package::PackageSorterStructs.AllDependencies.size() << "\n\n";
-	std::cout << "\PackageSorterClasses: " << Package::PackageSorterClasses.AllDependencies.size() << "\n\n";
 
 	for (auto& Pack : Package::PackageSorterStructs.AllDependencies)
 	{

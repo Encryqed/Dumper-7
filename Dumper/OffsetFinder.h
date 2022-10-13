@@ -260,13 +260,6 @@ namespace OffsetFinder
 	}
 	
 
-	/* UScriptProperty */
-	// Mabybe later
-
-
-	/* UWeakObjectProperty */
-
-
 	/* UStructProperty */
 	inline int32_t FindStructTypeOffset()
 	{
