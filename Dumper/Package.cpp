@@ -66,47 +66,40 @@ void PackageDependencyManager::GetIncludesForPackage(const int32 Index, bool bIs
 	}
 }
 
-void PackageDependencyManager::GetObjectDependency(UEObject Obj, std::unordered_set<int32>& Store)
+void PackageDependencyManager::GetPropertyDependency(UEProperty Prop, std::unordered_set<int32>& Store)
 {
-	//if (Obj.IsA(EClassCastFlags::UFunction))
-	//{
-	//	for (UEField Field = Obj.Cast<UEStruct>().GetChild(); Field; Field = Field.GetNext())
-	//	{
-	//		PackageDependencyManager::GetObjectDependency(Field, Store);
-	//	}
-	//}
-	if (Obj.IsA(EClassCastFlags::UStructProperty))
+	if (Prop.IsA(EClassCastFlags::UStructProperty))
 	{
-		Store.insert(Obj.Cast<UEStructProperty>().GetUnderlayingStruct().GetIndex());
+		Store.insert(Prop.Cast<UEStructProperty>().GetUnderlayingStruct().GetIndex());
 	}
-	else if (Obj.IsA(EClassCastFlags::UEnumProperty))
+	else if (Prop.IsA(EClassCastFlags::UEnumProperty))
 	{
 		static auto DelegateInlinePropertyClass = ObjectArray::FindClassFast("MulticastInlineDelegateProperty");
 
-		if (Obj.GetClass().HasType(DelegateInlinePropertyClass))
+		if (Prop.GetClass().HasType(DelegateInlinePropertyClass))
 			return;
 
-		Store.insert(Obj.Cast<UEEnumProperty>().GetEnum().GetIndex());
+		Store.insert(Prop.Cast<UEEnumProperty>().GetEnum().GetIndex());
 	}
-	//else if (Obj.IsA(EClassCastFlags::UByteProperty))
-	//{
-	//	if (UEObject Enum = Obj.Cast<UEByteProperty>().GetEnum())
-	//	{
-	//		Store.insert(Enum.GetIndex());
-	//	}
-	//}
-	else if (Obj.IsA(EClassCastFlags::UArrayProperty))
+	else if (Prop.IsA(EClassCastFlags::UByteProperty))
 	{
-		GetObjectDependency(Obj.Cast<UEArrayProperty>().GetInnerProperty(), Store);
+		if (UEObject Enum = Prop.Cast<UEByteProperty>().GetEnum())
+		{
+			Store.insert(Enum.GetIndex());
+		}
 	}
-	else if (Obj.IsA(EClassCastFlags::USetProperty))
+	else if (Prop.IsA(EClassCastFlags::UArrayProperty))
 	{
-		GetObjectDependency(Obj.Cast<UESetProperty>().GetElementProperty().Cast<UEField>(), Store);
+		GetPropertyDependency(Prop.Cast<UEArrayProperty>().GetInnerProperty(), Store);
 	}
-	else if (Obj.IsA(EClassCastFlags::UMapProperty))
+	else if (Prop.IsA(EClassCastFlags::USetProperty))
 	{
-		GetObjectDependency(Obj.Cast<UEMapProperty>().GetKeyProperty().Cast<UEField>(), Store);
-		GetObjectDependency(Obj.Cast<UEMapProperty>().GetValueProperty().Cast<UEField>(), Store);
+		GetPropertyDependency(Prop.Cast<UESetProperty>().GetElementProperty(), Store);
+	}
+	else if (Prop.IsA(EClassCastFlags::UMapProperty))
+	{
+		GetPropertyDependency(Prop.Cast<UEMapProperty>().GetKeyProperty(), Store);
+		GetPropertyDependency(Prop.Cast<UEMapProperty>().GetValueProperty(), Store);
 	}
 }
 
@@ -153,7 +146,10 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 
 			for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
 			{
-				PackageDependencyManager::GetObjectDependency(Field, ObjectsToCheck);
+				if (Field.IsA(EClassCastFlags::UProperty))
+				{
+					PackageDependencyManager::GetPropertyDependency(Field.Cast<UEProperty>(), ObjectsToCheck);
+				}
 			}
 
 			for (auto& Idx : ObjectsToCheck)
@@ -180,19 +176,14 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 				}
 			
 
-				if (bIsClass)
+				if (bIsClass && bDependencyIsClass)
 				{
-					if (bDependencyIsClass)
-					{
-						ClassSorter.AddDependency(Object.GetIndex(), Idx);
-					}
+					ClassSorter.AddDependency(Object.GetIndex(), Idx);
+					
 				}
-				else
+				else if(!bIsClass && bDependencyIsStruct)
 				{
-					if (bDependencyIsStruct)
-					{
-						StructSorter.AddDependency(Object.GetIndex(), Idx);
-					}
+					StructSorter.AddDependency(Object.GetIndex(), Idx);
 				}
 			}
 		}

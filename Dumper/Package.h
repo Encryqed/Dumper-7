@@ -12,59 +12,6 @@ struct PackageDependencyManager
 {
 	friend class Package;
 
-	struct DependencyInfo
-	{
-		int32 Index;
-
-		//PackageSorting vars
-		mutable bool bStructFileNeeded;
-		mutable bool bClassFileNeeded;
-
-		DependencyInfo() = default;
-
-		DependencyInfo(int32 Idx)
-			: Index(Idx), bStructFileNeeded(false), bClassFileNeeded(false)
-		{
-		}
-
-		DependencyInfo(int32 Idx, bool bNeedsStructFile, bool bNeedsClassFile)
-			: Index(Idx), bStructFileNeeded(bNeedsStructFile), bClassFileNeeded(bNeedsClassFile)
-		{
-		}
-
-		const DependencyInfo& operator=(const DependencyInfo& Other) const
-		{
-			bStructFileNeeded = bStructFileNeeded || Other.bStructFileNeeded;
-			bClassFileNeeded = bClassFileNeeded || Other.bClassFileNeeded;
-
-			return *this;
-		}
-
-		bool operator==(const DependencyInfo& Other) const
-		{
-			return Index == Other.Index;
-		}
-	};
-
-	union IncludeStatus
-	{
-		bool bIsIncluded;
-
-		struct
-		{
-			bool bIsStructFileIncluded;
-			bool bIsClassFileIncluded;
-		};
-	};
-
-	struct DependencyInfoHasher
-	{
-		size_t operator()(const DependencyInfo& R) const
-		{
-			return R.Index;
-		}
-	};
-
 	//PackageIdx
 	//bIsIncluded
 	//Dependencies
@@ -105,7 +52,7 @@ struct PackageDependencyManager
 	/* Only use this when sorting package dependencies */
 	void GetIncludesForPackage(const int32 Index, bool bIsClass, std::string& OutRef);
 
-	static void GetObjectDependency(UEObject Obj, std::unordered_set<int32>& Store);
+	static void GetPropertyDependency(UEProperty Prop, std::unordered_set<int32>& Store);
 };
 
 class Package
