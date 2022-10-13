@@ -111,7 +111,8 @@ void Generator::GenerateSDK()
 		else
 		{
 			ObjectPackages.erase(Pair.first);
-			Package::PackageSorter.RemoveDependant(Pair.first);
+			Package::PackageSorterClasses.RemoveDependant(Pair.first);
+			Package::PackageSorterStructs.RemoveDependant(Pair.first);
 
 			std::cout << "Removed package: " << Pack.DebugGetObject().GetName() << "\n";
 		}
@@ -168,10 +169,18 @@ namespace Offsets
 	HeaderStream << "\n#include \"PropertyFixup.hpp\"\n";
 	HeaderStream << "\n#include \"SDK/" << (Settings::FilePrefix ? Settings::FilePrefix : "") << "Basic.hpp\"\n";
 
-	for (auto& Pack : Package::PackageSorter.AllDependencies)
+	for (auto& Pack : Package::PackageSorterStructs.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorter.GetIncludesForPackage({ Pack.first, true, true }, IncludesString);
+		Package::PackageSorterStructs.GetIncludesForPackage(Pack.first, false, IncludesString);
+
+		HeaderStream << IncludesString;
+	}
+
+	for (auto& Pack : Package::PackageSorterClasses.AllDependencies)
+	{
+		std::string IncludesString;
+		Package::PackageSorterClasses.GetIncludesForPackage(Pack.first, true, IncludesString);
 
 		HeaderStream << IncludesString;
 	}

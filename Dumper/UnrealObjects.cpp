@@ -877,6 +877,7 @@ UEProperty UEMapProperty::GetKeyProperty()
 {
 	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Base + Off::UMapProperty::Base)->KeyProperty);
 }
+
 UEProperty UEMapProperty::GetValueProperty()
 {
 	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Base + Off::UMapProperty::Base)->ValueProperty);
@@ -908,7 +909,7 @@ UEEnum UEEnumProperty::GetEnum()
 }
 
 std::string UEEnumProperty::GetCppType()
-{
+{	
 	return GetEnum().GetEnumTypeAsStr();
 }
 
@@ -925,8 +926,10 @@ void TemplateTypeCreationForUnrealObjects(void)
 	UEProperty PDummy(nullptr);
 
 	PDummy.Cast<UEField>();
+	PDummy.Cast<UEProperty>();
 
 	PDummy.Cast<UEField&>();
+	PDummy.Cast<UEProperty&>();
 
 	FDummy.Cast<UEFField>();
 	FDummy.Cast<UEProperty>();
