@@ -61,10 +61,10 @@ struct FFixedUObjectArray
 		if (Num > Max)
 			return false;
 
-		if (Max < 1500000)
+		if (Max > 4000000)
 			return false;
 
-		if (Num < 300000)
+		if (Num < 100000)
 			return false;
 
 		if (IsBadReadPtr(Objects))
@@ -276,9 +276,9 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 			if (!Object.IsA(EClassCastFlags::UFunction))
 			{
 				UEStruct ObjAsStruct = Object.Cast<UEStruct>();
-
+			
 				int32 LowestOffset = 0xFFFFFF;
-
+			
 				if (UEStruct Super = ObjAsStruct.GetSuper())
 				{
 					for (UEField F = ObjAsStruct.GetChild(); F; F = F.GetNext())
@@ -288,7 +288,7 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 							LowestOffset = F.Cast<UEProperty>().GetOffset();
 						}
 					}
-
+			
 					if (LowestOffset != 0xFFFFFF)
 					{
 						for (UEStruct S = Super; S; S = S.GetSuper())
@@ -305,7 +305,7 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 							{
 								UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
 							}
-
+			
 							if (S.HasMembers())
 								break;
 						}
@@ -317,9 +317,15 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 		{
 			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 		}
-		else if (Object.IsA(EClassCastFlags::UEnumProperty) && Object.Cast<UEEnumProperty>().GetSize() != 1)
+		else if (Object.IsA(EClassCastFlags::UEnumProperty))
 		{
-			UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
+			static auto DelegateInlinePropertyClass = ObjectArray::FindClassFast("MulticastInlineDelegateProperty");
+
+			if (Object.GetClass().HasType(DelegateInlinePropertyClass))
+				continue;
+
+			if(Object.Cast<UEEnumProperty>().GetSize() != 1)
+				UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
 		}
 	}
 }

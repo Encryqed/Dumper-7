@@ -42,8 +42,25 @@ namespace OffsetFinder
 
 		int Ret = FindOffset(Infos) - 0x8;
 
-		if (reinterpret_cast<TArray<TPair<FName, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret)->operator[](1).Second != 1)
-			Settings::Internal::bIsEnumNameOnly = true;
+
+		TArray<TPair<FName, int64>>& Names = *reinterpret_cast<TArray<TPair<FName, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret);
+
+		if (Names[1].Second != 1)
+		{
+			Settings::Internal::EnumNameArrayType = 1;
+
+			for (int i = 0; i < Names.Num(); i++)
+			{
+				if (Names[i].Second != i)
+				{
+					if (!reinterpret_cast<TArray<TPair<FName, uint8>>&>(Names)[i].Second == i)
+					{
+						Settings::Internal::EnumNameArrayType = 0;
+						break;
+					}
+				}
+			}
+		}
 
 		return Ret;
 	}
@@ -212,7 +229,7 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, uint8_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("bReplicatedHasBegunPlay").GetAddress(), 0xFF });
+		Infos.push_back({ ObjectArray::FindObjectFast("bHandleDedicatedServerReplays").GetAddress(), 0xFF });
 		Infos.push_back({ ObjectArray::FindObjectFast("bRequiresPushToTalk").GetAddress(), 0xFF });
 
 		return (FindOffset<1>(Infos) - 0x3);
@@ -224,7 +241,7 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, void*>> Infos;
 	
-		Infos.push_back({ ObjectArray::FindObjectFast("AuthorityGameMode").GetAddress(), ObjectArray::FindObjectFast("GameModeBase").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("GameViewport").GetAddress(), ObjectArray::FindObjectFast("GameViewportClient").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("NetworkManager").GetAddress(), ObjectArray::FindObjectFast("GameNetworkManager").GetAddress() });
 	
 		return FindOffset(Infos);
@@ -237,18 +254,11 @@ namespace OffsetFinder
 		std::vector<std::pair<void*, void*>> Infos;
 
 		Infos.push_back({ ObjectArray::FindObjectFast("GameSessionClass").GetAddress(), ObjectArray::FindObjectFast("GameSession").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("GameStateClass").GetAddress(), ObjectArray::FindObjectFast("GameStateBase").GetAddress() });
+		Infos.push_back({ ObjectArray::FindObjectFast("PlayerControllerClass").GetAddress(), ObjectArray::FindObjectFast("PlayerController").GetAddress() });
 
 		return FindOffset(Infos);
 	}
 	
-
-	/* UScriptProperty */
-	// Mabybe later
-
-
-	/* UWeakObjectProperty */
-
 
 	/* UStructProperty */
 	inline int32_t FindStructTypeOffset()
