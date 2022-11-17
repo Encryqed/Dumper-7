@@ -12,7 +12,7 @@ and also for some other games.
 ## Issues
 
 If you have any issues using the Dumper, please create a Issue on this repository\
-and explain the problem in detail.
+and explain the problem in **detail**.
 ## TODO
 
-- Adding UE 4.25 and higher Support (FProperty)
+- ~~Adding UE 4.25 and higher Support (FProperty)~~ Check FProperty-branch for more infos!
