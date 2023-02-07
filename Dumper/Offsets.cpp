@@ -70,7 +70,8 @@ void Off::Init()
 	Off::UProperty::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
 	std::cout << "Off::UProperty::PropertyFlags: " << Off::UProperty::PropertyFlags << "\n";
 
-	const int32 UPropertySize = OffsetFinder::FindEnumOffset();
+	//const int32 UPropertySize = OffsetFinder::FindEnumOffset();
+	const int32 UPropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
 	std::cout << "UPropertySize: " << UPropertySize << "\n";
 
 	Off::UByteProperty::Enum = UPropertySize;

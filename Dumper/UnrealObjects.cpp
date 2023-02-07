@@ -43,9 +43,54 @@ bool UEFFieldClass::IsType(EClassCastFlags Flags)
 	return GetCastFlags() & Flags;
 }
 
+bool UEFFieldClass::IsA(EClassCastFlags TypeFlags)
+{
+	return (TypeFlags != EClassCastFlags::None ? IsType(TypeFlags) : true);
+}
+
 std::string UEFFieldClass::GetName()
 {
 	return Class ? GetFName().ToString() : "None";
+}
+
+std::string UEFFieldClass::GetValidName()
+{
+	std::string Name = GetName();
+
+	char& FirstChar = Name[0];
+
+	if (Name == "bool")
+	{
+		FirstChar -= 0x20;
+
+		return Name;
+	}
+
+	if (Name == "TRUE")
+		return "TURR";
+
+	if (FirstChar <= '9' && FirstChar >= '0')
+		Name = '_' + Name;
+
+	// this way I don't need to bother checking for c++ types (except bool) like int in the names
+	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
+		FirstChar = FirstChar - 0x20;
+
+	for (char& c : Name)
+	{
+		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
+		{
+			c = '_';
+		}
+	}
+
+	return Name;
+}
+
+std::string UEFFieldClass::GetCppName()
+{
+	// This is evile dark magic code which shouldn't exist
+	return "F" + GetValidName();
 }
 
 void* UEFField::GetAddress()
@@ -550,14 +595,14 @@ void* UEProperty::GetAddress()
 	return Base;
 }
 
-std::pair<UEClass, UEFField> UEProperty::GetClass()
+std::pair<UEClass, UEFFieldClass> UEProperty::GetClass()
 {
 	if (Settings::Internal::bUseFProperty)
 	{
-		return std::pair<UEClass, UEFField>(UEClass(nullptr), UEFField(Base));
+		return { UEClass(0), UEFField(Base).GetClass() };
 	}
 
-	return std::pair<UEClass, UEFField>(UEClass(Base + Off::UObject::Class), UEFField(nullptr));
+	return { UEClass(Base + Off::UObject::Class), UEFFieldClass(0) };
 }
 	
 template<typename UEType>
@@ -647,7 +692,7 @@ std::string UEProperty::GetValidName()
 
 std::string UEProperty::GetCppType()
 {
-	EClassCastFlags TypeFlags = this->GetClass().first ? this->GetClass().first.GetCastFlags() : this->GetClass().second.GetClass().GetCastFlags();
+	EClassCastFlags TypeFlags = (GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags());
 
 	if (TypeFlags & EClassCastFlags::ByteProperty)
 	{
@@ -751,7 +796,7 @@ std::string UEProperty::GetCppType()
 	}
 	else
 	{
-		std::string CppName = GetClass().first ? GetClass().first.GetCppName() + "_" : GetClass().second.GetCppName() + "_";
+		std::string CppName = (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";
 
 		UnknownProperties.insert({ CppName, GetSize() });
 

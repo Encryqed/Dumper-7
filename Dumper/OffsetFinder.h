@@ -96,9 +96,8 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("Vector2D").GetAddress(), 0x08 });
-		Infos.push_back({ ObjectArray::FindObjectFast("Vector").GetAddress(), 0x0C });
-		Infos.push_back({ ObjectArray::FindObjectFast("Vector4").GetAddress(), 0x10 });
+		Infos.push_back({ ObjectArray::FindObjectFast("Color").GetAddress(), 0x04 });
+		Infos.push_back({ ObjectArray::FindObjectFast("Guid").GetAddress(), 0x10 });
 
 		return FindOffset(Infos);
 	}
@@ -173,8 +172,25 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector", "X").GetAddress(), 0x4 });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector", "Y").GetAddress(), 0x4 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Guid", "A").GetAddress(), 0x04 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Guid", "B").GetAddress(), 0x04 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Guid", "C").GetAddress(), 0x04 });
+
+		//Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector", "X").GetAddress(), 0x4 });
+		//Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector", "Y").GetAddress(), 0x4 });
+		//
+		//int Offset = FindOffset(Infos);
+		//
+		//if (Offset == 0x28)
+		//{
+		//	Infos.clear();
+		//	Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector", "X").GetAddress(), 0x8 });
+		//	Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector", "Y").GetAddress(), 0x8 });
+		//
+		//	Offset = FindOffset(Infos);
+		//}
+		//
+		//return Offset;
 
 		return FindOffset(Infos);
 	}
@@ -204,11 +220,11 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector4", "X").GetAddress(), 0x00 });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector4", "Y").GetAddress(), 0x04 });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Vector4", "Z").GetAddress(), 0x08 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Color", "B").GetAddress(), 0x00 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Color", "G").GetAddress(), 0x01 });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast("Color", "R").GetAddress(), 0x02 });
 
-		return FindOffset(Infos, 0x60);
+		return FindOffset(Infos);
 	}
 
 	/* UByteProperty */

@@ -39,8 +39,12 @@ public:
 	FName GetFName();
 
 	bool IsType(EClassCastFlags Flags);
+	bool HasType(EClassCastFlags Flags);
+	bool IsA(EClassCastFlags Flags);
 
 	std::string GetName();
+	std::string GetValidName();
+	std::string GetCppName();
 };
 
 class UEFField
@@ -233,7 +237,7 @@ public:
 
 	void* GetAddress();
 
-	std::pair<UEClass, UEFField> GetClass();
+	std::pair<UEClass, UEFFieldClass> GetClass();
 
 	template<typename UEType>
 	UEType Cast();

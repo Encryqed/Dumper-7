@@ -14,10 +14,17 @@ void Generator::Init()
 	//FName::Init(0x211AF50);
 	//Off::InSDK::InitPE(0x43);
 
-	ObjectArray::Init();
-	FName::Init();
+	/* FN-Latest */
+	ObjectArray::Init(0xEA53F78, 0x10000, true);
+	FName::Init(0x479E180);
+	Off::InSDK::InitPE(0x4C);
+
+	//ObjectArray::Init();
+	//FName::Init();
+
+
 	Off::Init();
-	Off::InSDK::InitPE();
+	//Off::InSDK::InitPE();
 
 	InitPredefinedMembers();
 	InitPredefinedFunctions();
