@@ -72,7 +72,7 @@ void Off::Init()
 
 	//const int32 UPropertySize = OffsetFinder::FindEnumOffset();
 	const int32 UPropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
-	std::cout << "UPropertySize: " << UPropertySize << "\n";
+	std::cout << "UPropertySize: " << UPropertySize << "\n\n";
 
 	Off::UByteProperty::Enum = UPropertySize;
 	Off::UBoolProperty::Base = UPropertySize; 
