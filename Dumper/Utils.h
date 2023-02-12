@@ -150,8 +150,10 @@ public:
 				//opcode: call
 				if (Address[i + j] == 0xE8)
 				{
-					void* Func = (void*)(((0xFFFFFFFF00000000 | *(uint32*)(Address + i + j + 1)) + uintptr_t(Address + i + j)) + 5);
+					uint8* CallAddr = Address + i + j;
 
+					void* Func = *reinterpret_cast<uint32*>(CallAddr + 1) + CallAddr + 5;
+					
 					if (++NumCalls == FunctionIndex)
 					{
 						return Func;
