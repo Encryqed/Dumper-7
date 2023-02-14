@@ -152,8 +152,8 @@ public:
 				{
 					uint8* CallAddr = Address + i + j;
 
-					void* Func = *reinterpret_cast<uint32*>(CallAddr + 1) + CallAddr + 5;
-					
+					void* Func = CallAddr + *reinterpret_cast<int32*>(CallAddr + 1) + 5; /*Addr + Offset + 5*/
+
 					if (++NumCalls == FunctionIndex)
 					{
 						return Func;

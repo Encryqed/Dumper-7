@@ -54,6 +54,8 @@ void Generator::GenerateSDK()
 	fs::create_directory(GenFolder);
 	fs::create_directory(SDKFolder);
 
+	ObjectArray::DumpObjects();
+
 	Package::InitAssertionStream(GenFolder);
 
 	for (auto& Pair : ObjectPackages)

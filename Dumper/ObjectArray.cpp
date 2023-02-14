@@ -1,9 +1,12 @@
 #include <iostream>
 #include <fstream>
 #include <format>
+#include <filesystem>
 #include "ObjectArray.h"
 #include "Offsets.h"
 #include "Utils.h"
+
+namespace fs = std::filesystem;
 
 /* Scuffed stuff up here */
 struct FChunkedFixedUObjectArray
@@ -258,14 +261,19 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 void ObjectArray::DumpObjects()
 {
-	std::ofstream DumpStream("GObjects-Dump.txt");
+	fs::path Path(Settings::SDKGenerationPath);
+
+	if (!Settings::GameVersion.empty())
+		Path /= Settings::GameVersion;
+
+	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
 	DumpStream << "Object dump by Dumper-7\n\n";
 	DumpStream << "Count: " << Num() << "\n\n\n";
 
 	for (auto Object : ObjectArray())
 	{
-		DumpStream << std::format("[{}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
+		DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
 	}
 
 	DumpStream.close();

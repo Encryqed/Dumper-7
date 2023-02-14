@@ -714,7 +714,7 @@ std::string UEProperty::GetCppType()
 	{
 		return "int8";
 	}
-	else if (TypeFlags &  EClassCastFlags::UInt16Property)
+	else if (TypeFlags &  EClassCastFlags::Int16Property)
 	{
 		return "int16";
 	}
@@ -722,7 +722,7 @@ std::string UEProperty::GetCppType()
 	{
 		return "int32";
 	}
-	else if (TypeFlags &  EClassCastFlags::UInt64Property)
+	else if (TypeFlags &  EClassCastFlags::Int64Property)
 	{
 		return "int64";
 	}

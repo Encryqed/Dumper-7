@@ -30,8 +30,6 @@ DWORD MainThread(HMODULE Module)
 
 	Generator::Init();
 
-	ObjectArray::DumpObjects();
-
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())
 	{
 		// Only Possible in Main()
