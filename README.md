@@ -1,6 +1,8 @@
 # Dumper-7 (FProperty-Branch)
 
-SDK-Generator for the latest version of Fortnite (23.30), should work on some other versions too.
+SDK-Generator for the latest version of Fortnite (24.00), should work on some other versions too.
+
+**SDK does not compile**
 
 Notes:
 - Comment the ProcessEvent call in Main.cpp when compiling on debug (crashes)
