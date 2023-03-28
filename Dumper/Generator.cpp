@@ -19,8 +19,8 @@ void Generator::Init()
 
 	ObjectArray::Init();
 	FName::Init();
-	//Off::InSDK::InitPE();
-	Off::InSDK::InitPE(0x4C);
+	Off::InSDK::InitPE();
+	//Off::InSDK::InitPE(0x4C);
 	Off::Init();
 
 	InitPredefinedMembers();
@@ -135,6 +135,19 @@ void Generator::GenerateSDK()
 
 void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t, std::vector<int32_t>>& Packages)
 {
+	// Determine main-package of the game
+	int32 IndexOfBiggestPackage = 0;
+	int32 SizeOfBiggestPackage = 0;
+
+	for (const auto& [PackageIdx, DependencyVector] : Packages)
+	{
+		if (DependencyVector.size() > SizeOfBiggestPackage)
+		{
+			SizeOfBiggestPackage = DependencyVector.size();
+			IndexOfBiggestPackage = PackageIdx;
+		}
+	}
+
 	std::ofstream HeaderStream(SdkPath / "SDK.hpp");
 
 	HeaderStream << "#pragma once\n\n";
@@ -142,6 +155,7 @@ void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t,
 
 	HeaderStream << std::format("// {}\n", Settings::GameName);
 	HeaderStream << std::format("// {}\n\n", Settings::GameVersion);
+	HeaderStream << std::format("// Main-package: {}\n\n", ObjectArray::GetByIndex(IndexOfBiggestPackage).GetValidName());
 
 	HeaderStream << "#define WINDOWS_IGNORE_PACKING_MISMATCH\n\n";
 
@@ -175,10 +189,28 @@ namespace Offsets
 	HeaderStream << "\n#include \"PropertyFixup.hpp\"\n";
 	HeaderStream << "\n#include \"SDK/" << (Settings::FilePrefix ? Settings::FilePrefix : "") << "Basic.hpp\"\n";
 
+	if (Settings::bIncludeOnlyRelevantPackages)
+	{
+		std::string IncludesString;
+
+		Package::PackageSorterStructs.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Struct, IncludesString, false);
+		HeaderStream << IncludesString;
+
+		IncludesString.clear();
+
+		Package::PackageSorterClasses.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Class, IncludesString, false);
+		HeaderStream << IncludesString;
+		
+		IncludesString.clear();
+		
+		Package::PackageSorterParams.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Params, IncludesString, false);
+		HeaderStream << IncludesString;
+	}
+
 	for (auto& Pack : Package::PackageSorterStructs.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorterStructs.GetIncludesForPackage(Pack.first, false, IncludesString);
+		Package::PackageSorterStructs.GetIncludesForPackage(Pack.first, EIncludeFileType::Struct, IncludesString, Settings::bIncludeOnlyRelevantPackages);
 
 		HeaderStream << IncludesString;
 	}
@@ -186,20 +218,17 @@ namespace Offsets
 	for (auto& Pack : Package::PackageSorterClasses.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorterClasses.GetIncludesForPackage(Pack.first, true, IncludesString);
-
+		Package::PackageSorterClasses.GetIncludesForPackage(Pack.first, EIncludeFileType::Class, IncludesString, Settings::bIncludeOnlyRelevantPackages);
+	
 		HeaderStream << IncludesString;
 	}
-
-	// Param files don't need dependency sorting
-	for (auto& Pair : Packages)
+	
+	for (auto& Pack : Package::PackageSorterParams.AllDependencies)
 	{
-		UEObject PackageObj = ObjectArray::GetByIndex(Pair.first);
-
-		if (!PackageObj)
-			continue;
-
-		HeaderStream << std::format("\n#include \"SDK/{}{}_parameters.hpp\"", (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageObj.GetName());
+		std::string IncludesString;
+		Package::PackageSorterParams.GetIncludesForPackage(Pack.first, EIncludeFileType::Class, IncludesString, Settings::bIncludeOnlyRelevantPackages);
+	
+		HeaderStream << IncludesString;
 	}
 
 	HeaderStream.close();
@@ -228,11 +257,7 @@ void Generator::InitPredefinedMembers()
 		{ "int32 ", "Flags", Off::UObject::Flags, 0x04 },
 		{ "int32", "Index", Off::UObject::Index, 0x04 },
 		{ "class UClass*", "Class", Off::UObject::Class, 0x08 },
-#ifndef WITH_CASE_PRESERVING_NAME
-		{ "class FName", "Name", Off::UObject::Name, 0x08 },
-#else
-		{ "class FName", "Name", Off::UObject::Name, 0x10 },
-#endif // WITH_CASE_PRESERVING_NAME
+		{ "class FName", "Name", Off::UObject::Name, Off::InSDK::FNameSize },
 		{ "class UObject*", "Outer", Off::UObject::Outer, 0x08 }
 	};
 
@@ -720,22 +745,24 @@ class FName
 {
 public:)");
 
-#ifndef WITH_CASE_PRESERVING_NAME
-	BasicHeader.Write(
-		R"(
+	if (Off::InSDK::FNameSize == 0x8)
+	{
+		BasicHeader.Write(
+			R"(
 	int32 ComparisonIndex;
 	int32 Number;
 )");
-#else
-	BasicHeader.Write(
-		R"(
-int32 ComparisonIndex;
-	int32 DisplayIndex;
+	}
+	else
+	{
+		BasicHeader.Write(
+			R"(
+	int32 ComparisonIndex;
 	int32 Number;
+	int32 DisplayIndex;
 	uint8 Pad[0x4];
 )");
-#endif // !WITH_CASE_PRESERVING_NAME
-
+	}
 
 	BasicHeader.Write(
 		std::format(R"(

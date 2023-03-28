@@ -5,10 +5,10 @@
 
 namespace OffsetFinder
 {
-	template<int Alignement = 4, typename T>
+	template<int Alignement = 4, typename T, bool bStartAtZero = false>
 	inline int32_t FindOffset(std::vector<std::pair<void*, T>>& ObjectValuePair, int MaxOffset = 0x1A0)
 	{
-		int32_t HighestFoundOffset = 0x28;
+		int32_t HighestFoundOffset = bStartAtZero ? 0x0 : 0x28;
 
 		for (int i = 0; i < ObjectValuePair.size(); i++)
 		{
@@ -30,6 +30,79 @@ namespace OffsetFinder
 		return HighestFoundOffset;
 	}
 
+	/* UObject */
+	inline void InitUObjectOffsets()
+	{
+		uint8_t* ObjA = (uint8_t*)ObjectArray::GetByIndex(0x55).GetAddress();
+		uint8_t* ObjB = (uint8_t*)ObjectArray::GetByIndex(0x123).GetAddress();
+
+		auto GetIndexOffset = [&ObjA, &ObjB]() -> int32_t
+		{
+			std::vector<std::pair<void*, int32_t>> Infos;
+
+			Infos.emplace_back(ObjectArray::GetByIndex(0x055).GetAddress(), 0x055);
+			Infos.emplace_back(ObjectArray::GetByIndex(0x123).GetAddress(), 0x123);
+
+			return FindOffset<4, int32_t, true>(Infos);
+		};
+
+		auto GetValidPointerOffset = [ObjA, ObjB](int32_t StartingOffset) -> int32_t
+		{
+			for (int j = StartingOffset; j <= 0x40; j += 0x8)
+			{
+				if (!IsBadReadPtr(*(void**)(ObjA + j)) && !IsBadReadPtr(*(void**)(ObjB + j)))
+				{
+					return j;
+				}
+			}
+			
+			return -1;
+		};
+
+		Off::UObject::Vft = 0x00;
+		Off::UObject::Flags = sizeof(void*);
+		Off::UObject::Index = GetIndexOffset();
+		Off::UObject::Class = GetValidPointerOffset(Off::UObject::Index+sizeof(int));
+		Off::UObject::Name = Off::UObject::Class + sizeof(void*);
+		Off::UObject::Outer = GetValidPointerOffset(Off::UObject::Name);
+
+		Off::InSDK::FNameSize = Off::UObject::Outer - Off::UObject::Name;
+
+		if (Off::InSDK::FNameSize > 0x8)
+		{
+			Settings::Internal::bUseCasePreservingName = true;
+
+			Off::FName::CompIdx = 0x0;
+			Off::FName::Number = 0x8;
+		}
+		else
+		{
+			Settings::Internal::bUseCasePreservingName = false;
+
+			Off::FName::CompIdx = 0x0;
+			Off::FName::Number = 0x4;
+		}
+	}
+
+	inline void FixupHardcodedOffsets()
+	{
+		if (Settings::Internal::bUseCasePreservingName)
+		{
+			Off::FField::Flags += 0x8;
+
+			Off::FFieldClass::Id += 0x08;
+			Off::FFieldClass::CastFlags += 0x08;
+			Off::FFieldClass::ClassFlags += 0x08;
+			Off::FFieldClass::SuperClass += 0x08;
+		}
+	}
+
+	/* UEnum */
+	inline int32_t FindFieldNextOffset()
+	{
+		return Off::UObject::Outer + 0x8;
+	}
+
 	/* UEnum */
 	inline int32_t FindEnumNamesOffset()
 	{
@@ -40,8 +113,19 @@ namespace OffsetFinder
 
 		int Ret = FindOffset(Infos) - 0x8;
 
-		if (reinterpret_cast<TArray<TPair<FName, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret)->operator[](1).Second != 1)
-			Settings::Internal::bIsEnumNameOnly = true;
+		struct Name08Byte { uint8 Pad[0x08]; };
+		struct Name16Byte { uint8 Pad[0x10]; };
+
+		if (Settings::Internal::bUseCasePreservingName)
+		{
+			if (reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret)->operator[](1).Second != 1)
+				Settings::Internal::bIsEnumNameOnly = true;
+		}
+		else
+		{
+			if (reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret)->operator[](1).Second != 1)
+				Settings::Internal::bIsEnumNameOnly = true;
+		}
 
 		return Ret;
 	}

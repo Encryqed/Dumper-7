@@ -35,7 +35,7 @@ UEFFieldClass UEFFieldClass::GetSuper()
 
 FName UEFFieldClass::GetFName()
 {
-	return *reinterpret_cast<FName*>(Class + Off::FFieldClass::Name);
+	return FName(Class + Off::FFieldClass::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
 bool UEFFieldClass::IsType(EClassCastFlags Flags)
@@ -115,7 +115,7 @@ UEFFieldClass UEFField::GetClass()
 
 FName UEFField::GetFName()
 {
-	return *reinterpret_cast<FName*>(Field + Off::FField::Name);
+	return FName(Field + Off::FField::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
 UEFField UEFField::GetNext()
@@ -241,7 +241,7 @@ UEClass UEObject::GetClass()
 
 FName UEObject::GetFName()
 {
-	return *reinterpret_cast<FName*>(Object + Off::UObject::Name);
+	return FName(Object + Off::UObject::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
 UEObject UEObject::GetOuter()
@@ -362,6 +362,11 @@ UEObject::operator bool()
 	return Object != nullptr && reinterpret_cast<void*>(Object + Off::UObject::Class) != nullptr;
 }
 
+UEObject::operator uint8*()
+{
+	return Object;
+}
+
 bool UEObject::operator==(const UEObject& Other) const
 {
 	return Object == Other.Object;
@@ -391,28 +396,64 @@ bool UEField::IsNextValid()
 	return (bool)GetNext();
 }
 
-TArray<TPair<FName, int64>>& UEEnum::GetNameValuePairs()
+std::vector<TPair<FName, int64>> UEEnum::GetNameValuePairs()
 {
-	return *reinterpret_cast<TArray<TPair<FName, int64>>*>(Object + Off::UEnum::Names);
+	struct Name08Byte { uint8 Pad[0x08]; };
+	struct Name16Byte { uint8 Pad[0x10]; };
+
+	std::vector<TPair<FName, int64>> Ret;
+
+	if (!Settings::Internal::bIsEnumNameOnly)
+	{
+		if (Settings::Internal::bUseCasePreservingName)
+		{
+			auto& Names = *reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(Object + Off::UEnum::Names);
+
+			for (int i = 0; i < Names.Num(); i++)
+			{
+				Ret.push_back({ FName(&Names[i].First), Names[i].Second });
+			}
+		}
+		else
+		{
+			auto& Names = *reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(Object + Off::UEnum::Names);
+
+			for (int i = 0; i < Names.Num(); i++)
+			{
+				Ret.push_back({ FName(&Names[i].First), Names[i].Second });
+			}
+		}
+	}
+	else
+	{
+		auto& NameOnly = *reinterpret_cast<TArray<FName>*>(Object + Off::UEnum::Names);
+
+		if (Settings::Internal::bUseCasePreservingName)
+		{
+			auto& Names = *reinterpret_cast<TArray<Name16Byte>*>(Object + Off::UEnum::Names);
+
+			for (int i = 0; i < Names.Num(); i++)
+			{
+				Ret.push_back({ FName(&Names[i]), i });
+			}
+		}
+		else
+		{
+			auto& Names = *reinterpret_cast<TArray<Name08Byte>*>(Object + Off::UEnum::Names);
+
+			for (int i = 0; i < Names.Num(); i++)
+			{
+				Ret.push_back({ FName(&Names[i]), i });
+			}
+		}
+	}
+
+	return Ret;
 }
 
 std::string UEEnum::GetSingleName(int32 Index)
 {
 	return GetNameValuePairs()[Index].First.ToString();
-}
-
-std::vector<std::string> UEEnum::GetAllNames()
-{
-	auto& Names = GetNameValuePairs();
-
-	std::vector<std::string> RetVec(Names.Num());
-
-	for (int i = 0; i < Names.Num(); i++)
-	{
-		RetVec.push_back(Names[i].First.ToString());
-	}
-
-	return RetVec;
 }
 
 std::string UEEnum::GetEnumTypeAsStr()
@@ -625,10 +666,10 @@ FName UEProperty::GetFName()
 {
 	if (Settings::Internal::bUseFProperty)
 	{
-		return *reinterpret_cast<FName*>(Base + Off::FField::Name);
+		return FName(Base + Off::FField::Name); //Not the real FName, but a wrapper which holds the address of a FName
 	}
 
-	return *reinterpret_cast<FName*>(Base + Off::UObject::Name);
+	return FName(Base + Off::UObject::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
 int32 UEProperty::GetSize()

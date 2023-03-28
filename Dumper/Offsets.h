@@ -18,6 +18,7 @@ namespace Off
 		inline int32 ChunkSize;
 		inline int32 FUObjectItemSize;
 		inline int32 AppendNameToString;
+		inline uint32 FNameSize;
 	}
 
 	namespace FUObjectArray
@@ -27,47 +28,46 @@ namespace Off
 
 	namespace FField
 	{
-		inline constexpr const uint32 Vft = 0x00;
-		inline constexpr const uint32 Class = 0x08;
-		inline constexpr const uint32 Owner = 0x10;
-		inline constexpr const uint32 Next = 0x20;
-		inline constexpr const uint32 Name = 0x28;
-		inline constexpr const uint32 Flags = 0x30;
+		// Fixed for CasePreserving FNames by OffsetFinder::FixupHardcodedOffsets();
+		inline uint32 Vft = 0x00;
+		inline uint32 Class = 0x08;
+		inline uint32 Owner = 0x10;
+		inline uint32 Next = 0x20;
+		inline uint32 Name = 0x28;
+		inline uint32 Flags = 0x30;
 	}
 
 	namespace FFieldClass
 	{
-		inline constexpr const uint32 Name = 0x00;
-		inline constexpr const uint32 Id = 0x08;
-		inline constexpr const uint32 CastFlags = 0x10;
-		inline constexpr const uint32 ClassFlags = 0x18;
-		inline constexpr const uint32 SuperClass = 0x20;
+		// Fixed for CasePreserving FNames by OffsetFinder::FixupHardcodedOffsets();
+		inline uint32 Name = 0x00;
+		inline uint32 Id = 0x08;
+		inline uint32 CastFlags = 0x10;
+		inline uint32 ClassFlags = 0x18;
+		inline uint32 SuperClass = 0x20;
+	}
+
+	namespace FName
+	{
+		// These values initialized by OffsetFinder::InitUObjectOffsets()
+		inline uint32 CompIdx;
+		inline uint32 Number;
 	}
 
 	namespace UObject
 	{
-		inline constexpr const uint32 Vft = 0x00;
-		inline constexpr const uint32 Flags = 0x08;
-		inline constexpr const uint32 Index = 0x0C;
-		inline constexpr const uint32 Class = 0x10;
-		inline constexpr const uint32 Name = 0x18;
-	
-#ifndef WITH_CASE_PRESERVING_NAME
-	inline constexpr const uint32 Outer = 0x18 + 0x08;
-#else
-	inline constexpr const uint32 Outer = 0x18 + 0x10;
-#endif // WITH_CASEPRESERVING_NAME
+		inline uint32 Vft;
+		inline uint32 Flags;
+		inline uint32 Index;
+		inline uint32 Class;
+		inline uint32 Name;
+		inline uint32 Outer;
+	}
 
-}
-
-namespace UField
-{
-#ifndef WITH_CASE_PRESERVING_NAME
-	inline constexpr const uint32 Next = 0x18 + 0x10;
-#else
-	inline constexpr const uint32 Next = 0x18 + 0x18;
-#endif // WITH_CASEPRESERVING_NAME
-}
+	namespace UField
+	{
+		inline uint32 Next;
+	}
 	namespace UEnum
 	{
 		inline uint32 Names;

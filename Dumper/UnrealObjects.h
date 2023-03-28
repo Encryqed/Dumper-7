@@ -141,6 +141,7 @@ public:
 	std::string GetFullName();
 
 	explicit operator bool();
+	explicit operator uint8*();
 	bool operator==(const UEObject& Other) const;
 	bool operator!=(const UEObject& Other) const;
 
@@ -163,9 +164,8 @@ class UEEnum : public UEField
 public:
 	static std::unordered_map<int32, std::string> BigEnums; //ObjectArray::GetAllPackages()
 
-	TArray<TPair<FName, int64>>& GetNameValuePairs();
+	std::vector<TPair<FName, int64>> GetNameValuePairs();
 	std::string GetSingleName(int32 Index);
-	std::vector<std::string> GetAllNames();
 	std::string GetEnumTypeAsStr();
 
 	std::string UNSAFEGetCPPType();

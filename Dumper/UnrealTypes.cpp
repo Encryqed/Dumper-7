@@ -1,4 +1,4 @@
 #include "UnrealTypes.h"
 
 
-void(*FName::AppendString)(FName*, FString&) = nullptr;
+void(*FName::AppendString)(void*, FString&) = nullptr;

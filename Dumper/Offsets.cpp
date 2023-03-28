@@ -7,6 +7,11 @@ void Off::InSDK::InitPE()
 	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
+	if (!PeAddr)
+	{
+
+	}
+
 	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
 
 	for (int i = 0; i < 0x150; i++)
@@ -32,6 +37,13 @@ void Off::InSDK::InitPE(int32 Index)
 
 void Off::Init()
 {
+	OffsetFinder::InitUObjectOffsets();
+
+	OffsetFinder::FixupHardcodedOffsets();
+
+	Off::UField::Next = OffsetFinder::FindFieldNextOffset();
+	std::cout << "Off::UField::Next: " << Off::UField::Next << "\n";
+
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cout << "Off::UStruct::Children: " << Off::UStruct::Children << "\n";
 

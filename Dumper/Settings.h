@@ -1,8 +1,6 @@
 #pragma once
 
 
-//#define WITH_CASE_PRESERVING_NAME
-
 namespace Settings
 {
 	//Auto generated if no override is provided
@@ -13,6 +11,9 @@ namespace Settings
 
 	//use = nullptr if you don't want your files to be prefixed
 	inline constexpr const char* FilePrefix = nullptr;
+
+	//includes only packages required for the games main package (the package with the most structs/classes/enums)
+	inline constexpr const bool bIncludeOnlyRelevantPackages = false;
 
 	inline constexpr const bool bUseNamespaceForParams = true;
 
@@ -39,5 +40,9 @@ namespace Settings
 		inline bool bIsEnumNameOnly = false;
 
 		inline bool bUseFProperty = false;
+
+		inline bool bUseCasePreservingName = false;
+
+		inline std::string MainGamePackageName;
 	}
 }
