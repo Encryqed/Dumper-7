@@ -1,6 +1,6 @@
 # Dumper-7 (FProperty-Branch)
 
-SDK-Generator for the latest version of Fortnite (24.00), should work on some other versions too.
+SDK-Generator for the latest version of Fortnite (24.00) and UEFN-Editor, should work on some other versions too.
 
 **SDK does not compile**
 
