@@ -154,6 +154,9 @@ public:
 
 					void* Func = CallAddr + *reinterpret_cast<int32*>(CallAddr + 1) + 5; /*Addr + Offset + 5*/
 
+					if ((uint64_t(Func) % 0x10) != 0x0)
+						continue;
+						
 					if (++NumCalls == FunctionIndex)
 					{
 						return Func;
