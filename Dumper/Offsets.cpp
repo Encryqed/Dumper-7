@@ -33,6 +33,8 @@ void Off::InSDK::InitPE(int32 Index)
 	void** VFT = *reinterpret_cast<void***>(ObjectArray::GetByIndex(0).GetAddress());
 
 	Off::InSDK::PEOffset = uintptr_t(VFT[Off::InSDK::PEIndex]) - uintptr_t(GetModuleHandle(0));
+
+	std::cout << "VFT-Offset: 0x" << std::hex << uintptr_t(VFT) - uintptr_t(GetModuleHandle(0)) << std::endl;
 }
 
 void Off::Init()
