@@ -29,6 +29,226 @@ void Generator::Init()
 	InitPredefinedFunctions();
 }
 
+void Generator::GenerateMappings()
+{
+	fs::path DumperFolder(Settings::SDKGenerationPath);
+	fs::path GenFolder(DumperFolder / (Settings::GameVersion + "_MAPPINGS"));
+
+	if (!fs::exists(DumperFolder))
+	{
+		fs::create_directories(DumperFolder);
+	}
+
+	if (fs::exists(GenFolder))
+	{
+		fs::path Old = GenFolder.generic_string() + "_OLD";
+
+		fs::remove_all(Old);
+
+		fs::rename(GenFolder, Old);
+	}
+
+	fs::create_directory(GenFolder);
+
+
+	struct EnumInfo
+	{
+		std::vector<int32> MemberNames;
+		int32 EnumNameIdx;
+
+		EnumInfo(std::vector<int32>&& Names, int32 Idx)
+			: MemberNames(std::move(Names)), EnumNameIdx(Idx)
+		{
+		}
+	};
+
+	struct StructInfo
+	{
+		int32 NameIdx;
+		int32 SuperNameIdx;
+
+		UEStruct SelfStruct;
+
+		StructInfo(int32 Name, int32 SuperName, UEStruct Self)
+			: NameIdx(Name), SuperNameIdx(SuperName), SelfStruct(Self)
+		{
+		}
+	};
+
+	MappingFileWriter<std::ofstream> MappingsStream(GenFolder / (Settings::GameVersion + ".usmap"));
+	MappingFileWriter<std::stringstream> Buffer;
+
+	std::unordered_map<int32, int32> NameIdxPairs;
+	std::vector<EnumInfo> Enums;
+	std::vector<StructInfo> Structs;
+
+	int NameIndex = 0;
+
+	auto WriteNameToBuffer = [&Buffer](FName Name)
+	{
+		std::string StrName = Name.ToString();
+
+		StrName = StrName.substr(StrName.find_last_of(':') + 1);
+
+		if (StrName.length() > 0xFF)
+		{
+			Buffer.Write<uint8>(0xFF);
+			Buffer.WriteStr(StrName.substr(0, 0xFF));
+		}
+		else
+		{
+			Buffer.Write<uint8>(StrName.length());
+			Buffer.WriteStr(StrName);
+		}
+	};
+
+	for (auto Obj : ObjectArray())
+	{
+		if (Obj.IsA(EClassCastFlags::Struct))
+		{
+			UEStruct AsStruct = Obj.Cast<UEStruct>();
+
+			auto [StructNameIt, bInsertedStructName] = NameIdxPairs.insert({ Obj.GetFName().GetCompIdx(), NameIndex });
+
+			if (bInsertedStructName)
+			{
+				WriteNameToBuffer(Obj.GetFName());
+				NameIndex++;
+			}
+
+			int32 SuperIdx = AsStruct.GetSuper() ? NameIdxPairs[AsStruct.GetSuper().GetFName().GetCompIdx()] : 0xFFFFFFFF;
+			Structs.emplace_back(StructNameIt->second, SuperIdx, AsStruct);
+
+			for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
+			{
+				auto [It, bInsertedPropName] = NameIdxPairs.insert({ Prop.GetFName().GetCompIdx(), NameIndex });
+
+				if (bInsertedPropName)
+				{
+					WriteNameToBuffer(Prop.GetFName());
+					NameIndex++;
+				}
+			}
+		}
+		else if (Obj.IsA(EClassCastFlags::Enum))
+		{
+			auto [EnumNameIt, bInsertedEnumname] = NameIdxPairs.insert({ Obj.GetFName().GetCompIdx(), NameIndex });
+
+			if (bInsertedEnumname)
+			{
+				WriteNameToBuffer(Obj.GetFName());
+				NameIndex++;
+			}
+
+			std::vector<int32> MemberNames;
+
+			for (auto& [Name, Value] : Obj.Cast<UEEnum>().GetNameValuePairs())
+			{
+				auto [MemberNameIt, bInsertedMemberName] = NameIdxPairs.insert({ Name.GetCompIdx(), NameIndex });
+
+				if (bInsertedMemberName)
+				{
+					WriteNameToBuffer(Name);
+					NameIndex++;
+				}
+
+				MemberNames.push_back(MemberNameIt->second); //Index
+			}
+
+			Enums.emplace_back(std::move(MemberNames), EnumNameIt->second);
+		}
+	}
+
+	auto WriteProperty = [&NameIdxPairs, &Buffer](UEProperty Property, auto&& WriteProperty) -> void
+	{
+		Buffer.Write<uint8>((uint8)Property.GetMappingType());
+
+		if (Property.IsA(EClassCastFlags::EnumProperty))
+		{
+			WriteProperty(Property.Cast<UEEnumProperty>().GetUnderlayingProperty(), WriteProperty);
+			Buffer.Write<int32>(NameIdxPairs[Property.GetFName().GetCompIdx()]);
+		}
+		else if (Property.IsA(EClassCastFlags::StructProperty))
+		{
+			Buffer.Write<int32>(NameIdxPairs[Property.GetFName().GetCompIdx()]);
+		}
+		else if (Property.IsA(EClassCastFlags::SetProperty) || Property.IsA(EClassCastFlags::ArrayProperty))
+		{
+			WriteProperty(Property.Cast<UESetProperty>().GetElementProperty(), WriteProperty); // same offset for set an array property
+		}
+		else if (Property.IsA(EClassCastFlags::MapProperty))
+		{
+			WriteProperty(Property.Cast<UEMapProperty>().GetKeyProperty(), WriteProperty);
+			WriteProperty(Property.Cast<UEMapProperty>().GetValueProperty(), WriteProperty);
+		}
+	};
+
+	Buffer.Write<uint32>(Enums.size());
+	for (auto& Enum : Enums)
+	{
+		Buffer.Write<int32>(Enum.EnumNameIdx);
+		Buffer.Write<uint8>(Enum.MemberNames.size());
+
+		for (int32 NameIdx : Enum.MemberNames)
+		{
+			Buffer.Write<int32>(NameIdx);
+		}
+	}
+
+	Buffer.Write<uint32>(Structs.size());
+	for (auto& Struct : Structs)
+	{
+		Buffer.Write<int32>(Struct.NameIdx);
+		Buffer.Write<int32>(Struct.SuperNameIdx);
+
+		uint16 PropertyCount = 0;
+		uint16 SerializableCount = 0;
+
+		auto Properties = Struct.SelfStruct.GetProperties();
+
+		for (auto Property : Properties)
+		{
+			PropertyCount += Property.GetArrayDim();
+			SerializableCount++;
+		}
+
+		Buffer.Write<uint16>(PropertyCount);
+		Buffer.Write<uint16>(SerializableCount);
+
+		SerializableCount = 0; // recycling for indices
+
+		for (auto Property : Properties)
+		{
+			Buffer.Write<uint16>(SerializableCount); // Index
+			Buffer.Write<uint8>(Property.GetArrayDim());
+			Buffer.Write<int32>(NameIdxPairs[Property.GetFName().GetCompIdx()]);
+
+			WriteProperty(Property, WriteProperty);
+
+			SerializableCount++;
+		}
+	}
+
+	uint32 DataSize = Buffer.GetSize() + 0xF;
+
+	// HEADER
+	MappingsStream.Write<uint16>(0x30C4); //MAGIC
+	MappingsStream.Write<uint8>(0); // EUsmapVersion::Initial
+	//only when versioning >= 1
+	//MappingsStream.Write<int32>(false); // EUsmapVersion::PackageVersioning yes, someone decided int == bool in CUE4 Parser
+
+	//Versioning info here
+
+	MappingsStream.Write<uint8>(0); //CompressionMethode::None
+	MappingsStream.Write<uint32>(DataSize); // CompressedSize
+	MappingsStream.Write<uint32>(DataSize); // DecompressedSize
+	
+	MappingsStream.Write<uint32>(NameIndex); // NameCount
+	
+	//move data to other stream
+	MappingsStream.CopyFromOtherBuffer(Buffer);
+}
+
 void Generator::GenerateSDK()
 {
 	std::unordered_map<int32_t, std::vector<int32_t>> ObjectPackages;

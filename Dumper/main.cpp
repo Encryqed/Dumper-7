@@ -25,7 +25,7 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
 	auto t_1 = high_resolution_clock::now();
-	
+
 	std::cout << "Started Generation [Dumper-7]!\n";
 
 	Generator::Init();
@@ -38,17 +38,18 @@ DWORD MainThread(HMODULE Module)
 		UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
 		UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName");
 		UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
-			
+
 		Kismet.ProcessEvent(GetGameName, &Name);
 		Kismet.ProcessEvent(GetEngineVersion, &Version);
-	
+
 		Settings::GameName = Name.ToString();
 		Settings::GameVersion = Version.ToString();
 	}
-	
+
 	std::cout << "GameName: " << Settings::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
+	Generator::GenerateMappings();
 	Generator::GenerateSDK();
 
 	auto t_C = high_resolution_clock::now();

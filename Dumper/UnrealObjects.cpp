@@ -672,6 +672,11 @@ FName UEProperty::GetFName()
 	return FName(Base + Off::UObject::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
+int32 UEProperty::GetArrayDim()
+{
+	return *reinterpret_cast<int32*>(Base + Off::UProperty::ArrayDim);
+}
+
 int32 UEProperty::GetSize()
 {
 	return *reinterpret_cast<int32*>(Base + Off::UProperty::ElementSize);
@@ -685,6 +690,13 @@ int32 UEProperty::GetOffset()
 EPropertyFlags UEProperty::GetPropertyFlags()
 {
 	return *reinterpret_cast<EPropertyFlags*>(Base + Off::UProperty::PropertyFlags);
+}
+
+EMappingsTypeFlags UEProperty::GetMappingType()
+{
+	EClassCastFlags Flags = GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags();
+
+	return EPropertyFlagsToMappingFlags(Flags);
 }
 
 bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag)

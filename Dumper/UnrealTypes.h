@@ -189,6 +189,30 @@ public:
 		return GetCompIdx() != Other.GetCompIdx();
 	}
 
+	static inline std::string CompIdxToString(int CmpIdx)
+	{
+		if (!Settings::Internal::bUseCasePreservingName)
+		{
+			struct FakeFName
+			{
+				int CompIdx;
+				uint8 Pad[0x4];
+			} Name(CmpIdx);
+
+			return FName(&Name).ToString();
+		}
+		else
+		{
+			struct FakeFName
+			{
+				int CompIdx;
+				uint8 Pad[0xC];
+			} Name(CmpIdx);
+
+			return FName(&Name).ToString();
+		}
+	}
+
 	static inline void* DEBUGGetAppendString()
 	{
 		return (void*)(AppendString);

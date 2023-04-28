@@ -291,10 +291,10 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 	for (auto& Property : MemberVector)
 	{
 		std::string CppType = Property.GetCppType();
-		std::string Name = Property.GetValidName();
+		std::string Name = Property.GetArrayDim() > 1 ? std::format("{}[0x{:X}]", Property.GetValidName(), Property.GetArrayDim()) : Property.GetValidName();
 
 		const int Offset = Property.GetOffset();
-		const int Size = !Property.IsA(EClassCastFlags::StructProperty) ? Property.GetSize() : Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetStructSize();
+		const int Size = (!Property.IsA(EClassCastFlags::StructProperty) ? Property.GetSize() : Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetStructSize()) * Property.GetArrayDim();
 
 		std::string Comment = std::format("0x{:X}(0x{:X})({})", Offset, Size, Property.StringifyFlags());
 

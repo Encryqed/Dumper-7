@@ -94,6 +94,7 @@ namespace Off
 
 	namespace UProperty
 	{
+		inline uint32 ArrayDim;
 		inline uint32 ElementSize;
 		inline uint32 PropertyFlags;
 		inline uint32 Offset_Internal;

@@ -245,9 +245,11 @@ public:
 	bool IsA(EClassCastFlags TypeFlags);
 
 	FName GetFName();
+	int32 GetArrayDim();
 	int32 GetSize();
 	int32 GetOffset();
 	EPropertyFlags GetPropertyFlags();
+	EMappingsTypeFlags GetMappingType();
 	bool HasPropertyFlags(EPropertyFlags PropertyFlag);
 
 	std::string GetName();
