@@ -62,7 +62,10 @@ public:
 		: Address((uint8*)Addr)
 	{
 	}
-
+	operator bool()
+	{
+		return Address != nullptr;
+	}
 	explicit operator void*()
 	{
 		return Address;
@@ -178,6 +181,96 @@ public:
 		return FuncEnd + (0x10 - (FuncEnd % 0x10));
 	}
 };
+
+static inline MemAddress FindPatternInRange(std::vector<int>&& Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0)
+{
+	const auto PatternLength = Signature.size();
+	const auto PatternBytes = Signature.data();
+
+	for (int i = 0; i < (Range - PatternLength); i++)
+	{
+		bool bFound = true;
+		for (auto j = 0ul; j < PatternLength; ++j)
+		{
+			if (Start[i + j] != PatternBytes[j] && PatternBytes[j] != -1)
+			{
+				bFound = false;
+				break;
+			}
+		}
+		if (bFound)
+		{
+			uintptr_t Address = uintptr_t(Start + i);
+			if (bRelative)
+			{
+				Address = ((Address + Offset + 4) + *(int32_t*)(Address + Offset));
+				return Address;
+			}
+			return Address;
+		}
+	}
+
+	return nullptr;
+}
+
+static inline MemAddress FindPatternInRange(const char* Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0)
+{
+	static auto patternToByte = [](const char* pattern) -> std::vector<int>
+	{
+		auto Bytes = std::vector<int>{};
+		const auto Start = const_cast<char*>(pattern);
+		const auto End = const_cast<char*>(pattern) + strlen(pattern);
+
+		for (auto Current = Start; Current < End; ++Current)
+		{
+			if (*Current == '?')
+			{
+				++Current;
+				if (*Current == '?') ++Current;
+				Bytes.push_back(-1);
+			}
+			else { Bytes.push_back(strtoul(Current, &Current, 16)); }
+		}
+		return Bytes;
+	};
+
+	return FindPatternInRange(patternToByte(Signature), Start, Range, bRelative, Offset);
+}
+
+static inline MemAddress FindPattern(const char* Signature, bool bRelative = false, uint32_t Offset = 0, bool bSearchAllSegments = false)
+{
+	uint8_t* ImageBase = reinterpret_cast<uint8_t*>(GetModuleHandle(NULL));
+	
+	const auto DosHeader = (PIMAGE_DOS_HEADER)ImageBase;
+	const auto NtHeaders = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
+
+	const auto SizeOfImage = NtHeaders->OptionalHeader.SizeOfImage;
+
+	if (!bSearchAllSegments)
+	{
+		PIMAGE_SECTION_HEADER Sections = IMAGE_FIRST_SECTION(NtHeaders);
+
+		uint8_t* TextSection = nullptr;
+		DWORD TextSize = 0;
+
+		for (int i = 0; i < NtHeaders->FileHeader.NumberOfSections; i++)
+		{
+			IMAGE_SECTION_HEADER& CurrentSection = Sections[i];
+
+			std::string SectionName = (const char*)CurrentSection.Name;
+
+			if (SectionName == ".text" && !TextSection)
+			{
+				TextSection = (ImageBase + CurrentSection.VirtualAddress);
+				TextSize = CurrentSection.Misc.VirtualSize;
+			}
+		}
+
+		return FindPatternInRange(Signature, TextSection, TextSize, bRelative, Offset);
+	}
+
+	return FindPatternInRange(Signature, ImageBase, SizeOfImage, bRelative, Offset);
+}
 
 template<typename Type = const char*>
 inline MemAddress FindByString(Type RefStr)

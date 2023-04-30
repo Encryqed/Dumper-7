@@ -9,7 +9,25 @@ void Off::InSDK::InitPE()
 
 	if (!PeAddr)
 	{
+		for (int i = 0; i < 0x150; i++)
+		{
+			if (!Vft[i])
+				break;
 
+			//if (FindPatternInRange("48 89 ? ? ? 48 89 ? ? ?", (uint8*)Vft[i], 0x60) )
+			//&&  FindPatternInRange("F7 ? ? 00 00 00 00 04 00 00", (uint8*)Vft[i], 0x150))
+			if (FindPatternInRange({ 0xF7, -1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, (uint8*)Vft[i], 0x060)
+			&&  FindPatternInRange({ 0xF7, -1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x80, 0x0, 0x0 }, (uint8*)Vft[i], 0x150))
+			{
+				Off::InSDK::PEOffset = uintptr_t(Vft[i]) - uintptr_t(GetModuleHandle(0));
+				Off::InSDK::PEIndex = i;
+
+				std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
+				std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
+
+				return;
+			}
+		}
 	}
 
 	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));

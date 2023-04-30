@@ -18,91 +18,91 @@ namespace Off
 		inline int32 ChunkSize;
 		inline int32 FUObjectItemSize;
 		inline int32 AppendNameToString;
-		inline uint32 FNameSize;
+		inline int32 FNameSize;
 	}
 
 	namespace FUObjectArray
 	{
-		inline uint32 Num;
+		inline int32 Num;
 	}
 
 	namespace FField
 	{
 		// Fixed for CasePreserving FNames by OffsetFinder::FixupHardcodedOffsets();
-		inline uint32 Vft = 0x00;
-		inline uint32 Class = 0x08;
-		inline uint32 Owner = 0x10;
-		inline uint32 Next = 0x20;
-		inline uint32 Name = 0x28;
-		inline uint32 Flags = 0x30;
+		inline int32 Vft = 0x00;
+		inline int32 Class = 0x08;
+		inline int32 Owner = 0x10;
+		inline int32 Next = 0x20;
+		inline int32 Name = 0x28;
+		inline int32 Flags = 0x30;
 	}
 
 	namespace FFieldClass
 	{
 		// Fixed for CasePreserving FNames by OffsetFinder::FixupHardcodedOffsets();
-		inline uint32 Name = 0x00;
-		inline uint32 Id = 0x08;
-		inline uint32 CastFlags = 0x10;
-		inline uint32 ClassFlags = 0x18;
-		inline uint32 SuperClass = 0x20;
+		inline int32 Name = 0x00;
+		inline int32 Id = 0x08;
+		inline int32 CastFlags = 0x10;
+		inline int32 ClassFlags = 0x18;
+		inline int32 SuperClass = 0x20;
 	}
 
 	namespace FName
 	{
 		// These values initialized by OffsetFinder::InitUObjectOffsets()
-		inline uint32 CompIdx;
-		inline uint32 Number;
+		inline int32 CompIdx;
+		inline int32 Number;
 	}
 
 	namespace UObject
 	{
-		inline uint32 Vft;
-		inline uint32 Flags;
-		inline uint32 Index;
-		inline uint32 Class;
-		inline uint32 Name;
-		inline uint32 Outer;
+		inline int32 Vft;
+		inline int32 Flags;
+		inline int32 Index;
+		inline int32 Class;
+		inline int32 Name;
+		inline int32 Outer;
 	}
 
 	namespace UField
 	{
-		inline uint32 Next;
+		inline int32 Next;
 	}
 	namespace UEnum
 	{
-		inline uint32 Names;
+		inline int32 Names;
 	}
 
 	namespace UStruct
 	{
-		inline uint32 SuperStruct;
-		inline uint32 Children;
-		inline uint32 ChildProperties;
-		inline uint32 Size;
+		inline int32 SuperStruct;
+		inline int32 Children;
+		inline int32 ChildProperties;
+		inline int32 Size;
 	}
 
 	namespace UFunction
 	{
-		inline uint32 FunctionFlags;
+		inline int32 FunctionFlags;
 	}
 
 	namespace UClass
 	{
-		inline uint32 ClassFlags;
-		inline uint32 ClassDefaultObject;
+		inline int32 ClassFlags;
+		inline int32 ClassDefaultObject;
 	}
 
 	namespace UProperty
 	{
-		inline uint32 ArrayDim;
-		inline uint32 ElementSize;
-		inline uint32 PropertyFlags;
-		inline uint32 Offset_Internal;
+		inline int32 ArrayDim;
+		inline int32 ElementSize;
+		inline int32 PropertyFlags;
+		inline int32 Offset_Internal;
 	}
 
 	namespace UByteProperty
 	{
-		inline uint32 Enum;
+		inline int32 Enum;
 	}
 
 	namespace UBoolProperty
@@ -115,27 +115,27 @@ namespace Off
 			uint8 FieldMask;
 		};
 
-		inline uint32 Base;
+		inline int32 Base;
 	}
 
 	namespace UObjectProperty
 	{
-		inline uint32 PropertyClass;
+		inline int32 PropertyClass;
 	}
 
 	namespace UClassProperty
 	{
-		inline uint32 MetaClass;
+		inline int32 MetaClass;
 	}
 
 	namespace UStructProperty
 	{
-		inline uint32 Struct;
+		inline int32 Struct;
 	}
 
 	namespace UArrayProperty
 	{
-		inline uint32 Inner;
+		inline int32 Inner;
 	}
 
 	namespace UMapProperty
@@ -146,12 +146,12 @@ namespace Off
 			class UProperty* ValueProperty;
 		};
 
-		inline uint32 Base;
+		inline int32 Base;
 	}
 
 	namespace USetProperty
 	{
-		inline uint32 ElementProp;
+		inline int32 ElementProp;
 	}
 
 	namespace UEnumProperty
@@ -162,6 +162,6 @@ namespace Off
 			class UEnum* Enum;
 		};
 
-		inline uint32 Base;
+		inline int32 Base;
 	}
 }

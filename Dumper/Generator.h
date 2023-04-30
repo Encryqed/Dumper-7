@@ -32,8 +32,8 @@ private:
 	{
 		std::string Type;
 		std::string Name;
-		uint32 Offset;
-		uint32 Size;
+		int32 Offset;
+		int32 Size;
 	};
 
 	typedef std::unordered_map<std::string, std::pair<std::string, std::vector<PredefinedFunction>>> FunctionsMap;
