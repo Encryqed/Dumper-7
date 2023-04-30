@@ -8,13 +8,19 @@
 
 namespace fs = std::filesystem;
 
+enum class EIncludeFileType
+{
+	Struct,
+	Class,
+	Params
+};
+
 struct PackageDependencyManager
 {
 	friend class Package;
 
-	//PackageIdx
-	//bIsIncluded
-	//Dependencies
+	//int32 = PackageIdx
+	//pair<bool, set<int32>> = pair<bIsIncluded, set<DependencyIndices>>
 	std::unordered_map<int32, std::pair<bool, std::unordered_set<int32>>> AllDependencies;
 
 	PackageDependencyManager() = default;
@@ -50,9 +56,10 @@ struct PackageDependencyManager
 	void GenerateClassSorted(class Package& Pack, const int32 ClassIdx);
 
 	/* Only use this when sorting package dependencies */
-	void GetIncludesForPackage(const int32 Index, bool bIsClass, std::string& OutRef);
+	void GetIncludesForPackage(const int32 Index, EIncludeFileType FileType, std::string& OutRef, bool bCommentOut);
 
 	static void GetPropertyDependency(UEProperty Prop, std::unordered_set<int32>& Store);
+	static void GetFunctionDependency(UEFunction Func, std::unordered_set<int32>& Store);
 };
 
 class Package
@@ -63,6 +70,7 @@ public:
 	static std::ofstream DebugAssertionStream;
 	static PackageDependencyManager PackageSorterClasses; // "PackageName_classes.hpp"
 	static PackageDependencyManager PackageSorterStructs; // "PackageName_structs.hpp"
+	static PackageDependencyManager PackageSorterParams; // "PackageName_parameters.hpp"
 
 	PackageDependencyManager StructSorter;
 	PackageDependencyManager ClassSorter;

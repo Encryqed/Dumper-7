@@ -7,6 +7,7 @@
 std::ofstream Package::DebugAssertionStream;
 PackageDependencyManager Package::PackageSorterClasses; // "PackageName_classes.hpp"
 PackageDependencyManager Package::PackageSorterStructs; // "PackageName_structs.hpp"
+PackageDependencyManager Package::PackageSorterParams; // "PackageName_parameters.hpp"
 
 void PackageDependencyManager::GenerateClassSorted(class Package& Pack, int32 ClassIdx)
 {
@@ -46,7 +47,7 @@ void PackageDependencyManager::GenerateStructSorted(class Package& Pack, const i
 	}
 }
 
-void PackageDependencyManager::GetIncludesForPackage(const int32 Index, bool bIsClass, std::string& OutRef)
+void PackageDependencyManager::GetIncludesForPackage(const int32 Index, EIncludeFileType FileType, std::string& OutRef, bool bCommentOut)
 {
 	auto& [bIsIncluded, Dependencies] = AllDependencies[Index];
 
@@ -56,12 +57,26 @@ void PackageDependencyManager::GetIncludesForPackage(const int32 Index, bool bIs
 
 		for (auto& Dependency : Dependencies)
 		{
-			GetIncludesForPackage(Dependency, bIsClass, OutRef);
+			GetIncludesForPackage(Dependency, FileType, OutRef, bCommentOut);
 		}
 
-		std::string PackageName = ObjectArray::GetByIndex(Index).GetName();
+		std::string PackageName = ObjectArray::GetByIndex(Index).GetValidName();
 
-		OutRef += std::format("\n#include \"SDK/{}{}_{}.hpp\"", (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageName, (bIsClass ? "classes" : "structs"));
+		switch (FileType)
+		{
+		case EIncludeFileType::Struct:	
+			OutRef += std::format("\n{}#include \"SDK/{}{}_structs.hpp\"", (bCommentOut ? "//" : ""), (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageName);
+			break;
+		case EIncludeFileType::Class:
+			OutRef += std::format("\n{}#include \"SDK/{}{}_classes.hpp\"", (bCommentOut ? "//" : ""), (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageName);
+			break;
+		case EIncludeFileType::Params:
+			OutRef += std::format("\n{}#include \"SDK/{}{}_parameters.hpp\"", (bCommentOut ? "//" : ""), (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageName);
+			break;
+		default:
+			break;
+		}
+
 	}
 }
 
@@ -94,6 +109,14 @@ void PackageDependencyManager::GetPropertyDependency(UEProperty Prop, std::unord
 	{
 		GetPropertyDependency(Prop.Cast<UEMapProperty>().GetKeyProperty(), Store);
 		GetPropertyDependency(Prop.Cast<UEMapProperty>().GetValueProperty(), Store);
+	}
+}
+
+void PackageDependencyManager::GetFunctionDependency(UEFunction Func, std::unordered_set<int32>& Store)
+{
+	for (UEProperty Property : Func.GetProperties())
+	{
+		PackageDependencyManager::GetPropertyDependency(Property, Store);
 	}
 }
 
@@ -142,6 +165,13 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 			{
 				PackageDependencyManager::GetPropertyDependency(Property, ObjectsToCheck);
 			}
+			for (UEFField Field = Struct.GetChildProperties(); Field; Field = Field.GetNext())
+			{
+				if (Field.IsA(EClassCastFlags::Function))
+				{
+					PackageDependencyManager::GetFunctionDependency(UEFunction(Field.GetAddress()), ObjectsToCheck);
+				}
+			}
 
 			for (auto& Idx : ObjectsToCheck)
 			{
@@ -162,6 +192,8 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 					{
 						Package::PackageSorterStructs.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
 					}
+
+					Package::PackageSorterParams.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
 
 					continue;
 				}
@@ -259,10 +291,10 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 	for (auto& Property : MemberVector)
 	{
 		std::string CppType = Property.GetCppType();
-		std::string Name = Property.GetValidName();
+		std::string Name = Property.GetArrayDim() > 1 ? std::format("{}[0x{:X}]", Property.GetValidName(), Property.GetArrayDim()) : Property.GetValidName();
 
 		const int Offset = Property.GetOffset();
-		const int Size = !Property.IsA(EClassCastFlags::StructProperty) ? Property.GetSize() : Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetStructSize();
+		const int Size = (!Property.IsA(EClassCastFlags::StructProperty) ? Property.GetSize() : Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetStructSize()) * Property.GetArrayDim();
 
 		std::string Comment = std::format("0x{:X}(0x{:X})({})", Offset, Size, Property.StringifyFlags());
 
@@ -568,32 +600,18 @@ Types::Enum Package::GenerateEnum(UEEnum& Enum)
 {
 	std::string EnumName = Enum.GetEnumTypeAsStr();
 
-	auto& NameValue = Enum.GetNameValuePairs();
+	auto NameValue = Enum.GetNameValuePairs();
 
 	Types::Enum Enm(EnumName, "uint8");
 
 	if (UEEnum::BigEnums.find(Enum.GetIndex()) != UEEnum::BigEnums.end())
 		Enm = Types::Enum(EnumName, UEEnum::BigEnums[Enum.GetIndex()]);
 
-	if (!Settings::Internal::bIsEnumNameOnly)
+	for (int i = 0; i < NameValue.size(); i++)
 	{
-		for (int i = 0; i < NameValue.Num(); i++)
-		{
-			std::string TooFullOfAName = NameValue[i].First.ToString();
+		std::string TooFullOfAName = NameValue[i].First.ToString();
 
-			Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
-		}
-	}
-	else
-	{
-		auto& NameOnly = reinterpret_cast<TArray<FName>&>(NameValue);
-
-		for (int i = 0; i < NameValue.Num(); i++)
-		{
-			std::string TooFullOfAName = NameOnly[i].ToString();
-
-			Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), i);
-		}
+		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
 	}
 
 	if (EnumName.find("PixelFormat") != -1)

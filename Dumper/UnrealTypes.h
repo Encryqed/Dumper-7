@@ -120,22 +120,21 @@ public:
 
 class FName
 {
-	static void(*AppendString)(FName*, FString&);
+	static void(*AppendString)(void*, FString&);
 
 public:
-#ifndef WITH_CASE_PRESERVING_NAME
-	int32 ComparisonIndex;
-	int32 Number;
-#else // CASE_PRESERVING_NAME
-	int32 ComparisonIndex;
-	int32 DisplayIndex;
-	int32 Number;
-	uint8 Unk[0x4];
-#endif
+	uint8* Address;
+
+	FName() = default;
+
+	FName(void* Ptr)
+		: Address((uint8*)Ptr)
+	{
+	}
 
 	static void Init()
 	{
-		AppendString = reinterpret_cast<void(*)(FName*, FString&)>(FindByString("ForwardShadingQuality_").GetCalledFunction(2));
+		AppendString = reinterpret_cast<void(*)(void*, FString&)>(FindByString("ForwardShadingQuality_").GetCalledFunction(2));
 	
 		Off::InSDK::AppendNameToString = uintptr_t(AppendString) - uintptr_t(GetModuleHandle(0));
 
@@ -144,7 +143,7 @@ public:
 
 	static void Init(int32 AppendStringOffset)
 	{
-		AppendString = reinterpret_cast<void(*)(FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + AppendStringOffset);
+		AppendString = reinterpret_cast<void(*)(void*, FString&)>(uintptr_t(GetModuleHandle(0)) + AppendStringOffset);
 
 		Off::InSDK::AppendNameToString = AppendStringOffset;
 
@@ -158,7 +157,7 @@ public:
 		if (!AppendString)
 			Init();
 
-		AppendString(this, TempString);
+		AppendString(Address, TempString);
 
 		std::string OutputString = TempString.ToString();
 		TempString.ResetNum();
@@ -171,14 +170,47 @@ public:
 		return OutputString.substr(pos + 1);
 	}
 
+	inline int32 GetCompIdx()
+	{
+		return *reinterpret_cast<int32*>(Address + Off::FName::CompIdx);
+	}
+	inline int32 GetNumber()
+	{
+		return *reinterpret_cast<int32*>(Address + Off::FName::Number);
+	}
+
 	inline bool operator==(FName Other)
 	{
-		return ComparisonIndex == Other.ComparisonIndex;
+		return GetCompIdx() == Other.GetCompIdx();
 	}
 
 	inline bool operator!=(FName Other)
 	{
-		return ComparisonIndex != Other.ComparisonIndex;
+		return GetCompIdx() != Other.GetCompIdx();
+	}
+
+	static inline std::string CompIdxToString(int CmpIdx)
+	{
+		if (!Settings::Internal::bUseCasePreservingName)
+		{
+			struct FakeFName
+			{
+				int CompIdx;
+				uint8 Pad[0x4];
+			} Name(CmpIdx);
+
+			return FName(&Name).ToString();
+		}
+		else
+		{
+			struct FakeFName
+			{
+				int CompIdx;
+				uint8 Pad[0xC];
+			} Name(CmpIdx);
+
+			return FName(&Name).ToString();
+		}
 	}
 
 	static inline void* DEBUGGetAppendString()

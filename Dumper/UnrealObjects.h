@@ -39,8 +39,12 @@ public:
 	FName GetFName();
 
 	bool IsType(EClassCastFlags Flags);
+	bool HasType(EClassCastFlags Flags);
+	bool IsA(EClassCastFlags Flags);
 
 	std::string GetName();
+	std::string GetValidName();
+	std::string GetCppName();
 };
 
 class UEFField
@@ -137,6 +141,7 @@ public:
 	std::string GetFullName();
 
 	explicit operator bool();
+	explicit operator uint8*();
 	bool operator==(const UEObject& Other) const;
 	bool operator!=(const UEObject& Other) const;
 
@@ -159,9 +164,8 @@ class UEEnum : public UEField
 public:
 	static std::unordered_map<int32, std::string> BigEnums; //ObjectArray::GetAllPackages()
 
-	TArray<TPair<FName, int64>>& GetNameValuePairs();
+	std::vector<TPair<FName, int64>> GetNameValuePairs();
 	std::string GetSingleName(int32 Index);
-	std::vector<std::string> GetAllNames();
 	std::string GetEnumTypeAsStr();
 
 	std::string UNSAFEGetCPPType();
@@ -233,7 +237,7 @@ public:
 
 	void* GetAddress();
 
-	std::pair<UEClass, UEFField> GetClass();
+	std::pair<UEClass, UEFFieldClass> GetClass();
 
 	template<typename UEType>
 	UEType Cast();
@@ -241,9 +245,11 @@ public:
 	bool IsA(EClassCastFlags TypeFlags);
 
 	FName GetFName();
+	int32 GetArrayDim();
 	int32 GetSize();
 	int32 GetOffset();
 	EPropertyFlags GetPropertyFlags();
+	EMappingsTypeFlags GetMappingType();
 	bool HasPropertyFlags(EPropertyFlags PropertyFlag);
 
 	std::string GetName();

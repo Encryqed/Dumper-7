@@ -32,8 +32,8 @@ private:
 	{
 		std::string Type;
 		std::string Name;
-		uint32 Offset;
-		uint32 Size;
+		int32 Offset;
+		int32 Size;
 	};
 
 	typedef std::unordered_map<std::string, std::pair<std::string, std::vector<PredefinedFunction>>> FunctionsMap;
@@ -45,11 +45,15 @@ private:
 public:
 	static void Init();
 
+private:
 	static void InitPredefinedMembers();
 	static void InitPredefinedFunctions();
 
+public:
+	static void GenerateMappings();
 	static void GenerateSDK();
 
+private:
 	static void GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t, std::vector<int32_t>>& Packages);
 	static void GenerateFixupFile(fs::path& SdkPath);
 	static void GenerateBasicFile(fs::path& SdkPath);

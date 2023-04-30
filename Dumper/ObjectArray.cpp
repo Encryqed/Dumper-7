@@ -1,9 +1,12 @@
 #include <iostream>
 #include <fstream>
 #include <format>
+#include <filesystem>
 #include "ObjectArray.h"
 #include "Offsets.h"
 #include "Utils.h"
+
+namespace fs = std::filesystem;
 
 /* Scuffed stuff up here */
 struct FChunkedFixedUObjectArray
@@ -17,10 +20,10 @@ struct FChunkedFixedUObjectArray
 
 	inline bool IsValid()
 	{
-		if (NumChunks > 0x12 || NumChunks < 0x1)
+		if (NumChunks > 0x14 || NumChunks < 0x1)
 			return false;
 
-		if (MaxChunks > 0xD0 || MaxChunks < 0x18)
+		if (MaxChunks > 0x22F || MaxChunks < 0x18)
 			return false;
 
 		if (NumElements > MaxElements || NumChunks > MaxChunks)
@@ -176,16 +179,19 @@ void ObjectArray::Init()
 				}
 			}
 
-			if (ObjectArray::Num() > 0x10401)
+			int IndexOffset = 0x0;
+			uint8* ObjAtIdx374 = (uint8*)ByIndex(GObjects, 0x374, SizeOfFUObjectItem, 0x10000);
+			uint8* ObjAtIdx106 = (uint8*)ByIndex(GObjects, 0x106, SizeOfFUObjectItem, 0x10000);
+
+			for (int i = 0x8; i < 0x20; i++)
 			{
-				if (ObjectArray::GetByIndex(0x10401).GetIndex() != 0x10401)
-				{
-					NumElementsPerChunk = 0x10400;
-				}
+				if (*(int32*)(ObjAtIdx374 + i) == 0x374 && *(int32*)(ObjAtIdx106 + i) == 0x106)
+					IndexOffset = i;
 			}
-			else
+
+			if (ObjectArray::Num() > 0x10401 && *reinterpret_cast<int32*>((uint8*)ObjectArray::GetByIndex(0x10401) + IndexOffset) != 0x10401)
 			{
-				std::cout << "Game has a too low GObjects count and therefore dumper 7 could not find out how many elements are per chunk!" << std::endl;
+				NumElementsPerChunk = 0x10400;
 			}
 
 			Off::InSDK::ChunkSize = NumElementsPerChunk;
@@ -204,6 +210,8 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 	Off::InSDK::GObjects = GObjectsOffset;
 
+	std::cout << "GObjects: 0x" << (void*)GObjects << "\n" << std::endl;
+
 	if (!bIsChunked)
 	{
 		Off::FUObjectArray::Num = 0xC;
@@ -215,11 +223,13 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 			return *(void**)(*(uint64*)ObjectsArray + Index * FUObjectItemSize);
 		};
+
 		for (int i = 1; i <= 0x30; i += 4)
 		{
-			if (!IsBadReadPtr(*(void**)((uint8*)(GObjects)+i)))
+			if (!IsBadReadPtr(ByIndex(GObjects, 1, i, ElementsPerChunk)))
 			{
 				SizeOfFUObjectItem = i;
+				Off::InSDK::FUObjectItemSize = i;
 				break;
 			}
 		}
@@ -238,11 +248,13 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 			return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray)+ChunkIndex) + InChunkIdx * FUObjectItemSize);
 		};
+		
 		for (int i = 0x8; i <= 0x30; i += 4)
 		{
-			if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects)+i)))
+			if (!IsBadReadPtr(ByIndex(GObjects, 1, i, ElementsPerChunk)))
 			{
 				SizeOfFUObjectItem = i;
+				Off::InSDK::FUObjectItemSize = i;
 				break;
 			}
 		}
@@ -254,14 +266,19 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 void ObjectArray::DumpObjects()
 {
-	std::ofstream DumpStream("GObjects-Dump.txt");
+	fs::path Path(Settings::SDKGenerationPath);
+
+	if (!Settings::GameVersion.empty())
+		Path /= Settings::GameVersion;
+
+	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
 	DumpStream << "Object dump by Dumper-7\n\n";
 	DumpStream << "Count: " << Num() << "\n\n\n";
 
 	for (auto Object : ObjectArray())
 	{
-		DumpStream << std::format("[{}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
+		DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
 	}
 
 	DumpStream.close();

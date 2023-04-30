@@ -35,7 +35,7 @@ UEFFieldClass UEFFieldClass::GetSuper()
 
 FName UEFFieldClass::GetFName()
 {
-	return *reinterpret_cast<FName*>(Class + Off::FFieldClass::Name);
+	return FName(Class + Off::FFieldClass::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
 bool UEFFieldClass::IsType(EClassCastFlags Flags)
@@ -43,9 +43,54 @@ bool UEFFieldClass::IsType(EClassCastFlags Flags)
 	return GetCastFlags() & Flags;
 }
 
+bool UEFFieldClass::IsA(EClassCastFlags TypeFlags)
+{
+	return (TypeFlags != EClassCastFlags::None ? IsType(TypeFlags) : true);
+}
+
 std::string UEFFieldClass::GetName()
 {
 	return Class ? GetFName().ToString() : "None";
+}
+
+std::string UEFFieldClass::GetValidName()
+{
+	std::string Name = GetName();
+
+	char& FirstChar = Name[0];
+
+	if (Name == "bool")
+	{
+		FirstChar -= 0x20;
+
+		return Name;
+	}
+
+	if (Name == "TRUE")
+		return "TURR";
+
+	if (FirstChar <= '9' && FirstChar >= '0')
+		Name = '_' + Name;
+
+	// this way I don't need to bother checking for c++ types (except bool) like int in the names
+	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
+		FirstChar = FirstChar - 0x20;
+
+	for (char& c : Name)
+	{
+		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
+		{
+			c = '_';
+		}
+	}
+
+	return Name;
+}
+
+std::string UEFFieldClass::GetCppName()
+{
+	// This is evile dark magic code which shouldn't exist
+	return "F" + GetValidName();
 }
 
 void* UEFField::GetAddress()
@@ -70,7 +115,7 @@ UEFFieldClass UEFField::GetClass()
 
 FName UEFField::GetFName()
 {
-	return *reinterpret_cast<FName*>(Field + Off::FField::Name);
+	return FName(Field + Off::FField::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
 UEFField UEFField::GetNext()
@@ -196,7 +241,7 @@ UEClass UEObject::GetClass()
 
 FName UEObject::GetFName()
 {
-	return *reinterpret_cast<FName*>(Object + Off::UObject::Name);
+	return FName(Object + Off::UObject::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
 UEObject UEObject::GetOuter()
@@ -317,6 +362,11 @@ UEObject::operator bool()
 	return Object != nullptr && reinterpret_cast<void*>(Object + Off::UObject::Class) != nullptr;
 }
 
+UEObject::operator uint8*()
+{
+	return Object;
+}
+
 bool UEObject::operator==(const UEObject& Other) const
 {
 	return Object == Other.Object;
@@ -346,28 +396,64 @@ bool UEField::IsNextValid()
 	return (bool)GetNext();
 }
 
-TArray<TPair<FName, int64>>& UEEnum::GetNameValuePairs()
+std::vector<TPair<FName, int64>> UEEnum::GetNameValuePairs()
 {
-	return *reinterpret_cast<TArray<TPair<FName, int64>>*>(Object + Off::UEnum::Names);
+	struct Name08Byte { uint8 Pad[0x08]; };
+	struct Name16Byte { uint8 Pad[0x10]; };
+
+	std::vector<TPair<FName, int64>> Ret;
+
+	if (!Settings::Internal::bIsEnumNameOnly)
+	{
+		if (Settings::Internal::bUseCasePreservingName)
+		{
+			auto& Names = *reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(Object + Off::UEnum::Names);
+
+			for (int i = 0; i < Names.Num(); i++)
+			{
+				Ret.push_back({ FName(&Names[i].First), Names[i].Second });
+			}
+		}
+		else
+		{
+			auto& Names = *reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(Object + Off::UEnum::Names);
+
+			for (int i = 0; i < Names.Num(); i++)
+			{
+				Ret.push_back({ FName(&Names[i].First), Names[i].Second });
+			}
+		}
+	}
+	else
+	{
+		auto& NameOnly = *reinterpret_cast<TArray<FName>*>(Object + Off::UEnum::Names);
+
+		if (Settings::Internal::bUseCasePreservingName)
+		{
+			auto& Names = *reinterpret_cast<TArray<Name16Byte>*>(Object + Off::UEnum::Names);
+
+			for (int i = 0; i < Names.Num(); i++)
+			{
+				Ret.push_back({ FName(&Names[i]), i });
+			}
+		}
+		else
+		{
+			auto& Names = *reinterpret_cast<TArray<Name08Byte>*>(Object + Off::UEnum::Names);
+
+			for (int i = 0; i < Names.Num(); i++)
+			{
+				Ret.push_back({ FName(&Names[i]), i });
+			}
+		}
+	}
+
+	return Ret;
 }
 
 std::string UEEnum::GetSingleName(int32 Index)
 {
 	return GetNameValuePairs()[Index].First.ToString();
-}
-
-std::vector<std::string> UEEnum::GetAllNames()
-{
-	auto& Names = GetNameValuePairs();
-
-	std::vector<std::string> RetVec(Names.Num());
-
-	for (int i = 0; i < Names.Num(); i++)
-	{
-		RetVec.push_back(Names[i].First.ToString());
-	}
-
-	return RetVec;
 }
 
 std::string UEEnum::GetEnumTypeAsStr()
@@ -550,14 +636,14 @@ void* UEProperty::GetAddress()
 	return Base;
 }
 
-std::pair<UEClass, UEFField> UEProperty::GetClass()
+std::pair<UEClass, UEFFieldClass> UEProperty::GetClass()
 {
 	if (Settings::Internal::bUseFProperty)
 	{
-		return std::pair<UEClass, UEFField>(UEClass(nullptr), UEFField(Base));
+		return { UEClass(0), UEFField(Base).GetClass() };
 	}
 
-	return std::pair<UEClass, UEFField>(UEClass(Base + Off::UObject::Class), UEFField(nullptr));
+	return { UEClass(Base + Off::UObject::Class), UEFFieldClass(0) };
 }
 	
 template<typename UEType>
@@ -580,10 +666,15 @@ FName UEProperty::GetFName()
 {
 	if (Settings::Internal::bUseFProperty)
 	{
-		return *reinterpret_cast<FName*>(Base + Off::FField::Name);
+		return FName(Base + Off::FField::Name); //Not the real FName, but a wrapper which holds the address of a FName
 	}
 
-	return *reinterpret_cast<FName*>(Base + Off::UObject::Name);
+	return FName(Base + Off::UObject::Name); //Not the real FName, but a wrapper which holds the address of a FName
+}
+
+int32 UEProperty::GetArrayDim()
+{
+	return *reinterpret_cast<int32*>(Base + Off::UProperty::ArrayDim);
 }
 
 int32 UEProperty::GetSize()
@@ -599,6 +690,13 @@ int32 UEProperty::GetOffset()
 EPropertyFlags UEProperty::GetPropertyFlags()
 {
 	return *reinterpret_cast<EPropertyFlags*>(Base + Off::UProperty::PropertyFlags);
+}
+
+EMappingsTypeFlags UEProperty::GetMappingType()
+{
+	EClassCastFlags Flags = GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags();
+
+	return EPropertyFlagsToMappingFlags(Flags);
 }
 
 bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag)
@@ -647,7 +745,7 @@ std::string UEProperty::GetValidName()
 
 std::string UEProperty::GetCppType()
 {
-	EClassCastFlags TypeFlags = this->GetClass().first ? this->GetClass().first.GetCastFlags() : this->GetClass().second.GetClass().GetCastFlags();
+	EClassCastFlags TypeFlags = (GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags());
 
 	if (TypeFlags & EClassCastFlags::ByteProperty)
 	{
@@ -751,7 +849,7 @@ std::string UEProperty::GetCppType()
 	}
 	else
 	{
-		std::string CppName = GetClass().first ? GetClass().first.GetCppName() + "_" : GetClass().second.GetCppName() + "_";
+		std::string CppName = (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";
 
 		UnknownProperties.insert({ CppName, GetSize() });
 

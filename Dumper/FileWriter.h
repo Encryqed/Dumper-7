@@ -56,3 +56,60 @@ public:
 
 	std::ofstream& DebugGetStream();
 };
+
+template<class StreamType>
+class MappingFileWriter
+{
+private:
+	StreamType Stream;
+
+public:
+	MappingFileWriter() = default;
+
+	MappingFileWriter(fs::path FilePath)
+		: Stream(FilePath, std::ios::binary)
+	{
+	}
+
+	template<typename T>
+	inline void Write(T Data)
+	{
+		Stream.write(reinterpret_cast<const char*>(&Data), sizeof(Data));
+	}
+
+	inline void WriteStr(const std::string& Data)
+	{
+		Stream << Data;
+	}
+
+	inline uint32 GetSize()
+	{
+		Stream.flush();
+
+		// yes, I pasted this from shade
+		auto Pos = Stream.tellp();
+		Stream.seekp(0, SEEK_END);
+		auto Ret = Stream.tellp();
+		Stream.seekp(Pos, SEEK_SET);
+
+		return Ret;
+	}
+
+	inline auto Rdbuf()
+	{
+		return Stream.rdbuf();
+	}
+
+	template<class T>
+	inline void CopyFromOtherBuffer(MappingFileWriter<T>& Other)
+	{
+		Stream.flush();
+
+		Stream << Other.Rdbuf();
+	}
+
+	~MappingFileWriter()
+	{
+		Stream.flush();
+	}
+};

@@ -7,6 +7,29 @@ void Off::InSDK::InitPE()
 	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
+	if (!PeAddr)
+	{
+		for (int i = 0; i < 0x150; i++)
+		{
+			if (!Vft[i])
+				break;
+
+			//if (FindPatternInRange("48 89 ? ? ? 48 89 ? ? ?", (uint8*)Vft[i], 0x60) )
+			//&&  FindPatternInRange("F7 ? ? 00 00 00 00 04 00 00", (uint8*)Vft[i], 0x150))
+			if (FindPatternInRange({ 0xF7, -1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, (uint8*)Vft[i], 0x060)
+			&&  FindPatternInRange({ 0xF7, -1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x80, 0x0, 0x0 }, (uint8*)Vft[i], 0x150))
+			{
+				Off::InSDK::PEOffset = uintptr_t(Vft[i]) - uintptr_t(GetModuleHandle(0));
+				Off::InSDK::PEIndex = i;
+
+				std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
+				std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
+
+				return;
+			}
+		}
+	}
+
 	Off::InSDK::PEOffset = uintptr_t(PeAddr) - uintptr_t(GetModuleHandle(0));
 
 	for (int i = 0; i < 0x150; i++)
@@ -28,10 +51,19 @@ void Off::InSDK::InitPE(int32 Index)
 	void** VFT = *reinterpret_cast<void***>(ObjectArray::GetByIndex(0).GetAddress());
 
 	Off::InSDK::PEOffset = uintptr_t(VFT[Off::InSDK::PEIndex]) - uintptr_t(GetModuleHandle(0));
+
+	std::cout << "VFT-Offset: 0x" << std::hex << uintptr_t(VFT) - uintptr_t(GetModuleHandle(0)) << std::endl;
 }
 
 void Off::Init()
 {
+	OffsetFinder::InitUObjectOffsets();
+
+	OffsetFinder::FixupHardcodedOffsets();
+
+	Off::UField::Next = OffsetFinder::FindFieldNextOffset();
+	std::cout << "Off::UField::Next: " << Off::UField::Next << "\n";
+
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cout << "Off::UStruct::Children: " << Off::UStruct::Children << "\n";
 
@@ -64,14 +96,18 @@ void Off::Init()
 	Off::UProperty::ElementSize = OffsetFinder::FindElementSizeOffset();
 	std::cout << "Off::UProperty::ElementSize: " << Off::UProperty::ElementSize << "\n";
 
+	Off::UProperty::ArrayDim = Off::UProperty::ElementSize - 0x4;
+	std::cout << "Off::UProperty::ArrayDim: " << Off::UProperty::ElementSize << "\n";
+
 	Off::UProperty::Offset_Internal = OffsetFinder::FindOffsetInternalOffset();
 	std::cout << "Off::UProperty::Offset_Internal: " << Off::UProperty::Offset_Internal << "\n";
 
 	Off::UProperty::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
 	std::cout << "Off::UProperty::PropertyFlags: " << Off::UProperty::PropertyFlags << "\n";
 
-	const int32 UPropertySize = OffsetFinder::FindEnumOffset();
-	std::cout << "UPropertySize: " << UPropertySize << "\n";
+	//const int32 UPropertySize = OffsetFinder::FindEnumOffset();
+	const int32 UPropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
+	std::cout << "UPropertySize: " << UPropertySize << "\n\n";
 
 	Off::UByteProperty::Enum = UPropertySize;
 	Off::UBoolProperty::Base = UPropertySize; 
