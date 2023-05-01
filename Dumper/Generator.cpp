@@ -21,7 +21,7 @@ void Generator::Init()
 	ObjectArray::Init();
 	FName::Init();
 	Off::Init();
-	Off::InSDK::InitPE(); //Must last, relies on offsets initialized in Off::Init()
+	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
 
 	InitPredefinedMembers();
 	InitPredefinedFunctions();

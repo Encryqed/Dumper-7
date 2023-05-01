@@ -134,7 +134,7 @@ public:
 
 	static void Init()
 	{
-		AppendString = reinterpret_cast<void(*)(void*, FString&)>(FindByString("ForwardShadingQuality_").GetCalledFunction(2));
+		AppendString = reinterpret_cast<void(*)(void*, FString&)>(FindByString("ForwardShadingQuality_").RelativePattern("48 8D ? ? 48 8D ? ? E8", 0x60, 0x9));
 	
 		Off::InSDK::AppendNameToString = uintptr_t(AppendString) - uintptr_t(GetModuleHandle(0));
 
