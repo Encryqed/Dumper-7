@@ -1007,7 +1007,7 @@ UEEnum UEEnumProperty::GetEnum()
 }
 
 std::string UEEnumProperty::GetCppType()
-{	
+{
 	return GetEnum().GetEnumTypeAsStr();
 }
 
@@ -1052,6 +1052,8 @@ void TemplateTypeCreationForUnrealObjects(void)
 	FDummy.Cast<UEMapProperty&>();
 	FDummy.Cast<UESetProperty&>();
 	FDummy.Cast<UEEnumProperty&>();
+
+	Dummy.Cast<UEFField>();
 
 	Dummy.Cast<UEObject>();
 	Dummy.Cast<UEField>();

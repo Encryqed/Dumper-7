@@ -56,8 +56,6 @@ void Off::Init()
 {
 	OffsetFinder::InitUObjectOffsets();
 
-	OffsetFinder::FixupHardcodedOffsets();
-
 	Off::UField::Next = OffsetFinder::FindFieldNextOffset();
 	std::cout << "Off::UField::Next: " << Off::UField::Next << "\n";
 
@@ -70,12 +68,16 @@ void Off::Init()
 	Off::UStruct::Size = OffsetFinder::FindStructSizeOffset();
 	std::cout << "Off::UStruct::Size: " << Off::UStruct::Size << "\n";
 
+	std::cout << ObjectArray::GetByIndex(0x69).GetFullName() << std::endl;
+
 	if (Settings::Internal::bUseFProperty)
 	{
 		std::cout << "Game uses FProperty system\n\n";
 
 		Off::UStruct::ChildProperties = OffsetFinder::FindChildPropertiesOffset();
 		std::cout << "Off::UStruct::ChildProperties: " << Off::UStruct::ChildProperties << "\n";
+
+		OffsetFinder::FixupHardcodedOffsets(); // must be called after FindChildPropertiesOffset 
 	}
 
 	Off::UClass::ClassFlags = OffsetFinder::FindCastFlagsOffset();
@@ -102,18 +104,23 @@ void Off::Init()
 	Off::UProperty::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
 	std::cout << "Off::UProperty::PropertyFlags: " << Off::UProperty::PropertyFlags << "\n";
 
-	//const int32 UPropertySize = OffsetFinder::FindEnumOffset();
-	const int32 UPropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
-	std::cout << "UPropertySize: " << UPropertySize << "\n\n";
+	const int32 PropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
+	std::cout << "UPropertySize: " << PropertySize << "\n\n";
 
-	Off::UByteProperty::Enum = UPropertySize;
-	Off::UBoolProperty::Base = UPropertySize; 
-	Off::UObjectProperty::PropertyClass = UPropertySize;
-	Off::UStructProperty::Struct = UPropertySize;
-	Off::UArrayProperty::Inner = UPropertySize;
-	Off::UMapProperty::Base = UPropertySize;
-	Off::USetProperty::ElementProp = UPropertySize;
-	Off::UEnumProperty::Base = UPropertySize;
+	Off::UArrayProperty::Inner = OffsetFinder::FindInnerTypeOffset(PropertySize);
+	std::cout << "Off::UArrayProperty::Inner: " << Off::UArrayProperty::Inner << "\n";
+	
+	Off::USetProperty::ElementProp = OffsetFinder::FindSetPropertyBaseOffset(PropertySize);
+	std::cout << "Off::USetProperty::ElementProp: " << Off::USetProperty::ElementProp << "\n";
+	
+	Off::UMapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(PropertySize);
+	std::cout << "Off::UMapProperty::Base: " << Off::UMapProperty::Base << "\n";
 
-	Off::UClassProperty::MetaClass = UPropertySize + 0x8; //0x8 inheritance from UObjectProperty
+	Off::UByteProperty::Enum = PropertySize;
+	Off::UBoolProperty::Base = PropertySize;
+	Off::UObjectProperty::PropertyClass = PropertySize;
+	Off::UStructProperty::Struct = PropertySize;
+	Off::UEnumProperty::Base = PropertySize;
+	
+	Off::UClassProperty::MetaClass = PropertySize + 0x8; //0x8 inheritance from UObjectProperty
 }

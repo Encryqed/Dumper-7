@@ -49,8 +49,8 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
-	Generator::GenerateMappings();
 	Generator::GenerateSDK();
+	Generator::GenerateMappings();
 
 	auto t_C = high_resolution_clock::now();
 	

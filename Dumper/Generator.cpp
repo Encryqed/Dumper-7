@@ -170,9 +170,13 @@ void Generator::GenerateMappings()
 		{
 			Buffer.Write<int32>(NameIdxPairs[Property.GetFName().GetCompIdx()]);
 		}
-		else if (Property.IsA(EClassCastFlags::SetProperty) || Property.IsA(EClassCastFlags::ArrayProperty))
+		else if (Property.IsA(EClassCastFlags::ArrayProperty))
 		{
-			WriteProperty(Property.Cast<UESetProperty>().GetElementProperty(), WriteProperty); // same offset for set an array property
+			WriteProperty(Property.Cast<UEArrayProperty>().GetInnerProperty(), WriteProperty);
+		}
+		else if (Property.IsA(EClassCastFlags::SetProperty))
+		{
+			WriteProperty(Property.Cast<UESetProperty>().GetElementProperty(), WriteProperty);
 		}
 		else if (Property.IsA(EClassCastFlags::MapProperty))
 		{

@@ -411,24 +411,30 @@ static UEType ObjectArray::FindObjectFastInOuter(std::string Name, std::string O
 }
 
 template<typename UEType>
-static UEType ObjectArray::FindMemberInObjectFast(std::string ObjectName, std::string MemberName)
+static UEType ObjectArray::FindMemberInObjectFast(UEStruct Struct, std::string MemberName, EClassCastFlags TypeFlags)
 {
-	UEStruct Struct = ObjectArray::FindObjectFast(ObjectName).Cast<UEStruct>();
-
 	if (Settings::Internal::bUseFProperty)
 	{
 		for (UEFField Field = Struct.GetChildProperties(); Field; Field = Field.GetNext())
 		{
-			if (Field.GetName() == MemberName)
+			if (Field.IsA(TypeFlags) && Field.GetName() == MemberName)
 			{
 				return Field.Cast<UEType>();
 			}
 		}
-
-		return UEType();
+	}
+	else
+	{
+		for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
+		{
+			if (Field.IsA(TypeFlags) && Field.GetName() == MemberName)
+			{
+				return Field.Cast<UEType>();
+			}
+		}
 	}
 
-	return UEType(FindObjectFastInOuter(MemberName, ObjectName).GetAddress());
+	return UEType();
 }
 
 UEClass ObjectArray::FindClass(std::string FullName)
@@ -525,6 +531,8 @@ void TemplateTypeCreationForObjectArray(void)
 	ObjectArray::FindObjectFast<UESetProperty>("");
 	ObjectArray::FindObjectFast<UEEnumProperty>("");
 
+	ObjectArray::FindMemberInObjectFast<UEFField>(nullptr, "");
+
 	ObjectArray::FindObjectFastInOuter<UEObject>("", "");
 	ObjectArray::FindObjectFastInOuter<UEField>("", "");
 	ObjectArray::FindObjectFastInOuter<UEEnum>("", "");
@@ -541,8 +549,6 @@ void TemplateTypeCreationForObjectArray(void)
 	ObjectArray::FindObjectFastInOuter<UEMapProperty>("", "");
 	ObjectArray::FindObjectFastInOuter<UESetProperty>("", "");
 	ObjectArray::FindObjectFastInOuter<UEEnumProperty>("", "");
-
-	ObjectArray::FindMemberInObjectFast<UEFField>("", "");
 
 	ObjectArray::GetByIndex<UEObject>(-1);
 	ObjectArray::GetByIndex<UEField>(-1);
