@@ -68,8 +68,6 @@ void Off::Init()
 	Off::UStruct::Size = OffsetFinder::FindStructSizeOffset();
 	std::cout << "Off::UStruct::Size: " << Off::UStruct::Size << "\n";
 
-	std::cout << ObjectArray::GetByIndex(0x69).GetFullName() << std::endl;
-
 	if (Settings::Internal::bUseFProperty)
 	{
 		std::cout << "Game uses FProperty system\n\n";
@@ -96,7 +94,7 @@ void Off::Init()
 	std::cout << "Off::UProperty::ElementSize: " << Off::UProperty::ElementSize << "\n";
 
 	Off::UProperty::ArrayDim = Off::UProperty::ElementSize - 0x4;
-	std::cout << "Off::UProperty::ArrayDim: " << Off::UProperty::ElementSize << "\n";
+	std::cout << "Off::UProperty::ArrayDim: " << Off::UProperty::ArrayDim << "\n";
 
 	Off::UProperty::Offset_Internal = OffsetFinder::FindOffsetInternalOffset();
 	std::cout << "Off::UProperty::Offset_Internal: " << Off::UProperty::Offset_Internal << "\n";
@@ -114,7 +112,7 @@ void Off::Init()
 	std::cout << "Off::USetProperty::ElementProp: " << Off::USetProperty::ElementProp << "\n";
 	
 	Off::UMapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(PropertySize);
-	std::cout << "Off::UMapProperty::Base: " << Off::UMapProperty::Base << "\n";
+	std::cout << "Off::UMapProperty::Base: " << Off::UMapProperty::Base << "\n\n";
 
 	Off::UByteProperty::Enum = PropertySize;
 	Off::UBoolProperty::Base = PropertySize;

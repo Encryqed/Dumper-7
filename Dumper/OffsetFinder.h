@@ -46,7 +46,7 @@ namespace OffsetFinder
 			return FindOffset<4, int32_t, true>(Infos);
 		};
 
-		auto GetValidPointerOffset = [ObjA, ObjB](int32_t StartingOffset) -> int32_t
+		auto GetValidPointerOffset = [](uint8_t* ObjA, uint8_t* ObjB, int32_t StartingOffset) -> int32_t
 		{
 			for (int j = StartingOffset; j <= 0x40; j += 0x8)
 			{
@@ -62,9 +62,18 @@ namespace OffsetFinder
 		Off::UObject::Vft = 0x00;
 		Off::UObject::Flags = sizeof(void*);
 		Off::UObject::Index = GetIndexOffset();
-		Off::UObject::Class = GetValidPointerOffset(Off::UObject::Index+sizeof(int));
+		Off::UObject::Class = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Index + sizeof(int));
 		Off::UObject::Name = Off::UObject::Class + sizeof(void*);
-		Off::UObject::Outer = GetValidPointerOffset(Off::UObject::Name);
+		Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8);
+
+		// loop a few times in case we accidentally choose a UPackage (which doesn't have an Outer) to find Outer
+		while (Off::UObject::Outer == -1)
+		{
+			ObjA = (uint8*)ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
+			ObjB = (uint8*)ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
+
+			Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8);
+		}
 
 		Off::InSDK::FNameSize = Off::UObject::Outer - Off::UObject::Name;
 
@@ -111,6 +120,8 @@ namespace OffsetFinder
 
 			if (!IsBadReadPtr(PossibleNextPtrOrBool))
 			{
+				Settings::Internal::bUseMaskForFieldOwner = true;
+
 				Off::FField::Next -= 0x08;
 				Off::FField::Name -= 0x08;
 				Off::FField::Flags -= 0x08;
@@ -149,7 +160,6 @@ namespace OffsetFinder
 		std::cout << "Off::UObject::Class: " << Off::UObject::Class << std::endl;
 		std::cout << "Off::UObject::Outer: " << Off::UObject::Outer << std::endl;
 
-		Sleep(2000);
 
 		Settings::Internal::bUseCasePreservingName = false;
 

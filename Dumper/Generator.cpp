@@ -159,16 +159,25 @@ void Generator::GenerateMappings()
 
 	auto WriteProperty = [&NameIdxPairs, &Buffer](UEProperty Property, auto&& WriteProperty) -> void
 	{
+		if (Property.IsA(EClassCastFlags::ByteProperty) && Property.Cast<UEByteProperty>().GetEnum()) 
+			Buffer.Write<uint8>((uint8)EMappingsTypeFlags::EnumProperty);
+		
 		Buffer.Write<uint8>((uint8)Property.GetMappingType());
 
 		if (Property.IsA(EClassCastFlags::EnumProperty))
 		{
-			WriteProperty(Property.Cast<UEEnumProperty>().GetUnderlayingProperty(), WriteProperty);
-			Buffer.Write<int32>(NameIdxPairs[Property.GetFName().GetCompIdx()]);
+			UEEnumProperty EnumProperty = Property.Cast<UEEnumProperty>();
+
+			WriteProperty(EnumProperty.GetUnderlayingProperty(), WriteProperty);
+			Buffer.Write<int32>(NameIdxPairs[EnumProperty.GetEnum().GetFName().GetCompIdx()]);
+		}
+		else if (Property.IsA(EClassCastFlags::ByteProperty) && Property.Cast<UEByteProperty>().GetEnum())
+		{
+			Buffer.Write<int32>(NameIdxPairs[Property.Cast<UEByteProperty>().GetEnum().GetFName().GetCompIdx()]);
 		}
 		else if (Property.IsA(EClassCastFlags::StructProperty))
 		{
-			Buffer.Write<int32>(NameIdxPairs[Property.GetFName().GetCompIdx()]);
+			Buffer.Write<int32>(NameIdxPairs[Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetFName().GetCompIdx()]);
 		}
 		else if (Property.IsA(EClassCastFlags::ArrayProperty))
 		{
@@ -257,6 +266,9 @@ void Generator::GenerateSDK()
 
 	ObjectArray::GetAllPackages(ObjectPackages);
 
+	std::cout << "ObjectArray::GetAllPackages(ObjectPackages);" << std::endl;
+	Sleep(3000);
+
 	fs::path DumperFolder(Settings::SDKGenerationPath);
 	fs::path GenFolder(DumperFolder / Settings::GameVersion);
 	fs::path SDKFolder = GenFolder / "SDK";
@@ -279,6 +291,9 @@ void Generator::GenerateSDK()
 	fs::create_directory(SDKFolder);
 
 	ObjectArray::DumpObjects();
+
+	std::cout << "Dumped Objects!!!" << std::endl;
+	Sleep(3000);
 
 	Package::InitAssertionStream(GenFolder);
 

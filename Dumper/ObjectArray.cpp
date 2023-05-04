@@ -291,54 +291,47 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 
 	for (UEObject Object : ObjectArray())
 	{
-		if (!Object)
-			continue;
-
-		if (Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+		if (!Object || Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
 			continue;
 
 		if (Object.IsA(EClassCastFlags::Struct))
 		{
 			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 
-			if (!Object.IsA(EClassCastFlags::Function))
+			UEStruct ObjAsStruct = Object.Cast<UEStruct>();
+			UEStruct Super = ObjAsStruct.GetSuper();
+
+			int32 LowestOffset = 0xFFFFFF;
+
+
+			if (!Super || Object.IsA(EClassCastFlags::Function))
+				continue;
+	
+			for (UEProperty Property : ObjAsStruct.GetProperties())
 			{
-				UEStruct ObjAsStruct = Object.Cast<UEStruct>();
-
-				int32 LowestOffset = 0xFFFFFF;
-
-				if (UEStruct Super = ObjAsStruct.GetSuper())
+				if (Property.Cast<UEProperty>().GetOffset() < LowestOffset)
 				{
-					for (UEProperty Property : ObjAsStruct.GetProperties())
+					LowestOffset = Property.Cast<UEProperty>().GetOffset();
+				}
+			}
+
+			if (LowestOffset != 0xFFFFFF)
+			{
+				for (UEStruct S = Super; S; S = S.GetSuper())
+				{
+					auto It = UEStruct::StructSizes.find(S.GetIndex());
+
+					if (It != UEStruct::StructSizes.end() && It->second > LowestOffset)
 					{
-						if (Property.Cast<UEProperty>().GetOffset() < LowestOffset)
-						{
-							LowestOffset = Property.Cast<UEProperty>().GetOffset();
-						}
+						It->second = LowestOffset;
+					}
+					else
+					{
+						UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
 					}
 
-					if (LowestOffset != 0xFFFFFF)
-					{
-						for (UEStruct S = Super; S; S = S.GetSuper())
-						{
-							auto It = UEStruct::StructSizes.find(S.GetIndex());
-
-							if (It != UEStruct::StructSizes.end())
-							{
-								if (It->second > LowestOffset)
-								{
-									It->second = LowestOffset;
-								}
-							}
-							else
-							{
-								UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
-							}
-
-							if (S.HasMembers())
-								break;
-						}
-					}
+					if (S.HasMembers())
+						break;
 				}
 			}
 		}
@@ -413,6 +406,9 @@ static UEType ObjectArray::FindObjectFastInOuter(std::string Name, std::string O
 template<typename UEType>
 static UEType ObjectArray::FindMemberInObjectFast(UEStruct Struct, std::string MemberName, EClassCastFlags TypeFlags)
 {
+	if (!Struct)
+		return nullptr;
+
 	if (Settings::Internal::bUseFProperty)
 	{
 		for (UEFField Field = Struct.GetChildProperties(); Field; Field = Field.GetNext())

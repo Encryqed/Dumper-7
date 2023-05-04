@@ -39,8 +39,6 @@ public:
 	FName GetFName();
 
 	bool IsType(EClassCastFlags Flags);
-	bool HasType(EClassCastFlags Flags);
-	bool IsA(EClassCastFlags Flags);
 
 	std::string GetName();
 	std::string GetValidName();
@@ -49,13 +47,6 @@ public:
 
 class UEFField
 {
-private:
-	struct FFieldObjectStruct
-	{
-		UEFField* Field;
-		UEObject* Object;
-	};
-
 protected:
 	uint8* Field;
 
@@ -76,7 +67,10 @@ public:
 	void* GetAddress();
 
 	EObjectFlags GetFlags();
-	FFieldObjectStruct GetOwner();
+	class UEObject GetOwnerAsUObject();
+	class UEFField GetOwnerAsFField();
+	class UEObject GetOwnerUObject();
+	class UEObject GetOutermost();
 	UEFFieldClass GetClass();
 	FName GetFName();
 	UEFField GetNext();
@@ -251,6 +245,8 @@ public:
 	EPropertyFlags GetPropertyFlags();
 	EMappingsTypeFlags GetMappingType();
 	bool HasPropertyFlags(EPropertyFlags PropertyFlag);
+
+	UEObject GetOutermost();
 
 	std::string GetName();
 	std::string GetValidName();

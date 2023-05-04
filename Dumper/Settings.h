@@ -43,6 +43,8 @@ namespace Settings
 
 		inline bool bUseCasePreservingName = false;
 
+		inline bool bUseMaskForFieldOwner = false;
+
 		inline std::string MainGamePackageName;
 	}
 }

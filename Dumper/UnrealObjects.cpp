@@ -40,12 +40,7 @@ FName UEFFieldClass::GetFName()
 
 bool UEFFieldClass::IsType(EClassCastFlags Flags)
 {
-	return GetCastFlags() & Flags;
-}
-
-bool UEFFieldClass::IsA(EClassCastFlags TypeFlags)
-{
-	return (TypeFlags != EClassCastFlags::None ? IsType(TypeFlags) : true);
+	return (Flags != EClassCastFlags::None ? (GetCastFlags() & Flags) : true);
 }
 
 std::string UEFFieldClass::GetName()
@@ -98,14 +93,48 @@ void* UEFField::GetAddress()
 	return Field;
 }
 
-UEFField::FFieldObjectStruct UEFField::GetOwner()
-{
-	return* reinterpret_cast<FFieldObjectStruct*>(Field + Off::FField::Owner);
-}
-
 EObjectFlags UEFField::GetFlags()
 {
 	return *reinterpret_cast<EObjectFlags*>(Field + Off::FField::Flags);
+}
+
+class UEObject UEFField::GetOwnerAsUObject()
+{
+	if (IsOwnerUObject())
+	{
+		if (Settings::Internal::bUseMaskForFieldOwner)
+			return (void*)(*reinterpret_cast<uintptr_t*>(Field + Off::FField::Owner) & ~0x1ull);
+
+		return *reinterpret_cast<void**>(Field + Off::FField::Owner);
+	}
+
+	return nullptr;
+}
+
+class UEFField UEFField::GetOwnerAsFField()
+{
+	if (!IsOwnerUObject())
+		return *reinterpret_cast<void**>(Field + Off::FField::Owner);
+
+	return nullptr;
+}
+
+class UEObject UEFField::GetOwnerUObject()
+{
+	UEFField Field = *this;
+
+	while (!Field.IsOwnerUObject() && Field.GetOwnerAsFField())
+	{
+		Field = Field.GetOwnerAsFField();
+	}
+
+	return Field.GetOwnerAsUObject();
+}
+
+class UEObject UEFField::GetOutermost()
+{
+	UEObject OwnerUObject = GetOwnerUObject();
+	return OwnerUObject.GetOutermost();
 }
 
 UEFFieldClass UEFField::GetClass()
@@ -131,12 +160,12 @@ UEType UEFField::Cast() const
 
 bool UEFField::IsOwnerUObject()
 {
-	bool IsUObject = *reinterpret_cast<bool*>(Field + Off::FField::Owner + 0x8);
+	if (Settings::Internal::bUseMaskForFieldOwner)
+	{
+		return *reinterpret_cast<uintptr_t*>(Field + Off::FField::Owner) & 0x1;
+	}
 
-	if (IsUObject)
-		return true;
-	
-	return false;
+	return *reinterpret_cast<bool*>(Field + Off::FField::Owner + 0x8);
 }
 
 bool UEFField::IsA(EClassCastFlags Flags)
@@ -570,7 +599,7 @@ EClassCastFlags UEClass::GetCastFlags()
 
 bool UEClass::IsType(EClassCastFlags TypeFlag)
 {
-	return GetCastFlags() & TypeFlag;
+	return (TypeFlag != EClassCastFlags::None ? (GetCastFlags() & TypeFlag) : true);
 }
 
 bool UEClass::HasType(UEClass TypeClass)
@@ -655,11 +684,10 @@ inline UEType UEProperty::Cast()
 bool UEProperty::IsA(EClassCastFlags TypeFlags)
 {
 	if (GetClass().first)
-	{
-		return GetClass().first.IsA(TypeFlags);
-	}
+		return GetClass().first.IsType(TypeFlags);
+	
 
-	return GetClass().second.IsA(TypeFlags);
+	return GetClass().second.IsType(TypeFlags);
 }
 
 FName UEProperty::GetFName()
@@ -702,6 +730,11 @@ EMappingsTypeFlags UEProperty::GetMappingType()
 bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag)
 {
 	return GetPropertyFlags() & PropertyFlag;
+}
+
+UEObject UEProperty::GetOutermost()
+{
+	return Settings::Internal::bUseFProperty ? UEFField(Base).GetOutermost() : UEObject(Base).GetOutermost();
 }
 
 std::string UEProperty::GetName()
