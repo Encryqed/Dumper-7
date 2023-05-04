@@ -266,9 +266,6 @@ void Generator::GenerateSDK()
 
 	ObjectArray::GetAllPackages(ObjectPackages);
 
-	std::cout << "ObjectArray::GetAllPackages(ObjectPackages);" << std::endl;
-	Sleep(3000);
-
 	fs::path DumperFolder(Settings::SDKGenerationPath);
 	fs::path GenFolder(DumperFolder / Settings::GameVersion);
 	fs::path SDKFolder = GenFolder / "SDK";
