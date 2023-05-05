@@ -289,9 +289,6 @@ void Generator::GenerateSDK()
 
 	ObjectArray::DumpObjects();
 
-	std::cout << "Dumped Objects!!!" << std::endl;
-	Sleep(3000);
-
 	Package::InitAssertionStream(GenFolder);
 
 	for (auto& Pair : ObjectPackages)

@@ -134,8 +134,13 @@ public:
 
 	static void Init()
 	{
-		AppendString = reinterpret_cast<void(*)(void*, FString&)>(FindByString("ForwardShadingQuality_").RelativePattern("48 8D ? ? 48 8D ? ? E8", 0x60, 0x9));
-	
+		auto StringRef = FindByString("ForwardShadingQuality_");
+		AppendString = reinterpret_cast<void(*)(void*, FString&)>(StringRef.RelativePattern("48 8D ? ? 48 8D ? ? E8", 0x60, 0x9));
+
+		// Temporary workaround for UEFN-Editor
+		if (!AppendString)
+			AppendString = reinterpret_cast<void(*)(void*, FString&)>(StringRef.RelativePattern("48 8D ? ? ? 49 8B ? E8", 0x60, 0x9));
+
 		Off::InSDK::AppendNameToString = uintptr_t(AppendString) - uintptr_t(GetModuleHandle(0));
 
 		std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";

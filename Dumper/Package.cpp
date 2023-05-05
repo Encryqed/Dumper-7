@@ -22,9 +22,7 @@ void PackageDependencyManager::GenerateClassSorted(class Package& Pack, int32 Cl
 			GenerateClassSorted(Pack, Dependency);
 		}
 
-		UEClass Class = ObjectArray::GetByIndex<UEClass>(ClassIdx);
-
-		Pack.GenerateClass(Class);
+		Pack.GenerateClass(ObjectArray::GetByIndex<UEClass>(ClassIdx));
 	}
 }
 
@@ -41,9 +39,7 @@ void PackageDependencyManager::GenerateStructSorted(class Package& Pack, const i
 			GenerateStructSorted(Pack, Dependency);
 		}
 
-		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(StructIdx);
-
-		Pack.GenerateStruct(Struct);
+		Pack.GenerateStruct(ObjectArray::GetByIndex<UEStruct>(StructIdx));
 	}
 }
 
@@ -143,36 +139,33 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 {
 	for (int32_t Index : PackageMembers)
 	{
-		std::unordered_set<int32> ObjectsToCheck;
-
 		UEObject Object = ObjectArray::GetByIndex(Index);
 
 		if (!Object)
 			continue;
 
+		std::unordered_set<int32> ObjectsToCheck;
 		const bool bIsClass = Object.IsA(EClassCastFlags::Class);
 
-		if (Object.IsA(EClassCastFlags::Class) || (Object.IsA(EClassCastFlags::Struct) && !Object.IsA(EClassCastFlags::Function)))
+		if (Object.IsA(EClassCastFlags::Struct) && !Object.IsA(EClassCastFlags::Function))
 		{
 			UEStruct Struct = Object.Cast<UEStruct>();
 
 			if (UEStruct Super = Struct.GetSuper())
-			{
 				ObjectsToCheck.insert(Super.GetIndex());
-			}
 
 			for (UEProperty Property : Struct.GetProperties())
 			{
 				PackageDependencyManager::GetPropertyDependency(Property, ObjectsToCheck);
 			}
-			for (UEFField Field = Struct.GetChildProperties(); Field; Field = Field.GetNext())
+
+			for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
 			{
 				if (Field.IsA(EClassCastFlags::Function))
 				{
 					PackageDependencyManager::GetFunctionDependency(UEFunction(Field.GetAddress()), ObjectsToCheck);
 				}
 			}
-
 			for (auto& Idx : ObjectsToCheck)
 			{
 				UEObject Obj = ObjectArray::GetByIndex(Idx);
@@ -184,11 +177,11 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 
 				if (PackageObject != Outermost)
 				{
-					if (bDependencyIsClass)
+					if (bDependencyIsClass)	
 					{
 						Package::PackageSorterClasses.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
 					}
-					else
+					else 
 					{
 						Package::PackageSorterStructs.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
 					}
@@ -202,7 +195,6 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 				if (bIsClass && bDependencyIsClass)
 				{
 					ClassSorter.AddDependency(Object.GetIndex(), Idx);
-
 				}
 				else if (!bIsClass && bDependencyIsStruct)
 				{
@@ -229,7 +221,7 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 
 		if (Object.IsA(EClassCastFlags::Enum))
 		{
-			GenerateEnum(Object.Cast<UEEnum&>());
+			GenerateEnum(Object.Cast<UEEnum>());
 		}
 		else if (Object.IsA(EClassCastFlags::Class))
 		{
@@ -467,7 +459,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	return Func;
 }
 
-Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
+Types::Struct Package::GenerateStruct(UEStruct Struct, bool bIsFunction)
 {
 	std::string StructName = !bIsFunction ? Struct.GetCppName() : Struct.Cast<UEFunction>().GetParamStructName();
 
@@ -530,7 +522,7 @@ Types::Struct Package::GenerateStruct(UEStruct& Struct, bool bIsFunction)
 	return RetStruct;
 }
 
-Types::Class Package::GenerateClass(UEClass& Class)
+Types::Class Package::GenerateClass(UEClass Class)
 {
 	std::string ClassName = Class.GetCppName();
 
@@ -596,7 +588,7 @@ Types::Class Package::GenerateClass(UEClass& Class)
 	return RetClass;
 }
 
-Types::Enum Package::GenerateEnum(UEEnum& Enum)
+Types::Enum Package::GenerateEnum(UEEnum Enum)
 {
 	std::string EnumName = Enum.GetEnumTypeAsStr();
 

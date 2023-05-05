@@ -98,9 +98,9 @@ public:
 
 	void GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize);
 	Types::Function GenerateFunction(UEFunction& Function, UEStruct& Super);
-	Types::Struct GenerateStruct(UEStruct& Struct, bool bIsFunction = false);
-	Types::Class GenerateClass(UEClass& Class);
-	Types::Enum GenerateEnum(UEEnum& Enum);
+	Types::Struct GenerateStruct(UEStruct Struct, bool bIsFunction = false);
+	Types::Class GenerateClass(UEClass Class);
+	Types::Enum GenerateEnum(UEEnum Enum);
 
 	Types::Member GenerateBytePadding(int32 Offset, int32 PadSize, std::string&& Reason);
 	Types::Member GenerateBitPadding(int32 Offset, int32 PadSize, std::string&& Reason);

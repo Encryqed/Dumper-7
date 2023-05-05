@@ -448,6 +448,9 @@ namespace OffsetFinder
 	/* UArrayProperty */
 	inline int32_t FindInnerTypeOffset(const int32 PropertySize)
 	{
+		if (!Settings::Internal::bUseFProperty)
+			return PropertySize;
+
 		if (auto Object = ObjectArray::FindMemberInObjectFast(ObjectArray::FindClassFast("GameViewportClient"), "DebugProperties", EClassCastFlags::ArrayProperty))
 		{
 			void* AddressToCheck = *(void**)((uint8*)Object.GetAddress() + PropertySize);
@@ -462,6 +465,9 @@ namespace OffsetFinder
 	/* USetProperty */
 	inline int32_t FindSetPropertyBaseOffset(const int32 PropertySize)
 	{
+		if (!Settings::Internal::bUseFProperty)
+			return PropertySize;
+
 		if (auto Object = ObjectArray::FindMemberInObjectFast(ObjectArray::FindClassFast("InputDeviceSubsystem"), "ActiveProperties", EClassCastFlags::SetProperty))
 		{
 			void* AddressToCheck = *(void**)((uint8*)Object.GetAddress() + PropertySize);
@@ -476,6 +482,9 @@ namespace OffsetFinder
 	/* UMapProperty */
 	inline int32_t FindMapPropertyBaseOffset(const int32 PropertySize)
 	{
+		if (!Settings::Internal::bUseFProperty)
+			return PropertySize;
+
 		if (auto Object = ObjectArray::FindMemberInObjectFast(ObjectArray::FindClassFast("ActorContainer"), "Actors", EClassCastFlags::MapProperty))
 		{
 			void* AddressToCheck = *(void**)((uint8*)Object.GetAddress() + PropertySize);

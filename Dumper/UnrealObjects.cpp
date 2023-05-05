@@ -672,7 +672,7 @@ std::pair<UEClass, UEFFieldClass> UEProperty::GetClass()
 		return { UEClass(0), UEFField(Base).GetClass() };
 	}
 
-	return { UEClass(Base + Off::UObject::Class), UEFFieldClass(0) };
+	return { UEObject(Base).GetClass(), UEFFieldClass(0) };
 }
 	
 template<typename UEType>
@@ -686,7 +686,6 @@ bool UEProperty::IsA(EClassCastFlags TypeFlags)
 	if (GetClass().first)
 		return GetClass().first.IsType(TypeFlags);
 	
-
 	return GetClass().second.IsType(TypeFlags);
 }
 
@@ -1056,6 +1055,7 @@ void TemplateTypeCreationForUnrealObjects(void)
 	UEFField FDummy(nullptr);
 	UEProperty PDummy(nullptr);
 
+	PDummy.Cast<UEObject>();
 	PDummy.Cast<UEField>();
 	PDummy.Cast<UEProperty>();
 
