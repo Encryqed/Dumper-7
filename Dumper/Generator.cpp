@@ -266,26 +266,39 @@ void Generator::GenerateSDK()
 
 	ObjectArray::GetAllPackages(ObjectPackages);
 
-	fs::path DumperFolder(Settings::SDKGenerationPath);
-	fs::path GenFolder(DumperFolder / Settings::GameVersion);
-	fs::path SDKFolder = GenFolder / "SDK";
+	fs::path DumperFolder;
+	fs::path GenFolder;
+	fs::path SDKFolder;
 
-	if (!fs::exists(DumperFolder))
+	try
 	{
-		fs::create_directories(DumperFolder);
-	}
+		DumperFolder = Settings::SDKGenerationPath;
+		GenFolder = DumperFolder / Settings::GameVersion;
+		SDKFolder = GenFolder / "SDK";
 
-	if (fs::exists(GenFolder))
+		if (!fs::exists(DumperFolder))
+		{
+			fs::create_directories(DumperFolder);
+		}
+
+		if (fs::exists(GenFolder))
+		{
+			fs::path Old = GenFolder.generic_string() + "_OLD";
+
+			fs::remove_all(Old);
+
+			fs::rename(GenFolder, Old);
+		}
+
+		fs::create_directory(GenFolder);
+		fs::create_directory(SDKFolder);
+	}
+	catch (const std::filesystem::filesystem_error& fe)
 	{
-		fs::path Old = GenFolder.generic_string() + "_OLD";
-
-		fs::remove_all(Old);
-
-		fs::rename(GenFolder, Old);
+		std::cout << "Could not create required folders! Info: \n"; 
+		std::cout << fe.what() << std::endl;
+		return;
 	}
-
-	fs::create_directory(GenFolder);
-	fs::create_directory(SDKFolder);
 
 	ObjectArray::DumpObjects();
 
@@ -459,7 +472,7 @@ namespace Offsets
 	for (auto& Pack : Package::PackageSorterParams.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorterParams.GetIncludesForPackage(Pack.first, EIncludeFileType::Class, IncludesString, Settings::bIncludeOnlyRelevantPackages);
+		Package::PackageSorterParams.GetIncludesForPackage(Pack.first, EIncludeFileType::Params, IncludesString, Settings::bIncludeOnlyRelevantPackages);
 	
 		HeaderStream << IncludesString;
 	}

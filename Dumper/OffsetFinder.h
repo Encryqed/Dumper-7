@@ -30,6 +30,20 @@ namespace OffsetFinder
 		return HighestFoundOffset;
 	}
 
+
+	inline int32_t GetValidPointerOffset(uint8_t* ObjA, uint8_t* ObjB, int32_t StartingOffset, int32_t MaxOffset)
+	{
+		for (int j = StartingOffset; j <= MaxOffset; j += 0x8)
+		{
+			if (!IsBadReadPtr(*(void**)(ObjA + j)) && !IsBadReadPtr(*(void**)(ObjB + j)))
+			{
+				return j;
+			}
+		}
+
+		return -1;
+	};
+
 	/* UObject */
 	inline void InitUObjectOffsets()
 	{
@@ -46,25 +60,12 @@ namespace OffsetFinder
 			return FindOffset<4, int32_t, true>(Infos);
 		};
 
-		auto GetValidPointerOffset = [](uint8_t* ObjA, uint8_t* ObjB, int32_t StartingOffset) -> int32_t
-		{
-			for (int j = StartingOffset; j <= 0x40; j += 0x8)
-			{
-				if (!IsBadReadPtr(*(void**)(ObjA + j)) && !IsBadReadPtr(*(void**)(ObjB + j)))
-				{
-					return j;
-				}
-			}
-			
-			return -1;
-		};
-
 		Off::UObject::Vft = 0x00;
 		Off::UObject::Flags = sizeof(void*);
 		Off::UObject::Index = GetIndexOffset();
-		Off::UObject::Class = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Index + sizeof(int));
+		Off::UObject::Class = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Index + sizeof(int), 0x40);
 		Off::UObject::Name = Off::UObject::Class + sizeof(void*);
-		Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8);
+		Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8, 0x40);
 
 		// loop a few times in case we accidentally choose a UPackage (which doesn't have an Outer) to find Outer
 		while (Off::UObject::Outer == -1)
@@ -72,7 +73,7 @@ namespace OffsetFinder
 			ObjA = (uint8*)ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
 			ObjB = (uint8*)ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
 
-			Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8);
+			Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8, 0x40);
 		}
 
 		Off::InSDK::FNameSize = Off::UObject::Outer - Off::UObject::Name;
@@ -116,9 +117,11 @@ namespace OffsetFinder
 			* if FFieldVariant doesn't contain a bool, the memory at the bools offset will be the next member of FField, the Next ptr [valid]
 			*/
 
-			void* PossibleNextPtrOrBool = *(void**)((uint8*)ObjectArray::FindClassFast("Actor").GetChildProperties().GetAddress() + 0x18);
+			void* PossibleNextPtrOrBool0 = *(void**)((uint8*)ObjectArray::FindClassFast("Actor").GetChildProperties().GetAddress() + 0x18);
+			void* PossibleNextPtrOrBool1 = *(void**)((uint8*)ObjectArray::FindClassFast("ActorComponent").GetChildProperties().GetAddress() + 0x18);
+			void* PossibleNextPtrOrBool2 = *(void**)((uint8*)ObjectArray::FindClassFast("Pawn").GetChildProperties().GetAddress() + 0x18);
 
-			if (!IsBadReadPtr(PossibleNextPtrOrBool))
+			if (!IsBadReadPtr(PossibleNextPtrOrBool0) && !IsBadReadPtr(PossibleNextPtrOrBool1) && !IsBadReadPtr(PossibleNextPtrOrBool2))
 			{
 				Settings::Internal::bUseMaskForFieldOwner = true;
 
@@ -127,44 +130,6 @@ namespace OffsetFinder
 				Off::FField::Flags -= 0x08;
 			}
 		}
-	}
-
-	inline void InitUObjectOffsets(int dummy)
-	{
-		uint8_t* ObjA = (uint8_t*)ObjectArray::GetByIndex(0x55).GetAddress();
-		uint8_t* ObjB = (uint8_t*)ObjectArray::GetByIndex(0x123).GetAddress();
-
-		std::cout << "ObjA: " << (void*)ObjA << std::endl;
-		std::cout << "ObjB: " << (void*)ObjA << std::endl;
-
-		auto GetValidPointerOffset = [ObjA, ObjB](int32_t StartingOffset) -> int32_t
-		{
-			for (int j = StartingOffset; j <= 0x40; j += 0x8)
-			{
-				if (!IsBadReadPtr(*(void**)(ObjA + j)) && !IsBadReadPtr(*(void**)(ObjB + j)))
-				{
-					return j;
-				}
-			}
-
-			return -1;
-		};
-
-		Off::UObject::Vft = 0x00;
-		Off::UObject::Flags = 0x8;
-		Off::UObject::Index = 0xC;
-		Off::UObject::Class = GetValidPointerOffset(0x8);
-		Off::UObject::Name = 0x18;
-		Off::UObject::Outer = GetValidPointerOffset(0x18);
-
-		std::cout << "Off::UObject::Class: " << Off::UObject::Class << std::endl;
-		std::cout << "Off::UObject::Outer: " << Off::UObject::Outer << std::endl;
-
-
-		Settings::Internal::bUseCasePreservingName = false;
-
-		Off::FName::CompIdx = 0x0;
-		Off::FName::Number = 0x4;
 	}
 
 	/* UEnum */
@@ -241,9 +206,10 @@ namespace OffsetFinder
 
 	inline int32_t FindChildPropertiesOffset()
 	{
-		// TODO (encryqed) : Get Valid ChildProperties Offset for UStruct :)
-		
-		return Off::UStruct::Children + 0x08;
+		uint8* ObjA = (uint8*)ObjectArray::FindObjectFast("Color").GetAddress();
+		uint8* ObjB = (uint8*)ObjectArray::FindObjectFast("Guid").GetAddress();
+
+		return GetValidPointerOffset(ObjA, ObjB, Off::UStruct::Children + 0x08, 0x80);
 	}
 
 	inline int32_t FindStructSizeOffset()

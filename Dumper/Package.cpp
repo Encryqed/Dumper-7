@@ -56,7 +56,7 @@ void PackageDependencyManager::GetIncludesForPackage(const int32 Index, EInclude
 			GetIncludesForPackage(Dependency, FileType, OutRef, bCommentOut);
 		}
 
-		std::string PackageName = ObjectArray::GetByIndex(Index).GetValidName();
+		std::string PackageName = ObjectArray::GetByIndex(Index).GetName();
 
 		switch (FileType)
 		{
