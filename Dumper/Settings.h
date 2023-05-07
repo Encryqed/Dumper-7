@@ -9,7 +9,7 @@ namespace Settings
 
 	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
 
-	//use = nullptr if you don't want your files to be prefixed
+	//use nullptr if you don't want your files to be prefixed
 	inline constexpr const char* FilePrefix = nullptr;
 
 	//includes only packages required for the games main package (the package with the most structs/classes/enums)

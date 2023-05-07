@@ -12,7 +12,9 @@ enum class EIncludeFileType
 {
 	Struct,
 	Class,
-	Params
+	Params,
+
+	None
 };
 
 struct PackageDependencyManager
@@ -56,7 +58,14 @@ struct PackageDependencyManager
 	void GenerateClassSorted(class Package& Pack, const int32 ClassIdx);
 
 	/* Only use this when sorting package dependencies */
-	void GetIncludesForPackage(const int32 Index, EIncludeFileType FileType, std::string& OutRef, bool bCommentOut);
+	void GetIncludesForPackage(
+		const int32 Index, 
+		EIncludeFileType FileType, 
+		std::string& OutRef, 
+		bool bCommentOut = false, 
+		PackageDependencyManager* AdditionalDependencies = nullptr,
+		EIncludeFileType AdditionalDepFileType = EIncludeFileType::None
+	);
 
 	static void GetPropertyDependency(UEProperty Prop, std::unordered_set<int32>& Store);
 	static void GetFunctionDependency(UEFunction Func, std::unordered_set<int32>& Store);

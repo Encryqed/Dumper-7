@@ -43,7 +43,14 @@ void PackageDependencyManager::GenerateStructSorted(class Package& Pack, const i
 	}
 }
 
-void PackageDependencyManager::GetIncludesForPackage(const int32 Index, EIncludeFileType FileType, std::string& OutRef, bool bCommentOut)
+void PackageDependencyManager::GetIncludesForPackage(
+	const int32 Index, 
+	EIncludeFileType FileType, 
+	std::string& OutRef, 
+	bool bCommentOut, 
+	PackageDependencyManager* AdditionalDependencies,
+	EIncludeFileType AdditionalDepFileType
+)
 {
 	auto& [bIsIncluded, Dependencies] = AllDependencies[Index];
 
@@ -51,9 +58,12 @@ void PackageDependencyManager::GetIncludesForPackage(const int32 Index, EInclude
 	{
 		bIsIncluded = true;
 
+		if (AdditionalDependencies)
+			AdditionalDependencies->GetIncludesForPackage(Index, AdditionalDepFileType, OutRef, bCommentOut);
+		
 		for (auto& Dependency : Dependencies)
 		{
-			GetIncludesForPackage(Dependency, FileType, OutRef, bCommentOut);
+			GetIncludesForPackage(Dependency, FileType, OutRef, bCommentOut, AdditionalDependencies, AdditionalDepFileType);
 		}
 
 		std::string PackageName = ObjectArray::GetByIndex(Index).GetName();

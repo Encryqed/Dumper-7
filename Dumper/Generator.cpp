@@ -456,7 +456,7 @@ namespace Offsets
 
 		IncludesString.clear();
 
-		Package::PackageSorterClasses.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Class, IncludesString, false);
+		Package::PackageSorterClasses.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Class, IncludesString, false, &Package::PackageSorterStructs, EIncludeFileType::Struct);
 		HeaderStream << IncludesString;
 		
 		IncludesString.clear();
@@ -476,7 +476,7 @@ namespace Offsets
 	for (auto& Pack : Package::PackageSorterClasses.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorterClasses.GetIncludesForPackage(Pack.first, EIncludeFileType::Class, IncludesString, Settings::bIncludeOnlyRelevantPackages);
+		Package::PackageSorterClasses.GetIncludesForPackage(Pack.first, EIncludeFileType::Class, IncludesString, Settings::bIncludeOnlyRelevantPackages, &Package::PackageSorterStructs, EIncludeFileType::Struct);
 	
 		HeaderStream << IncludesString;
 	}
