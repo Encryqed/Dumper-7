@@ -29,24 +29,36 @@ void Generator::Init()
 
 void Generator::GenerateMappings()
 {
-	fs::path DumperFolder(Settings::SDKGenerationPath);
-	fs::path GenFolder(DumperFolder / (Settings::GameVersion + "_MAPPINGS"));
+	fs::path DumperFolder;
+	fs::path GenFolder;
 
-	if (!fs::exists(DumperFolder))
+	try
 	{
-		fs::create_directories(DumperFolder);
-	}
+		DumperFolder = Settings::SDKGenerationPath;
+		GenFolder = DumperFolder / (Settings::GameVersion + "_MAPPINGS");
 
-	if (fs::exists(GenFolder))
+		if (!fs::exists(DumperFolder))
+		{
+			fs::create_directories(DumperFolder);
+		}
+
+		if (fs::exists(GenFolder))
+		{
+			fs::path Old = GenFolder.generic_string() + "_OLD";
+
+			fs::remove_all(Old);
+
+			fs::rename(GenFolder, Old);
+		}
+
+		fs::create_directory(GenFolder);
+	}
+	catch (const std::filesystem::filesystem_error& fe)
 	{
-		fs::path Old = GenFolder.generic_string() + "_OLD";
-
-		fs::remove_all(Old);
-
-		fs::rename(GenFolder, Old);
+		std::cout << "Could not create required folders! Info: \n";
+		std::cout << fe.what() << std::endl;
+		return;
 	}
-
-	fs::create_directory(GenFolder);
 
 
 	struct EnumInfo
@@ -342,16 +354,16 @@ void Generator::GenerateSDK()
 			{
 				for (auto& Pairs : Generator::PredefinedFunctions)
 				{
-					if (Pairs.second.first == PackageName)
+					if (Pairs.second.first != PackageName)
+						continue;
+
+					for (auto& PredefFunc : Pairs.second.second)
 					{
-						for (auto& PredefFunc : Pairs.second.second)
+						if (PredefFunc.DeclarationCPP != "")
 						{
-							if (PredefFunc.DeclarationCPP != "")
-							{
-								FunctionFile.Write(PredefFunc.DeclarationCPP);
-								FunctionFile.Write(PredefFunc.Body);
-								FunctionFile.Write("\n");
-							}
+							FunctionFile.Write(PredefFunc.DeclarationCPP);
+							FunctionFile.Write(PredefFunc.Body);
+							FunctionFile.Write("\n");
 						}
 					}
 				}

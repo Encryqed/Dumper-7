@@ -68,6 +68,9 @@ void Off::Init()
 	Off::UStruct::Size = OffsetFinder::FindStructSizeOffset();
 	std::cout << "Off::UStruct::Size: " << Off::UStruct::Size << "\n";
 
+	Off::UClass::ClassFlags = OffsetFinder::FindCastFlagsOffset();
+	std::cout << "Off::UClass::ClassFlags: " << Off::UClass::ClassFlags << "\n";
+
 	if (Settings::Internal::bUseFProperty)
 	{
 		std::cout << "Game uses FProperty system\n\n";
@@ -77,9 +80,6 @@ void Off::Init()
 
 		OffsetFinder::FixupHardcodedOffsets(); // must be called after FindChildPropertiesOffset 
 	}
-
-	Off::UClass::ClassFlags = OffsetFinder::FindCastFlagsOffset();
-	std::cout << "Off::UClass::ClassFlags: " << Off::UClass::ClassFlags << "\n";
 
 	Off::UClass::ClassDefaultObject = OffsetFinder::FindDefaultObjectOffset();
 	std::cout << "Off::UClass::ClassDefaultObject: " << Off::UClass::ClassDefaultObject << "\n";

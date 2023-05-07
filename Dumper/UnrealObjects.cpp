@@ -365,7 +365,7 @@ std::string UEObject::GetCppName()
 
 std::string UEObject::GetFullName()
 {
-	if (GetClass())
+	if (*this)
 	{
 		std::string Temp;
 

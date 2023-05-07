@@ -72,7 +72,6 @@ void PackageDependencyManager::GetIncludesForPackage(const int32 Index, EInclude
 		default:
 			break;
 		}
-
 	}
 }
 

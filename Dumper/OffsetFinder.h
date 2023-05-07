@@ -121,8 +121,15 @@ namespace OffsetFinder
 			void* PossibleNextPtrOrBool1 = *(void**)((uint8*)ObjectArray::FindClassFast("ActorComponent").GetChildProperties().GetAddress() + 0x18);
 			void* PossibleNextPtrOrBool2 = *(void**)((uint8*)ObjectArray::FindClassFast("Pawn").GetChildProperties().GetAddress() + 0x18);
 
-			if (!IsBadReadPtr(PossibleNextPtrOrBool0) && !IsBadReadPtr(PossibleNextPtrOrBool1) && !IsBadReadPtr(PossibleNextPtrOrBool2))
+			auto IsValidPtr = [](void* a) -> bool
 			{
+				return !IsBadReadPtr(a) && (uintptr_t(a) & 0x1) == 0; // realistically, there wont be any pointers to unaligned memory
+			};
+
+			if (IsValidPtr(PossibleNextPtrOrBool0) && IsValidPtr(PossibleNextPtrOrBool1) && IsValidPtr(PossibleNextPtrOrBool2))
+			{
+				std::cout << "Applaying fix to hardcoded offsets \n" << std::endl;
+
 				Settings::Internal::bUseMaskForFieldOwner = true;
 
 				Off::FField::Next -= 0x08;
