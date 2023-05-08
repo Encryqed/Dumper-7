@@ -877,6 +877,11 @@ std::string UEProperty::GetCppType()
 	}
 	else if (TypeFlags &  EClassCastFlags::EnumProperty)
 	{
+		static auto DelegateInlinePropertyClass = ObjectArray::FindClassFast("MulticastInlineDelegateProperty");
+
+		if (GetClass().HasType(DelegateInlinePropertyClass))
+			goto DelagesBelongHere;
+
 		return Cast<UEEnumProperty>().GetCppType();
 	}
 	else

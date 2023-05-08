@@ -139,8 +139,9 @@ private:
 	}
 	static bool IsFunctionRet(uint8* Address)
 	{
+		int Align = 0x10 - (uintptr_t(Address) % 0x10);
 		//if (Opcode == RET && (OpcodeBefore is a POP opcode || OpcodeTwoBefore is a different POP Opcode)
-		return Address[0] == 0xC3 & ((Address[-1] >= 0x58 & Address[-1] <= 0x5F) | (Address[-2] == 0x41 & (Address[-1] >= 0x58 & Address[-1] <= 0x5F)));
+		return Address[0] == 0xC3 && Address[Align] == 0x40 && ((Address[-1] >= 0x58 && Address[-1] <= 0x5F) || (Address[-2] == 0x41 && (Address[-1] >= 0x58 && Address[-1] <= 0x5F)));
 	}
 
 public:
@@ -176,9 +177,15 @@ public:
 		if (!Address)
 			return MemAddress(nullptr);
 
+		int Align = 0x10 - (uintptr_t(Address) % 0x10);
+
 		for (int i = 0; i < 0xFFFF; i++)
 		{
 			if (IsFunctionRet(Address + i))
+			{
+				return MemAddress(Address + i);
+			}
+			if ((uintptr_t(Address + i) % 0x10 == 0) && (Address[i] == 0x40 && (Address[i + 1] >= 0x50 && Address[i + 1] <= 0x57) && (Address[i + 2] >= 0x50 && Address[i + 2] <= 0x57)))
 			{
 				return MemAddress(Address + i);
 			}
@@ -236,7 +243,7 @@ public:
 
 		uintptr_t FuncEnd = (uintptr_t)FindFunctionEnd();
 
-		return FuncEnd + (0x10 - (FuncEnd % 0x10));
+		return FuncEnd % 0x10 != 0 ? FuncEnd + (0x10 - (FuncEnd % 0x10)) : FuncEnd;
 	}
 };
 

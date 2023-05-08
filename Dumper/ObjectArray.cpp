@@ -62,10 +62,10 @@ struct FFixedUObjectArray
 		if (Num > Max)
 			return false;
 
-		if (Max < 1500000)
+		if (Max > 4000000)
 			return false;
 
-		if (Num < 300000)
+		if (Num < 100000)
 			return false;
 
 		if (IsBadReadPtr(Objects))
@@ -342,7 +342,13 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 		}
 		else if (Object.IsA(EClassCastFlags::EnumProperty) && Object.Cast<UEEnumProperty>().GetSize() != 1)
 		{
-			UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
+			static auto DelegateInlinePropertyClass = ObjectArray::FindClassFast("MulticastInlineDelegateProperty");
+
+			if (Object.GetClass().HasType(DelegateInlinePropertyClass))
+				continue;
+
+			if(Object.Cast<UEEnumProperty>().GetSize() != 1)
+				UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
 		}
 	}
 }

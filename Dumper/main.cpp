@@ -22,7 +22,7 @@ DWORD MainThread(HMODULE Module)
 	auto t_1 = high_resolution_clock::now();
 
 	std::cout << "Started Generation [Dumper-7]!\n";
-
+  
 	Generator::Init();
 
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())

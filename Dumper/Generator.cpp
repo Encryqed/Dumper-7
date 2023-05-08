@@ -10,14 +10,6 @@ void Generator::Init()
 	//FName::Init(/*FName::AppendString*/);
 	//Off::InSDK::InitPE(/*PEIndex*/);
 
-	/* ARK */
-	//FName::Init(0x211AF50);
-	//Off::InSDK::InitPE(0x43);
-
-	/* FN-Latest */
-	//Off::InSDK::InitPE(0x4C); // Before 24.20
-	//Off::InSDK::InitPE(0x4D); // Since 24.20
-
 	ObjectArray::Init();
 	FName::Init();
 	Off::Init();
