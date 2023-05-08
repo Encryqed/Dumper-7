@@ -14,4 +14,5 @@ If you have any issues using the Dumper, please create an Issue on this reposito
 and explain the problem **in detail**.
 ## TODO
 
+- Fix mapping-file generation
 - Fix cyclic dependencies of packages
