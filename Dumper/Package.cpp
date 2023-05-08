@@ -613,17 +613,6 @@ Types::Enum Package::GenerateEnum(UEEnum Enum)
 
 		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
 	}
-	else if (Settings::Internal::EnumNameArrayType == 1)
-	{
-		auto& NameOnly = reinterpret_cast<TArray<TPair<FName, uint8>>&>(NameValue);
-
-		for (int i = 0; i < NameValue.Num(); i++)
-		{
-			std::string TooFullOfAName = NameOnly[i].First.ToString();
-
-			Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameOnly[i].Second);
-		}
-	}
 
 	if (EnumName.find("PixelFormat") != -1)
 		Enm.FixWindowsConstant("PF_MAX");
