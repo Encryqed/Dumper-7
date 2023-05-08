@@ -7,6 +7,7 @@
 static bool IsBadReadPtr(void* p)
 {
 	MEMORY_BASIC_INFORMATION mbi;
+
 	if (VirtualQuery(p, &mbi, sizeof(mbi)))
 	{
 		DWORD mask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
@@ -19,6 +20,96 @@ static bool IsBadReadPtr(void* p)
 
 	return true;
 };
+
+static inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0)
+{
+	const auto PatternLength = Signature.size();
+	const auto PatternBytes = Signature.data();
+
+	for (int i = 0; i < (Range - PatternLength); i++)
+	{
+		bool bFound = true;
+		for (auto j = 0ul; j < PatternLength; ++j)
+		{
+			if (Start[i + j] != PatternBytes[j] && PatternBytes[j] != -1)
+			{
+				bFound = false;
+				break;
+			}
+		}
+		if (bFound)
+		{
+			uintptr_t Address = uintptr_t(Start + i);
+			if (bRelative)
+			{
+				Address = ((Address + Offset + 4) + *(int32_t*)(Address + Offset));
+				return (void*)Address;
+			}
+			return (void*)Address;
+		}
+	}
+
+	return nullptr;
+}
+
+static inline void* FindPatternInRange(const char* Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0)
+{
+	static auto patternToByte = [](const char* pattern) -> std::vector<int>
+	{
+		auto Bytes = std::vector<int>{};
+		const auto Start = const_cast<char*>(pattern);
+		const auto End = const_cast<char*>(pattern) + strlen(pattern);
+
+		for (auto Current = Start; Current < End; ++Current)
+		{
+			if (*Current == '?')
+			{
+				++Current;
+				if (*Current == '?') ++Current;
+				Bytes.push_back(-1);
+			}
+			else { Bytes.push_back(strtoul(Current, &Current, 16)); }
+		}
+		return Bytes;
+	};
+
+	return FindPatternInRange(patternToByte(Signature), Start, Range, bRelative, Offset);
+}
+
+static inline void* FindPattern(const char* Signature, bool bRelative = false, uint32_t Offset = 0, bool bSearchAllSegments = false)
+{
+	uint8_t* ImageBase = reinterpret_cast<uint8_t*>(GetModuleHandle(NULL));
+
+	const auto DosHeader = (PIMAGE_DOS_HEADER)ImageBase;
+	const auto NtHeaders = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
+
+	const auto SizeOfImage = NtHeaders->OptionalHeader.SizeOfImage;
+
+	if (!bSearchAllSegments)
+	{
+		PIMAGE_SECTION_HEADER Sections = IMAGE_FIRST_SECTION(NtHeaders);
+
+		uint8_t* TextSection = nullptr;
+		DWORD TextSize = 0;
+
+		for (int i = 0; i < NtHeaders->FileHeader.NumberOfSections; i++)
+		{
+			IMAGE_SECTION_HEADER& CurrentSection = Sections[i];
+
+			std::string SectionName = (const char*)CurrentSection.Name;
+
+			if (SectionName == ".text" && !TextSection)
+			{
+				TextSection = (ImageBase + CurrentSection.VirtualAddress);
+				TextSize = CurrentSection.Misc.VirtualSize;
+			}
+		}
+
+		return FindPatternInRange(Signature, TextSection, TextSize, bRelative, Offset);
+	}
+
+	return FindPatternInRange(Signature, ImageBase, SizeOfImage, bRelative, Offset);
+}
 
 struct MemAddress
 {
@@ -62,7 +153,10 @@ public:
 		: Address((uint8*)Addr)
 	{
 	}
-
+	operator bool()
+	{
+		return Address != nullptr;
+	}
 	explicit operator void*()
 	{
 		return Address;
@@ -100,44 +194,12 @@ public:
 		return  MemAddress(nullptr);
 	}
 
-	//Needs work
-	//PlusMinus how many bytes forwards and backwards to search, if 0 it'll take function extend
-	inline void* RelativePattern(const char* Pattern, int32_t PlusMinus = 0, int32_t Relative = 0)
+	inline void* RelativePattern(const char* Pattern, int32_t Range, int32_t Relative = 0)
 	{
 		if (!Address)
 			return nullptr;
 
-		std::vector<int32_t> Bytes = PatternToBytes(Pattern);
-		const int32_t NumBytes = Bytes.size();
-
-		const std::pair<int, int> Extend = { 0, 0 };
-		const int32_t IterationCount = PlusMinus ? 2 * PlusMinus : Extend.second - Extend.first;
-		uint8* StartAddress = Address - PlusMinus;
-
-		for (auto i = 0ul; i < IterationCount; ++i)
-		{
-			bool found = true;
-			for (auto j = 0ul; j < NumBytes; ++j)
-			{
-				if (StartAddress[i + j] != Bytes[j] && Bytes[j] != -1)
-				{
-					found = false;
-					break;
-				}
-			}
-
-			if (found)
-			{
-				uintptr_t address = reinterpret_cast<uintptr_t>(&StartAddress[i]);
-				if (Relative != 0)
-				{
-					address = ((address + Relative + 4) + *(int32_t*)(address + Relative));
-
-					return (void*)address;
-				}
-				return (void*)address;
-			}
-		}
+		return FindPatternInRange(Pattern, Address, Range, Relative != 0, Relative);
 	}
 
 	// every occurence of E8 counts as a call, use for max 1-5 calls only
@@ -156,8 +218,13 @@ public:
 				//opcode: call
 				if (Address[i + j] == 0xE8)
 				{
-					void* Func = (void*)(((0xFFFFFFFF00000000 | *(uint32*)(Address + i + j + 1)) + uintptr_t(Address + i + j)) + 5);
+					uint8* CallAddr = Address + i + j;
 
+					void* Func = CallAddr + *reinterpret_cast<int32*>(CallAddr + 1) + 5; /*Addr + Offset + 5*/
+
+					if ((uint64_t(Func) % 0x4) != 0x0)
+						continue;
+						
 					if (++NumCalls == FunctionIndex)
 					{
 						return Func;

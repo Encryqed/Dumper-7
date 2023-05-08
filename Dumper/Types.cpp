@@ -2,7 +2,6 @@
 #include "Enums.h"
 #include "Generator.h"
 
-
 Types::Struct::Struct(std::string Name, bool bIsClass, std::string Super)
 {
 	StructMembers.reserve(50);
@@ -30,6 +29,7 @@ void Types::Struct::AddMember(Member& NewMember)
 {
 	StructMembers.push_back(NewMember);
 }
+
 void Types::Struct::AddMember(Member&& NewMember)
 {
 	StructMembers.emplace_back(std::move(NewMember));
@@ -52,7 +52,6 @@ std::string Types::Struct::GetGeneratedBody()
 
 	return Comments + Declaration + InnerBody + "};\n\n";
 }
-
 
 void Types::Class::AddFunction(Function& NewFunction)
 {
@@ -118,7 +117,6 @@ Types::Includes::Includes(std::vector<std::pair<std::string, bool>> HeaderFiles)
 	}
 }
 
-
 std::string Types::Includes::GetGeneratedBody()
 {
 	return Declaration + "\n";
@@ -130,7 +128,6 @@ Types::Member::Member(std::string Type, std::string Name, std::string Comment)
 	this->Name = Name;
 	this->Comment = Comment != "" ? "// " + Comment : "";
 }
-
 
 void Types::Member::AddComment(std::string Comment)
 {
@@ -182,6 +179,7 @@ std::string Types::Function::GetDeclaration()
 {
 	 return DeclarationH;
 }
+
 void Types::Function::AddBody(std::string Body)
 {
 	this->Body = std::format("{{\n{}\n}}", Body);

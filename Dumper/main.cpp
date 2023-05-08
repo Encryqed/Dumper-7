@@ -2,12 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
-#include "Enums.h"
 #include "Generator.h"
-#include "Utils.h"
-#include "OffsetFinder.h"
-#include "Offsets.h"
-#include "Package.h"
 
 enum class EFortToastType : uint8
 {
@@ -17,7 +12,6 @@ enum class EFortToastType : uint8
         EFortToastType_MAX             = 3,
 };
 
-
 DWORD MainThread(HMODULE Module)
 {
 	AllocConsole();
@@ -26,33 +20,32 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
 	auto t_1 = high_resolution_clock::now();
-	
+
 	std::cout << "Started Generation [Dumper-7]!\n";
-	
-	
+  
 	Generator::Init();
 
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())
 	{
-		//Only Possible in Main()
+		// Only Possible in Main()
 		FString Name;
 		FString Version;
 		UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
 		UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName");
 		UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
-			
+
 		Kismet.ProcessEvent(GetGameName, &Name);
 		Kismet.ProcessEvent(GetEngineVersion, &Version);
-	
+
 		Settings::GameName = Name.ToString();
 		Settings::GameVersion = Version.ToString();
 	}
-	
+
 	std::cout << "GameName: " << Settings::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
 	Generator::GenerateSDK();
-	
+	Generator::GenerateMappings();
 
 	auto t_C = high_resolution_clock::now();
 	

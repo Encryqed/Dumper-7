@@ -1,10 +1,12 @@
 #include <iostream>
 #include <fstream>
 #include <format>
+#include <filesystem>
 #include "ObjectArray.h"
 #include "Offsets.h"
 #include "Utils.h"
 
+namespace fs = std::filesystem;
 
 /* Scuffed stuff up here */
 struct FChunkedFixedUObjectArray
@@ -18,10 +20,10 @@ struct FChunkedFixedUObjectArray
 
 	inline bool IsValid()
 	{
-		if (NumChunks > 0x12 || NumChunks < 0x5)
+		if (NumChunks > 0x14 || NumChunks < 0x1)
 			return false;
 
-		if (MaxChunks > 0xD0 || MaxChunks < 0x18)
+		if (MaxChunks > 0x22F || MaxChunks < 0x18)
 			return false;
 
 		if (NumElements > MaxElements || NumChunks > MaxChunks)
@@ -29,7 +31,6 @@ struct FChunkedFixedUObjectArray
 
 		if (((NumElements / 0x10000) + 1) != NumChunks || MaxElements / 0x10000 != MaxChunks)
 			return false;
-
 
 		if (IsBadReadPtr(Objects))
 			return false;
@@ -80,7 +81,6 @@ struct FFixedUObjectArray
 	}
 };
 
-
 uint8* ObjectArray::GObjects = nullptr;
 uint32 ObjectArray::NumElementsPerChunk = 0x10000;
 uint32 ObjectArray::SizeOfFUObjectItem = 0x18;
@@ -88,7 +88,7 @@ uint32 ObjectArray::SizeOfFUObjectItem = 0x18;
 /* We don't speak about this function... */
 void ObjectArray::Init()
 {
-	std::cout << "\nDumper-7 by Encryqed & me\n\n\n";
+	std::cout << "\nDumper-7 by me & you\n\n\n";
 
 	uintptr_t ImageBase = uintptr_t(GetModuleHandle(0));
 	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
@@ -110,6 +110,7 @@ void ObjectArray::Init()
 	}
 
 	std::cout << "Searching for GObjects...\n\n";
+
 	for (int i = 0; i < DataSize; i += 0x4)
 	{
 		auto FixedArray = reinterpret_cast<FFixedUObjectArray*>(DataSection + i);
@@ -133,6 +134,7 @@ void ObjectArray::Init()
 				return *(void**)(*(uint64*)ObjectsArray + Index * FUObjectItemSize);
 
 			};
+
 			for (int i = 1; i <= 0x30; i += 4)
 			{
 				if (!IsBadReadPtr(*(void**)((uint8*)(GObjects)+i)))
@@ -141,7 +143,9 @@ void ObjectArray::Init()
 					break;
 				}
 			}
+
 			Off::InSDK::FUObjectItemSize = SizeOfFUObjectItem;
+
 			return;
 		}
 		else if (ChunkedArray->IsValid())
@@ -165,6 +169,7 @@ void ObjectArray::Init()
 
 				return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray)+ChunkIndex) + InChunkIdx * FUObjectItemSize);
 			};
+
 			for (int i = 0x8; i <= 0x30; i += 4)
 			{
 				if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects)+i)))
@@ -173,13 +178,25 @@ void ObjectArray::Init()
 					break;
 				}
 			}
-			if (ObjectArray::GetByIndex(0x10401).GetIndex() != 0x10401)
+
+			int IndexOffset = 0x0;
+			uint8* ObjAtIdx374 = (uint8*)ByIndex(GObjects, 0x374, SizeOfFUObjectItem, 0x10000);
+			uint8* ObjAtIdx106 = (uint8*)ByIndex(GObjects, 0x106, SizeOfFUObjectItem, 0x10000);
+
+			for (int i = 0x8; i < 0x20; i++)
+			{
+				if (*(int32*)(ObjAtIdx374 + i) == 0x374 && *(int32*)(ObjAtIdx106 + i) == 0x106)
+					IndexOffset = i;
+			}
+
+			if (ObjectArray::Num() > 0x10401 && *reinterpret_cast<int32*>((uint8*)ObjectArray::GetByIndex(0x10401) + IndexOffset) != 0x10401)
 			{
 				NumElementsPerChunk = 0x10400;
 			}
 
 			Off::InSDK::ChunkSize = NumElementsPerChunk;
 			Off::InSDK::FUObjectItemSize = SizeOfFUObjectItem;
+
 			return;
 		}
 	}
@@ -193,6 +210,8 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 	Off::InSDK::GObjects = GObjectsOffset;
 
+	std::cout << "GObjects: 0x" << (void*)GObjects << "\n" << std::endl;
+
 	if (!bIsChunked)
 	{
 		Off::FUObjectArray::Num = 0xC;
@@ -204,11 +223,13 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 			return *(void**)(*(uint64*)ObjectsArray + Index * FUObjectItemSize);
 		};
+
 		for (int i = 1; i <= 0x30; i += 4)
 		{
-			if (!IsBadReadPtr(*(void**)((uint8*)(GObjects)+i)))
+			if (!IsBadReadPtr(ByIndex(GObjects, 1, i, ElementsPerChunk)))
 			{
 				SizeOfFUObjectItem = i;
+				Off::InSDK::FUObjectItemSize = i;
 				break;
 			}
 		}
@@ -227,11 +248,13 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 			return *(void**)(*(uint64*)(*(uint64**)(ObjectsArray)+ChunkIndex) + InChunkIdx * FUObjectItemSize);
 		};
+		
 		for (int i = 0x8; i <= 0x30; i += 4)
 		{
-			if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects)+i)))
+			if (!IsBadReadPtr(ByIndex(GObjects, 1, i, ElementsPerChunk)))
 			{
 				SizeOfFUObjectItem = i;
+				Off::InSDK::FUObjectItemSize = i;
 				break;
 			}
 		}
@@ -243,14 +266,20 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 
 void ObjectArray::DumpObjects()
 {
-	std::ofstream DumpStream("GObjects-Dump.txt");
+	fs::path Path(Settings::SDKGenerationPath);
+
+	if (!Settings::GameVersion.empty())
+		Path /= Settings::GameVersion;
+
+	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
 	DumpStream << "Object dump by Dumper-7\n\n";
+	DumpStream << (!Settings::GameVersion.empty() ? Settings::GameVersion + "\n\n" : "");
 	DumpStream << "Count: " << Num() << "\n\n\n";
 
 	for (auto Object : ObjectArray())
 	{
-		DumpStream << "[" << (void*)(Object.GetIndex()) << "] " << Object.GetFullName() << "\n";
+		DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
 	}
 
 	DumpStream.close();
@@ -263,61 +292,55 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 
 	for (UEObject Object : ObjectArray())
 	{
-		if (!Object)
+		if (!Object || Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
 			continue;
 
-		if (Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
-			continue;
-
-		if (Object.IsA(EClassCastFlags::UStruct))
+		if (Object.IsA(EClassCastFlags::Struct))
 		{
 			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 
-			if (!Object.IsA(EClassCastFlags::UFunction))
+			UEStruct ObjAsStruct = Object.Cast<UEStruct>();
+			UEStruct Super = ObjAsStruct.GetSuper();
+
+			int32 LowestOffset = 0xFFFFFF;
+
+
+			if (!Super || Object.IsA(EClassCastFlags::Function))
+				continue;
+	
+			for (UEProperty Property : ObjAsStruct.GetProperties())
 			{
-				UEStruct ObjAsStruct = Object.Cast<UEStruct>();
-			
-				int32 LowestOffset = 0xFFFFFF;
-			
-				if (UEStruct Super = ObjAsStruct.GetSuper())
+				if (Property.Cast<UEProperty>().GetOffset() < LowestOffset)
 				{
-					for (UEField F = ObjAsStruct.GetChild(); F; F = F.GetNext())
+					LowestOffset = Property.Cast<UEProperty>().GetOffset();
+				}
+			}
+
+			if (LowestOffset != 0xFFFFFF)
+			{
+				for (UEStruct S = Super; S; S = S.GetSuper())
+				{
+					auto It = UEStruct::StructSizes.find(S.GetIndex());
+
+					if (It != UEStruct::StructSizes.end() && It->second > LowestOffset)
 					{
-						if (F.IsA(EClassCastFlags::UProperty) && F.Cast<UEProperty>().GetOffset() < LowestOffset)
-						{
-							LowestOffset = F.Cast<UEProperty>().GetOffset();
-						}
+						It->second = LowestOffset;
 					}
-			
-					if (LowestOffset != 0xFFFFFF)
+					else
 					{
-						for (UEStruct S = Super; S; S = S.GetSuper())
-						{
-							auto It = UEStruct::StructSizes.find(S.GetIndex());
-							if (It != UEStruct::StructSizes.end())
-							{
-								if (It->second > LowestOffset)
-								{
-									It->second = LowestOffset;
-								}
-							}
-							else
-							{
-								UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
-							}
-			
-							if (S.HasMembers())
-								break;
-						}
+						UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
 					}
+
+					if (S.HasMembers())
+						break;
 				}
 			}
 		}
-		else if (Object.IsA(EClassCastFlags::UEnum))
+		else if (Object.IsA(EClassCastFlags::Enum))
 		{
 			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
 		}
-		else if (Object.IsA(EClassCastFlags::UEnumProperty))
+		else if (Object.IsA(EClassCastFlags::EnumProperty) && Object.Cast<UEEnumProperty>().GetSize() != 1)
 		{
 			static auto DelegateInlinePropertyClass = ObjectArray::FindClassFast("MulticastInlineDelegateProperty");
 
@@ -387,14 +410,44 @@ static UEType ObjectArray::FindObjectFastInOuter(std::string Name, std::string O
 	return UEType();
 }
 
+template<typename UEType>
+static UEType ObjectArray::FindMemberInObjectFast(UEStruct Struct, std::string MemberName, EClassCastFlags TypeFlags)
+{
+	if (!Struct)
+		return nullptr;
+
+	if (Settings::Internal::bUseFProperty)
+	{
+		for (UEFField Field = Struct.GetChildProperties(); Field; Field = Field.GetNext())
+		{
+			if (Field.IsA(TypeFlags) && Field.GetName() == MemberName)
+			{
+				return Field.Cast<UEType>();
+			}
+		}
+	}
+	else
+	{
+		for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
+		{
+			if (Field.IsA(TypeFlags) && Field.GetName() == MemberName)
+			{
+				return Field.Cast<UEType>();
+			}
+		}
+	}
+
+	return UEType();
+}
+
 UEClass ObjectArray::FindClass(std::string FullName)
 {
-	return FindObject<UEClass>(FullName, EClassCastFlags::UClass);
+	return FindObject<UEClass>(FullName, EClassCastFlags::Class);
 }
 
 UEClass ObjectArray::FindClassFast(std::string Name)
 {
-	return FindObjectFast<UEClass>(Name, EClassCastFlags::UClass);
+	return FindObjectFast<UEClass>(Name, EClassCastFlags::Class);
 }
 
 ObjectArray::ObjectsIterator ObjectArray::begin()
@@ -439,7 +492,6 @@ int32 ObjectArray::ObjectsIterator::GetIndex() const
 	return CurrentIndex;
 }
 
-
 /*
 * The compiler won't generate functions for a specific template type unless it's used in the .cpp file corresponding to the
 * header it was declatred in.
@@ -482,6 +534,8 @@ void TemplateTypeCreationForObjectArray(void)
 	ObjectArray::FindObjectFast<UESetProperty>("");
 	ObjectArray::FindObjectFast<UEEnumProperty>("");
 
+	ObjectArray::FindMemberInObjectFast<UEFField>(nullptr, "");
+
 	ObjectArray::FindObjectFastInOuter<UEObject>("", "");
 	ObjectArray::FindObjectFastInOuter<UEField>("", "");
 	ObjectArray::FindObjectFastInOuter<UEEnum>("", "");
@@ -498,7 +552,6 @@ void TemplateTypeCreationForObjectArray(void)
 	ObjectArray::FindObjectFastInOuter<UEMapProperty>("", "");
 	ObjectArray::FindObjectFastInOuter<UESetProperty>("", "");
 	ObjectArray::FindObjectFastInOuter<UEEnumProperty>("", "");
-
 
 	ObjectArray::GetByIndex<UEObject>(-1);
 	ObjectArray::GetByIndex<UEField>(-1);

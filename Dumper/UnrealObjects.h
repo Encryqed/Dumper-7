@@ -1,10 +1,94 @@
 #pragma once
+
 #include <vector>
 #include <unordered_map>
 #include "Enums.h"
 #include "UnrealTypes.h"
 
 class UEClass;
+class UEFField;
+class UEObject;
+class UEProperty;
+
+class UEFFieldClass
+{
+protected:
+	uint8* Class;
+
+public:
+
+	UEFFieldClass() = default;
+
+	UEFFieldClass(void* NewFieldClass)
+		: Class(reinterpret_cast<uint8*>(NewFieldClass))
+	{
+	}
+
+	UEFFieldClass(const UEFFieldClass& OldFieldClass)
+		: Class(reinterpret_cast<uint8*>(OldFieldClass.Class))
+	{
+	}
+
+	void* GetAddress();
+
+	EFieldClassID GetId();
+
+	EClassCastFlags GetCastFlags();
+	EClassFlags GetClassFlags();
+	UEFFieldClass GetSuper();
+	FName GetFName();
+
+	bool IsType(EClassCastFlags Flags);
+
+	std::string GetName();
+	std::string GetValidName();
+	std::string GetCppName();
+};
+
+class UEFField
+{
+protected:
+	uint8* Field;
+
+public:
+
+	UEFField() = default;
+
+	UEFField(void* NewField)
+		: Field(reinterpret_cast<uint8*>(NewField))
+	{
+	}
+
+	UEFField(const UEFField& OldField)
+		: Field(reinterpret_cast<uint8*>(OldField.Field))
+	{
+	}
+
+	void* GetAddress();
+
+	EObjectFlags GetFlags();
+	class UEObject GetOwnerAsUObject();
+	class UEFField GetOwnerAsFField();
+	class UEObject GetOwnerUObject();
+	class UEObject GetOutermost();
+	UEFFieldClass GetClass();
+	FName GetFName();
+	UEFField GetNext();
+
+	template<typename UEType>
+	UEType Cast() const;
+
+	bool IsOwnerUObject();
+	bool IsA(EClassCastFlags Flags);
+
+	std::string GetName();
+	std::string GetValidName();
+	std::string GetCppName();
+
+	explicit operator bool();
+	bool operator==(const UEFField& Other) const;
+	bool operator!=(const UEFField& Other) const;
+};
 
 class UEObject
 {
@@ -51,6 +135,7 @@ public:
 	std::string GetFullName();
 
 	explicit operator bool();
+	explicit operator uint8*();
 	bool operator==(const UEObject& Other) const;
 	bool operator!=(const UEObject& Other) const;
 
@@ -73,9 +158,8 @@ class UEEnum : public UEField
 public:
 	static std::unordered_map<int32, std::string> BigEnums; //ObjectArray::GetAllPackages()
 
-	TArray<TPair<FName, int64>>& GetNameValuePairs();
+	std::vector<TPair<FName, int64>> GetNameValuePairs();
 	std::string GetSingleName(int32 Index);
-	std::vector<std::string> GetAllNames();
 	std::string GetEnumTypeAsStr();
 
 	std::string UNSAFEGetCPPType();
@@ -92,7 +176,10 @@ public:
 public:
 	UEStruct GetSuper();
 	UEField GetChild();
+	UEFField GetChildProperties();
 	int32 GetStructSize();
+
+	std::vector<UEProperty> GetProperties();
 
 	bool HasMembers();
 };
@@ -122,24 +209,52 @@ public:
 	UEFunction GetFunction(const std::string& ClassName, const std::string& FuncName);
 };
 
-class UEProperty : public UEField
+class UEProperty
 {
-	using UEField::UEField;
+protected:
+	uint8* Base;
 
 public:
-	static std::unordered_map<std::string, uint32> UnknownProperties;
+	static std::unordered_map<std::string /* Property Name */, uint32 /* Property Size */> UnknownProperties;
 
-public:
+	UEProperty() = default;
+
+	UEProperty(void* NewProperty)
+		: Base(reinterpret_cast<uint8*>(NewProperty))
+	{
+	}
+
+	UEProperty(const UEProperty& OldProperty)
+		: Base(reinterpret_cast<uint8*>(OldProperty.Base))
+	{
+	}
+
+	void* GetAddress();
+
+	std::pair<UEClass, UEFFieldClass> GetClass();
+
+	template<typename UEType>
+	UEType Cast();
+
+	bool IsA(EClassCastFlags TypeFlags);
+
+	FName GetFName();
+	int32 GetArrayDim();
 	int32 GetSize();
 	int32 GetOffset();
 	EPropertyFlags GetPropertyFlags();
-	bool HasPropertyFlags(EPropertyFlags Flags);
+	EMappingsTypeFlags GetMappingType();
+	bool HasPropertyFlags(EPropertyFlags PropertyFlag);
+
+	UEObject GetOutermost();
+
+	std::string GetName();
+	std::string GetValidName();
 
 	std::string GetCppType();
 
 	std::string StringifyFlags();
 };
-
 
 class UEByteProperty : public UEProperty
 {

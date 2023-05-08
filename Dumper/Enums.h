@@ -15,7 +15,6 @@ typedef unsigned __int16 uint16;
 typedef unsigned __int32 uint32;
 typedef unsigned __int64 uint64;
 
-
 #define ENUM_OPERATORS(EEnumClass)																																		\
 																																										\
 inline constexpr EEnumClass operator|(EEnumClass Left, EEnumClass Right)																								\
@@ -28,8 +27,7 @@ inline bool operator&(EEnumClass Left, EEnumClass Right)																								
 	return (((std::underlying_type<EEnumClass>::type)(Left) & (std::underlying_type<EEnumClass>::type)(Right)) == (std::underlying_type<EEnumClass>::type)(Right));		\
 }																																										
 																																																																																		
-
-enum class EPropertyFlags : uint64_t
+enum class EPropertyFlags : uint64
 {
 	None = 0,
 
@@ -91,40 +89,40 @@ enum class EPropertyFlags : uint64_t
 	SkipSerialization = 0x0080000000000000,	// Property shouldn't be serialized, can still be exported to text
 };
 
-enum class EFunctionFlags : uint32_t
+enum class EFunctionFlags : uint32
 {
-	None = 0x00000000,
+	None					= 0x00000000,
 
-	Final = 0x00000001,
-	RequiredAPI = 0x00000002,
-	BlueprintAuthorityOnly = 0x00000004,
-	BlueprintCosmetic = 0x00000008,
-	Net = 0x00000040,
-	NetReliable = 0x00000080,
-	NetRequest = 0x00000100,
-	Exec = 0x00000200,
-	Native = 0x00000400,
-	Event = 0x00000800,
-	NetResponse = 0x00001000,
-	Static = 0x00002000,
-	NetMulticast = 0x00004000,
-	UbergraphFunction = 0x00008000,
-	MulticastDelegate = 0x00010000,
-	Public = 0x00020000,
-	Private = 0x00040000,
-	Protected = 0x00080000,
-	Delegate = 0x00100000,
-	NetServer = 0x00200000,
-	HasOutParms = 0x00400000,
-	HasDefaults = 0x00800000,
-	NetClient = 0x01000000,
-	DLLImport = 0x02000000,
-	BlueprintCallable = 0x04000000,
-	BlueprintEvent = 0x08000000,
-	BlueprintPure = 0x10000000,
-	EditorOnly = 0x20000000,
-	Const = 0x40000000,
-	NetValidate = 0x80000000,
+	Final					= 0x00000001,
+	RequiredAPI				= 0x00000002,
+	BlueprintAuthorityOnly	= 0x00000004, 
+	BlueprintCosmetic		= 0x00000008, 
+	Net						= 0x00000040,  
+	NetReliable				= 0x00000080, 
+	NetRequest				= 0x00000100,	
+	Exec					= 0x00000200,	
+	Native					= 0x00000400,	
+	Event					= 0x00000800,   
+	NetResponse				= 0x00001000,  
+	Static					= 0x00002000,   
+	NetMulticast			= 0x00004000,	
+	UbergraphFunction		= 0x00008000,  
+	MulticastDelegate		= 0x00010000,
+	Public					= 0x00020000,	
+	Private					= 0x00040000,	
+	Protected				= 0x00080000,
+	Delegate				= 0x00100000,	
+	NetServer				= 0x00200000,	
+	HasOutParms				= 0x00400000,	
+	HasDefaults				= 0x00800000,
+	NetClient				= 0x01000000,
+	DLLImport				= 0x02000000,
+	BlueprintCallable		= 0x04000000,
+	BlueprintEvent			= 0x08000000,
+	BlueprintPure			= 0x10000000,	
+	EditorOnly				= 0x20000000,	
+	Const					= 0x40000000,
+	NetValidate				= 0x80000000,
 
 	AllFlags = 0xFFFFFFFF,
 };
@@ -173,66 +171,180 @@ enum class EObjectFlags
 	RF_WillBeLoaded = 0x08000000, // This object was constructed during load and will be loaded shortly
 };
 
-enum class EClassCastFlags : uint64_t
+enum class EFieldClassID : uint64
 {
-	None = 0x0000000000000000,
+	Int8 = 1llu << 1,
+	Byte = 1llu << 6,
+	Int = 1llu << 7,
+	Float = 1llu << 8,
+	UInt64 = 1llu << 9,
+	Class = 1llu << 10,
+	UInt32 = 1llu << 11,
+	Interface = 1llu << 12,
+	Name = 1llu << 13,
+	String = 1llu << 14,
+	Object = 1llu << 16,
+	Bool = 1llu << 17,
+	UInt16 = 1llu << 18,
+	Struct = 1llu << 20,
+	Array = 1llu << 21,
+	Int64 = 1llu << 22,
+	Delegate = 1llu << 23,
+	SoftObject = 1llu << 27,
+	LazyObject = 1llu << 28,
+	WeakObject = 1llu << 29,
+	Text = 1llu << 30,
+	Int16 = 1llu << 31,
+	Double = 1llu << 32,
+	SoftClass = 1llu << 33,
+	Map = 1llu << 46,
+	Set = 1llu << 47,
+	Enum = 1llu << 48,
+	MulticastInlineDelegate = 1llu << 50,
+	MulticastSparseDelegate = 1llu << 51,
+	ObjectPointer = 1llu << 53
+};
 
-	UField							= 0x0000000000000001,
-	UInt8Property					= 0x0000000000000002,
-	UEnum							= 0x0000000000000004,
-	UStruct							= 0x0000000000000008,
-	UScriptStruct					= 0x0000000000000010,
-	UClass							= 0x0000000000000020,
-	UByteProperty					= 0x0000000000000040,
-	UIntProperty					= 0x0000000000000080,
-	UFloatProperty					= 0x0000000000000100,
-	UUInt64Property					= 0x0000000000000200,
-	UClassProperty					= 0x0000000000000400,
-	UUInt32Property					= 0x0000000000000800,
-	UInterfaceProperty				= 0x0000000000001000,
-	UNameProperty					= 0x0000000000002000,
-	UStrProperty					= 0x0000000000004000,
-	UProperty						= 0x0000000000008000,
-	UObjectProperty					= 0x0000000000010000,
-	UBoolProperty					= 0x0000000000020000,
-	UUInt16Property					= 0x0000000000040000,
-	UFunction						= 0x0000000000080000,
-	UStructProperty					= 0x0000000000100000,
-	UArrayProperty					= 0x0000000000200000,
-	UInt64Property					= 0x0000000000400000,
-	UDelegateProperty				= 0x0000000000800000,
-	UNumericProperty				= 0x0000000001000000,
-	UMulticastDelegateProperty		= 0x0000000002000000,
-	UObjectPropertyBase				= 0x0000000004000000,
-	UWeakObjectProperty				= 0x0000000008000000,
-	ULazyObjectProperty				= 0x0000000010000000,
-	USoftObjectProperty				= 0x0000000020000000,
-	UTextProperty					= 0x0000000040000000,
-	UInt16Property					= 0x0000000080000000,
-	UDoubleProperty					= 0x0000000100000000,
-	USoftClassProperty				= 0x0000000200000000,
-	UPackage						= 0x0000000400000000,
-	ULevel							= 0x0000000800000000,
-	AActor							= 0x0000001000000000,
-	APlayerController				= 0x0000002000000000,
-	APawn							= 0x0000004000000000,
-	USceneComponent					= 0x0000008000000000,
-	UPrimitiveComponent				= 0x0000010000000000,
-	USkinnedMeshComponent			= 0x0000020000000000,
-	USkeletalMeshComponent			= 0x0000040000000000,
-	UBlueprint						= 0x0000080000000000,
-	UDelegateFunction				= 0x0000100000000000,
-	UStaticMeshComponent			= 0x0000200000000000,
-	UMapProperty					= 0x0000400000000000,
-	USetProperty					= 0x0000800000000000,
-	UEnumProperty					= 0x0001000000000000,
+enum class EClassCastFlags : uint64
+{
+	None								= 0x0000000000000000,
+
+	Field								= 0x0000000000000001,
+	Int8Property						= 0x0000000000000002,
+	Enum								= 0x0000000000000004,
+	Struct								= 0x0000000000000008,
+	ScriptStruct						= 0x0000000000000010,
+	Class								= 0x0000000000000020,
+	ByteProperty						= 0x0000000000000040,
+	IntProperty							= 0x0000000000000080,
+	FloatProperty						= 0x0000000000000100,
+	UInt64Property						= 0x0000000000000200,
+	ClassProperty						= 0x0000000000000400,
+	UInt32Property						= 0x0000000000000800,
+	InterfaceProperty					= 0x0000000000001000,
+	NameProperty						= 0x0000000000002000,
+	StrProperty							= 0x0000000000004000,
+	Property							= 0x0000000000008000,
+	ObjectProperty						= 0x0000000000010000,
+	BoolProperty						= 0x0000000000020000,
+	UInt16Property						= 0x0000000000040000,
+	Function							= 0x0000000000080000,
+	StructProperty						= 0x0000000000100000,
+	ArrayProperty						= 0x0000000000200000,
+	Int64Property						= 0x0000000000400000,
+	DelegateProperty					= 0x0000000000800000,
+	NumericProperty						= 0x0000000001000000,
+	MulticastDelegateProperty			= 0x0000000002000000,
+	ObjectPropertyBase					= 0x0000000004000000,
+	WeakObjectProperty					= 0x0000000008000000,
+	LazyObjectProperty					= 0x0000000010000000,
+	SoftObjectProperty					= 0x0000000020000000,
+	TextProperty						= 0x0000000040000000,
+	Int16Property						= 0x0000000080000000,
+	DoubleProperty						= 0x0000000100000000,
+	SoftClassProperty					= 0x0000000200000000,
+	Package								= 0x0000000400000000,
+	Level								= 0x0000000800000000,
+	Actor								= 0x0000001000000000,
+	PlayerController					= 0x0000002000000000,
+	Pawn								= 0x0000004000000000,
+	SceneComponent						= 0x0000008000000000,
+	PrimitiveComponent					= 0x0000010000000000,
+	SkinnedMeshComponent				= 0x0000020000000000,
+	SkeletalMeshComponent				= 0x0000040000000000,
+	Blueprint							= 0x0000080000000000,
+	DelegateFunction					= 0x0000100000000000,
+	StaticMeshComponent					= 0x0000200000000000,
+	MapProperty							= 0x0000400000000000,
+	SetProperty							= 0x0000800000000000,
+	EnumProperty						= 0x0001000000000000,
+	SparseDelegateFunction				= 0x0002000000000000,
+	MulticastInlineDelegateProperty		= 0x0004000000000000,
+	MulticastSparseDelegateProperty		= 0x0008000000000000,
+	FieldPathProperty					= 0x0010000000000000,
+	ObjectPtrProperty					= 0x0020000000000000,
+	ClassPtrProperty					= 0x0040000000000000,
+	LargeWorldCoordinatesRealProperty	= 0x0080000000000000,
+};
+
+enum EClassFlags
+{
+	CLASS_None = 0x00000000u,
+	Abstract = 0x00000001u,
+	DefaultConfig = 0x00000002u,
+	Config = 0x00000004u,
+	Transient = 0x00000008u,
+	Parsed = 0x00000010u,
+	MatchedSerializers = 0x00000020u,
+	ProjectUserConfig = 0x00000040u,
+	Native = 0x00000080u,
+	NoExport = 0x00000100u,
+	NotPlaceable = 0x00000200u,
+	PerObjectConfig = 0x00000400u,
+	ReplicationDataIsSetUp = 0x00000800u,
+	EditInlineNew = 0x00001000u,
+	CollapseCategories = 0x00002000u,
+	Interface = 0x00004000u,
+	CustomConstructor = 0x00008000u,
+	Const = 0x00010000u,
+	LayoutChanging = 0x00020000u,
+	CompiledFromBlueprint = 0x00040000u,
+	MinimalAPI = 0x00080000u,
+	RequiredAPI = 0x00100000u,
+	DefaultToInstanced = 0x00200000u,
+	TokenStreamAssembled = 0x00400000u,
+	HasInstancedReference = 0x00800000u,
+	Hidden = 0x01000000u,
+	Deprecated = 0x02000000u,
+	HideDropDown = 0x04000000u,
+	GlobalUserConfig = 0x08000000u,
+	Intrinsic = 0x10000000u,
+	Constructed = 0x20000000u,
+	ConfigDoNotCheckDefaults = 0x40000000u,
+	NewerVersionExists = 0x80000000u,
+};
+
+enum class EMappingsTypeFlags : uint8
+{
+	ByteProperty,
+	BoolProperty,
+	IntProperty,
+	FloatProperty,
+	ObjectProperty,
+	NameProperty,
+	DelegateProperty,
+	DoubleProperty,
+	ArrayProperty,
+	StructProperty,
+	StrProperty,
+	TextProperty,
+	InterfaceProperty,
+	MulticastDelegateProperty,
+	WeakObjectProperty, //
+	LazyObjectProperty, // When deserialized, these 3 properties will be SoftObjects
+	AssetObjectProperty, //
+	SoftObjectProperty,
+	UInt64Property,
+	UInt32Property,
+	UInt16Property,
+	Int64Property,
+	Int16Property,
+	Int8Property,
+	MapProperty,
+	SetProperty,
+	EnumProperty,
+	FieldPathProperty,
+
+	Unknown = 0xFF
 };
 
 ENUM_OPERATORS(EObjectFlags);
 ENUM_OPERATORS(EFunctionFlags);
 ENUM_OPERATORS(EPropertyFlags);
 ENUM_OPERATORS(EClassCastFlags);
-
+ENUM_OPERATORS(EClassFlags);
+ENUM_OPERATORS(EMappingsTypeFlags);
+ENUM_OPERATORS(EFieldClassID);
 
 static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags)
 {
@@ -339,7 +451,6 @@ static std::string StringifyPropertyFlags(EPropertyFlags PropertyFlags)
 	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierProtected) { Buffer.push_back("NativeAccessSpecifierProtected"); }
 	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierPrivate) { Buffer.push_back("NativeAccessSpecifierPrivate"); }
 
-
 	switch (Buffer.size())
 	{
 	case 0:
@@ -354,4 +465,125 @@ static std::string StringifyPropertyFlags(EPropertyFlags PropertyFlags)
 		os << *Buffer.rbegin();
 		return os.str();
 	}
+}
+
+static EMappingsTypeFlags EPropertyFlagsToMappingFlags(EClassCastFlags Flags)
+{
+	
+	if (Flags & EClassCastFlags::ObjectProperty 
+	|| Flags & EClassCastFlags::ClassProperty 
+	|| Flags & EClassCastFlags::ObjectPtrProperty
+	|| Flags & EClassCastFlags::ClassPtrProperty)
+	{
+		return EMappingsTypeFlags::ObjectProperty;
+	}
+	else if (Flags & EClassCastFlags::StructProperty)
+	{
+		return EMappingsTypeFlags::StructProperty;
+	}
+	else if (Flags & EClassCastFlags::Int8Property)
+	{
+		return EMappingsTypeFlags::Int8Property;
+	}
+	else if (Flags & EClassCastFlags::Int16Property)
+	{
+		return EMappingsTypeFlags::Int16Property;
+	}
+	else if (Flags & EClassCastFlags::IntProperty)
+	{
+		return EMappingsTypeFlags::IntProperty;
+	}
+	else if (Flags & EClassCastFlags::Int64Property)
+	{
+		return EMappingsTypeFlags::Int64Property;
+	}
+	else if (Flags & EClassCastFlags::UInt16Property)
+	{
+		return EMappingsTypeFlags::UInt16Property;
+	}
+	else if (Flags & EClassCastFlags::UInt32Property)
+	{
+		return EMappingsTypeFlags::UInt32Property;
+	}
+	else if (Flags & EClassCastFlags::UInt64Property)
+	{
+		return EMappingsTypeFlags::UInt64Property;
+	}
+	else if (Flags & EClassCastFlags::ArrayProperty)
+	{
+		return EMappingsTypeFlags::ArrayProperty;
+	}
+	else if (Flags & EClassCastFlags::FloatProperty)
+	{
+		return EMappingsTypeFlags::FloatProperty;
+	}
+	else if (Flags & EClassCastFlags::DoubleProperty)
+	{
+		return EMappingsTypeFlags::DoubleProperty;
+	}
+	else if (Flags & EClassCastFlags::BoolProperty)
+	{
+		return EMappingsTypeFlags::BoolProperty;
+	}
+	else if (Flags & EClassCastFlags::StrProperty)
+	{
+		return EMappingsTypeFlags::StrProperty;
+	}
+	else if (Flags & EClassCastFlags::NameProperty)
+	{
+		return EMappingsTypeFlags::NameProperty;
+	}
+	else if (Flags & EClassCastFlags::TextProperty)
+	{
+		return EMappingsTypeFlags::TextProperty;
+	}
+	else if (Flags & EClassCastFlags::EnumProperty)
+	{
+		return EMappingsTypeFlags::EnumProperty;
+	}
+	else if (Flags & EClassCastFlags::InterfaceProperty)
+	{
+		return EMappingsTypeFlags::InterfaceProperty;
+	}
+	else if (Flags & EClassCastFlags::MapProperty)
+	{
+		return EMappingsTypeFlags::MapProperty;
+	}
+	else if (Flags & EClassCastFlags::ByteProperty)
+	{
+		return EMappingsTypeFlags::ByteProperty;
+	}
+	else if (Flags & EClassCastFlags::MulticastDelegateProperty
+	|| Flags & EClassCastFlags::MulticastInlineDelegateProperty
+	|| Flags & EClassCastFlags::MulticastSparseDelegateProperty)
+	{
+		return EMappingsTypeFlags::MulticastDelegateProperty;
+	}
+	else if (Flags & EClassCastFlags::DelegateProperty)
+	{
+		return EMappingsTypeFlags::DelegateProperty;
+	}
+	else if (Flags & EClassCastFlags::SoftObjectProperty
+	|| Flags & EClassCastFlags::SoftClassProperty)
+	{
+		return EMappingsTypeFlags::SoftObjectProperty;
+	}
+	else if (Flags & EClassCastFlags::WeakObjectProperty)
+	{
+		return EMappingsTypeFlags::WeakObjectProperty;
+	}
+	else if (Flags & EClassCastFlags::LazyObjectProperty)
+	{
+		return EMappingsTypeFlags::LazyObjectProperty;
+	}
+	else if (Flags & EClassCastFlags::SetProperty)
+	{
+		return EMappingsTypeFlags::SetProperty;
+	}
+	else if (Flags & EClassCastFlags::FieldPathProperty)
+	{
+		return EMappingsTypeFlags::FieldPathProperty;
+	}
+
+	return EMappingsTypeFlags::Unknown;
 }

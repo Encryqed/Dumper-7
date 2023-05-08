@@ -1,30 +1,267 @@
 #include "Generator.h"
 
-
 Generator::FunctionsMap Generator::PredefinedFunctions;
 Generator::MemberMap Generator::PredefinedMembers;
 
-
 void Generator::Init()
 {
-	ObjectArray::Init();
-	FName::Init();
-
-	/* ARK */
-	//FName::Init(0x211AF50);
-	//Off::InSDK::InitPE(0x43);
-
-	Off::InSDK::InitPE();
-	Off::Init();
-
 	/* manual overwrite */
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
 	//FName::Init(/*FName::AppendString*/);
 	//Off::InSDK::InitPE(/*PEIndex*/);
-	//Off::Init();
+
+	ObjectArray::Init();
+	FName::Init();
+	Off::Init();
+	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
 
 	InitPredefinedMembers();
 	InitPredefinedFunctions();
+}
+
+void Generator::GenerateMappings()
+{
+	fs::path DumperFolder;
+	fs::path GenFolder;
+
+	try
+	{
+		DumperFolder = Settings::SDKGenerationPath;
+		GenFolder = DumperFolder / (Settings::GameVersion + "_MAPPINGS");
+
+		if (!fs::exists(DumperFolder))
+		{
+			fs::create_directories(DumperFolder);
+		}
+
+		if (fs::exists(GenFolder))
+		{
+			fs::path Old = GenFolder.generic_string() + "_OLD";
+
+			fs::remove_all(Old);
+
+			fs::rename(GenFolder, Old);
+		}
+
+		fs::create_directory(GenFolder);
+	}
+	catch (const std::filesystem::filesystem_error& fe)
+	{
+		std::cout << "Could not create required folders! Info: \n";
+		std::cout << fe.what() << std::endl;
+		return;
+	}
+
+
+	struct EnumInfo
+	{
+		std::vector<int32> MemberNames;
+		int32 EnumNameIdx;
+
+		EnumInfo(std::vector<int32>&& Names, int32 Idx)
+			: MemberNames(std::move(Names)), EnumNameIdx(Idx)
+		{
+		}
+	};
+
+	struct StructInfo
+	{
+		int32 NameIdx;
+		int32 SuperNameIdx;
+
+		UEStruct SelfStruct;
+
+		StructInfo(int32 Name, int32 SuperName, UEStruct Self)
+			: NameIdx(Name), SuperNameIdx(SuperName), SelfStruct(Self)
+		{
+		}
+	};
+
+	MappingFileWriter<std::ofstream> MappingsStream(GenFolder / (Settings::GameVersion + ".usmap"));
+	MappingFileWriter<std::stringstream> Buffer;
+
+	std::unordered_map<int32, int32> NameIdxPairs;
+	std::vector<EnumInfo> Enums;
+	std::vector<StructInfo> Structs;
+
+	int NameIndex = 0;
+
+	auto WriteNameToBuffer = [&Buffer](FName Name)
+	{
+		std::string StrName = Name.ToString();
+
+		StrName = StrName.substr(StrName.find_last_of(':') + 1);
+
+		if (StrName.length() > 0xFF)
+		{
+			Buffer.Write<uint8>(0xFF);
+			Buffer.WriteStr(StrName.substr(0, 0xFF));
+		}
+		else
+		{
+			Buffer.Write<uint8>(StrName.length());
+			Buffer.WriteStr(StrName);
+		}
+	};
+
+	for (auto Obj : ObjectArray())
+	{
+		if (Obj.IsA(EClassCastFlags::Struct))
+		{
+			UEStruct AsStruct = Obj.Cast<UEStruct>();
+
+			auto [StructNameIt, bInsertedStructName] = NameIdxPairs.insert({ Obj.GetFName().GetCompIdx(), NameIndex });
+
+			if (bInsertedStructName)
+			{
+				WriteNameToBuffer(Obj.GetFName());
+				NameIndex++;
+			}
+
+			int32 SuperIdx = AsStruct.GetSuper() ? NameIdxPairs[AsStruct.GetSuper().GetFName().GetCompIdx()] : 0xFFFFFFFF;
+			Structs.emplace_back(StructNameIt->second, SuperIdx, AsStruct);
+
+			for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
+			{
+				auto [It, bInsertedPropName] = NameIdxPairs.insert({ Prop.GetFName().GetCompIdx(), NameIndex });
+
+				if (bInsertedPropName)
+				{
+					WriteNameToBuffer(Prop.GetFName());
+					NameIndex++;
+				}
+			}
+		}
+		else if (Obj.IsA(EClassCastFlags::Enum))
+		{
+			auto [EnumNameIt, bInsertedEnumname] = NameIdxPairs.insert({ Obj.GetFName().GetCompIdx(), NameIndex });
+
+			if (bInsertedEnumname)
+			{
+				WriteNameToBuffer(Obj.GetFName());
+				NameIndex++;
+			}
+
+			std::vector<int32> MemberNames;
+
+			for (auto& [Name, Value] : Obj.Cast<UEEnum>().GetNameValuePairs())
+			{
+				auto [MemberNameIt, bInsertedMemberName] = NameIdxPairs.insert({ Name.GetCompIdx(), NameIndex });
+
+				if (bInsertedMemberName)
+				{
+					WriteNameToBuffer(Name);
+					NameIndex++;
+				}
+
+				MemberNames.push_back(MemberNameIt->second); //Index
+			}
+
+			Enums.emplace_back(std::move(MemberNames), EnumNameIt->second);
+		}
+	}
+
+	auto WriteProperty = [&NameIdxPairs, &Buffer](UEProperty Property, auto&& WriteProperty) -> void
+	{
+		if (Property.IsA(EClassCastFlags::ByteProperty) && Property.Cast<UEByteProperty>().GetEnum()) 
+			Buffer.Write<uint8>((uint8)EMappingsTypeFlags::EnumProperty);
+		
+		Buffer.Write<uint8>((uint8)Property.GetMappingType());
+
+		if (Property.IsA(EClassCastFlags::EnumProperty))
+		{
+			UEEnumProperty EnumProperty = Property.Cast<UEEnumProperty>();
+
+			WriteProperty(EnumProperty.GetUnderlayingProperty(), WriteProperty);
+			Buffer.Write<int32>(NameIdxPairs[EnumProperty.GetEnum().GetFName().GetCompIdx()]);
+		}
+		else if (Property.IsA(EClassCastFlags::ByteProperty) && Property.Cast<UEByteProperty>().GetEnum())
+		{
+			Buffer.Write<int32>(NameIdxPairs[Property.Cast<UEByteProperty>().GetEnum().GetFName().GetCompIdx()]);
+		}
+		else if (Property.IsA(EClassCastFlags::StructProperty))
+		{
+			Buffer.Write<int32>(NameIdxPairs[Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetFName().GetCompIdx()]);
+		}
+		else if (Property.IsA(EClassCastFlags::ArrayProperty))
+		{
+			WriteProperty(Property.Cast<UEArrayProperty>().GetInnerProperty(), WriteProperty);
+		}
+		else if (Property.IsA(EClassCastFlags::SetProperty))
+		{
+			WriteProperty(Property.Cast<UESetProperty>().GetElementProperty(), WriteProperty);
+		}
+		else if (Property.IsA(EClassCastFlags::MapProperty))
+		{
+			WriteProperty(Property.Cast<UEMapProperty>().GetKeyProperty(), WriteProperty);
+			WriteProperty(Property.Cast<UEMapProperty>().GetValueProperty(), WriteProperty);
+		}
+	};
+
+	Buffer.Write<uint32>(Enums.size());
+	for (auto& Enum : Enums)
+	{
+		Buffer.Write<int32>(Enum.EnumNameIdx);
+		Buffer.Write<uint8>(Enum.MemberNames.size());
+
+		for (int32 NameIdx : Enum.MemberNames)
+		{
+			Buffer.Write<int32>(NameIdx);
+		}
+	}
+
+	Buffer.Write<uint32>(Structs.size());
+	for (auto& Struct : Structs)
+	{
+		Buffer.Write<int32>(Struct.NameIdx);
+		Buffer.Write<int32>(Struct.SuperNameIdx);
+
+		uint16 PropertyCount = 0;
+		uint16 SerializableCount = 0;
+
+		auto Properties = Struct.SelfStruct.GetProperties();
+
+		for (auto Property : Properties)
+		{
+			PropertyCount += Property.GetArrayDim();
+			SerializableCount++;
+		}
+
+		Buffer.Write<uint16>(PropertyCount);
+		Buffer.Write<uint16>(SerializableCount);
+
+		SerializableCount = 0; // recycling for indices
+
+		for (auto Property : Properties)
+		{
+			Buffer.Write<uint16>(SerializableCount); // Index
+			Buffer.Write<uint8>(Property.GetArrayDim());
+			Buffer.Write<int32>(NameIdxPairs[Property.GetFName().GetCompIdx()]);
+
+			WriteProperty(Property, WriteProperty);
+
+			SerializableCount++;
+		}
+	}
+
+	uint32 DataSize = Buffer.GetSize() + 0xF;
+
+	// HEADER
+	MappingsStream.Write<uint16>(0x30C4); //MAGIC
+	MappingsStream.Write<uint8>(0); // EUsmapVersion::Initial
+	//only when versioning >= 1
+	//MappingsStream.Write<int32>(false); // EUsmapVersion::PackageVersioning yes, someone decided int == bool in CUE4 Parser
+
+	//Versioning info here
+
+	MappingsStream.Write<uint8>(0); //CompressionMethode::None
+	MappingsStream.Write<uint32>(DataSize); // CompressedSize
+	MappingsStream.Write<uint32>(DataSize); // DecompressedSize
+	
+	MappingsStream.Write<uint32>(NameIndex); // NameCount
+	
+	//move data to other stream
+	MappingsStream.CopyFromOtherBuffer(Buffer);
 }
 
 void Generator::GenerateSDK()
@@ -33,26 +270,41 @@ void Generator::GenerateSDK()
 
 	ObjectArray::GetAllPackages(ObjectPackages);
 
-	fs::path DumperFolder(Settings::SDKGenerationPath);
-	fs::path GenFolder(DumperFolder / Settings::GameVersion);
-	fs::path SDKFolder = GenFolder / "SDK";
+	fs::path DumperFolder;
+	fs::path GenFolder;
+	fs::path SDKFolder;
 
-	if (!fs::exists(DumperFolder))
+	try
 	{
-		fs::create_directory(DumperFolder);
+		DumperFolder = Settings::SDKGenerationPath;
+		GenFolder = DumperFolder / Settings::GameVersion;
+		SDKFolder = GenFolder / "SDK";
+
+		if (!fs::exists(DumperFolder))
+		{
+			fs::create_directories(DumperFolder);
+		}
+
+		if (fs::exists(GenFolder))
+		{
+			fs::path Old = GenFolder.generic_string() + "_OLD";
+
+			fs::remove_all(Old);
+
+			fs::rename(GenFolder, Old);
+		}
+
+		fs::create_directory(GenFolder);
+		fs::create_directory(SDKFolder);
+	}
+	catch (const std::filesystem::filesystem_error& fe)
+	{
+		std::cout << "Could not create required folders! Info: \n"; 
+		std::cout << fe.what() << std::endl;
+		return;
 	}
 
-	if (fs::exists(GenFolder))
-	{
-		fs::path Old = GenFolder.generic_string() + "_OLD";
-
-		fs::remove_all(Old);
-
-		fs::rename(GenFolder, Old);
-	}
-
-	fs::create_directory(GenFolder);
-	fs::create_directory(SDKFolder);
+	ObjectArray::DumpObjects();
 
 	Package::InitAssertionStream(GenFolder);
 
@@ -94,16 +346,16 @@ void Generator::GenerateSDK()
 			{
 				for (auto& Pairs : Generator::PredefinedFunctions)
 				{
-					if (Pairs.second.first == PackageName)
+					if (Pairs.second.first != PackageName)
+						continue;
+
+					for (auto& PredefFunc : Pairs.second.second)
 					{
-						for (auto& PredefFunc : Pairs.second.second)
+						if (PredefFunc.DeclarationCPP != "")
 						{
-							if (PredefFunc.DeclarationCPP != "")
-							{
-								FunctionFile.Write(PredefFunc.DeclarationCPP);
-								FunctionFile.Write(PredefFunc.Body);
-								FunctionFile.Write("\n");
-							}
+							FunctionFile.Write(PredefFunc.DeclarationCPP);
+							FunctionFile.Write(PredefFunc.Body);
+							FunctionFile.Write("\n");
 						}
 					}
 				}
@@ -133,13 +385,27 @@ void Generator::GenerateSDK()
 
 void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t, std::vector<int32_t>>& Packages)
 {
+	// Determine main-package of the game
+	int32 IndexOfBiggestPackage = 0;
+	int32 SizeOfBiggestPackage = 0;
+
+	for (const auto& [PackageIdx, DependencyVector] : Packages)
+	{
+		if (DependencyVector.size() > SizeOfBiggestPackage)
+		{
+			SizeOfBiggestPackage = DependencyVector.size();
+			IndexOfBiggestPackage = PackageIdx;
+		}
+	}
+
 	std::ofstream HeaderStream(SdkPath / "SDK.hpp");
 
 	HeaderStream << "#pragma once\n\n";
-	HeaderStream << "// Made with <3 by Encryqed && me [Fischsalat]\n\n";
+	HeaderStream << "// Made with <3 by me [Encryqed] && you [Fischsalat]\n\n";
 
 	HeaderStream << std::format("// {}\n", Settings::GameName);
 	HeaderStream << std::format("// {}\n\n", Settings::GameVersion);
+	HeaderStream << std::format("// Main-package: {}\n\n", ObjectArray::GetByIndex(IndexOfBiggestPackage).GetValidName());
 
 	HeaderStream << "#define WINDOWS_IGNORE_PACKING_MISMATCH\n\n";
 
@@ -173,49 +439,64 @@ namespace Offsets
 	HeaderStream << "\n#include \"PropertyFixup.hpp\"\n";
 	HeaderStream << "\n#include \"SDK/" << (Settings::FilePrefix ? Settings::FilePrefix : "") << "Basic.hpp\"\n";
 
+	if (Settings::bIncludeOnlyRelevantPackages)
+	{
+		std::string IncludesString;
+
+		Package::PackageSorterStructs.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Struct, IncludesString, false);
+		HeaderStream << IncludesString;
+
+		IncludesString.clear();
+
+		Package::PackageSorterClasses.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Class, IncludesString, false, &Package::PackageSorterStructs, EIncludeFileType::Struct);
+		HeaderStream << IncludesString;
+		
+		IncludesString.clear();
+		
+		Package::PackageSorterParams.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Params, IncludesString, false);
+		HeaderStream << IncludesString;
+	}
+
 	for (auto& Pack : Package::PackageSorterStructs.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorterStructs.GetIncludesForPackage(Pack.first, false, IncludesString);
-	
+		Package::PackageSorterStructs.GetIncludesForPackage(Pack.first, EIncludeFileType::Struct, IncludesString, Settings::bIncludeOnlyRelevantPackages);
+
 		HeaderStream << IncludesString;
 	}
 
 	for (auto& Pack : Package::PackageSorterClasses.AllDependencies)
 	{
 		std::string IncludesString;
-		Package::PackageSorterClasses.GetIncludesForPackage(Pack.first, true, IncludesString);
-
+		Package::PackageSorterClasses.GetIncludesForPackage(Pack.first, EIncludeFileType::Class, IncludesString, Settings::bIncludeOnlyRelevantPackages, &Package::PackageSorterStructs, EIncludeFileType::Struct);
+	
 		HeaderStream << IncludesString;
 	}
-
-	// Param files don't need dependency sorting
-	for (auto& Pair : Packages)
+	
+	for (auto& Pack : Package::PackageSorterParams.AllDependencies)
 	{
-		UEObject PackageObj = ObjectArray::GetByIndex(Pair.first);
-
-		if (!PackageObj)
-			continue;
-
-		HeaderStream << std::format("\n#include \"SDK/{}{}_parameters.hpp\"", (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageObj.GetName());
+		std::string IncludesString;
+		Package::PackageSorterParams.GetIncludesForPackage(Pack.first, EIncludeFileType::Params, IncludesString, Settings::bIncludeOnlyRelevantPackages);
+	
+		HeaderStream << IncludesString;
 	}
 
 	HeaderStream.close();
 }
+
 void Generator::GenerateFixupFile(fs::path& SdkPath)
 {
 	std::ofstream FixupStream(SdkPath / "PropertyFixup.hpp");
 
 	FixupStream << "#pragma once\n\n";
 
-	FixupStream << "//Definitions for missing Properties\n\n";
+	FixupStream << "// Definitions for missing Properties\n\n";
 
 	for (auto& Property : UEProperty::UnknownProperties)
 	{
 		FixupStream << std::format("class {}\n{{\n\tunsigned __int8 Pad[0x{:X}];\n}};\n\n", Property.first, Property.second);
 	}
 }
-
 
 void Generator::InitPredefinedMembers()
 {
@@ -226,11 +507,7 @@ void Generator::InitPredefinedMembers()
 		{ "int32 ", "Flags", Off::UObject::Flags, 0x04 },
 		{ "int32", "Index", Off::UObject::Index, 0x04 },
 		{ "class UClass*", "Class", Off::UObject::Class, 0x08 },
-#ifndef WITH_CASE_PRESERVING_NAME
-		{ "class FName", "Name", Off::UObject::Name, 0x08 },
-#else
-		{ "class FName", "Name", Off::UObject::Name, 0x10 },
-#endif // WITH_CASE_PRESERVING_NAME
+		{ "class FName", "Name", Off::UObject::Name, Off::InSDK::FNameSize },
 		{ "class UObject*", "Outer", Off::UObject::Outer, 0x08 }
 	};
 
@@ -495,7 +772,6 @@ R"(
 	};
 }
 
-
 void Generator::GenerateBasicFile(fs::path& SdkPath)
 {
 	FileWriter BasicHeader(SdkPath, Settings::FilePrefix ? Settings::FilePrefix + std::string("Basic") : "Basic", FileWriter::FileType::Header);
@@ -719,22 +995,24 @@ class FName
 {
 public:)");
 
-#ifndef WITH_CASE_PRESERVING_NAME
-	BasicHeader.Write(
-		R"(
+	if (Off::InSDK::FNameSize == 0x8)
+	{
+		BasicHeader.Write(
+			R"(
 	int32 ComparisonIndex;
 	int32 Number;
 )");
-#else
-	BasicHeader.Write(
-		R"(
-int32 ComparisonIndex;
-	int32 DisplayIndex;
+	}
+	else
+	{
+		BasicHeader.Write(
+			R"(
+	int32 ComparisonIndex;
 	int32 Number;
+	int32 DisplayIndex;
 	uint8 Pad[0x4];
 )");
-#endif // !WITH_CASE_PRESERVING_NAME
-
+	}
 
 	BasicHeader.Write(
 		std::format(R"(

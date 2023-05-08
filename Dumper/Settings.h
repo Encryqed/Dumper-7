@@ -1,19 +1,19 @@
 #pragma once
 
 
-//#define WITH_CASE_PRESERVING_NAME
-
 namespace Settings
 {
 	//Auto generated if no override is provided
-	inline std::string GameName;
-	inline std::string GameVersion;
+	inline std::string GameName = "";
+	inline std::string GameVersion = "";
 
 	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
 
-	//use = nullptr if you don't want your files to be prefixed
+	//use nullptr if you don't want your files to be prefixed
 	inline constexpr const char* FilePrefix = nullptr;
 
+	//includes only packages required for the games main package (the package with the most structs/classes/enums)
+	inline constexpr const bool bIncludeOnlyRelevantPackages = false;
 
 	inline constexpr const bool bUseNamespaceForParams = true;
 
@@ -37,9 +37,14 @@ namespace Settings
 	namespace Internal
 	{
 		// UEEnum::Names
-		// -1 -> TPair<FName, int64>
-		//  0 -> FName
-		// +1 -> TPair<FName, uint8>
-		inline int8 EnumNameArrayType = -1;
+		inline bool bIsEnumNameOnly = false;
+
+		inline bool bUseFProperty = false;
+
+		inline bool bUseCasePreservingName = false;
+
+		inline bool bUseMaskForFieldOwner = false;
+
+		inline std::string MainGamePackageName;
 	}
 }
