@@ -996,19 +996,9 @@ std::string UESoftClassProperty::GetCppType()
 	return std::format("TSoftClassPtr<class {}>", GetMetaClass() ? GetMetaClass().GetCppName() : GetPropertyClass().GetCppName());
 }
 
-UEClass UEInterfaceProperty::GetInterfaceClass()
-{
-	return UEClass(*reinterpret_cast<void**>(Base + Off::UInterfaceProperty::InterfaceClass));
-}
-
 std::string UEInterfaceProperty::GetCppType()
 {
 	return std::format("TScriptInterface<class {}>", GetPropertyClass().GetCppName());
-}
-
-std::string UEInterfaceProperty::GetCppType2()
-{
-	return std::format("TScriptInterface<class {}>", GetInterfaceClass().GetCppName());
 }
 
 UEStruct UEStructProperty::GetUnderlayingStruct()

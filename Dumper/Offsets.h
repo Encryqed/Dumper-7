@@ -164,9 +164,4 @@ namespace Off
 
 		inline int32 Base;
 	}
-
-	namespace UInterfaceProperty
-	{
-		inline int32 InterfaceClass;
-	}
 }

@@ -121,6 +121,4 @@ void Off::Init()
 	Off::UEnumProperty::Base = PropertySize;
 	
 	Off::UClassProperty::MetaClass = PropertySize + 0x8; //0x8 inheritance from UObjectProperty
-
-	Off::UInterfaceProperty::InterfaceClass = PropertySize + 0x8; //0x8 inheritance from UObjectProperty
 }
