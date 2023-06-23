@@ -42,8 +42,10 @@ static inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* St
 			uintptr_t Address = uintptr_t(Start + i);
 			if (bRelative)
 			{
+				if (Offset == -1)
+					Offset = PatternLength;
+
 				Address = ((Address + Offset + 4) + *(int32_t*)(Address + Offset));
-				return (void*)Address;
 			}
 			return (void*)Address;
 		}

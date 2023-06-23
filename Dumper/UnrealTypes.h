@@ -1,8 +1,9 @@
 #pragma once
 
+#include <array>
 #include <string>
-#include <Windows.h>
 #include <iostream>
+#include <Windows.h>
 #include "Enums.h"
 #include "Utils.h"
 #include "Offsets.h"
@@ -134,12 +135,16 @@ public:
 
 	static void Init()
 	{
-		auto StringRef = FindByString("ForwardShadingQuality_");
-		AppendString = reinterpret_cast<void(*)(void*, FString&)>(StringRef.RelativePattern("48 8D ? ? 48 8D ? ? E8", 0x60, 0x9));
+		std::array<const char*, 3> PossibleSigs = { "48 8D ? ? 48 8D ? ? E8", "48 8D ? ? ? 49 8B ? E8", "48 8D ? ? 49 8B ? E8" };
 
-		// Temporary workaround for UEFN-Editor
-		if (!AppendString)
-			AppendString = reinterpret_cast<void(*)(void*, FString&)>(StringRef.RelativePattern("48 8D ? ? ? 49 8B ? E8", 0x60, 0x9));
+		auto StringRef = FindByString("ForwardShadingQuality_");
+
+		int i = 0;
+		while (!AppendString && i < PossibleSigs.size())
+		{
+			AppendString = reinterpret_cast<void(*)(void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x60, -1 /* auto */));
+			i++;
+		}
 
 		Off::InSDK::AppendNameToString = uintptr_t(AppendString) - uintptr_t(GetModuleHandle(0));
 
