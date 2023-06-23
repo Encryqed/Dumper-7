@@ -68,8 +68,8 @@ void Off::Init()
 	Off::UStruct::Size = OffsetFinder::FindStructSizeOffset();
 	std::cout << "Off::UStruct::Size: " << Off::UStruct::Size << "\n";
 
-	Off::UClass::ClassFlags = OffsetFinder::FindCastFlagsOffset();
-	std::cout << "Off::UClass::ClassFlags: " << Off::UClass::ClassFlags << "\n";
+	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
+	std::cout << "Off::UClass::CastFlags: " << Off::UClass::CastFlags << "\n";
 
 	if (Settings::Internal::bUseFProperty)
 	{

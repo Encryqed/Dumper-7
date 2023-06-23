@@ -88,7 +88,7 @@ namespace Off
 
 	namespace UClass
 	{
-		inline int32 ClassFlags;
+		inline int32 CastFlags;
 		inline int32 ClassDefaultObject;
 	}
 

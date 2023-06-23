@@ -535,7 +535,7 @@ void Generator::InitPredefinedMembers()
 
 	PredefinedMembers["UClass"] =
 	{
-		{ "enum class EClassCastFlags", "CastFlags", Off::UClass::ClassFlags, 0x08 },
+		{ "enum class EClassCastFlags", "CastFlags", Off::UClass::CastFlags, 0x08 },
 		{ "class UObject*", "DefaultObject", Off::UClass::ClassDefaultObject, 0x08 }
 	};
 

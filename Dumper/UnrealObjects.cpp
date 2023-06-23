@@ -215,14 +215,19 @@ std::string UEFField::GetValidName()
 std::string UEFField::GetCppName()
 {
 	static UEClass ActorClass = ObjectArray::FindClassFast("Actor");
+	static UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
 
 	std::string Temp = GetValidName();
 
 	if (IsA(EClassCastFlags::Class))
 	{
-		if (Cast<UEClass>().HasType(ActorClass))
+		if (Cast<UEClass>().HasType(ActorClass)) 
 		{
 			return 'A' + Temp;
+		}
+		else if (Cast<UEClass>().HasType(InterfaceClass)) 
+		{
+			return 'I' + Temp;
 		}
 
 		return 'U' + Temp;
@@ -347,14 +352,19 @@ std::string UEObject::GetValidName()
 std::string UEObject::GetCppName()
 {
 	static UEClass ActorClass = ObjectArray::FindClassFast("Actor");
+	static UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
 
 	std::string Temp = GetValidName();
 
-	if (this->IsA(EClassCastFlags::Class))
+	if (IsA(EClassCastFlags::Class))
 	{
-		if (this->Cast<UEClass>().HasType(ActorClass))
+		if (Cast<UEClass>().HasType(ActorClass))
 		{
 			return 'A' + Temp;
+		}
+		else if (Cast<UEClass>().HasType(InterfaceClass))
+		{
+			return 'I' + Temp;
 		}
 
 		return 'U' + Temp;
@@ -594,7 +604,7 @@ bool UEStruct::HasMembers()
 
 EClassCastFlags UEClass::GetCastFlags()
 {
-	return *reinterpret_cast<EClassCastFlags*>(Object + Off::UClass::ClassFlags);
+	return *reinterpret_cast<EClassCastFlags*>(Object + Off::UClass::CastFlags);
 }
 
 bool UEClass::IsType(EClassCastFlags TypeFlag)
