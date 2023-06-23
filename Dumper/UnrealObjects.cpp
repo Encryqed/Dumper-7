@@ -879,6 +879,9 @@ std::string UEProperty::GetCppType()
 	{
 		return Cast<UEEnumProperty>().GetCppType();
 	}
+	else if (TypeFlags & EClassCastFlags::InterfaceProperty) {
+		return Cast<UEInterfaceProperty>().GetCppType();
+	}
 	else
 	{
 		std::string CppName = (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";
@@ -983,6 +986,11 @@ std::string UESoftClassProperty::GetCppType()
 	return std::format("TSoftClassPtr<class {}>", GetMetaClass() ? GetMetaClass().GetCppName() : GetPropertyClass().GetCppName());
 }
 
+std::string UEInterfaceProperty::GetCppType()
+{
+	return std::format("TScriptInterface<class {}>", GetPropertyClass().GetCppName());
+}
+
 UEStruct UEStructProperty::GetUnderlayingStruct()
 {
 	return UEStruct(*reinterpret_cast<void**>(Base + Off::UStructProperty::Struct));
@@ -1073,6 +1081,7 @@ void TemplateTypeCreationForUnrealObjects(void)
 	FDummy.Cast<UEMapProperty>();
 	FDummy.Cast<UESetProperty>();
 	FDummy.Cast<UEEnumProperty>();
+	FDummy.Cast<UEInterfaceProperty>();
 
 	FDummy.Cast<UEFField&>();
 	FDummy.Cast<UEProperty&>();
@@ -1085,6 +1094,7 @@ void TemplateTypeCreationForUnrealObjects(void)
 	FDummy.Cast<UEMapProperty&>();
 	FDummy.Cast<UESetProperty&>();
 	FDummy.Cast<UEEnumProperty&>();
+	FDummy.Cast<UEInterfaceProperty&>();
 
 	Dummy.Cast<UEFField>();
 
@@ -1104,6 +1114,7 @@ void TemplateTypeCreationForUnrealObjects(void)
 	Dummy.Cast<UEMapProperty>();
 	Dummy.Cast<UESetProperty>();
 	Dummy.Cast<UEEnumProperty>();
+	Dummy.Cast<UEInterfaceProperty>();
 
 	Dummy.Cast<UEObject&>();
 	Dummy.Cast<UEField&>();
@@ -1121,4 +1132,5 @@ void TemplateTypeCreationForUnrealObjects(void)
 	Dummy.Cast<UEMapProperty&>();
 	Dummy.Cast<UESetProperty&>();
 	Dummy.Cast<UEEnumProperty&>();
+	Dummy.Cast<UEInterfaceProperty&>();
 }

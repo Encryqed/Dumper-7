@@ -330,6 +330,14 @@ public:
 	std::string GetCppType();
 };
 
+class UEInterfaceProperty : public UEObjectProperty
+{
+	using UEObjectProperty::UEObjectProperty;
+
+public:
+	std::string GetCppType();
+};
+
 class UEStructProperty : public UEProperty
 {
 	using UEProperty::UEProperty;
