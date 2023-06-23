@@ -1415,6 +1415,27 @@ inline bool operator&(EClassCastFlags Left, EClassCastFlags Right)
 }
 )");
 
+	BasicHeader.Write(
+		R"(
+class FScriptInterface
+{
+public:
+	UObject* ObjectPointer = nullptr;
+	void* InterfacePointer = nullptr;
+
+	FORCEINLINE UObject*& GetObjectRef()
+	{
+		return ObjectPointer;
+	}
+};
+
+template<class InterfaceType>
+class TScriptInterface : public FScriptInterface
+{
+public:
+};
+)");
+
 	//-TUObjectArray
 	//-TArray
 	//-FString
