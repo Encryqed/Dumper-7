@@ -167,7 +167,6 @@ namespace Off
 
 	namespace UInterfaceProperty
 	{
-		inline int32 ObjectPointer;
-		inline int32 InterfacePointer;
+		inline int32 InterfaceClass;
 	}
 }

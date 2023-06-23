@@ -1423,7 +1423,7 @@ public:
 	UObject* ObjectPointer = nullptr;
 	void* InterfacePointer = nullptr;
 
-	FORCEINLINE UObject*& GetObjectRef()
+	inline UObject* GetObjectRef()
 	{
 		return ObjectPointer;
 	}

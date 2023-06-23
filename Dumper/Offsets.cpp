@@ -122,6 +122,5 @@ void Off::Init()
 	
 	Off::UClassProperty::MetaClass = PropertySize + 0x8; //0x8 inheritance from UObjectProperty
 
-	Off::UInterfaceProperty::ObjectPointer = 0x0;
-	Off::UInterfaceProperty::InterfacePointer = 0x4;
+	Off::UInterfaceProperty::InterfaceClass = PropertySize + 0x8; //0x8 inheritance from UObjectProperty
 }

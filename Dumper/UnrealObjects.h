@@ -335,7 +335,10 @@ class UEInterfaceProperty : public UEObjectProperty
 	using UEObjectProperty::UEObjectProperty;
 
 public:
+	UEClass GetInterfaceClass();
+
 	std::string GetCppType();
+	std::string GetCppType2();
 };
 
 class UEStructProperty : public UEProperty
