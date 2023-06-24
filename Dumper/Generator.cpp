@@ -590,7 +590,7 @@ void Generator::InitPredefinedMembers()
 		{ "class UProperty*", "ElementProperty", Off::USetProperty::ElementProp, 0x08 }
 	};
 
-	PredefinedMembers["USetProperty"] =
+	PredefinedMembers["UEnumProperty"] =
 	{
 		{ "class UProperty*", "UnderlayingProperty", Off::UEnumProperty::Base, 0x08 },
 		{ "class UEnum*", "Enum", Off::UEnumProperty::Base + 0x08, 0x08 }
