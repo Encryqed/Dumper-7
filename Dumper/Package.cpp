@@ -256,9 +256,10 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 	if (MemberVector.size() == 0)
 	{
-		if (Generator::PredefinedMembers.find(SuperName) != Generator::PredefinedMembers.end())
+		auto Predef = Generator::PredefinedMembers.find(SuperName);
+		if (Predef != Generator::PredefinedMembers.end())
 		{
-			for (auto& Member : Generator::PredefinedMembers[SuperName])
+			for (auto& Member : Predef->second)
 			{
 				if (Member.Offset > PrevPropertyEnd)
 				{

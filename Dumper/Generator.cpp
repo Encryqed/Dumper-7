@@ -344,14 +344,14 @@ void Generator::GenerateSDK()
 
 			for (auto& Function : Pack.AllFunctions)
 			{
-				for (auto& Pairs : Generator::PredefinedFunctions)
+				for (auto& [ClassName, PackageFunctionsPairs] : Generator::PredefinedFunctions)
 				{
-					if (Pairs.second.first != PackageName)
+					if (PackageFunctionsPairs.first != PackageName)
 						continue;
 
-					for (auto& PredefFunc : Pairs.second.second)
+					for (auto& PredefFunc : PackageFunctionsPairs.second)
 					{
-						if (PredefFunc.DeclarationCPP != "")
+						if (!PredefFunc.DeclarationCPP.empty())
 						{
 							FunctionFile.Write(PredefFunc.DeclarationCPP);
 							FunctionFile.Write(PredefFunc.Body);

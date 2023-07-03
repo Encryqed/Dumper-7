@@ -59,7 +59,7 @@ DWORD MainThread(HMODULE Module)
 		if (GetAsyncKeyState(VK_F6) & 1)
 		{
 			fclose(stdout);
-			fclose(Dummy);
+			if (Dummy) fclose(Dummy);
 			FreeConsole();
 
 			FreeLibraryAndExitThread(Module, 0);

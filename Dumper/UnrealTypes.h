@@ -135,7 +135,7 @@ public:
 
 	static void Init()
 	{
-		std::array<const char*, 3> PossibleSigs = { "48 8D ? ? 48 8D ? ? E8", "48 8D ? ? ? 49 8B ? E8", "48 8D ? ? 49 8B ? E8" };
+		std::array<const char*, 4> PossibleSigs = { "48 8D ? ? 48 8D ? ? E8", "48 8D ? ? ? 48 8D ? ? E8", "48 8D ? ? 49 8B ? E8", "48 8D ? ? ? 49 8B ? E8" };
 
 		auto StringRef = FindByString("ForwardShadingQuality_");
 
