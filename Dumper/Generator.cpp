@@ -27,7 +27,7 @@ void Generator::GenerateMappings()
 	try
 	{
 		DumperFolder = Settings::SDKGenerationPath;
-		GenFolder = DumperFolder / (Settings::GameVersion + "_MAPPINGS");
+		GenFolder = DumperFolder / (Settings::GameVersion + '-' + Settings::GameName + "_MAPPINGS");
 
 		if (!fs::exists(DumperFolder))
 		{
@@ -277,7 +277,7 @@ void Generator::GenerateSDK()
 	try
 	{
 		DumperFolder = Settings::SDKGenerationPath;
-		GenFolder = DumperFolder / Settings::GameVersion;
+		GenFolder = DumperFolder / (Settings::GameVersion + '-' + Settings::GameName);
 		SDKFolder = GenFolder / "SDK";
 
 		if (!fs::exists(DumperFolder))
