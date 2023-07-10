@@ -144,6 +144,50 @@ void Package::CloseAssertionStream()
 	}
 }
 
+int32 Package::GeneratePredefinedMembers(const std::string& ClassName, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
+{
+	int PrevPropertyEnd = SuperSize;
+
+	auto Predef = Generator::PredefinedMembers.find(ClassName);
+	if (Predef != Generator::PredefinedMembers.end())
+	{
+		for (auto& Member : Predef->second)
+		{
+			if (Member.Offset > PrevPropertyEnd)
+			{
+				Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Member.Offset - PrevPropertyEnd, "Fixing Size After Last (Predefined) Property  [ Dumper-7 ]"));
+			}
+
+			Struct.AddMember(Types::Member(Member.Type, Member.Name, std::format("(0x{:02X}[0x{:02X}]) NOT AUTO-GENERATED PROPERTY", Member.Offset, Member.Size)));
+
+			PrevPropertyEnd = Member.Offset + Member.Size;
+		}
+
+		if (StructSize > PrevPropertyEnd)
+		{
+			Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, StructSize - PrevPropertyEnd, "Fixing Size Of Struct [ Dumper-7 ]"));
+		}
+
+		return PrevPropertyEnd;
+	}
+
+	return 0;
+}
+
+Types::Member Package::GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
+{
+	static uint32 PadNum = 0;
+
+	return Types::Member("uint8", std::format("Pad_{:X}[0x{:X}]", PadNum++, PadSize), Reason);
+}
+
+Types::Member Package::GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
+{
+	static uint32 BitPadNum = 0;
+
+	return Types::Member("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::move(Reason));
+}
+
 void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 {
 	for (int32_t Index : PackageMembers)
@@ -254,31 +298,9 @@ void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& S
 
 	std::string SuperName = Super.GetCppName();
 
-	if (MemberVector.size() == 0)
-	{
-		auto Predef = Generator::PredefinedMembers.find(SuperName);
-		if (Predef != Generator::PredefinedMembers.end())
-		{
-			for (auto& Member : Predef->second)
-			{
-				if (Member.Offset > PrevPropertyEnd)
-				{
-					Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Member.Offset - PrevPropertyEnd, "Fixing Size After Last (Predefined) Property  [ Dumper-7 ]"));
-				}
-
-				Struct.AddMember(Types::Member(Member.Type, Member.Name, std::format("(0x{:02X}[0x{:02X}]) NOT AUTO-GENERATED PROPERTY", Member.Offset, Member.Size)));
-
-				PrevPropertyEnd = Member.Offset + Member.Size;
-			}
-
-			if (StructSize > PrevPropertyEnd)
-			{
-				Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, StructSize - PrevPropertyEnd, "Fixing Size Of Struct [ Dumper-7 ]"));
-			}
-
-			return;
-		}
-	}
+	if (MemberVector.size() == 0 && GeneratePredefinedMembers(SuperName, Struct, StructSize, SuperSize) != 0)
+		return; // generated struct based on override, return now
+		
 
 	if (Settings::Debug::bGenerateAssertionFile)
 	{
@@ -624,18 +646,4 @@ Types::Enum Package::GenerateEnum(UEEnum Enum)
 	AllEnums.push_back(Enm);
 
 	return Enm;
-}
-
-Types::Member Package::GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
-{
-	static uint32 PadNum = 0;
-
-	return Types::Member("uint8", std::format("Pad_{:X}[0x{:X}]", PadNum++, PadSize), Reason);
-}
-
-Types::Member Package::GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
-{
-	static uint32 BitPadNum = 0;
-
-	return Types::Member("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::move(Reason));
 }

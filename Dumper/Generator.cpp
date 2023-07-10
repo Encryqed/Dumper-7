@@ -500,6 +500,11 @@ void Generator::GenerateFixupFile(fs::path& SdkPath)
 
 void Generator::InitPredefinedMembers()
 {
+	auto PrefixPropertyName = [](std::string&& Name) -> std::string
+	{
+		return (Settings::Internal::bUseFProperty ? 'F' : 'U') + std::move(Name);
+	};
+	
 	PredefinedMembers["UObject"] =
 	{
 		{ "static class TUObjectArray*", "GObjects", 0x00, 0x00},
@@ -528,6 +533,9 @@ void Generator::InitPredefinedMembers()
 		{ "int32", "Size", Off::UStruct::Size, 0x04 }
 	};
 
+	if (Settings::Internal::bUseFProperty)
+		PredefinedMembers["UStruct"].emplace(PredefinedMembers["UStruct"].begin() + 2, "class FField*", "ChildProperties", Off::UStruct::ChildProperties, 0x08);
+
 	PredefinedMembers["UFunction"] =
 	{
 		{ "uint32", "FunctionFlags", Off::UFunction::FunctionFlags, 0x08 }
@@ -539,19 +547,20 @@ void Generator::InitPredefinedMembers()
 		{ "class UObject*", "DefaultObject", Off::UClass::ClassDefaultObject, 0x08 }
 	};
 
-	PredefinedMembers["UProperty"] =
+
+	PredefinedMembers[PrefixPropertyName("Property")] =
 	{
 		{ "int32", "ElementSize", Off::UProperty::ElementSize, 0x04 },
 		{ "uint64", "PropertyFlags", Off::UProperty::PropertyFlags, 0x08 },
 		{ "int32", "Offset", Off::UProperty::Offset_Internal, 0x04 }
 	};
 
-	PredefinedMembers["UByteProperty"] =
+	PredefinedMembers[PrefixPropertyName("ByteProperty")] =
 	{
 		{ "class UEnum*", "Enum", Off::UByteProperty::Enum, 0x08 }
 	};
 
-	PredefinedMembers["UBoolProperty"] =
+	PredefinedMembers[PrefixPropertyName("BoolProperty")] =
 	{
 		{ "uint8", "FieldSize", Off::UBoolProperty::Base, 0x01 },
 		{ "uint8", "ByteOffset", Off::UBoolProperty::Base + 0x1, 0x01 },
@@ -559,41 +568,76 @@ void Generator::InitPredefinedMembers()
 		{ "uint8", "FieldMask", Off::UBoolProperty::Base + 0x3, 0x01 }
 	};
 
-	PredefinedMembers["UObjectProperty"] =
+	PredefinedMembers[PrefixPropertyName("ObjectProperty")] =
 	{
 		{ "class UClass*", "PropertyClass", Off::UObjectProperty::PropertyClass, 0x08 }
 	};
 
-	PredefinedMembers["UClassProperty"] =
+	PredefinedMembers[PrefixPropertyName("ClassProperty")] =
 	{
 		{ "class UClass*", "MetaClass", Off::UClassProperty::MetaClass, 0x08 }
 	};
 
-	PredefinedMembers["UStructProperty"] =
+	PredefinedMembers[PrefixPropertyName("StructProperty")] =
 	{
 		{ "class UStruct*", "Struct", Off::UStructProperty::Struct, 0x08 }
 	};
 
-	PredefinedMembers["UArrayProperty"] =
+	std::string PrefixedPropertyPtr = std::format("class {}*", PrefixPropertyName("Property"));
+
+	PredefinedMembers[PrefixPropertyName("ArrayProperty")] =
 	{
-		{ "class UProperty*", "InnerProperty", Off::UArrayProperty::Inner, 0x08 }
+		{ PrefixedPropertyPtr, "InnerProperty", Off::UArrayProperty::Inner, 0x08}
 	};
 
-	PredefinedMembers["UMapProperty"] =
+	PredefinedMembers[PrefixPropertyName("MapProperty")] =
 	{
-		{ "class UProperty*", "KeyProperty", Off::UMapProperty::Base, 0x08 },
-		{ "class UProperty*", "ValueProperty", Off::UMapProperty::Base + 0x08, 0x08 }
+		{ PrefixedPropertyPtr, "KeyProperty", Off::UMapProperty::Base, 0x08 },
+		{ PrefixedPropertyPtr, "ValueProperty", Off::UMapProperty::Base + 0x08, 0x08 }
 	};
 
-	PredefinedMembers["USetProperty"] =
+	PredefinedMembers[PrefixPropertyName("SetProperty")] =
 	{
-		{ "class UProperty*", "ElementProperty", Off::USetProperty::ElementProp, 0x08 }
+		{ PrefixedPropertyPtr, "ElementProperty", Off::USetProperty::ElementProp, 0x08 }
 	};
 
-	PredefinedMembers["UEnumProperty"] =
+	PredefinedMembers[PrefixPropertyName("EnumProperty")] =
 	{
-		{ "class UProperty*", "UnderlayingProperty", Off::UEnumProperty::Base, 0x08 },
+		{ PrefixedPropertyPtr, "UnderlayingProperty", Off::UEnumProperty::Base, 0x08 },
 		{ "class UEnum*", "Enum", Off::UEnumProperty::Base + 0x08, 0x08 }
+	};
+
+	if (!Settings::Internal::bUseFProperty)
+		return;
+
+	int FNameSize = (Settings::Internal::bUseCasePreservingName ? 0x10 : 0x8);
+	int FFieldVariantSize = (!Settings::Internal::bUseMaskForFieldOwner ? 0x10 : 0x8);
+	std::string UObjectIdentifierType = (Settings::Internal::bUseMaskForFieldOwner ? "static constexpr uint64" : "bool");
+	std::string UObjectIdentifierName = (Settings::Internal::bUseMaskForFieldOwner ? "UObjectMask = 0x1" : "bIsUObject");
+
+	PredefinedMembers["FFieldClass"] =
+	{
+		{ "FName", "Name", Off::FFieldClass::Name, FNameSize },
+		{ "uint64", "Id", Off::FFieldClass::Id, 0x8 },
+		{ "uint64", "CastFlags", Off::FFieldClass::CastFlags, 0x8 },
+		{ "EClassFlags", "ClassFlags", Off::FFieldClass::ClassFlags, 0x4 },
+		{ "FFieldClass*", "SuperClass", Off::FFieldClass::SuperClass, 0x8 },
+	};
+
+	PredefinedMembers["FFieldVariant"] =
+	{
+		{ "union { FField* Field; UObject* Object }", "Container", 0x0, 0x8 },
+		{ UObjectIdentifierType, UObjectIdentifierName, 0x0, !Settings::Internal::bUseMaskForFieldOwner }
+	};
+
+	PredefinedMembers["FField"] =
+	{
+		{ "void*", "Vft", Off::FField::Vft, 0x8 },
+		{ "FFieldClass*", "Class", Off::FField::Class, 0x8 },
+		{ "FFieldVariant", "Owner", Off::FField::Owner, FFieldVariantSize },
+		{ "FField*", "Next", Off::FField::Next, 0x8 },
+		{ "FName", "Name", Off::FField::Name, FNameSize },
+		{ "EObjectFlags", "Flags", Off::FField::Flags, 0x4 }
 	};
 }
 
@@ -1350,55 +1394,55 @@ enum class EClassCastFlags : uint64_t
 {
 	None = 0x0000000000000000,
 
-	UField							= 0x0000000000000001,
-	UInt8Property					= 0x0000000000000002,
-	UEnum							= 0x0000000000000004,
-	UStruct							= 0x0000000000000008,
-	UScriptStruct					= 0x0000000000000010,
-	UClass							= 0x0000000000000020,
-	UByteProperty					= 0x0000000000000040,
-	UIntProperty					= 0x0000000000000080,
-	UFloatProperty					= 0x0000000000000100,
-	UUInt64Property					= 0x0000000000000200,
-	UClassProperty					= 0x0000000000000400,
-	UUInt32Property					= 0x0000000000000800,
-	UInterfaceProperty				= 0x0000000000001000,
-	UNameProperty					= 0x0000000000002000,
-	UStrProperty					= 0x0000000000004000,
-	UProperty						= 0x0000000000008000,
-	UObjectProperty					= 0x0000000000010000,
-	UBoolProperty					= 0x0000000000020000,
-	UUInt16Property					= 0x0000000000040000,
-	UFunction						= 0x0000000000080000,
-	UStructProperty					= 0x0000000000100000,
-	UArrayProperty					= 0x0000000000200000,
-	UInt64Property					= 0x0000000000400000,
-	UDelegateProperty				= 0x0000000000800000,
-	UNumericProperty				= 0x0000000001000000,
-	UMulticastDelegateProperty		= 0x0000000002000000,
-	UObjectPropertyBase				= 0x0000000004000000,
-	UWeakObjectProperty				= 0x0000000008000000,
-	ULazyObjectProperty				= 0x0000000010000000,
-	USoftObjectProperty				= 0x0000000020000000,
-	UTextProperty					= 0x0000000040000000,
-	UInt16Property					= 0x0000000080000000,
-	UDoubleProperty					= 0x0000000100000000,
-	USoftClassProperty				= 0x0000000200000000,
-	UPackage						= 0x0000000400000000,
-	ULevel							= 0x0000000800000000,
-	AActor							= 0x0000001000000000,
-	APlayerController				= 0x0000002000000000,
-	APawn							= 0x0000004000000000,
-	USceneComponent					= 0x0000008000000000,
-	UPrimitiveComponent				= 0x0000010000000000,
-	USkinnedMeshComponent			= 0x0000020000000000,
-	USkeletalMeshComponent			= 0x0000040000000000,
-	UBlueprint						= 0x0000080000000000,
-	UDelegateFunction				= 0x0000100000000000,
-	UStaticMeshComponent			= 0x0000200000000000,
-	UMapProperty					= 0x0000400000000000,
-	USetProperty					= 0x0000800000000000,
-	UEnumProperty					= 0x0001000000000000,
+	Field							= 0x0000000000000001,
+	Int8Property					= 0x0000000000000002,
+	Enum							= 0x0000000000000004,
+	Struct							= 0x0000000000000008,
+	ScriptStruct					= 0x0000000000000010,
+	Class							= 0x0000000000000020,
+	ByteProperty					= 0x0000000000000040,
+	IntProperty						= 0x0000000000000080,
+	FloatProperty					= 0x0000000000000100,
+	UInt64Property					= 0x0000000000000200,
+	ClassProperty					= 0x0000000000000400,
+	UInt32Property					= 0x0000000000000800,
+	InterfaceProperty				= 0x0000000000001000,
+	NameProperty					= 0x0000000000002000,
+	StrProperty						= 0x0000000000004000,
+	Property						= 0x0000000000008000,
+	ObjectProperty					= 0x0000000000010000,
+	BoolProperty					= 0x0000000000020000,
+	UInt16Property					= 0x0000000000040000,
+	Function						= 0x0000000000080000,
+	StructProperty					= 0x0000000000100000,
+	ArrayProperty					= 0x0000000000200000,
+	Int64Property					= 0x0000000000400000,
+	DelegateProperty				= 0x0000000000800000,
+	NumericProperty					= 0x0000000001000000,
+	MulticastDelegateProperty		= 0x0000000002000000,
+	ObjectPropertyBase				= 0x0000000004000000,
+	WeakObjectProperty				= 0x0000000008000000,
+	LazyObjectProperty				= 0x0000000010000000,
+	SoftObjectProperty				= 0x0000000020000000,
+	TextProperty					= 0x0000000040000000,
+	Int16Property					= 0x0000000080000000,
+	DoubleProperty					= 0x0000000100000000,
+	SoftClassProperty				= 0x0000000200000000,
+	Package							= 0x0000000400000000,
+	Level							= 0x0000000800000000,
+	Actor							= 0x0000001000000000,
+	PlayerController				= 0x0000002000000000,
+	Pawn							= 0x0000004000000000,
+	SceneComponent					= 0x0000008000000000,
+	PrimitiveComponent				= 0x0000010000000000,
+	SkinnedMeshComponent			= 0x0000020000000000,
+	SkeletalMeshComponent			= 0x0000040000000000,
+	Blueprint						= 0x0000080000000000,
+	DelegateFunction				= 0x0000100000000000,
+	StaticMeshComponent				= 0x0000200000000000,
+	MapProperty						= 0x0000400000000000,
+	SetProperty						= 0x0000800000000000,
+	EnumProperty					= 0x0001000000000000,
 };
 )");
 
@@ -1412,6 +1456,78 @@ inline constexpr EClassCastFlags operator|(EClassCastFlags Left, EClassCastFlags
 inline bool operator&(EClassCastFlags Left, EClassCastFlags Right)
 {																																										
 	return (((std::underlying_type<EClassCastFlags>::type)(Left) & (std::underlying_type<EClassCastFlags>::type)(Right)) == (std::underlying_type<EClassCastFlags>::type)(Right));
+}
+)");
+
+	BasicHeader.Write(
+		R"(
+inline constexpr EClassCastFlags operator|(EClassCastFlags Left, EClassFlags Right)
+{
+	using CastFlagsType = std::underlying_type<EClassCastFlags>::type;
+	return static_cast<EClassCastFlags>(static_cast<CastFlagsType>(Left) | static_cast<CastFlagsType>(Right));
+}
+
+inline bool operator&(EClassCastFlags Left, EClassCastFlags Right)
+{
+	using CastFlagsType = std::underlying_type<EClassCastFlags>::type;
+	return ((static_cast<CastFlagsType>(Left) & static_cast<CastFlagsType>(Right)) == static_cast<CastFlagsType>(Right));
+}
+)");
+
+
+	BasicHeader.Write(
+		R"(
+
+enum EClassFlags
+{
+	CLASS_None					= 0x00000000u,
+	Abstract					= 0x00000001u,
+	DefaultConfig				= 0x00000002u,
+	Config						= 0x00000004u,
+	Transient					= 0x00000008u,
+	Parsed						= 0x00000010u,
+	MatchedSerializers			= 0x00000020u,
+	ProjectUserConfig			= 0x00000040u,
+	Native						= 0x00000080u,
+	NoExport					= 0x00000100u,
+	NotPlaceable				= 0x00000200u,
+	PerObjectConfig				= 0x00000400u,
+	ReplicationDataIsSetUp		= 0x00000800u,
+	EditInlineNew				= 0x00001000u,
+	CollapseCategories			= 0x00002000u,
+	Interface					= 0x00004000u,
+	CustomConstructor			= 0x00008000u,
+	Const						= 0x00010000u,
+	LayoutChanging				= 0x00020000u,
+	CompiledFromBlueprint		= 0x00040000u,
+	MinimalAPI					= 0x00080000u,
+	RequiredAPI					= 0x00100000u,
+	DefaultToInstanced			= 0x00200000u,
+	TokenStreamAssembled		= 0x00400000u,
+	HasInstancedReference		= 0x00800000u,
+	Hidden						= 0x01000000u,
+	Deprecated					= 0x02000000u,
+	HideDropDown				= 0x04000000u,
+	GlobalUserConfig			= 0x08000000u,
+	Intrinsic					= 0x10000000u,
+	Constructed					= 0x20000000u,
+	ConfigDoNotCheckDefaults	= 0x40000000u,
+	NewerVersionExists			= 0x80000000u,
+};
+)");
+
+	BasicHeader.Write(
+		R"(
+inline constexpr EClassFlags operator|(EClassFlags Left, EClassFlags Right)
+{
+	using ClassFlagsType = std::underlying_type<EClassFlags>::type;
+	return static_cast<EClassFlags>(static_cast<ClassFlagsType>(Left) | static_cast<ClassFlagsType>(Right));
+}
+
+inline bool operator&(EClassFlags Left, EClassFlags Right)
+{
+	using ClassFlagsType = std::underlying_type<EClassFlags>::type;
+	return ((static_cast<ClassFlagsType>(Left) & static_cast<ClassFlagsType>(Right)) == static_cast<ClassFlagsType>(Right));
 }
 )");
 
@@ -1434,7 +1550,55 @@ class TScriptInterface : public FScriptInterface
 {
 public:
 };
+
+
 )");
+
+	if (!Settings::Internal::bUseFProperty)
+		return;
+
+	// const std::string& SuperName, Types::Struct& Struct, int32 StructSize, int32 SuperSize
+
+	struct FPropertyPredef
+	{
+		const char* ClassName;
+		const char* SuperName;
+	};
+
+	std::unordered_map<std::string, int32> ClassSizePairs;
+
+	constexpr std::array<FPropertyPredef, 0xD> FPropertyClassSuperPairs =
+	{{
+		{ "FFieldClass", "" },
+		{ "FFieldVariant", "" },
+		{ "FField", "" },
+		{ "FProperty", "FField" },
+		{ "FByteProperty", "FProperty" },
+		{ "FBoolProperty", "FProperty" },
+		{ "FObjectProperty", "FProperty" },
+		{ "FClassProperty", "FObjectProperty" },
+		{ "FStructProperty", "FProperty" },
+		{ "FArrayProperty", "FProperty" },
+		{ "FMapProperty", "FProperty" },
+		{ "FSetProperty", "FProperty" },
+		{ "FEnumProperty", "FProperty" }
+	}};
+	//bool Package::GeneratePredefinedMembers(const std::string& SuperName, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
+
+	ClassSizePairs.reserve(FPropertyClassSuperPairs.size());
+	for (auto& [ClassName, SuperName] : FPropertyClassSuperPairs)
+	{
+		int32 SuperSize = 0;
+
+		if (SuperName && strcmp(SuperName, "") != 0)
+			SuperSize = ClassSizePairs[SuperName];
+
+		Types::Struct NewStruct(ClassName, true, SuperName);
+		ClassSizePairs[ClassName] = Package::GeneratePredefinedMembers(ClassName, NewStruct, 0, SuperSize); // fix supersize
+
+		BasicHeader.Write(NewStruct.GetGeneratedBody());
+	}
+
 
 	//-TUObjectArray
 	//-TArray

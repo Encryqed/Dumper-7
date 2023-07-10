@@ -100,6 +100,10 @@ public:
 
 	static void InitAssertionStream(fs::path& GenPath);
 	static void CloseAssertionStream();
+	static int32 GeneratePredefinedMembers(const std::string& ClassName, Types::Struct& Struct, int32 StructSize, int32 SuperSize);
+
+	static Types::Member GenerateBytePadding(int32 Offset, int32 PadSize, std::string&& Reason);
+	static Types::Member GenerateBitPadding(int32 Offset, int32 PadSize, std::string&& Reason);
 
 	void GatherDependencies(std::vector<int32_t>& PackageMembers);
 
@@ -110,9 +114,6 @@ public:
 	Types::Struct GenerateStruct(UEStruct Struct, bool bIsFunction = false);
 	Types::Class GenerateClass(UEClass Class);
 	Types::Enum GenerateEnum(UEEnum Enum);
-
-	Types::Member GenerateBytePadding(int32 Offset, int32 PadSize, std::string&& Reason);
-	Types::Member GenerateBitPadding(int32 Offset, int32 PadSize, std::string&& Reason);
 
 	inline bool IsEmpty()
 	{
