@@ -296,6 +296,10 @@ void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex,
 			FileName += "_1";
 		}
 
+		PackageMutex.lock();
+		std::cout << "Creating files \"" << FileName << "\" for:\n(" << PackageIndex << ") -- " << PackageName << "\n" << std::endl;
+		PackageMutex.unlock();
+
 		FileWriter ClassFile(*SDKFolder, FileName, FileWriter::FileType::Class);
 		FileWriter StructsFile(*SDKFolder, FileName, FileWriter::FileType::Struct);
 		FileWriter FunctionFile(*SDKFolder, FileName, FileWriter::FileType::Function);
@@ -339,7 +343,8 @@ void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex,
 		Package::PackageSorterStructs.RemoveDependant(PackageIndex);
 		PackageMutex.unlock();
 
-		//std::cout << "Removed package: " << Pack.DebugGetObject().GetName() << "\n";
+		for (int i = 0; i < 20; i++)
+			std::cout << "Removed package: " << Pack.DebugGetObject().GetName() << "\n";
 	}
 }
 
@@ -406,11 +411,11 @@ void Generator::GenerateSDK()
 		Out << "SomePackage: " << ObjectArray::GetByIndex(PackageIndex).GetFullName() << std::endl;
 	}
 	//void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices)
-	//for (auto& [PackageIndex, MemberIndices] : ObjectPackages)
-	//{
-	//	Out << "SomePackage: " << ObjectArray::GetByIndex(PackageIndex).GetFullName() << std::endl;
-	//	Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
-	//}
+	for (auto& [PackageIndex, MemberIndices] : ObjectPackages)
+	{
+		//Out << "SomePackage: " << ObjectArray::GetByIndex(PackageIndex).GetFullName() << std::endl;
+		Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
+	}
 
 	//auto Iter = ObjectPackages.begin();
 	//std::advance(Iter, 40ull);
@@ -789,7 +794,7 @@ R"(
 				"\tstatic class UClass* FindClass(const std::string& ClassFullName)", "",
 R"(
 	{
-		return FindObject<class UClass>(ClassFullName, EClassCastFlags::UClass);
+		return FindObject<class UClass>(ClassFullName, EClassCastFlags::Class);
 	}
 )"
 			},
@@ -797,7 +802,7 @@ R"(
 				"\tstatic class UClass* FindClassFast(const std::string& ClassName)", "",
 R"(
 	{
-		return FindObjectFast<class UClass>(ClassName, EClassCastFlags::UClass);
+		return FindObjectFast<class UClass>(ClassName, EClassCastFlags::Class);
 	}
 )"
 			},
@@ -845,7 +850,7 @@ R"(
 			{
 				for (UField* Field = Clss->Children; Field; Field = Field->Next)
 				{
-					if(Field->HasTypeFlag(EClassCastFlags::UFunction) && Field->GetName() == FuncName)
+					if(Field->HasTypeFlag(EClassCastFlags::Function) && Field->GetName() == FuncName)
 					{
 						return static_cast<class UFunction*>(Field);
 					}	
