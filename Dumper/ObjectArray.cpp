@@ -268,8 +268,8 @@ void ObjectArray::DumpObjects()
 {
 	fs::path Path(Settings::SDKGenerationPath);
 
-	if (!Settings::GameVersion.empty())
-		Path /= Settings::GameVersion;
+	if (!Settings::GameVersion.empty() && !Settings::GameName.empty())
+		Path /= (Settings::GameVersion + '-' + Settings::GameName);
 
 	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
@@ -303,18 +303,20 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 			UEStruct Super = ObjAsStruct.GetSuper();
 
 			int32 LowestOffset = 0xFFFFFF;
-
-
-			if (!Super || Object.IsA(EClassCastFlags::Function))
-				continue;
 	
 			for (UEProperty Property : ObjAsStruct.GetProperties())
 			{
+				if (!Property.IsTypeSupported())
+					UEProperty::UnknownProperties.insert({ Property.GetCppType(), Property.GetSize() });
+
 				if (Property.Cast<UEProperty>().GetOffset() < LowestOffset)
 				{
 					LowestOffset = Property.Cast<UEProperty>().GetOffset();
 				}
 			}
+
+			if (!Super || Object.IsA(EClassCastFlags::Function))
+				continue;
 
 			if (LowestOffset != 0xFFFFFF)
 			{
