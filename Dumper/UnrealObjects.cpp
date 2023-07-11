@@ -13,42 +13,42 @@ void* UEFFieldClass::GetAddress()
 	return Class;
 }
 
-EFieldClassID UEFFieldClass::GetId() const
+EFieldClassID UEFFieldClass::GetId()
 {
 	return *reinterpret_cast<EFieldClassID*>(Class + Off::FFieldClass::Id);
 }
 
-EClassCastFlags UEFFieldClass::GetCastFlags() const
+EClassCastFlags UEFFieldClass::GetCastFlags()
 {
 	return *reinterpret_cast<EClassCastFlags*>(Class + Off::FFieldClass::CastFlags);
 }
 
-EClassFlags UEFFieldClass::GetClassFlags() const
+EClassFlags UEFFieldClass::GetClassFlags()
 {
 	return *reinterpret_cast<EClassFlags*>(Class + Off::FFieldClass::ClassFlags);
 }
 
-UEFFieldClass UEFFieldClass::GetSuper() const
+UEFFieldClass UEFFieldClass::GetSuper()
 {
 	return UEFFieldClass(*reinterpret_cast<void**>(Class + Off::FFieldClass::SuperClass));
 }
 
-FName UEFFieldClass::GetFName() const
+FName UEFFieldClass::GetFName()
 {
 	return FName(Class + Off::FFieldClass::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
-bool UEFFieldClass::IsType(EClassCastFlags Flags) const
+bool UEFFieldClass::IsType(EClassCastFlags Flags)
 {
 	return (Flags != EClassCastFlags::None ? (GetCastFlags() & Flags) : true);
 }
 
-std::string UEFFieldClass::GetName() const
+std::string UEFFieldClass::GetName()
 {
 	return Class ? GetFName().ToString() : "None";
 }
 
-std::string UEFFieldClass::GetValidName() const
+std::string UEFFieldClass::GetValidName()
 {
 	std::string Name = GetName();
 
@@ -82,7 +82,7 @@ std::string UEFFieldClass::GetValidName() const
 	return Name;
 }
 
-std::string UEFFieldClass::GetCppName() const
+std::string UEFFieldClass::GetCppName()
 {
 	// This is evile dark magic code which shouldn't exist
 	return "F" + GetValidName();
@@ -93,12 +93,12 @@ void* UEFField::GetAddress()
 	return Field;
 }
 
-EObjectFlags UEFField::GetFlags() const
+EObjectFlags UEFField::GetFlags()
 {
 	return *reinterpret_cast<EObjectFlags*>(Field + Off::FField::Flags);
 }
 
-class UEObject UEFField::GetOwnerAsUObject() const
+class UEObject UEFField::GetOwnerAsUObject()
 {
 	if (IsOwnerUObject())
 	{
@@ -111,7 +111,7 @@ class UEObject UEFField::GetOwnerAsUObject() const
 	return nullptr;
 }
 
-class UEFField UEFField::GetOwnerAsFField() const
+class UEFField UEFField::GetOwnerAsFField()
 {
 	if (!IsOwnerUObject())
 		return *reinterpret_cast<void**>(Field + Off::FField::Owner);
@@ -119,7 +119,7 @@ class UEFField UEFField::GetOwnerAsFField() const
 	return nullptr;
 }
 
-class UEObject UEFField::GetOwnerUObject() const
+class UEObject UEFField::GetOwnerUObject()
 {
 	UEFField Field = *this;
 
@@ -131,23 +131,23 @@ class UEObject UEFField::GetOwnerUObject() const
 	return Field.GetOwnerAsUObject();
 }
 
-class UEObject UEFField::GetOutermost() const
+class UEObject UEFField::GetOutermost()
 {
 	UEObject OwnerUObject = GetOwnerUObject();
 	return OwnerUObject.GetOutermost();
 }
 
-UEFFieldClass UEFField::GetClass() const
+UEFFieldClass UEFField::GetClass()
 {
 	return UEFFieldClass(*reinterpret_cast<void**>(Field + Off::FField::Class));
 }
 
-FName UEFField::GetFName() const
+FName UEFField::GetFName()
 {
 	return FName(Field + Off::FField::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
-UEFField UEFField::GetNext() const
+UEFField UEFField::GetNext()
 {
 	return UEFField(*reinterpret_cast<void**>(Field + Off::FField::Next));
 }
@@ -158,7 +158,7 @@ UEType UEFField::Cast() const
 	return UEType(Field);
 }
 
-bool UEFField::IsOwnerUObject() const
+bool UEFField::IsOwnerUObject()
 {
 	if (Settings::Internal::bUseMaskForFieldOwner)
 	{
@@ -168,17 +168,17 @@ bool UEFField::IsOwnerUObject() const
 	return *reinterpret_cast<bool*>(Field + Off::FField::Owner + 0x8);
 }
 
-bool UEFField::IsA(EClassCastFlags Flags) const
+bool UEFField::IsA(EClassCastFlags Flags)
 {
 	return (Flags != EClassCastFlags::None ? GetClass().IsType(Flags) : true);
 }
 
-std::string UEFField::GetName() const
+std::string UEFField::GetName()
 {
 	return Field ? GetFName().ToString() : "None";
 }
 
-std::string UEFField::GetValidName() const
+std::string UEFField::GetValidName()
 {
 	std::string Name = GetName();
 
@@ -212,7 +212,7 @@ std::string UEFField::GetValidName() const
 	return Name;
 }
 
-std::string UEFField::GetCppName() const
+std::string UEFField::GetCppName()
 {
 	static UEClass ActorClass = ObjectArray::FindClassFast("Actor");
 	static UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
@@ -236,7 +236,7 @@ std::string UEFField::GetCppName() const
 	return 'F' + Temp;
 }
 
-UEFField::operator bool() const
+UEFField::operator bool()
 {
 	return Field != nullptr && reinterpret_cast<void*>(Field + Off::FField::Class) != nullptr;
 }
@@ -258,54 +258,48 @@ void* UEObject::GetAddress()
 	return Object;
 }
 
-EObjectFlags UEObject::GetFlags() const
+EObjectFlags UEObject::GetFlags()
 {
 	return *reinterpret_cast<EObjectFlags*>(Object + Off::UObject::Flags);
 }
 
-int32 UEObject::GetIndex() const
+int32 UEObject::GetIndex()
 {
 	return *reinterpret_cast<int32*>(Object + Off::UObject::Index);
 }
 
-UEClass UEObject::GetClass() const
+UEClass UEObject::GetClass()
 {
 	return UEClass(*reinterpret_cast<void**>(Object + Off::UObject::Class));
 }
 
-FName UEObject::GetFName() const
+FName UEObject::GetFName()
 {
 	return FName(Object + Off::UObject::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
-UEObject UEObject::GetOuter() const
+UEObject UEObject::GetOuter()
 {
 	return UEObject(*reinterpret_cast<void**>(Object + Off::UObject::Outer));
 }
 
-bool UEObject::HasAnyFlags(EObjectFlags Flags) const
+bool UEObject::HasAnyFlags(EObjectFlags Flags)
 {
 	return GetFlags() & Flags;
 }
 
 template<typename UEType>
-UEType UEObject::Cast()
+UEType UEObject::Cast() const
 {
 	return UEType(Object);
 }
 
-template<typename UEType>
-const UEType UEObject::Cast() const
-{
-	return UEType(Object);
-}
-
-bool UEObject::IsA(EClassCastFlags TypeFlags) const
+bool UEObject::IsA(EClassCastFlags TypeFlags)
 {
 	return (TypeFlags != EClassCastFlags::None ? GetClass().IsType(TypeFlags) : true);
 }
 
-UEObject UEObject::GetOutermost() const
+UEObject UEObject::GetOutermost()
 {
 	UEObject Outermost;
 
@@ -316,12 +310,12 @@ UEObject UEObject::GetOutermost() const
 	return Outermost;
 }
 
-std::string UEObject::GetName() const
+std::string UEObject::GetName()
 {
 	return Object ? GetFName().ToString() : "None";
 }
 
-std::string UEObject::GetValidName() const
+std::string UEObject::GetValidName()
 {
 	std::string Name = GetName();
 
@@ -355,7 +349,7 @@ std::string UEObject::GetValidName() const
 	return Name;
 }
 
-std::string UEObject::GetCppName() const
+std::string UEObject::GetCppName()
 {
 	static UEClass ActorClass = ObjectArray::FindClassFast("Actor");
 	static UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
@@ -379,7 +373,7 @@ std::string UEObject::GetCppName() const
 	return 'F' + Temp;
 }
 
-std::string UEObject::GetFullName() const
+std::string UEObject::GetFullName()
 {
 	if (*this)
 	{
@@ -401,7 +395,7 @@ std::string UEObject::GetFullName() const
 	return "None";
 }
 
-UEObject::operator bool() const
+UEObject::operator bool()
 {
 	// if an object is 0x10000F000 it passes the nullptr check
 	return Object != nullptr && reinterpret_cast<void*>(Object + Off::UObject::Class) != nullptr;
@@ -431,17 +425,17 @@ void UEObject::ProcessEvent(UEFunction Func, void* Params)
 	Prd(Object, Func.GetAddress(), Params);
 }
 
-UEField UEField::GetNext() const
+UEField UEField::GetNext()
 {
 	return UEField(*reinterpret_cast<void**>(Object + Off::UField::Next));
 }
 
-bool UEField::IsNextValid() const
+bool UEField::IsNextValid()
 {
 	return (bool)GetNext();
 }
 
-std::vector<TPair<FName, int64>> UEEnum::GetNameValuePairs() const
+std::vector<TPair<FName, int64>> UEEnum::GetNameValuePairs()
 {
 	struct Name08Byte { uint8 Pad[0x08]; };
 	struct Name16Byte { uint8 Pad[0x10]; };
@@ -496,40 +490,62 @@ std::vector<TPair<FName, int64>> UEEnum::GetNameValuePairs() const
 	return Ret;
 }
 
-std::string UEEnum::GetSingleName(int32 Index) const
+std::string UEEnum::GetSingleName(int32 Index)
 {
 	return GetNameValuePairs()[Index].First.ToString();
 }
 
-std::string UEEnum::GetEnumTypeAsStr() const
+std::string UEEnum::GetEnumTypeAsStr()
 {
 	std::string Temp = GetName();
 
 	return "enum class " + (Temp[0] == 'E' ? Temp : 'E' + Temp);
 }
 
+std::string UEEnum::UNSAFEGetCPPType()
+{
+	return (*reinterpret_cast<FString*>(Object + Off::UEnum::Names - 0x10)).ToString();
+}
 
-UEStruct UEStruct::GetSuper() const
+std::string UEEnum::UNSAFEGetDeclarationType()
+{
+	int f = *reinterpret_cast<int*>(Object + Off::UEnum::Names + 0x10);
+
+	if (f == 0)
+	{
+		return "Regular";
+	}
+	else if (f == 1)
+	{
+		return "Namespaced";
+	}
+	else if (f == 2)
+	{
+		return "EnumClass";
+	}
+}
+
+UEStruct UEStruct::GetSuper()
 {
 	return UEStruct(*reinterpret_cast<void**>(Object + Off::UStruct::SuperStruct));
 }
 
-UEField UEStruct::GetChild() const
+UEField UEStruct::GetChild()
 {
 	return UEField(*reinterpret_cast<void**>(Object + Off::UStruct::Children));
 }
 
-UEFField UEStruct::GetChildProperties() const
+UEFField UEStruct::GetChildProperties()
 {
 	return UEFField(*reinterpret_cast<void**>(Object + Off::UStruct::ChildProperties));
 }
 
-int32 UEStruct::GetStructSize() const
+int32 UEStruct::GetStructSize()
 {
 	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
 }
 
-std::vector<UEProperty> UEStruct::GetProperties() const
+std::vector<UEProperty> UEStruct::GetProperties()
 {
 	std::vector<UEProperty> Properties;
 
@@ -557,7 +573,7 @@ std::vector<UEProperty> UEStruct::GetProperties() const
 	return Properties;
 }
 
-bool UEStruct::HasMembers() const
+bool UEStruct::HasMembers()
 {
 	if (!Object)
 		return false;
@@ -586,17 +602,17 @@ bool UEStruct::HasMembers() const
 	return false;
 }
 
-EClassCastFlags UEClass::GetCastFlags() const
+EClassCastFlags UEClass::GetCastFlags()
 {
 	return *reinterpret_cast<EClassCastFlags*>(Object + Off::UClass::CastFlags);
 }
 
-bool UEClass::IsType(EClassCastFlags TypeFlag) const
+bool UEClass::IsType(EClassCastFlags TypeFlag)
 {
 	return (TypeFlag != EClassCastFlags::None ? (GetCastFlags() & TypeFlag) : true);
 }
 
-bool UEClass::HasType(UEClass TypeClass) const
+bool UEClass::HasType(UEClass TypeClass)
 {
 	if (TypeClass == nullptr)
 		return false;
@@ -610,12 +626,12 @@ bool UEClass::HasType(UEClass TypeClass) const
 	return false;
 }
 
-UEObject UEClass::GetDefaultObject() const
+UEObject UEClass::GetDefaultObject()
 {
 	return UEObject(*reinterpret_cast<void**>(Object + Off::UClass::ClassDefaultObject));
 }
 
-UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string& FuncName) const
+UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string& FuncName)
 {
 	for (UEStruct Struct = *this; Struct; Struct = Struct.GetSuper())
 	{
@@ -634,22 +650,22 @@ UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string&
 	return nullptr;
 }
 
-EFunctionFlags UEFunction::GetFunctionFlags() const
+EFunctionFlags UEFunction::GetFunctionFlags()
 {
 	return *reinterpret_cast<EFunctionFlags*>(Object + Off::UFunction::FunctionFlags);
 }
 
-bool UEFunction::HasFlags(EFunctionFlags FuncFlags) const
+bool UEFunction::HasFlags(EFunctionFlags FuncFlags)
 {
 	return GetFunctionFlags() & FuncFlags;
 }
 
-std::string UEFunction::StringifyFlags()  const
+std::string UEFunction::StringifyFlags() 
 {
 	return StringifyFunctionFlags(GetFunctionFlags());
 }
 
-std::string UEFunction::GetParamStructName() const
+std::string UEFunction::GetParamStructName()
 {
 	return GetOuter().GetCppName() + "_" + GetValidName() + "_Params";
 }
@@ -659,7 +675,7 @@ void* UEProperty::GetAddress()
 	return Base;
 }
 
-std::pair<UEClass, UEFFieldClass> UEProperty::GetClass() const
+std::pair<UEClass, UEFFieldClass> UEProperty::GetClass()
 {
 	if (Settings::Internal::bUseFProperty)
 	{
@@ -668,20 +684,14 @@ std::pair<UEClass, UEFFieldClass> UEProperty::GetClass() const
 
 	return { UEObject(Base).GetClass(), UEFFieldClass(0) };
 }
-
+	
 template<typename UEType>
-UEType UEProperty::Cast()
+inline UEType UEProperty::Cast()
 {
 	return UEType(Base);
 }
 
-template<typename UEType>
-const UEType UEProperty::Cast() const
-{
-	return UEType(Base);
-}
-
-bool UEProperty::IsA(EClassCastFlags TypeFlags) const
+bool UEProperty::IsA(EClassCastFlags TypeFlags)
 {
 	if (GetClass().first)
 		return GetClass().first.IsType(TypeFlags);
@@ -689,14 +699,7 @@ bool UEProperty::IsA(EClassCastFlags TypeFlags) const
 	return GetClass().second.IsType(TypeFlags);
 }
 
-bool UEProperty::IsTypeSupported() const
-{
-	EClassCastFlags PropTypeFlags = (GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags());
-
-	return static_cast<std::underlying_type_t<EClassCastFlags>>(PropTypeFlags) & static_cast<std::underlying_type_t<EClassCastFlags>>(GetSupportedProperties());
-}
-
-FName UEProperty::GetFName() const
+FName UEProperty::GetFName()
 {
 	if (Settings::Internal::bUseFProperty)
 	{
@@ -706,49 +709,49 @@ FName UEProperty::GetFName() const
 	return FName(Base + Off::UObject::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
-int32 UEProperty::GetArrayDim() const
+int32 UEProperty::GetArrayDim()
 {
 	return *reinterpret_cast<int32*>(Base + Off::UProperty::ArrayDim);
 }
 
-int32 UEProperty::GetSize() const
+int32 UEProperty::GetSize()
 {
 	return *reinterpret_cast<int32*>(Base + Off::UProperty::ElementSize);
 }
 
-int32 UEProperty::GetOffset() const
+int32 UEProperty::GetOffset()
 {
 	return *reinterpret_cast<int32*>(Base + Off::UProperty::Offset_Internal);
 }
 
-EPropertyFlags UEProperty::GetPropertyFlags() const
+EPropertyFlags UEProperty::GetPropertyFlags()
 {
 	return *reinterpret_cast<EPropertyFlags*>(Base + Off::UProperty::PropertyFlags);
 }
 
-EMappingsTypeFlags UEProperty::GetMappingType() const
+EMappingsTypeFlags UEProperty::GetMappingType()
 {
 	EClassCastFlags Flags = GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags();
 
 	return EPropertyFlagsToMappingFlags(Flags);
 }
 
-bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag) const
+bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag)
 {
 	return GetPropertyFlags() & PropertyFlag;
 }
 
-UEObject UEProperty::GetOutermost() const
+UEObject UEProperty::GetOutermost()
 {
 	return Settings::Internal::bUseFProperty ? UEFField(Base).GetOutermost() : UEObject(Base).GetOutermost();
 }
 
-std::string UEProperty::GetName() const
+std::string UEProperty::GetName()
 {
 	return Base ? GetFName().ToString() : "None";
 }
 
-std::string UEProperty::GetValidName() const
+std::string UEProperty::GetValidName()
 {
 	std::string Name = GetName();
 
@@ -782,7 +785,7 @@ std::string UEProperty::GetValidName() const
 	return Name;
 }
 
-std::string UEProperty::GetCppType() const
+std::string UEProperty::GetCppType()
 {
 	EClassCastFlags TypeFlags = (GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags());
 
@@ -886,27 +889,30 @@ std::string UEProperty::GetCppType() const
 	{
 		return Cast<UEEnumProperty>().GetCppType();
 	}
-	else if (TypeFlags & EClassCastFlags::InterfaceProperty) 
-	{
+	else if (TypeFlags & EClassCastFlags::InterfaceProperty) {
 		return Cast<UEInterfaceProperty>().GetCppType();
 	}
 	else
 	{
-		return (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";;
+		std::string CppName = (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";
+
+		UnknownProperties.insert({ CppName, GetSize() });
+
+		return CppName;
 	}
 }
 
-std::string UEProperty::StringifyFlags() const
+std::string UEProperty::StringifyFlags()
 {
 	return StringifyPropertyFlags(GetPropertyFlags());
 }
 
-UEEnum UEByteProperty::GetEnum() const
+UEEnum UEByteProperty::GetEnum()
 {
 	return UEEnum(*reinterpret_cast<void**>(Base + Off::UByteProperty::Enum));
 }
 
-std::string UEByteProperty::GetCppType() const
+std::string UEByteProperty::GetCppType()
 {
 	if (UEEnum Enum = GetEnum())
 	{
@@ -916,12 +922,12 @@ std::string UEByteProperty::GetCppType() const
 	return "uint8";
 }
 
-uint8 UEBoolProperty::GetFieldMask() const
+uint8 UEBoolProperty::GetFieldMask()
 {
 	return reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Base + Off::UBoolProperty::Base)->FieldMask;
 }
 
-uint8 UEBoolProperty::GetBitIndex() const
+uint8 UEBoolProperty::GetBitIndex()
 {
 	uint8 FieldMask = GetFieldMask();
 	
@@ -940,117 +946,117 @@ uint8 UEBoolProperty::GetBitIndex() const
 	return 0xFF;
 }
 
-bool UEBoolProperty::IsNativeBool() const
+bool UEBoolProperty::IsNativeBool()
 {
 	return reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Base + Off::UBoolProperty::Base)->FieldMask == 0xFF;
 }
 
-std::string UEBoolProperty::GetCppType() const
+std::string UEBoolProperty::GetCppType()
 {
 	return IsNativeBool() ? "bool" : "uint8";
 }
 
-UEClass UEObjectProperty::GetPropertyClass() const
+UEClass UEObjectProperty::GetPropertyClass()
 {
 	return UEClass(*reinterpret_cast<void**>(Base + Off::UObjectProperty::PropertyClass));
 }
 
-std::string UEObjectProperty::GetCppType() const
+std::string UEObjectProperty::GetCppType()
 {
 	return std::format("class {}*", GetPropertyClass() ? GetPropertyClass().GetCppName() : "UObject");
 }
 
-UEClass UEClassProperty::GetMetaClass() const
+UEClass UEClassProperty::GetMetaClass()
 {
 	return UEClass(*reinterpret_cast<void**>(Base + Off::UClassProperty::MetaClass));
 }
 
-std::string UEClassProperty::GetCppType() const
+std::string UEClassProperty::GetCppType()
 {
 	return HasPropertyFlags(EPropertyFlags::UObjectWrapper) ? std::format("TSubclassOf<class {}>", GetMetaClass().GetCppName()) : "class UClass*";
 }
 
-std::string UEWeakObjectProperty::GetCppType() const
+std::string UEWeakObjectProperty::GetCppType()
 {
 	return std::format("TWeakObjectPtr<class {}>", GetPropertyClass().GetCppName());
 }
 
-std::string UELazyObjectProperty::GetCppType() const
+std::string UELazyObjectProperty::GetCppType()
 {
 	return std::format("TLazyObjectPtr<class {}>", GetPropertyClass().GetCppName());
 }
 
-std::string UESoftObjectProperty::GetCppType() const
+std::string UESoftObjectProperty::GetCppType()
 {
 	return std::format("TSoftObjectPtr<class {}>", GetPropertyClass().GetCppName());
 }
 
-std::string UESoftClassProperty::GetCppType() const
+std::string UESoftClassProperty::GetCppType()
 {
 	return std::format("TSoftClassPtr<class {}>", GetMetaClass() ? GetMetaClass().GetCppName() : GetPropertyClass().GetCppName());
 }
 
-std::string UEInterfaceProperty::GetCppType() const
+std::string UEInterfaceProperty::GetCppType()
 {
 	return std::format("TScriptInterface<class {}>", GetPropertyClass().GetCppName());
 }
 
-UEStruct UEStructProperty::GetUnderlayingStruct() const
+UEStruct UEStructProperty::GetUnderlayingStruct()
 {
 	return UEStruct(*reinterpret_cast<void**>(Base + Off::UStructProperty::Struct));
 }
 
-std::string UEStructProperty::GetCppType() const
+std::string UEStructProperty::GetCppType()
 {
 	return std::format("struct {}", GetUnderlayingStruct().GetCppName());
 }
 
-UEProperty UEArrayProperty::GetInnerProperty() const
+UEProperty UEArrayProperty::GetInnerProperty()
 {
 	return UEProperty(*reinterpret_cast<void**>(Base + Off::UArrayProperty::Inner));
 }
 
-std::string UEArrayProperty::GetCppType() const
+std::string UEArrayProperty::GetCppType()
 {
 	return std::format("TArray<{}>", GetInnerProperty().GetCppType());
 }
 
-UEProperty UEMapProperty::GetKeyProperty() const
+UEProperty UEMapProperty::GetKeyProperty()
 {
 	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Base + Off::UMapProperty::Base)->KeyProperty);
 }
 
-UEProperty UEMapProperty::GetValueProperty() const
+UEProperty UEMapProperty::GetValueProperty()
 {
 	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Base + Off::UMapProperty::Base)->ValueProperty);
 }
 
-std::string UEMapProperty::GetCppType() const
+std::string UEMapProperty::GetCppType()
 {
 	return std::format("TMap<{}, {}>", GetKeyProperty().GetCppType(), GetValueProperty().GetCppType());
 }
 
-UEProperty UESetProperty::GetElementProperty() const
+UEProperty UESetProperty::GetElementProperty()
 {
 	return UEProperty(*reinterpret_cast<void**>(Base + Off::USetProperty::ElementProp));
 }
 
-std::string UESetProperty::GetCppType() const
+std::string UESetProperty::GetCppType()
 {
 	return std::format("TSet<{}>", GetElementProperty().GetCppType());
 }
 
-UEProperty UEEnumProperty::GetUnderlayingProperty() const
+UEProperty UEEnumProperty::GetUnderlayingProperty()
 {
 	return UEProperty(reinterpret_cast<Off::UEnumProperty::UEnumPropertyBase*>(Base + Off::UEnumProperty::Base)->UnderlayingProperty);
 }
 
-UEEnum UEEnumProperty::GetEnum() const
+UEEnum UEEnumProperty::GetEnum()
 {
 	return UEEnum(reinterpret_cast<Off::UEnumProperty::UEnumPropertyBase*>(Base + Off::UEnumProperty::Base)->Enum);
 }
 
-std::string UEEnumProperty::GetCppType() const
+std::string UEEnumProperty::GetCppType()
 {
 	return GetEnum().GetEnumTypeAsStr();
 }
@@ -1067,9 +1073,12 @@ void TemplateTypeCreationForUnrealObjects(void)
 	UEFField FDummy(nullptr);
 	UEProperty PDummy(nullptr);
 
-	const UEObject CDummy(nullptr);
-	const UEFField CFDummy(nullptr);
-	const UEProperty CPDummy(nullptr);
+	PDummy.Cast<UEObject>();
+	PDummy.Cast<UEField>();
+	PDummy.Cast<UEProperty>();
+
+	PDummy.Cast<UEField&>();
+	PDummy.Cast<UEProperty&>();
 
 	FDummy.Cast<UEFField>();
 	FDummy.Cast<UEProperty>();
@@ -1096,32 +1105,6 @@ void TemplateTypeCreationForUnrealObjects(void)
 	FDummy.Cast<UESetProperty&>();
 	FDummy.Cast<UEEnumProperty&>();
 	FDummy.Cast<UEInterfaceProperty&>();
-
-	PDummy.Cast<UEFField>();
-	PDummy.Cast<UEProperty>();
-	PDummy.Cast<UEByteProperty>();
-	PDummy.Cast<UEBoolProperty>();
-	PDummy.Cast<UEObjectProperty>();
-	PDummy.Cast<UEClassProperty>();
-	PDummy.Cast<UEStructProperty>();
-	PDummy.Cast<UEArrayProperty>();
-	PDummy.Cast<UEMapProperty>();
-	PDummy.Cast<UESetProperty>();
-	PDummy.Cast<UEEnumProperty>();
-	PDummy.Cast<UEInterfaceProperty>();
-
-	PDummy.Cast<UEFField&>();
-	PDummy.Cast<UEProperty&>();
-	PDummy.Cast<UEByteProperty&>();
-	PDummy.Cast<UEBoolProperty&>();
-	PDummy.Cast<UEObjectProperty&>();
-	PDummy.Cast<UEClassProperty&>();
-	PDummy.Cast<UEStructProperty&>();
-	PDummy.Cast<UEArrayProperty&>();
-	PDummy.Cast<UEMapProperty&>();
-	PDummy.Cast<UESetProperty&>();
-	PDummy.Cast<UEEnumProperty&>();
-	PDummy.Cast<UEInterfaceProperty&>();
 
 	Dummy.Cast<UEFField>();
 
@@ -1160,76 +1143,4 @@ void TemplateTypeCreationForUnrealObjects(void)
 	Dummy.Cast<UESetProperty&>();
 	Dummy.Cast<UEEnumProperty&>();
 	Dummy.Cast<UEInterfaceProperty&>();
-
-
-	CPDummy.Cast<UEObject>();
-	CPDummy.Cast<UEField>();
-	CPDummy.Cast<UEProperty>();
-
-	CPDummy.Cast<UEField&>();
-	CPDummy.Cast<UEProperty&>();
-
-	CFDummy.Cast<UEFField>();
-	CFDummy.Cast<UEProperty>();
-	CFDummy.Cast<UEByteProperty>();
-	CFDummy.Cast<UEBoolProperty>();
-	CFDummy.Cast<UEObjectProperty>();
-	CFDummy.Cast<UEClassProperty>();
-	CFDummy.Cast<UEStructProperty>();
-	CFDummy.Cast<UEArrayProperty>();
-	CFDummy.Cast<UEMapProperty>();
-	CFDummy.Cast<UESetProperty>();
-	CFDummy.Cast<UEEnumProperty>();
-	CFDummy.Cast<UEInterfaceProperty>();
-
-	CFDummy.Cast<UEFField&>();
-	CFDummy.Cast<UEProperty&>();
-	CFDummy.Cast<UEByteProperty&>();
-	CFDummy.Cast<UEBoolProperty&>();
-	CFDummy.Cast<UEObjectProperty&>();
-	CFDummy.Cast<UEClassProperty&>();
-	CFDummy.Cast<UEStructProperty&>();
-	CFDummy.Cast<UEArrayProperty&>();
-	CFDummy.Cast<UEMapProperty&>();
-	CFDummy.Cast<UESetProperty&>();
-	CFDummy.Cast<UEEnumProperty&>();
-	CFDummy.Cast<UEInterfaceProperty&>();
-
-	CDummy.Cast<UEFField>();
-
-	CDummy.Cast<UEObject>();
-	CDummy.Cast<UEField>();
-	CDummy.Cast<UEEnum>();
-	CDummy.Cast<UEStruct>();
-	CDummy.Cast<UEClass>();
-	CDummy.Cast<UEFunction>();
-	CDummy.Cast<UEProperty>();
-	CDummy.Cast<UEByteProperty>();
-	CDummy.Cast<UEBoolProperty>();
-	CDummy.Cast<UEObjectProperty>();
-	CDummy.Cast<UEClassProperty>();
-	CDummy.Cast<UEStructProperty>();
-	CDummy.Cast<UEArrayProperty>();
-	CDummy.Cast<UEMapProperty>();
-	CDummy.Cast<UESetProperty>();
-	CDummy.Cast<UEEnumProperty>();
-	CDummy.Cast<UEInterfaceProperty>();
-
-	CDummy.Cast<UEObject&>();
-	CDummy.Cast<UEField&>();
-	CDummy.Cast<UEEnum&>();
-	CDummy.Cast<UEStruct&>();
-	CDummy.Cast<UEClass&>();
-	CDummy.Cast<UEFunction&>();
-	CDummy.Cast<UEProperty&>();
-	CDummy.Cast<UEByteProperty&>();
-	CDummy.Cast<UEBoolProperty&>();
-	CDummy.Cast<UEObjectProperty&>();
-	CDummy.Cast<UEClassProperty&>();
-	CDummy.Cast<UEStructProperty&>();
-	CDummy.Cast<UEArrayProperty&>();
-	CDummy.Cast<UEMapProperty&>();
-	CDummy.Cast<UESetProperty&>();
-	CDummy.Cast<UEEnumProperty&>();
-	CDummy.Cast<UEInterfaceProperty&>();
 }

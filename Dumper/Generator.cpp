@@ -1,13 +1,7 @@
 #include "Generator.h"
 
-#include <future>
-
 Generator::FunctionsMap Generator::PredefinedFunctions;
 Generator::MemberMap Generator::PredefinedMembers;
-
-std::mutex Generator::PackageMutex;
-std::vector<std::future<void>> Generator::Futures;
-
 
 void Generator::Init()
 {
@@ -270,79 +264,6 @@ void Generator::GenerateMappings()
 	MappingsStream.CopyFromOtherBuffer(Buffer);
 }
 
-void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices)
-{
-	UEObject Object = ObjectArray::GetByIndex(PackageIndex);
-
-	if (!Object)
-		return;
-
-	Package Pack(Object);
-
-	PackageMutex.lock();
-	Package::AddPackage(PackageIndex);
-	Pack.GatherDependencies(*MemberIndices);
-	PackageMutex.unlock();
-
-	Pack.Process(*MemberIndices);
-
-	if (!Pack.IsEmpty())
-	{
-		std::string PackageName = Object.GetName();
-		std::string FileName = Settings::FilePrefix ? Settings::FilePrefix + PackageName : PackageName;
-
-		if (fs::exists(*SDKFolder / (FileName + "_classes.hpp")))
-		{
-			FileName += "_1";
-		}
-
-		FileWriter ClassFile(*SDKFolder, FileName, FileWriter::FileType::Class);
-		FileWriter StructsFile(*SDKFolder, FileName, FileWriter::FileType::Struct);
-		FileWriter FunctionFile(*SDKFolder, FileName, FileWriter::FileType::Function);
-		FileWriter ParameterFile(*SDKFolder, FileName, FileWriter::FileType::Parameter);
-
-		ClassFile.WriteClasses(Pack.AllClasses);
-		StructsFile.WriteEnums(Pack.AllEnums);
-		StructsFile.WriteStructs(Pack.AllStructs);
-
-		if (PackageName == "CoreUObject")
-		{
-			FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
-		}
-
-		for (auto& Function : Pack.AllFunctions)
-		{
-			for (auto& [ClassName, PackageFunctionsPairs] : Generator::PredefinedFunctions)
-			{
-				if (PackageFunctionsPairs.first != PackageName)
-					continue;
-
-				for (auto& PredefFunc : PackageFunctionsPairs.second)
-				{
-					if (!PredefFunc.DeclarationCPP.empty())
-					{
-						FunctionFile.Write(PredefFunc.DeclarationCPP);
-						FunctionFile.Write(PredefFunc.Body);
-						FunctionFile.Write("\n");
-					}
-				}
-			}
-
-			FunctionFile.WriteFunction(Function);
-			ParameterFile.WriteParamStruct(Function.GetParamStruct());
-		}
-	}
-	else
-	{
-		PackageMutex.lock();
-		Package::PackageSorterClasses.RemoveDependant(PackageIndex);
-		Package::PackageSorterStructs.RemoveDependant(PackageIndex);
-		PackageMutex.unlock();
-
-		//std::cout << "Removed package: " << Pack.DebugGetObject().GetName() << "\n";
-	}
-}
-
 void Generator::GenerateSDK()
 {
 	std::unordered_map<int32_t, std::vector<int32_t>> ObjectPackages;
@@ -387,12 +308,88 @@ void Generator::GenerateSDK()
 
 	Package::InitAssertionStream(GenFolder);
 
+	for (auto& Pair : ObjectPackages)
+	{
+		UEObject Object = ObjectArray::GetByIndex(Pair.first);
 
+		if (!Object)
+			continue;
+
+		Package Pack(Object);
+		Pack.Process(Pair.second);
+
+		if (!Pack.IsEmpty())
+		{
+			std::string PackageName = Object.GetName();
+			std::string FileName = Settings::FilePrefix ? Settings::FilePrefix + PackageName : PackageName;
+
+			if (fs::exists(SDKFolder / (FileName + "_classes.hpp")))
+			{
+				FileName += "_1";
+			}
+
+			FileWriter ClassFile(SDKFolder, FileName, FileWriter::FileType::Class);
+			FileWriter StructsFile(SDKFolder, FileName, FileWriter::FileType::Struct);
+			FileWriter FunctionFile(SDKFolder, FileName, FileWriter::FileType::Function);
+			FileWriter ParameterFile(SDKFolder, FileName, FileWriter::FileType::Parameter);
+
+			ClassFile.WriteClasses(Pack.AllClasses);
+			StructsFile.WriteEnums(Pack.AllEnums);
+			StructsFile.WriteStructs(Pack.AllStructs);
+
+			if (PackageName == "CoreUObject")
+			{
+				FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
+			}
+
+			for (auto& Function : Pack.AllFunctions)
+			{
+				for (auto& [ClassName, PackageFunctionsPairs] : Generator::PredefinedFunctions)
+				{
+					if (PackageFunctionsPairs.first != PackageName)
+						continue;
+
+					for (auto& PredefFunc : PackageFunctionsPairs.second)
+					{
+						if (!PredefFunc.DeclarationCPP.empty())
+						{
+							FunctionFile.Write(PredefFunc.DeclarationCPP);
+							FunctionFile.Write(PredefFunc.Body);
+							FunctionFile.Write("\n");
+						}
+					}
+				}
+
+				FunctionFile.WriteFunction(Function);
+				ParameterFile.WriteParamStruct(Function.GetParamStruct());
+			}
+		}
+		else
+		{
+			ObjectPackages.erase(Pair.first);
+			Package::PackageSorterClasses.RemoveDependant(Pair.first);
+			Package::PackageSorterStructs.RemoveDependant(Pair.first);
+
+			std::cout << "Removed package: " << Pack.DebugGetObject().GetName() << "\n";
+		}
+	}
+
+	Package::CloseAssertionStream();
+
+	GenerateSDKHeader(GenFolder, ObjectPackages);
+	GenerateFixupFile(GenFolder);
+	GenerateBasicFile(SDKFolder);
+
+	std::cout << "\n\n[=] Done [=]\n\n";
+}
+
+void Generator::GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t, std::vector<int32_t>>& Packages)
+{
 	// Determine main-package of the game
 	int32 IndexOfBiggestPackage = 0;
 	int32 SizeOfBiggestPackage = 0;
 
-	for (const auto& [PackageIdx, DependencyVector] : ObjectPackages)
+	for (const auto& [PackageIdx, DependencyVector] : Packages)
 	{
 		if (DependencyVector.size() > SizeOfBiggestPackage)
 		{
@@ -400,46 +397,6 @@ void Generator::GenerateSDK()
 			IndexOfBiggestPackage = PackageIdx;
 		}
 	}
-	std::ofstream Out(GenFolder / "Packages.txt");
-	for (auto& [PackageIndex, MemberIndices] : ObjectPackages)
-	{
-		Out << "SomePackage: " << ObjectArray::GetByIndex(PackageIndex).GetFullName() << std::endl;
-	}
-	//void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices)
-	//for (auto& [PackageIndex, MemberIndices] : ObjectPackages)
-	//{
-	//	Out << "SomePackage: " << ObjectArray::GetByIndex(PackageIndex).GetFullName() << std::endl;
-	//	Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
-	//}
-
-	//auto Iter = ObjectPackages.begin();
-	//std::advance(Iter, 40ull);
-	//
-	//for (auto It = ObjectPackages.begin(); It != Iter; ++It)
-	//{
-	//	auto& [PackageIndex, MemberIndices] = *It;
-	//	Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
-	//}
-
-	for (auto& Future : Futures)
-	{
-		Future.wait();
-	}
-
-	Futures.clear(); // destroys everything, waits for execution of futures to finish
-
-	Package::CloseAssertionStream();
-
-	GenerateSDKHeader(GenFolder, IndexOfBiggestPackage);
-	GenerateFixupFile(GenFolder);
-	GenerateBasicFile(SDKFolder);
-
-	std::cout << "\n\n[=] Done [=]\n\n";
-}
-
-void Generator::GenerateSDKHeader(const fs::path& SdkPath, int32 BiggestPackageIdx)
-{
-
 
 	std::ofstream HeaderStream(SdkPath / "SDK.hpp");
 
@@ -448,14 +405,13 @@ void Generator::GenerateSDKHeader(const fs::path& SdkPath, int32 BiggestPackageI
 
 	HeaderStream << std::format("// {}\n", Settings::GameName);
 	HeaderStream << std::format("// {}\n\n", Settings::GameVersion);
-	HeaderStream << std::format("// Main-package: {}\n\n", ObjectArray::GetByIndex(BiggestPackageIdx).GetValidName());
+	HeaderStream << std::format("// Main-package: {}\n\n", ObjectArray::GetByIndex(IndexOfBiggestPackage).GetValidName());
 
 	HeaderStream << "#define WINDOWS_IGNORE_PACKING_MISMATCH\n\n";
 
 	HeaderStream << "#include <string>\n";
 	HeaderStream << "#include <Windows.h>\n";
-	HeaderStream << "#include <iostream>\n";
-	HeaderStream << "#include <type_traits>\n\n";
+	HeaderStream << "#include <iostream>\n\n";
 
 	HeaderStream << "typedef __int8 int8;\n";
 	HeaderStream << "typedef __int16 int16;\n";
@@ -487,17 +443,17 @@ namespace Offsets
 	{
 		std::string IncludesString;
 
-		Package::PackageSorterStructs.GetIncludesForPackage(BiggestPackageIdx, EIncludeFileType::Struct, IncludesString, false);
+		Package::PackageSorterStructs.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Struct, IncludesString, false);
 		HeaderStream << IncludesString;
 
 		IncludesString.clear();
 
-		Package::PackageSorterClasses.GetIncludesForPackage(BiggestPackageIdx, EIncludeFileType::Class, IncludesString, false, &Package::PackageSorterStructs, EIncludeFileType::Struct);
+		Package::PackageSorterClasses.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Class, IncludesString, false, &Package::PackageSorterStructs, EIncludeFileType::Struct);
 		HeaderStream << IncludesString;
 		
 		IncludesString.clear();
 		
-		Package::PackageSorterParams.GetIncludesForPackage(BiggestPackageIdx, EIncludeFileType::Params, IncludesString, false);
+		Package::PackageSorterParams.GetIncludesForPackage(IndexOfBiggestPackage, EIncludeFileType::Params, IncludesString, false);
 		HeaderStream << IncludesString;
 	}
 
@@ -528,7 +484,7 @@ namespace Offsets
 	HeaderStream.close();
 }
 
-void Generator::GenerateFixupFile(const fs::path& SdkPath)
+void Generator::GenerateFixupFile(fs::path& SdkPath)
 {
 	std::ofstream FixupStream(SdkPath / "PropertyFixup.hpp");
 
@@ -670,7 +626,7 @@ void Generator::InitPredefinedMembers()
 
 	PredefinedMembers["FFieldVariant"] =
 	{
-		{ "union { class FField* Field; class UObject* Object; }", "Container", 0x0, 0x8 },
+		{ "union { FField* Field; UObject* Object }", "Container", 0x0, 0x8 },
 		{ UObjectIdentifierType, UObjectIdentifierName, 0x0, !Settings::Internal::bUseMaskForFieldOwner }
 	};
 
@@ -681,7 +637,7 @@ void Generator::InitPredefinedMembers()
 		{ "FFieldVariant", "Owner", Off::FField::Owner, FFieldVariantSize },
 		{ "FField*", "Next", Off::FField::Next, 0x8 },
 		{ "FName", "Name", Off::FField::Name, FNameSize },
-		{ "int32", "Flags", Off::FField::Flags, 0x4 }
+		{ "EObjectFlags", "Flags", Off::FField::Flags, 0x4 }
 	};
 }
 
@@ -860,7 +816,7 @@ R"(
 	};
 }
 
-void Generator::GenerateBasicFile(const fs::path& SdkPath)
+void Generator::GenerateBasicFile(fs::path& SdkPath)
 {
 	FileWriter BasicHeader(SdkPath, Settings::FilePrefix ? Settings::FilePrefix + std::string("Basic") : "Basic", FileWriter::FileType::Header);
 	FileWriter BasicSource(SdkPath, Settings::FilePrefix ? Settings::FilePrefix + std::string("Basic") : "Basic", FileWriter::FileType::Source);
@@ -1493,15 +1449,28 @@ enum class EClassCastFlags : uint64_t
 	BasicHeader.Write(
 		R"(
 inline constexpr EClassCastFlags operator|(EClassCastFlags Left, EClassCastFlags Right)
-{				
+{																																										
+	return (EClassCastFlags)((std::underlying_type<EClassCastFlags>::type)(Left) | (std::underlying_type<EClassCastFlags>::type)(Right));
+}																																										
+
+inline bool operator&(EClassCastFlags Left, EClassCastFlags Right)
+{																																										
+	return (((std::underlying_type<EClassCastFlags>::type)(Left) & (std::underlying_type<EClassCastFlags>::type)(Right)) == (std::underlying_type<EClassCastFlags>::type)(Right));
+}
+)");
+
+	BasicHeader.Write(
+		R"(
+inline constexpr EClassCastFlags operator|(EClassCastFlags Left, EClassFlags Right)
+{
 	using CastFlagsType = std::underlying_type<EClassCastFlags>::type;
-	return static_cast<EClassCastFlags>(static_cast<CastFlagsType>(Left) | (static_cast<CastFlagsType>(Right));
+	return static_cast<EClassCastFlags>(static_cast<CastFlagsType>(Left) | static_cast<CastFlagsType>(Right));
 }
 
 inline bool operator&(EClassCastFlags Left, EClassCastFlags Right)
 {
 	using CastFlagsType = std::underlying_type<EClassCastFlags>::type;
-	return (static_cast<CastFlagsType>(Left) & static_cast<CastFlagsType>(Right)) == static_cast<CastFlagsType>(Right);
+	return ((static_cast<CastFlagsType>(Left) & static_cast<CastFlagsType>(Right)) == static_cast<CastFlagsType>(Right));
 }
 )");
 
