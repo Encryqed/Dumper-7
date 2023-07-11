@@ -125,7 +125,7 @@ void PackageDependencyManager::GetFunctionDependency(UEFunction Func, std::unord
 	}
 }
 
-void Package::InitAssertionStream(fs::path& GenPath)
+void Package::InitAssertionStream(const fs::path& GenPath)
 {
 	if (Settings::Debug::bGenerateAssertionFile)
 	{
@@ -188,7 +188,7 @@ Types::Member Package::GenerateBitPadding(const int32 Offset, const int32 PadSiz
 	return Types::Member("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::move(Reason));
 }
 
-void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
+void Package::GatherDependencies(const std::vector<int32_t>& PackageMembers)
 {
 	for (int32_t Index : PackageMembers)
 	{
@@ -238,7 +238,8 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 					{
 						Package::PackageSorterStructs.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
 					}
-
+					//Needs lock, error here!
+					//static_assert(false, "LOCK REQUIRED!!!");
 					Package::PackageSorterParams.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
 
 					continue;
@@ -257,12 +258,17 @@ void Package::GatherDependencies(std::vector<int32_t>& PackageMembers)
 	}
 }
 
-void Package::Process(std::vector<int32_t>& PackageMembers)
+void Package::AddPackage(int32 Idx)
 {
-	Package::PackageSorterClasses.AddPackage(PackageObject.GetIndex());
-	Package::PackageSorterStructs.AddPackage(PackageObject.GetIndex());
+	Package::PackageSorterClasses.AddPackage(Idx);
+	Package::PackageSorterStructs.AddPackage(Idx);
+}
 
-	GatherDependencies(PackageMembers);
+void Package::Process(const std::vector<int32_t>& PackageMembers)
+{
+	//AddPackage(PackageObject.GetIndex());
+
+	//GatherDependencies(PackageMembers);
 
 	for (int32_t Index : PackageMembers)
 	{
@@ -286,7 +292,7 @@ void Package::Process(std::vector<int32_t>& PackageMembers)
 	}
 }
 
-void Package::GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
+void Package::GenerateMembers(const std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
 {
 	const bool bIsSuperFunction = Super.IsA(EClassCastFlags::Function);
 

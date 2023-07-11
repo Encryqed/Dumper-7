@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include <filesystem>
 #include <chrono>
+#include <future>
 #include "FileWriter.h"
 #include "Settings.h"
 #include "Package.h"
@@ -42,6 +43,9 @@ private:
 	static FunctionsMap PredefinedFunctions; // Types.cpp
 	static MemberMap PredefinedMembers; // Package.cpp
 
+	static std::mutex PackageMutex;
+	static std::vector<std::future<void>> Futures;
+
 public:
 	static void Init();
 
@@ -49,12 +53,15 @@ private:
 	static void InitPredefinedMembers();
 	static void InitPredefinedFunctions();
 
+private:
+	static void HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices);
+
 public:
 	static void GenerateMappings();
 	static void GenerateSDK();
 
 private:
-	static void GenerateSDKHeader(fs::path& SdkPath, std::unordered_map<int32_t, std::vector<int32_t>>& Packages);
-	static void GenerateFixupFile(fs::path& SdkPath);
-	static void GenerateBasicFile(fs::path& SdkPath);
+	static void GenerateSDKHeader(const fs::path& SdkPath, int32 BiggestPackageIdx);
+	static void GenerateFixupFile(const fs::path& SdkPath);
+	static void GenerateBasicFile(const fs::path& SdkPath);
 };
