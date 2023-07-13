@@ -54,7 +54,7 @@ private:
 	static void InitPredefinedFunctions();
 
 private:
-	static void HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices);
+	static void HandlePackageGeneration(const fs::path* const SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices);
 
 public:
 	static void GenerateMappings();

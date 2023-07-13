@@ -270,7 +270,7 @@ void Generator::GenerateMappings()
 	MappingsStream.CopyFromOtherBuffer(Buffer);
 }
 
-void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices)
+void Generator::HandlePackageGeneration(const fs::path* const SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices)
 {
 	UEObject Object = ObjectArray::GetByIndex(PackageIndex);
 
@@ -292,27 +292,22 @@ void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex,
 		std::string FileName = Settings::FilePrefix ? Settings::FilePrefix + PackageName : PackageName;
 
 		if (fs::exists(*SDKFolder / (FileName + "_classes.hpp")))
-		{
 			FileName += "_1";
-		}
-
-		PackageMutex.lock();
-		std::cout << "Creating files \"" << FileName << "\" for:\n(" << PackageIndex << ") -- " << PackageName << "\n" << std::endl;
-		PackageMutex.unlock();
 
 		FileWriter ClassFile(*SDKFolder, FileName, FileWriter::FileType::Class);
+		ClassFile.WriteClasses(Pack.AllClasses);
+		ClassFile.Close();
+
 		FileWriter StructsFile(*SDKFolder, FileName, FileWriter::FileType::Struct);
+		StructsFile.WriteEnums(Pack.AllEnums);
+		StructsFile.WriteStructs(Pack.AllStructs);
+		ClassFile.Close();
+
 		FileWriter FunctionFile(*SDKFolder, FileName, FileWriter::FileType::Function);
 		FileWriter ParameterFile(*SDKFolder, FileName, FileWriter::FileType::Parameter);
 
-		ClassFile.WriteClasses(Pack.AllClasses);
-		StructsFile.WriteEnums(Pack.AllEnums);
-		StructsFile.WriteStructs(Pack.AllStructs);
-
 		if (PackageName == "CoreUObject")
-		{
 			FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
-		}
 
 		for (auto& Function : Pack.AllFunctions)
 		{
@@ -320,7 +315,7 @@ void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex,
 			{
 				if (PackageFunctionsPairs.first != PackageName)
 					continue;
-
+		
 				for (auto& PredefFunc : PackageFunctionsPairs.second)
 				{
 					if (!PredefFunc.DeclarationCPP.empty())
@@ -331,7 +326,7 @@ void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex,
 					}
 				}
 			}
-
+		
 			FunctionFile.WriteFunction(Function);
 			ParameterFile.WriteParamStruct(Function.GetParamStruct());
 		}
@@ -342,9 +337,6 @@ void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex,
 		Package::PackageSorterClasses.RemoveDependant(PackageIndex);
 		Package::PackageSorterStructs.RemoveDependant(PackageIndex);
 		PackageMutex.unlock();
-
-		for (int i = 0; i < 20; i++)
-			std::cout << "Removed package: " << Pack.DebugGetObject().GetName() << "\n";
 	}
 }
 
@@ -405,26 +397,13 @@ void Generator::GenerateSDK()
 			IndexOfBiggestPackage = PackageIdx;
 		}
 	}
-	std::ofstream Out(GenFolder / "Packages.txt");
+
+	_setmaxstdio(0x400); // set number of files which can be opened simultaneously
+
 	for (auto& [PackageIndex, MemberIndices] : ObjectPackages)
 	{
-		Out << "SomePackage: " << ObjectArray::GetByIndex(PackageIndex).GetFullName() << std::endl;
-	}
-	//void Generator::HandlePackageGeneration(fs::path* SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices)
-	for (auto& [PackageIndex, MemberIndices] : ObjectPackages)
-	{
-		//Out << "SomePackage: " << ObjectArray::GetByIndex(PackageIndex).GetFullName() << std::endl;
 		Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
 	}
-
-	//auto Iter = ObjectPackages.begin();
-	//std::advance(Iter, 40ull);
-	//
-	//for (auto It = ObjectPackages.begin(); It != Iter; ++It)
-	//{
-	//	auto& [PackageIndex, MemberIndices] = *It;
-	//	Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
-	//}
 
 	for (auto& Future : Futures)
 	{
@@ -1500,7 +1479,7 @@ enum class EClassCastFlags : uint64_t
 inline constexpr EClassCastFlags operator|(EClassCastFlags Left, EClassCastFlags Right)
 {				
 	using CastFlagsType = std::underlying_type<EClassCastFlags>::type;
-	return static_cast<EClassCastFlags>(static_cast<CastFlagsType>(Left) | (static_cast<CastFlagsType>(Right));
+	return static_cast<EClassCastFlags>(static_cast<CastFlagsType>(Left) | static_cast<CastFlagsType>(Right));
 }
 
 inline bool operator&(EClassCastFlags Left, EClassCastFlags Right)
