@@ -230,16 +230,9 @@ void Package::GatherDependencies(const std::vector<int32_t>& PackageMembers)
 
 				if (PackageObject != Outermost)
 				{
-					if (bDependencyIsClass)	
-					{
-						Package::PackageSorterClasses.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
-					}
-					else 
-					{
-						Package::PackageSorterStructs.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
-					}
-					//Needs lock, error here!
-					//static_assert(false, "LOCK REQUIRED!!!");
+					auto& PackageSorter = bDependencyIsClass ? Package::PackageSorterClasses : Package::PackageSorterStructs;
+
+					PackageSorter.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
 					Package::PackageSorterParams.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
 
 					continue;

@@ -400,6 +400,8 @@ void Generator::GenerateSDK()
 
 	_setmaxstdio(0x400); // set number of files which can be opened simultaneously
 
+	Futures.reserve(ObjectPackages.size());
+
 	for (auto& [PackageIndex, MemberIndices] : ObjectPackages)
 	{
 		Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
@@ -410,7 +412,7 @@ void Generator::GenerateSDK()
 		Future.wait();
 	}
 
-	Futures.clear(); // destroys everything, waits for execution of futures to finish
+	Futures.clear();
 
 	Package::CloseAssertionStream();
 
