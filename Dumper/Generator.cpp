@@ -11,7 +11,7 @@ std::vector<std::future<void>> Generator::Futures;
 
 void Generator::Init()
 {
-	/* manual overwrite */
+	/* manual override */
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
 	//FName::Init(/*FName::AppendString*/);
 	//Off::InSDK::InitPE(/*PEIndex*/);
@@ -398,7 +398,7 @@ void Generator::GenerateSDK()
 		}
 	}
 
-	_setmaxstdio(0x400); // set number of files which can be opened simultaneously
+	_setmaxstdio(0x400); // set number of files which can be open simultaneously
 
 	Futures.reserve(ObjectPackages.size());
 

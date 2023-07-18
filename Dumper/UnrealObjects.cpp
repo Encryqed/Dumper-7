@@ -8,6 +8,37 @@ std::unordered_map<int32, std::string> UEEnum::BigEnums;
 std::unordered_map<std::string, uint32> UEProperty::UnknownProperties;
 std::unordered_map<int32, uint32> UEStruct::StructSizes;
 
+inline std::string MakeNameValid(std::string&& Name)
+{
+	char& FirstChar = Name[0];
+
+	if (Name == "bool")
+	{
+		FirstChar -= 0x20;
+
+		return Name;
+	}
+
+	if (Name == "TRUE")
+		return "TURR";
+
+	if (FirstChar <= '9' && FirstChar >= '0')
+		Name = '_' + Name;
+
+	// this way I don't need to bother checking for c++ types (except bool) like int in the names
+	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
+		FirstChar = FirstChar - 0x20;
+
+	for (char& c : Name)
+	{
+		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
+		{
+			c = '_';
+		}
+	}
+}
+
+
 void* UEFFieldClass::GetAddress()
 {
 	return Class;
@@ -50,36 +81,7 @@ std::string UEFFieldClass::GetName() const
 
 std::string UEFFieldClass::GetValidName() const
 {
-	std::string Name = GetName();
-
-	char& FirstChar = Name[0];
-
-	if (Name == "bool")
-	{
-		FirstChar -= 0x20;
-
-		return Name;
-	}
-
-	if (Name == "TRUE")
-		return "TURR";
-
-	if (FirstChar <= '9' && FirstChar >= '0')
-		Name = '_' + Name;
-
-	// this way I don't need to bother checking for c++ types (except bool) like int in the names
-	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
-		FirstChar = FirstChar - 0x20;
-
-	for (char& c : Name)
-	{
-		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
-		{
-			c = '_';
-		}
-	}
-
-	return Name;
+	return MakeNameValid(GetName());
 }
 
 std::string UEFFieldClass::GetCppName() const
@@ -180,36 +182,7 @@ std::string UEFField::GetName() const
 
 std::string UEFField::GetValidName() const
 {
-	std::string Name = GetName();
-
-	char& FirstChar = Name[0];
-
-	if (Name == "bool")
-	{
-		FirstChar -= 0x20;
-
-		return Name;
-	}
-
-	if (Name == "TRUE")
-		return "TURR";
-
-	if (FirstChar <= '9' && FirstChar >= '0')
-		Name = '_' + Name;
-
-	// this way I don't need to bother checking for c++ types (except bool) like int in the names
-	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
-		FirstChar = FirstChar - 0x20;
-
-	for (char& c : Name)
-	{
-		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
-		{
-			c = '_';
-		}
-	}
-
-	return Name;
+	return MakeNameValid(GetName());
 }
 
 std::string UEFField::GetCppName() const
@@ -323,36 +296,7 @@ std::string UEObject::GetName() const
 
 std::string UEObject::GetValidName() const
 {
-	std::string Name = GetName();
-
-	char& FirstChar = Name[0];
-
-	if (Name == "bool")
-	{
-		FirstChar -= 0x20;
-
-		return Name;
-	}
-
-	if (Name == "TRUE")
-		return "TURR";
-
-	if (FirstChar <= '9' && FirstChar >= '0')
-		Name = '_' + Name;
-
-	// this way I don't need to bother checking for c++ types (except bool) like int in the names
-	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
-		FirstChar = FirstChar - 0x20;
-
-	for (char& c : Name)
-	{
-		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
-		{
-			c = '_';
-		}
-	}
-
-	return Name;
+	return MakeNameValid(GetName());
 }
 
 std::string UEObject::GetCppName() const
@@ -750,36 +694,7 @@ std::string UEProperty::GetName() const
 
 std::string UEProperty::GetValidName() const
 {
-	std::string Name = GetName();
-
-	char& FirstChar = Name[0];
-
-	if (Name == "bool")
-	{
-		FirstChar -= 0x20;
-
-		return Name;
-	}
-
-	if (Name == "TRUE")
-		return "TURR";
-
-	if (FirstChar <= '9' && FirstChar >= '0')
-		Name = '_' + Name;
-
-	// this way I don't need to bother checking for c++ types (except bool) like int in the names
-	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
-		FirstChar = FirstChar - 0x20;
-
-	for (char& c : Name)
-	{
-		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
-		{
-			c = '_';
-		}
-	}
-
-	return Name;
+	return MakeNameValid(GetName());
 }
 
 std::string UEProperty::GetCppType() const
