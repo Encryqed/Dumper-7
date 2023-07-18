@@ -36,6 +36,8 @@ inline std::string MakeNameValid(std::string&& Name)
 			c = '_';
 		}
 	}
+
+	return Name;
 }
 
 
@@ -81,6 +83,8 @@ std::string UEFFieldClass::GetName() const
 
 std::string UEFFieldClass::GetValidName() const
 {
+	std::cout << "UEFFieldClass::GetValidName(): " << (void*)Class << std::endl;
+
 	return MakeNameValid(GetName());
 }
 
