@@ -22,6 +22,9 @@ inline std::string MakeNameValid(std::string&& Name)
 	if (Name == "TRUE")
 		return "TURR";
 
+	if (Name == "FALSE")
+		return "FLASE";
+
 	if (FirstChar <= '9' && FirstChar >= '0')
 		Name = '_' + Name;
 
@@ -83,8 +86,6 @@ std::string UEFFieldClass::GetName() const
 
 std::string UEFFieldClass::GetValidName() const
 {
-	std::cout << "UEFFieldClass::GetValidName(): " << (void*)Class << std::endl;
-
 	return MakeNameValid(GetName());
 }
 

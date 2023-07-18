@@ -172,7 +172,8 @@ void ObjectArray::Init()
 
 			for (int i = 0x8; i <= 0x30; i += 4)
 			{
-				if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects)+i)))
+				void* ObjPtr = *(void**)(**(uint8***)(GObjects)+i);
+				if (!IsBadReadPtr(ObjPtr) && !IsBadReadPtr(*(void**)ObjPtr))
 				{
 					SizeOfFUObjectItem = i;
 					break;
@@ -274,7 +275,7 @@ void ObjectArray::DumpObjects()
 	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
 	DumpStream << "Object dump by Dumper-7\n\n";
-	DumpStream << (!Settings::GameVersion.empty() ? Settings::GameVersion + "\n\n" : "");
+	DumpStream << (!Settings::GameVersion.empty() && !Settings::GameName.empty() ? (Settings::GameVersion + '-' + Settings::GameName) + "\n\n" : "");
 	DumpStream << "Count: " << Num() << "\n\n\n";
 
 	for (auto Object : ObjectArray())
