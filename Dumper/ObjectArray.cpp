@@ -190,9 +190,16 @@ void ObjectArray::Init()
 					IndexOffset = i;
 			}
 
-			if (ObjectArray::Num() > 0x10401 && *reinterpret_cast<int32*>((uint8*)ObjectArray::GetByIndex(0x10401) + IndexOffset) != 0x10401)
+			int IndexToCheck = 0x10400;
+			while (ObjectArray::Num() > IndexToCheck)
 			{
-				NumElementsPerChunk = 0x10400;
+				if (void* Obj = ByIndex(GObjects, IndexToCheck, SizeOfFUObjectItem, 0x10000))
+				{
+					const bool bIsTrue = *reinterpret_cast<int32*>((uint8*)Obj + IndexOffset) != IndexToCheck;
+					NumElementsPerChunk = bIsTrue ? 0x10400 : 0x10000;
+					break;
+				}
+				IndexToCheck += 0x10400;
 			}
 
 			Off::InSDK::ChunkSize = NumElementsPerChunk;
