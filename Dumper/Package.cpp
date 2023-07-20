@@ -93,7 +93,8 @@ void PackageDependencyManager::GetPropertyDependency(UEProperty Prop, std::unord
 	}
 	else if (Prop.IsA(EClassCastFlags::EnumProperty))
 	{
-		Store.insert(Prop.Cast<UEEnumProperty>().GetEnum().GetIndex());
+		if (auto Enum = Prop.Cast<UEEnumProperty>().GetEnum())
+			Store.insert(Enum.GetIndex());
 	}
 	else if (Prop.IsA(EClassCastFlags::ByteProperty))
 	{

@@ -16,6 +16,8 @@ void Generator::Init()
 	//FName::Init(/*FName::AppendString*/);
 	//Off::InSDK::InitPE(/*PEIndex*/);
 
+	//ObjectArray::DecryptPtr = [](void* Objptr) -> uint8_t* { return (uint8_t*)(uint64_t(Objptr) ^ 0x8375); };
+
 	ObjectArray::Init();
 	FName::Init();
 	Off::Init();
@@ -179,7 +181,9 @@ void Generator::GenerateMappings()
 			UEEnumProperty EnumProperty = Property.Cast<UEEnumProperty>();
 
 			WriteProperty(EnumProperty.GetUnderlayingProperty(), WriteProperty);
-			Buffer.Write<int32>(NameIdxPairs[EnumProperty.GetEnum().GetFName().GetCompIdx()]);
+
+			auto Enum = EnumProperty.GetEnum();
+			Buffer.Write<int32>(NameIdxPairs[Enum ? Enum.GetFName().GetCompIdx() : 0]);
 		}
 		else if (Property.IsA(EClassCastFlags::ByteProperty) && Property.Cast<UEByteProperty>().GetEnum())
 		{
@@ -425,8 +429,6 @@ void Generator::GenerateSDK()
 
 void Generator::GenerateSDKHeader(const fs::path& SdkPath, int32 BiggestPackageIdx)
 {
-
-
 	std::ofstream HeaderStream(SdkPath / "SDK.hpp");
 
 	HeaderStream << "#pragma once\n\n";

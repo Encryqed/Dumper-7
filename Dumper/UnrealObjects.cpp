@@ -972,7 +972,10 @@ UEEnum UEEnumProperty::GetEnum() const
 
 std::string UEEnumProperty::GetCppType() const
 {
-	return GetEnum().GetEnumTypeAsStr();
+	if (GetEnum())
+		return GetEnum().GetEnumTypeAsStr();
+
+	return GetUnderlayingProperty().GetCppType();
 }
 
 /*
