@@ -33,7 +33,7 @@ DWORD MainThread(HMODULE Module)
 		UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
 		UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName");
 		UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
-
+		
 		Kismet.ProcessEvent(GetGameName, &Name);
 		Kismet.ProcessEvent(GetEngineVersion, &Version);
 

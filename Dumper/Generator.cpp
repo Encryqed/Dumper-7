@@ -19,7 +19,7 @@ void Generator::Init()
 	//ObjectArray::DecryptPtr = [](void* Objptr) -> uint8_t* { return (uint8_t*)(uint64_t(Objptr) ^ 0x8375); };
 
 	ObjectArray::Init();
-	FName::Init();
+	FName::Init(0x2411BB0, 0x6EA4F00);
 	Off::Init();
 	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
 

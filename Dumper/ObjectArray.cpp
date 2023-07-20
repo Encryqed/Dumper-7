@@ -106,7 +106,7 @@ void ObjectArray::Init()
 	{
 		IMAGE_SECTION_HEADER& CurrentSection = Sections[i];
 
-		if (std::string((char*)CurrentSection.Name) == ".data")
+		if (std::string((char*)CurrentSection.Name) == ".idata")
 		{
 			DataSection = (uint8_t*)(CurrentSection.VirtualAddress + ImageBase);
 			DataSize = CurrentSection.Misc.VirtualSize;
@@ -114,6 +114,9 @@ void ObjectArray::Init()
 	}
 
 	std::cout << "Searching for GObjects...\n\n";
+
+	std::cout << ((FChunkedFixedUObjectArray*)(ImageBase + 0x6C7EB90))->IsValid() << std::endl;
+
 
 	for (int i = 0; i < DataSize; i += 0x4)
 	{

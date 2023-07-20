@@ -142,7 +142,31 @@ namespace OffsetFinder
 	/* UEnum */
 	inline int32_t FindFieldNextOffset()
 	{
-		return Off::UObject::Outer + 0x8;
+		int32_t Ret = 0xFFFF;
+		int32_t LastIteration = -1;
+
+		uint8_t* ObjA = (uint8_t*)ObjectArray::GetByIndex(0x4000).GetAddress();
+		uint8_t* ObjB = (uint8_t*)ObjectArray::GetByIndex(0x4001).GetAddress();
+
+		for (int i = 0; i < 3; LastIteration = -1, i++)
+		{
+			while (LastIteration == -1)
+			{
+				ObjA = (uint8*)ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
+				ObjB = (uint8*)ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
+
+				LastIteration = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Outer + 0x8, 0x40);
+
+				if (LastIteration != -1 && LastIteration < Ret)
+				{
+					Ret = LastIteration;
+					LastIteration = -1;
+					i = 0;
+				}
+			}
+		}
+
+		return Ret;
 	}
 
 	/* UEnum */

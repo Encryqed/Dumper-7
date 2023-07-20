@@ -139,9 +139,71 @@ public:
 	}
 };
 
+struct FNameEntryHeader
+{
+	uint16 bIsWide : 1;
+
+	static constexpr uint32 ProbeHashBits = 5;
+	uint16 LowercaseProbeHash : ProbeHashBits;
+	uint16 Len : 10;
+};
+
+struct FNameEntry
+{
+	friend class FNamePool;
+	friend class FNamePoolIterator;
+
+private:
+	FNameEntryHeader Header;
+	union
+	{
+		char AnsiName[1024];
+		wchar_t	WideName[1024];
+
+		struct
+		{
+			int32 Id;
+			uint32 Number;
+		} NumberedName;
+	};
+};
+
+class FNamePool
+{
+private:
+	static constexpr uint32 FNameBlockOffsetBits = 16;
+	static constexpr uint32 FNameBlockOffsets = 1 << FNameBlockOffsetBits;
+
+public:
+	static FNamePool* Pool;
+
+private:
+	void* Lock;
+
+public:
+	uint32 CurrentBlock;
+	uint32 CurrentByteCursor; //Offset into the block
+	uint8* Blocks[8192];
+
+public:
+	enum { Stride = 2 };
+	enum { BlockSizeBytes = Stride * FNameBlockOffsets };
+
+public:
+	static void Init(int32 Offset);
+
+	inline FNameEntry const* GetEntry(int32 Id) const
+	{
+		const int32 Block = Id >> FNameBlockOffsetBits;
+		const int32 Offset = Id & (FNameBlockOffsets - 1);
+
+		return reinterpret_cast<FNameEntry*>(Blocks[Block] + Stride * Offset);
+	}
+};
+
 class FName
 {
-	static void(*AppendString)(void*, FString&);
+	static void(*AppendString)(const void*, FString&);
 
 public:
 	uint8* Address;
@@ -162,7 +224,7 @@ public:
 		int i = 0;
 		while (!AppendString && i < PossibleSigs.size())
 		{
-			AppendString = reinterpret_cast<void(*)(void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x60, -1 /* auto */));
+			AppendString = reinterpret_cast<void(*)(const void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x60, -1 /* auto */));
 			i++;
 		}
 
@@ -171,9 +233,11 @@ public:
 		std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
 	}
 
-	static void Init(int32 AppendStringOffset)
+	static void Init(int32 AppendStringOffset, int32 FNamePoolOffset)
 	{
-		AppendString = reinterpret_cast<void(*)(void*, FString&)>(uintptr_t(GetModuleHandle(0)) + AppendStringOffset);
+		FNamePool::Init(FNamePoolOffset);
+
+		AppendString = reinterpret_cast<void(*)(const void*, FString&)>(uintptr_t(GetModuleHandle(0)) + AppendStringOffset);
 
 		Off::InSDK::AppendNameToString = AppendStringOffset;
 
@@ -187,7 +251,8 @@ public:
 		if (!AppendString)
 			Init();
 
-		AppendString(Address, TempString);
+		auto* Ptr = FNamePool::Pool->GetEntry(GetCompIdx());
+		AppendString(Ptr, TempString);
 
 		std::string OutputString = TempString.ToString();
 		TempString.ResetNum();
