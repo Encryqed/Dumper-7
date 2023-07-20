@@ -319,7 +319,7 @@ void Generator::HandlePackageGeneration(const fs::path* const SDKFolder, int32 P
 			{
 				if (PackageFunctionsPairs.first != PackageName)
 					continue;
-		
+
 				for (auto& PredefFunc : PackageFunctionsPairs.second)
 				{
 					if (!PredefFunc.DeclarationCPP.empty())
@@ -330,7 +330,7 @@ void Generator::HandlePackageGeneration(const fs::path* const SDKFolder, int32 P
 					}
 				}
 			}
-		
+
 			FunctionFile.WriteFunction(Function);
 			ParameterFile.WriteParamStruct(Function.GetParamStruct());
 		}
@@ -846,6 +846,32 @@ R"(
 			}
 		}
 	};
+
+	PredefinedFunctions["FGuid"] =
+	{
+		"CoreUObject",
+		{
+			{
+				"\tinline bool operator==(const FGuid& Other) const",
+				"",
+R"(
+	{
+		return A == Other.A && B == Other.B && C == Other.C && D == Other.D;
+	}
+)"
+			},
+			{
+				"\tinline bool operator!=(const FGuid& Other) const",
+				"",
+R"(
+	{
+		return A != Other.A || B != Other.B || C != Other.C || D != Other.D;
+	}
+)"
+			}
+		}
+	};
+	
 }
 
 void Generator::GenerateBasicFile(const fs::path& SdkPath)
