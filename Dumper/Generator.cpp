@@ -313,24 +313,24 @@ void Generator::HandlePackageGeneration(const fs::path* const SDKFolder, int32 P
 		if (PackageName == "CoreUObject")
 			FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
 
-		for (auto& Function : Pack.AllFunctions)
+		for (auto& [ClassName, PackageFunctionsPairs] : Generator::PredefinedFunctions)
 		{
-			for (auto& [ClassName, PackageFunctionsPairs] : Generator::PredefinedFunctions)
+			if (PackageFunctionsPairs.first != PackageName)
+				continue;
+
+			for (auto& PredefFunc : PackageFunctionsPairs.second)
 			{
-				if (PackageFunctionsPairs.first != PackageName)
-					continue;
-		
-				for (auto& PredefFunc : PackageFunctionsPairs.second)
+				if (!PredefFunc.DeclarationCPP.empty())
 				{
-					if (!PredefFunc.DeclarationCPP.empty())
-					{
-						FunctionFile.Write(PredefFunc.DeclarationCPP);
-						FunctionFile.Write(PredefFunc.Body);
-						FunctionFile.Write("\n");
-					}
+					FunctionFile.Write(PredefFunc.DeclarationCPP);
+					FunctionFile.Write(PredefFunc.Body);
+					FunctionFile.Write("\n");
 				}
 			}
-		
+		}
+
+		for (auto& Function : Pack.AllFunctions)
+		{
 			FunctionFile.WriteFunction(Function);
 			ParameterFile.WriteParamStruct(Function.GetParamStruct());
 		}
@@ -846,6 +846,55 @@ R"(
 			}
 		}
 	};
+
+	PredefinedFunctions["FGuid"] =
+	{
+		"CoreUObject",
+		{
+			{
+				"\tinline bool operator==(const FGuid& Other) const",
+				"",
+R"(
+	{
+		return A == Other.A && B == Other.B && C == Other.C && D == Other.D;
+	})"
+			},
+			{
+				"\tinline bool operator!=(const FGuid& Other) const",
+				"",
+R"(
+	{
+		return A != Other.A || B != Other.B || C != Other.C || D != Other.D;
+	}
+)"
+			}
+		}
+	};
+
+	PredefinedFunctions["FVector"] =
+	{
+		"CoreUObject",
+		{
+			{
+				"\tinline bool operator==(const FVector& Other) const",
+				"",
+R"(
+	{
+		return X == Other.X && Y == Other.Y && Z == Other.Z;
+	})"
+			},
+			{
+				"\tinline bool operator!=(const FVector& Other) const",
+				"",
+R"(
+	{
+		return X != Other.X || Y != Other.Y || Z != Other.Z;
+	}
+)"
+			}
+		}
+	};
+	
 }
 
 void Generator::GenerateBasicFile(const fs::path& SdkPath)

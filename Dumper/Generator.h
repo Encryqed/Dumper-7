@@ -19,6 +19,7 @@ class Generator
 {
 	friend class Package;
 	friend class Types::Class;
+	friend class Types::Struct;
 	friend class FileWriter;
 
 private:

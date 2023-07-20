@@ -50,6 +50,19 @@ std::string Types::Struct::GetGeneratedBody()
 		InnerBody += StructMember.GetGeneratedBody();
 	}
 
+	if (Generator::PredefinedFunctions.find(CppName) != Generator::PredefinedFunctions.end())
+	{
+		for (auto& PredefFunc : Generator::PredefinedFunctions[CppName].second)
+		{
+			InnerBody += "\n" + PredefFunc.DeclarationH;
+	
+			if (PredefFunc.DeclarationCPP == "")
+				InnerBody += PredefFunc.Body;
+	
+			InnerBody += "\n";
+		}
+	}
+
 	return Comments + Declaration + InnerBody + "};\n\n";
 }
 
