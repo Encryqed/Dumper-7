@@ -98,18 +98,19 @@ public:
 	{
 	}
 
-	static void InitAssertionStream(fs::path& GenPath);
+	static void AddPackage(int32 Idx);
+	static void InitAssertionStream(const fs::path& GenPath);
 	static void CloseAssertionStream();
 	static int32 GeneratePredefinedMembers(const std::string& ClassName, Types::Struct& Struct, int32 StructSize, int32 SuperSize);
 
 	static Types::Member GenerateBytePadding(int32 Offset, int32 PadSize, std::string&& Reason);
 	static Types::Member GenerateBitPadding(int32 Offset, int32 PadSize, std::string&& Reason);
 
-	void GatherDependencies(std::vector<int32_t>& PackageMembers);
+	void GatherDependencies(const std::vector<int32_t>& PackageMembers);
 
-	void Process(std::vector<int32_t>& PackageMembers);
+	void Process(const std::vector<int32_t>& PackageMembers);
 
-	void GenerateMembers(std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize);
+	void GenerateMembers(const std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize);
 	Types::Function GenerateFunction(UEFunction& Function, UEStruct& Super);
 	Types::Struct GenerateStruct(UEStruct Struct, bool bIsFunction = false);
 	Types::Class GenerateClass(UEClass Class);

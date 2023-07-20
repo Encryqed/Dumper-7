@@ -13,13 +13,16 @@ private:
 	static inline void*(*ByIndex)(void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) = nullptr;
 
 public:
+	static inline uint8_t* (*DecryptPtr)(void* ObjPtr) = [](void* Ptr) -> uint8_t* { return (uint8_t*)Ptr; };
+
+public:
 	static void Init();
 
 	static void Init(int32 GObjectsOffset, int32 NumElementsPerChunk, bool bIsChunked);
 
 	static void DumpObjects();
-	//static std::vector<int32> GetAllPackages();
-	static void GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t>>& OutPackagesWithMembers/*, std::unordered_map<int32_t, bool>& PackagesToInclude*/);
+
+	static void GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t>>& OutPackagesWithMembers);
 
 	static int32 Num();
 

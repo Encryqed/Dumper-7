@@ -20,6 +20,8 @@ struct FChunkedFixedUObjectArray
 
 	inline bool IsValid()
 	{
+		void** ObjectsButDecrypted = (void**)ObjectArray::DecryptPtr(Objects);
+
 		if (NumChunks > 0x14 || NumChunks < 0x1)
 			return false;
 
@@ -32,12 +34,12 @@ struct FChunkedFixedUObjectArray
 		if (((NumElements / 0x10000) + 1) != NumChunks || MaxElements / 0x10000 != MaxChunks)
 			return false;
 
-		if (IsBadReadPtr(Objects))
+		if (IsBadReadPtr(ObjectsButDecrypted))
 			return false;
 
 		for (int i = 0; i < NumChunks; i++)
 		{
-			if (IsBadReadPtr(Objects[i]))
+			if (IsBadReadPtr(ObjectsButDecrypted[i]))
 				return false;
 		}
 
@@ -59,6 +61,8 @@ struct FFixedUObjectArray
 
 	inline bool IsValid()
 	{
+		FUObjectItem* ObjectsButDecrypted = (FUObjectItem*)ObjectArray::DecryptPtr(Objects);
+
 		if (Num > Max)
 			return false;
 
@@ -68,13 +72,13 @@ struct FFixedUObjectArray
 		if (Num < 100000)
 			return false;
 
-		if (IsBadReadPtr(Objects))
+		if (IsBadReadPtr(ObjectsButDecrypted))
 			return false;
 
-		if (IsBadReadPtr(Objects[5].Object))
+		if (IsBadReadPtr(ObjectsButDecrypted[5].Object))
 			return false;
 
-		if (*(int32_t*)(uintptr_t(Objects[5].Object) + 0xC) != 5)
+		if (*(int32_t*)(uintptr_t(ObjectsButDecrypted[5].Object) + 0xC) != 5)
 			return false;
 
 		return true;
@@ -118,7 +122,7 @@ void ObjectArray::Init()
 
 		if (FixedArray->IsValid())
 		{
-			GObjects = DataSection + i;
+			GObjects = DecryptPtr(DataSection + i);
 			Off::FUObjectArray::Num = 0xC;
 			NumElementsPerChunk = -1;
 
@@ -135,9 +139,9 @@ void ObjectArray::Init()
 
 			};
 
-			for (int i = 1; i <= 0x30; i += 4)
+			for (int i = 4; i <= 0x30; i += 4)
 			{
-				if (!IsBadReadPtr(*(void**)((uint8*)(GObjects)+i)))
+				if (!IsBadReadPtr(*(void**)((uint8*)(GObjects) + i)))
 				{
 					SizeOfFUObjectItem = i;
 					break;
@@ -150,7 +154,7 @@ void ObjectArray::Init()
 		}
 		else if (ChunkedArray->IsValid())
 		{
-			GObjects = DataSection + i;
+			GObjects = DecryptPtr(DataSection + i);
 			Off::FUObjectArray::Num = 0x14;
 			NumElementsPerChunk = 0x10000;
 			SizeOfFUObjectItem = 0x18;
@@ -172,7 +176,8 @@ void ObjectArray::Init()
 
 			for (int i = 0x8; i <= 0x30; i += 4)
 			{
-				if (!IsBadReadPtr(*(void**)(**(uint8***)(GObjects)+i)))
+				void* ObjPtr = *(void**)(**(uint8***)(GObjects)+i);
+				if (!IsBadReadPtr(ObjPtr) && !IsBadReadPtr(*(void**)ObjPtr))
 				{
 					SizeOfFUObjectItem = i;
 					break;
@@ -189,9 +194,16 @@ void ObjectArray::Init()
 					IndexOffset = i;
 			}
 
-			if (ObjectArray::Num() > 0x10401 && *reinterpret_cast<int32*>((uint8*)ObjectArray::GetByIndex(0x10401) + IndexOffset) != 0x10401)
+			int IndexToCheck = 0x10400;
+			while (ObjectArray::Num() > IndexToCheck)
 			{
-				NumElementsPerChunk = 0x10400;
+				if (void* Obj = ByIndex(GObjects, IndexToCheck, SizeOfFUObjectItem, 0x10000))
+				{
+					const bool bIsTrue = *reinterpret_cast<int32*>((uint8*)Obj + IndexOffset) != IndexToCheck;
+					NumElementsPerChunk = bIsTrue ? 0x10400 : 0x10000;
+					break;
+				}
+				IndexToCheck += 0x10400;
 			}
 
 			Off::InSDK::ChunkSize = NumElementsPerChunk;
@@ -206,7 +218,7 @@ void ObjectArray::Init()
 
 void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChunked)
 {
-	GObjects = (uint8*)(uintptr_t(GetModuleHandle(0)) + GObjectsOffset);
+	GObjects = DecryptPtr((void*)(uintptr_t(GetModuleHandle(0)) + GObjectsOffset));
 
 	Off::InSDK::GObjects = GObjectsOffset;
 
@@ -268,13 +280,13 @@ void ObjectArray::DumpObjects()
 {
 	fs::path Path(Settings::SDKGenerationPath);
 
-	if (!Settings::GameVersion.empty())
-		Path /= Settings::GameVersion;
+	if (!Settings::GameVersion.empty() && !Settings::GameName.empty())
+		Path /= (Settings::GameVersion + '-' + Settings::GameName);
 
 	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
 	DumpStream << "Object dump by Dumper-7\n\n";
-	DumpStream << (!Settings::GameVersion.empty() ? Settings::GameVersion + "\n\n" : "");
+	DumpStream << (!Settings::GameVersion.empty() && !Settings::GameName.empty() ? (Settings::GameVersion + '-' + Settings::GameName) + "\n\n" : "");
 	DumpStream << "Count: " << Num() << "\n\n\n";
 
 	for (auto Object : ObjectArray())
@@ -303,18 +315,20 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 			UEStruct Super = ObjAsStruct.GetSuper();
 
 			int32 LowestOffset = 0xFFFFFF;
-
-
-			if (!Super || Object.IsA(EClassCastFlags::Function))
-				continue;
 	
 			for (UEProperty Property : ObjAsStruct.GetProperties())
 			{
+				if (!Property.IsTypeSupported())
+					UEProperty::UnknownProperties.insert({ Property.GetCppType(), Property.GetSize() });
+
 				if (Property.Cast<UEProperty>().GetOffset() < LowestOffset)
 				{
 					LowestOffset = Property.Cast<UEProperty>().GetOffset();
 				}
 			}
+
+			if (!Super || Object.IsA(EClassCastFlags::Function))
+				continue;
 
 			if (LowestOffset != 0xFFFFFF)
 			{

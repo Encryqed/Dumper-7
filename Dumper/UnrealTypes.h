@@ -78,6 +78,15 @@ public:
 	{
 		NumElements = 0;
 	}
+
+protected:
+	inline void FreeArray()
+	{
+		NumElements = 0;
+		MaxElements = 0;
+		if (Data) free(Data);
+		Data = nullptr;
+	}
 };
 
 class FString : public TArray<wchar_t>
@@ -116,6 +125,17 @@ public:
 			return std::string(WData.begin(), WData.end());
 		}
 		return "";
+	}
+};
+
+class FFreableString : public FString
+{
+public:
+	using FString::FString;
+
+	~FFreableString()
+	{
+		FreeArray();
 	}
 };
 
@@ -162,7 +182,7 @@ public:
 
 	inline std::string ToString()
 	{
-		static FString TempString(1024);
+		static thread_local FFreableString TempString(1024);
 		
 		if (!AppendString)
 			Init();

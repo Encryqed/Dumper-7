@@ -2,29 +2,30 @@
 #include "Generator.h"
 #include "Settings.h"
 
-FileWriter::FileWriter(fs::path FilePath)
+FileWriter::FileWriter(const fs::path& FilePath)
 {
 	FileStream.open(FilePath);
 	SetFileHeader();
 }
 
-FileWriter::FileWriter(fs::path FilePath, std::string FileName, FileType Type)
+FileWriter::FileWriter(const fs::path& FilePath, const std::string& FileName, FileType Type)
 {
 	CurrentFileType = Type;
 	CurrentFile = FileName;
 	SetFileType(Type);
 	FileStream.open(FilePath / CurrentFile);
+	if (!FileStream.is_open()) std::cout << "Couldn't open \"" << CurrentFile << "\"" << std::endl;
 	SetFileHeader();
 }
 
-FileWriter::FileWriter(std::string FileName)
+FileWriter::FileWriter(const std::string& FileName)
 {
 	CurrentFile = FileName;
 	Open(CurrentFile);
 	SetFileHeader();
 }
 
-FileWriter::FileWriter(std::string FileName, FileType Type)
+FileWriter::FileWriter(const std::string& FileName, FileType Type)
 {
 	CurrentFile = FileName;
 	CurrentFileType = Type;
