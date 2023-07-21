@@ -812,7 +812,7 @@ std::string UEProperty::GetCppType() const
 	}
 	else
 	{
-		return (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";;
+		return Cast<UEUnknonProperty>().GetCppType();
 	}
 }
 
@@ -902,6 +902,9 @@ std::string UELazyObjectProperty::GetCppType() const
 
 std::string UESoftObjectProperty::GetCppType() const
 {
+	if (!GetPropertyClass())
+		return Cast<UEUnknonProperty>().GetCppType();
+
 	return std::format("TSoftObjectPtr<class {}>", GetPropertyClass().GetCppName());
 }
 
@@ -976,6 +979,11 @@ std::string UEEnumProperty::GetCppType() const
 		return GetEnum().GetEnumTypeAsStr();
 
 	return GetUnderlayingProperty().GetCppType();
+}
+
+std::string UEUnknonProperty::GetCppType() const
+{
+	return (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";;
 }
 
 /*

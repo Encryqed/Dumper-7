@@ -407,3 +407,11 @@ public:
 
 	std::string GetCppType() const;
 };
+
+class UEUnknonProperty : public UEProperty
+{
+	using UEProperty::UEProperty;
+
+public:
+	std::string GetCppType() const;
+};
