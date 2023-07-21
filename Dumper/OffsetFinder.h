@@ -33,6 +33,9 @@ namespace OffsetFinder
 
 	inline int32_t GetValidPointerOffset(uint8_t* ObjA, uint8_t* ObjB, int32_t StartingOffset, int32_t MaxOffset)
 	{
+		if (IsBadReadPtr(ObjA) || IsBadReadPtr(ObjB))
+			return -1;
+
 		for (int j = StartingOffset; j <= MaxOffset; j += 0x8)
 		{
 			if (!IsBadReadPtr(*(void**)(ObjA + j)) && !IsBadReadPtr(*(void**)(ObjB + j)))
@@ -142,7 +145,38 @@ namespace OffsetFinder
 	/* UEnum */
 	inline int32_t FindFieldNextOffset()
 	{
-		return Off::UObject::Outer + 0x8;
+		int32_t Ret = 0xFFFF;
+		int32_t LastIteration = -1;
+
+		UEStruct ObjA = ObjectArray::GetByIndex<UEStruct>(0x4000).GetAddress();
+		UEStruct ObjB = ObjectArray::GetByIndex<UEStruct>(0x4001).GetAddress();
+
+		for (int i = 0; i < 3; LastIteration = -1, i++)
+		{
+			while (LastIteration == -1)
+			{
+				ObjA = ObjectArray::GetByIndex<UEStruct>(rand() % 0x4000).GetAddress();
+				ObjB = ObjectArray::GetByIndex<UEStruct>(rand() % 0x4000).GetAddress();
+
+				while (!ObjA.GetChild())
+					ObjA = ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
+
+				while (!ObjB.GetChild())
+					ObjB = ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
+
+
+				LastIteration = GetValidPointerOffset((uint8_t*)ObjA.GetChild(), (uint8_t*)ObjB.GetChild(), Off::UObject::Outer + 0x8, 0x40);
+
+				if (LastIteration != -1 && LastIteration < Ret)
+				{
+					Ret = LastIteration;
+					LastIteration = -1;
+					i = 0;
+				}
+			}
+		}
+
+		return Ret;
 	}
 
 	/* UEnum */

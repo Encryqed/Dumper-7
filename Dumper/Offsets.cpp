@@ -56,11 +56,11 @@ void Off::Init()
 {
 	OffsetFinder::InitUObjectOffsets();
 
-	Off::UField::Next = OffsetFinder::FindFieldNextOffset();
-	std::cout << "Off::UField::Next: " << Off::UField::Next << "\n";
-
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cout << "Off::UStruct::Children: " << Off::UStruct::Children << "\n";
+
+	Off::UField::Next = OffsetFinder::FindFieldNextOffset();
+	std::cout << "Off::UField::Next: " << Off::UField::Next << "\n";
 
 	Off::UStruct::SuperStruct = OffsetFinder::FindSuperOffset();
 	std::cout << "Off::UStruct::SuperStruct: " << Off::UStruct::SuperStruct << "\n";
