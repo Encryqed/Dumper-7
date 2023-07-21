@@ -106,7 +106,7 @@ void ObjectArray::Init()
 	{
 		IMAGE_SECTION_HEADER& CurrentSection = Sections[i];
 
-		if (std::string((char*)CurrentSection.Name) == ".idata")
+		if (std::string((char*)CurrentSection.Name) == ".srdata")
 		{
 			DataSection = (uint8_t*)(CurrentSection.VirtualAddress + ImageBase);
 			DataSize = CurrentSection.Misc.VirtualSize;
@@ -115,8 +115,8 @@ void ObjectArray::Init()
 
 	std::cout << "Searching for GObjects...\n\n";
 
-	std::cout << ((FChunkedFixedUObjectArray*)(ImageBase + 0x6C7EB90))->IsValid() << std::endl;
-
+	//Check if demo & retail is valid cause why the fuck not?
+	printf("is GObject Valid:\n[Demo] %i\n[Retail]: %i\n", ((FChunkedFixedUObjectArray*)(ImageBase + 0x6C7EB90))->IsValid(), ((FChunkedFixedUObjectArray*)(ImageBase + 0x7074AD0))->IsValid());
 
 	for (int i = 0; i < DataSize; i += 0x4)
 	{

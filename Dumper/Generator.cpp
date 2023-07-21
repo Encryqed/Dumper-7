@@ -19,7 +19,15 @@ void Generator::Init()
 	//ObjectArray::DecryptPtr = [](void* Objptr) -> uint8_t* { return (uint8_t*)(uint64_t(Objptr) ^ 0x8375); };
 
 	ObjectArray::Init();
-	FName::Init(0x2411BB0, 0x6EA4F00);
+
+	//Demo
+	//FName::Init(0x2411BB0, 0x6EA4F00);
+
+	//Retail
+	//Sig: 48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8B C0 C6 05 ? ? ? ? ? 48 8B 45 ? 48 8D 55 ? 48 C1 E8 ? 8D 0C 00 49 03 4C F8 ? E8 ? ? ? ? 8B 7D ? 85 FF 74 ? 8B 4D ? 8D 59 ? 85 C9 7F ? 41 8B DC
+	//        AppendString, FNamePool
+	FName::Init(0x25E1DB0, 0x729ABC0);
+
 	Off::Init();
 	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
 
