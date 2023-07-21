@@ -5,10 +5,10 @@
 
 namespace OffsetFinder
 {
-	template<int Alignement = 4, typename T, bool bStartAtZero = false>
-	inline int32_t FindOffset(std::vector<std::pair<void*, T>>& ObjectValuePair, int MaxOffset = 0x1A0)
+	template<int Alignement = 4, typename T>
+	inline int32_t FindOffset(std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = 0x28, int MaxOffset = 0x1A0)
 	{
-		int32_t HighestFoundOffset = bStartAtZero ? 0x0 : 0x28;
+		int32_t HighestFoundOffset = MinOffset;
 
 		for (int i = 0; i < ObjectValuePair.size(); i++)
 		{
@@ -60,7 +60,7 @@ namespace OffsetFinder
 			Infos.emplace_back(ObjectArray::GetByIndex(0x055).GetAddress(), 0x055);
 			Infos.emplace_back(ObjectArray::GetByIndex(0x123).GetAddress(), 0x123);
 
-			return FindOffset<4, int32_t, true>(Infos);
+			return FindOffset<4>(Infos, 0x0);
 		};
 
 		Off::UObject::Vft = 0x00;
@@ -404,7 +404,7 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindMemberInObjectFast(GameStateBase, "bReplicatedHasBegunPlay").GetAddress(), 0xFF });
 		Infos.push_back({ ObjectArray::FindMemberInObjectFast(PlayerController, "bAutoManageActiveCameraTarget").GetAddress(), 0xFF });
 
-		return (FindOffset<1>(Infos) - 0x3);
+		return (FindOffset<1>(Infos, Off::UProperty::Offset_Internal) - 0x3);
 	}
 
 	/* UObjectPropertyBase */

@@ -361,8 +361,6 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 			if (Object.GetClass().HasType(DelegateInlinePropertyClass))
 				continue;
 
-			std::cout << Object.GetFullName() << ": " << Object.GetAddress() << std::endl;
-
 			if(Object.Cast<UEEnumProperty>().GetSize() != 1)
 				UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
 		}

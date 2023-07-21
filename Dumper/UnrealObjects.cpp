@@ -704,8 +704,6 @@ std::string UEProperty::GetValidName() const
 
 std::string UEProperty::GetCppType() const
 {
-	static int a = 0;
-	std::cout << "count: " << a++ << std::endl;
 	EClassCastFlags TypeFlags = (GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags());
 
 	if (TypeFlags & EClassCastFlags::ByteProperty)
