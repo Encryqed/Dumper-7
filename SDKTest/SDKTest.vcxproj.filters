@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="SDK">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="SDK\CoreUObject">
+      <UniqueIdentifier>{ee373c4c-b1c2-4b25-9673-071af9da9a46}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDK\Engine">
+      <UniqueIdentifier>{0eecb4e0-d38c-4931-a91f-33343828c3c8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDK\Basic">
+      <UniqueIdentifier>{055fc70c-4d80-488a-998f-e47a3d717adf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MinHook">
+      <UniqueIdentifier>{a7c0b8f4-6bea-4e3e-bb88-0e0fc9ed768d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDK\GameSpecific">
+      <UniqueIdentifier>{6253ffcc-3738-4634-90f2-24885897d1bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="SDK\Additional">
+      <UniqueIdentifier>{b2e60682-cf04-4e0c-8810-c226bad1256a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\Basic.cpp">
+      <Filter>SDK\Basic</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\CoreUObject_functions.cpp">
+      <Filter>SDK\CoreUObject</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\Engine_functions.cpp">
+      <Filter>SDK\Engine</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MinHook.h">
+      <Filter>MinHook</Filter>
+    </ClInclude>
+    <ClInclude Include="PEHook.h" />
+    <ClInclude Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\Basic.hpp">
+      <Filter>SDK\Basic</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\CoreUObject_classes.hpp">
+      <Filter>SDK\CoreUObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\CoreUObject_parameters.hpp">
+      <Filter>SDK\CoreUObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\CoreUObject_structs.hpp">
+      <Filter>SDK\CoreUObject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\Engine_classes.hpp">
+      <Filter>SDK\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\Engine_parameters.hpp">
+      <Filter>SDK\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK\Engine_structs.hpp">
+      <Filter>SDK\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\PropertyFixup.hpp">
+      <Filter>SDK</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\Dumper-7\5.2.1-0+UE5-POLYGON\SDK.hpp">
+      <Filter>SDK</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="libMinHook.x64.lib">
+      <Filter>MinHook</Filter>
+    </Library>
+  </ItemGroup>
+</Project>
