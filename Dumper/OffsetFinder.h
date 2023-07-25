@@ -158,10 +158,10 @@ namespace OffsetFinder
 				ObjA = ObjectArray::GetByIndex<UEStruct>(rand() % 0x4000).GetAddress();
 				ObjB = ObjectArray::GetByIndex<UEStruct>(rand() % 0x4000).GetAddress();
 
-				while (!ObjA.GetChild())
+				while (!ObjA || !ObjA.GetChild())
 					ObjA = ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
 
-				while (!ObjB.GetChild())
+				while (!ObjB || !ObjB.GetChild())
 					ObjB = ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
 
 
