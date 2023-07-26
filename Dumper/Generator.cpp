@@ -432,7 +432,7 @@ void Generator::GenerateSDKHeader(const fs::path& SdkPath, int32 BiggestPackageI
 	std::ofstream HeaderStream(SdkPath / "SDK.hpp");
 
 	HeaderStream << "#pragma once\n\n";
-	HeaderStream << "// Made with <3 by me [Encryqed] && you [Fischsalat]\n\n";
+	HeaderStream << "// Made with <3 by me [Encryqed] && you [Fischsalat] + him [TempAccountNull]\n\n";
 
 	HeaderStream << std::format("// {}\n", Settings::GameName);
 	HeaderStream << std::format("// {}\n\n", Settings::GameVersion);

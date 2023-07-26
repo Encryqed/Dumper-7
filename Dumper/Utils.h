@@ -4,6 +4,122 @@
 #include <vector>
 #include <string>
 
+struct CLIENT_ID
+{
+	HANDLE UniqueProcess;
+	HANDLE UniqueThread;
+};
+
+struct TEB
+{
+	NT_TIB NtTib;
+	PVOID EnvironmentPointer;
+	CLIENT_ID ClientId;
+	PVOID ActiveRpcHandle;
+	PVOID ThreadLocalStoragePointer;
+	struct PEB* ProcessEnvironmentBlock;
+};
+
+struct PEB_LDR_DATA
+{
+	ULONG Length;
+	BOOLEAN Initialized;
+	HANDLE SsHandle;
+	LIST_ENTRY InLoadOrderModuleList;
+	LIST_ENTRY InMemoryOrderModuleList;
+	LIST_ENTRY InInitializationOrderModuleList;
+	PVOID EntryInProgress;
+	BOOLEAN ShutdownInProgress;
+	HANDLE ShutdownThreadId;
+};
+
+struct PEB
+{
+	BOOLEAN InheritedAddressSpace;
+	BOOLEAN ReadImageFileExecOptions;
+	BOOLEAN BeingDebugged;
+	union
+	{
+		BOOLEAN BitField;
+		struct
+		{
+			BOOLEAN ImageUsesLargePages : 1;
+			BOOLEAN IsProtectedProcess : 1;
+			BOOLEAN IsImageDynamicallyRelocated : 1;
+			BOOLEAN SkipPatchingUser32Forwarders : 1;
+			BOOLEAN IsPackagedProcess : 1;
+			BOOLEAN IsAppContainer : 1;
+			BOOLEAN IsProtectedProcessLight : 1;
+			BOOLEAN SpareBits : 1;
+		};
+	};
+	HANDLE Mutant;
+	PVOID ImageBaseAddress;
+	PEB_LDR_DATA* Ldr;
+};
+
+struct UNICODE_STRING
+{
+	USHORT Length;
+	USHORT MaximumLength;
+	PWCH Buffer;
+};
+
+struct LDR_DATA_TABLE_ENTRY
+{
+	LIST_ENTRY InLoadOrderLinks;
+	LIST_ENTRY InMemoryOrderLinks;
+	union
+	{
+		LIST_ENTRY InInitializationOrderLinks;
+		LIST_ENTRY InProgressLinks;
+	};
+	PVOID DllBase;
+	PVOID EntryPoint;
+	ULONG SizeOfImage;
+	UNICODE_STRING FullDllName;
+	UNICODE_STRING BaseDllName;
+}; 
+
+inline _TEB* _NtCurrentTeb()
+{
+	return (struct _TEB*)__readgsqword(((LONG)__builtin_offsetof(NT_TIB, Self)));
+}
+
+inline uintptr_t GetModuleSize()
+{
+	PEB* ProcessEnvironmentBlock = ((PEB*)((TEB*)((TEB*)_NtCurrentTeb())->ProcessEnvironmentBlock));
+	PEB_LDR_DATA* Ldr = ProcessEnvironmentBlock->Ldr;
+
+	int i = 0;
+
+	LIST_ENTRY** Start = (LIST_ENTRY**)&Ldr->InMemoryOrderModuleList;
+	for (LIST_ENTRY* P = *Start; P; P = P->Flink)
+	{
+		LDR_DATA_TABLE_ENTRY* A = (LDR_DATA_TABLE_ENTRY*)P;
+
+		if (!A || i++ == 0x20)
+			break;
+
+		std::cout << "DllBase: " << A->DllBase << std::endl;
+		std::cout << "EntryPoint: " << A->EntryPoint << std::endl;
+		std::cout << "Size: " << std::hex << A->SizeOfImage << std::endl;
+
+		std::wstring DllName(A->FullDllName.Buffer, A->FullDllName.Length >> 1);
+		std::string DDLName = std::string(DllName.begin(), DllName.end());
+
+		std::cout << DDLName << "\n" << std::endl;
+	}
+
+	return 0;
+}
+
+inline uintptr_t GetImageBase()
+{
+	PEB* ProcessEnvironmentBlock = ((PEB*)((TEB*)((TEB*)_NtCurrentTeb())->ProcessEnvironmentBlock));
+	return (uintptr_t)ProcessEnvironmentBlock->ImageBaseAddress;
+}
+
 static bool IsBadReadPtr(void* p)
 {
 	MEMORY_BASIC_INFORMATION mbi;
@@ -80,7 +196,7 @@ static inline void* FindPatternInRange(const char* Signature, uint8_t* Start, ui
 
 static inline void* FindPattern(const char* Signature, bool bRelative = false, uint32_t Offset = 0, bool bSearchAllSegments = false)
 {
-	uint8_t* ImageBase = reinterpret_cast<uint8_t*>(GetModuleHandle(NULL));
+	uint8_t* ImageBase = (uint8_t*)GetImageBase();
 
 	const auto DosHeader = (PIMAGE_DOS_HEADER)ImageBase;
 	const auto NtHeaders = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
@@ -252,7 +368,7 @@ public:
 template<typename Type = const char*>
 inline MemAddress FindByString(Type RefStr)
 {
-	uintptr_t ImageBase = uintptr_t(GetModuleHandle(0));
+	uintptr_t ImageBase = GetImageBase();
 	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
 	PIMAGE_NT_HEADERS NtHeader = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
 	PIMAGE_SECTION_HEADER Sections = IMAGE_FIRST_SECTION(NtHeader);

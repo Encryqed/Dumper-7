@@ -66,10 +66,10 @@ struct FFixedUObjectArray
 		if (Num > Max)
 			return false;
 
-		if (Max > 4000000)
+		if (Max > 0x400000)
 			return false;
 
-		if (Num < 100000)
+		if (Num < 0x1000)
 			return false;
 
 		if (IsBadReadPtr(ObjectsButDecrypted))
@@ -90,45 +90,50 @@ uint32 ObjectArray::NumElementsPerChunk = 0x10000;
 uint32 ObjectArray::SizeOfFUObjectItem = 0x18;
 
 /* We don't speak about this function... */
-void ObjectArray::Init()
+void ObjectArray::Init(bool bScanAllMemory)
 {
-	std::cout << "\nDumper-7 by me & you\n\n\n";
+	if (!bScanAllMemory)
+		std::cout << "\nDumper-7 by me, you & him\n\n\n";
 
-	uintptr_t ImageBase = uintptr_t(GetModuleHandle(0));
+	uintptr_t ImageBase = GetImageBase();
 	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
 	PIMAGE_NT_HEADERS NtHeader = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
 	PIMAGE_SECTION_HEADER Sections = IMAGE_FIRST_SECTION(NtHeader);
 
-	uint8_t* DataSection = nullptr;
-	DWORD DataSize = 0;
+	uint8_t* SearchBase = (uint8_t*)ImageBase;
+ 	DWORD SearchRange = NtHeader->OptionalHeader.SizeOfImage;
 
-	for (int i = 0; i < NtHeader->FileHeader.NumberOfSections; i++)
+	if (!bScanAllMemory)
 	{
-		IMAGE_SECTION_HEADER& CurrentSection = Sections[i];
-
-		if (std::string((char*)CurrentSection.Name) == ".data")
+		for (int i = 0; i < NtHeader->FileHeader.NumberOfSections; i++)
 		{
-			DataSection = (uint8_t*)(CurrentSection.VirtualAddress + ImageBase);
-			DataSize = CurrentSection.Misc.VirtualSize;
+			IMAGE_SECTION_HEADER& CurrentSection = Sections[i];
+
+			if (std::string((char*)CurrentSection.Name) == ".data")
+			{
+				SearchBase = (uint8_t*)(CurrentSection.VirtualAddress + ImageBase);
+				SearchRange = CurrentSection.Misc.VirtualSize;
+			}
 		}
 	}
 
-	std::cout << "Searching for GObjects...\n\n";
+	if (!bScanAllMemory)
+		std::cout << "Searching for GObjects...\n\n";
 
-	for (int i = 0; i < DataSize; i += 0x4)
+	for (int i = 0; i < SearchRange; i += 0x4)
 	{
-		auto FixedArray = reinterpret_cast<FFixedUObjectArray*>(DataSection + i);
-		auto ChunkedArray = reinterpret_cast<FChunkedFixedUObjectArray*>(DataSection + i);
+		auto FixedArray = reinterpret_cast<FFixedUObjectArray*>(SearchBase + i);
+		auto ChunkedArray = reinterpret_cast<FChunkedFixedUObjectArray*>(SearchBase + i);
 
 		if (FixedArray->IsValid())
 		{
-			GObjects = DecryptPtr(DataSection + i);
+			GObjects = DecryptPtr(SearchBase + i);
 			Off::FUObjectArray::Num = 0xC;
 			NumElementsPerChunk = -1;
 
-			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
+			Off::InSDK::GObjects = uintptr_t(SearchBase + i) - ImageBase;
 
-			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
+			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 			{
@@ -154,14 +159,14 @@ void ObjectArray::Init()
 		}
 		else if (ChunkedArray->IsValid())
 		{
-			GObjects = DecryptPtr(DataSection + i);
+			GObjects = DecryptPtr(SearchBase + i);
 			Off::FUObjectArray::Num = 0x14;
 			NumElementsPerChunk = 0x10000;
 			SizeOfFUObjectItem = 0x18;
 
-			Off::InSDK::GObjects = uintptr_t(DataSection + i) - ImageBase;
+			Off::InSDK::GObjects = uintptr_t(SearchBase + i) - ImageBase;
 
-			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n";
+			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) -> void*
 			{
@@ -176,8 +181,9 @@ void ObjectArray::Init()
 
 			for (int i = 0x8; i <= 0x30; i += 4)
 			{
-				void* ObjPtr = *(void**)(**(uint8***)(GObjects)+i);
-				if (!IsBadReadPtr(ObjPtr) && !IsBadReadPtr(*(void**)ObjPtr))
+				void* SecondObject = *(void**)(**(uint8***)(GObjects) + i);
+				void* ThirdObject = *(void**)(**(uint8***)(GObjects) + (i * 2));
+				if (!IsBadReadPtr(SecondObject) && !IsBadReadPtr(*(void**)SecondObject) && !IsBadReadPtr(ThirdObject) && !IsBadReadPtr(*(void**)ThirdObject))
 				{
 					SizeOfFUObjectItem = i;
 					break;
@@ -213,12 +219,18 @@ void ObjectArray::Init()
 		}
 	}
 
+	if (!bScanAllMemory)
+	{
+		ObjectArray::Init(true);
+		return;
+	}
+
 	std::cout << "\nGObjects couldn't be found!\n\n\n";
 }
 
 void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChunked)
 {
-	GObjects = DecryptPtr((void*)(uintptr_t(GetModuleHandle(0)) + GObjectsOffset));
+	GObjects = DecryptPtr((void*)(GetImageBase() + GObjectsOffset));
 
 	Off::InSDK::GObjects = GObjectsOffset;
 

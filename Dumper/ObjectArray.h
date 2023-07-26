@@ -16,7 +16,7 @@ public:
 	static inline uint8_t* (*DecryptPtr)(void* ObjPtr) = [](void* Ptr) -> uint8_t* { return (uint8_t*)Ptr; };
 
 public:
-	static void Init();
+	static void Init(bool bScanAllMemory = false);
 
 	static void Init(int32 GObjectsOffset, int32 NumElementsPerChunk, bool bIsChunked);
 
