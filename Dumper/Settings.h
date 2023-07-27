@@ -41,6 +41,8 @@ namespace Settings
 
 		inline bool bUseFProperty = false;
 
+		inline bool bUseNamePool = false;
+
 		inline bool bUseCasePreservingName = false;
 
 		inline bool bUseMaskForFieldOwner = false;

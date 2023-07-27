@@ -1,5 +1,4 @@
 #include "FileWriter.h"
-#include "Generator.h"
 #include "Settings.h"
 
 FileWriter::FileWriter(const fs::path& FilePath)

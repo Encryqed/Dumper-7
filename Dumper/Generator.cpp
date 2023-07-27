@@ -1,4 +1,5 @@
 #include "Generator.h"
+#include "NameArray.h"
 
 #include <future>
 
@@ -19,9 +20,11 @@ void Generator::Init()
 	//ObjectArray::DecryptPtr = [](void* Objptr) -> uint8_t* { return (uint8_t*)(uint64_t(Objptr) ^ 0x8375); };
 
 	ObjectArray::Init();
+	//NameArray::Init();
+
 	FName::Init();
 	Off::Init();
-	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
+	Off::InSDK::InitPE(0x3E); //Must be last, relies on offsets initialized in Off::Init()
 
 	InitPredefinedMembers();
 	InitPredefinedFunctions();

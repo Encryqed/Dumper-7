@@ -26,6 +26,12 @@ namespace Off
 		inline int32 Num;
 	}
 
+	namespace NameArray
+	{
+		inline int32 ChunkCount;
+		inline int32 NumElements;
+	}
+
 	namespace FField
 	{
 		// Fixed for CasePreserving FNames by OffsetFinder::FixupHardcodedOffsets();
@@ -52,6 +58,21 @@ namespace Off
 		// These values initialized by OffsetFinder::InitUObjectOffsets()
 		inline int32 CompIdx;
 		inline int32 Number;
+	}
+
+	namespace FNameEntry
+	{
+		// These values initialized by NameArray::Init()
+		namespace NameArray
+		{
+			inline int32 StringOffset;
+			inline int32 IndexOffset;
+		}
+
+		namespace NamePool
+		{
+
+		}
 	}
 
 	namespace UObject

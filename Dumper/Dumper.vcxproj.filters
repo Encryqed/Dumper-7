@@ -2,9 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="UnrealTypes.cpp">
-      <Filter>Engine\Private</Filter>
-    </ClCompile>
     <ClCompile Include="ObjectArray.cpp">
       <Filter>Engine\Private</Filter>
     </ClCompile>
@@ -25,6 +22,12 @@
     </ClCompile>
     <ClCompile Include="Package.cpp">
       <Filter>Generator\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="NameArray.cpp">
+      <Filter>Engine\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="UnrealTypes.cpp">
+      <Filter>Engine\Private</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -86,6 +89,9 @@
     </ClInclude>
     <ClInclude Include="FileWriter.h">
       <Filter>Generator\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="NameArray.h">
+      <Filter>Engine\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

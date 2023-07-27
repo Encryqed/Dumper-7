@@ -4,13 +4,18 @@
 
 void Off::InSDK::InitPE()
 {
-	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
+	void* PeAddr = (void*)FindByWString2(L"Accessed None").FindNextFunctionStart();
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
+
+	std::cout << (void*)FindByWString2(L"Accessed None") << std::endl;
+	std::cout << PeAddr << std::endl;
 
 	Off::InSDK::PEOffset = uintptr_t(PeAddr) - GetImageBase();
 
 	for (int i = 0; i < 0x150; i++)
 	{
+		std::cout << "index: " << i << " " << Vft[i] << std::endl;
+
 		if (Vft[i] == PeAddr)
 		{
 			Off::InSDK::PEIndex = i;

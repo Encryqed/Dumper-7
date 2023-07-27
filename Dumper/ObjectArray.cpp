@@ -225,7 +225,8 @@ void ObjectArray::Init(bool bScanAllMemory)
 		return;
 	}
 
-	std::cout << "\nGObjects couldn't be found!\n\n\n";
+	if (!bScanAllMemory)
+		std::cout << "\nGObjects couldn't be found!\n\n\n";
 }
 
 void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChunked)
