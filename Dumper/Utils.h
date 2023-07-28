@@ -121,6 +121,14 @@ inline uintptr_t GetImageBase()
 	return (uintptr_t)ProcessEnvironmentBlock->ImageBaseAddress;
 }
 
+inline bool IsInProcessRange(uintptr_t Address)
+{
+	static uintptr_t ImageBase = GetImageBase();
+	static PIMAGE_NT_HEADERS NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase)->e_lfanew);
+
+	return Address > ImageBase && Address < (NtHeader->OptionalHeader.SizeOfImage + ImageBase);
+}
+
 static bool IsBadReadPtr(void* p)
 {
 	MEMORY_BASIC_INFORMATION mbi;
@@ -447,8 +455,9 @@ inline MemAddress FindByWString(const wchar_t* RefStr)
 	return FindByString<const wchar_t*>(RefStr);
 }
 
+/* Slower than FindByString */
 template<typename Type = const char*>
-inline MemAddress FindByString2(Type RefStr)
+inline MemAddress FindByStringInAllSections(Type RefStr)
 {
 	uintptr_t ImageBase = GetImageBase();
 	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
@@ -458,11 +467,6 @@ inline MemAddress FindByString2(Type RefStr)
 
 	uint8_t* SearchStart = (uint8_t*)ImageBase;
 	DWORD SearchRange = SizeOfImage;
-
-	static auto IsInProcessRange = [=](uintptr_t Address)
-	{
-		return Address > ImageBase && Address < (SizeOfImage + ImageBase);
-	};
 
 	for (int i = 0; i < SearchRange; i++)
 	{
@@ -476,7 +480,7 @@ inline MemAddress FindByString2(Type RefStr)
 
 			if constexpr (std::is_same<Type, const char*>())
 			{
-				if (strcmp((const char*)RefStr, StrPtr) == 0)
+				if (strcmp((const char*)RefStr, (const char*)StrPtr) == 0)
 				{
 					//std::cout << "FoundStr ref: " << (const char*)(SearchStart + i) << "\n";
 
@@ -500,9 +504,10 @@ inline MemAddress FindByString2(Type RefStr)
 	return nullptr;
 }
 
-inline MemAddress FindByWString2(const wchar_t* RefStr)
+/* Slower than FindByWString */
+inline MemAddress FindByWStringInAllSections(const wchar_t* RefStr)
 {
-	return FindByString2<const wchar_t*>(RefStr);
+	return FindByStringInAllSections<const wchar_t*>(RefStr);
 }
 
 

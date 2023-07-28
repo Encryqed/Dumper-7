@@ -4,46 +4,58 @@
 
 void Off::InSDK::InitPE()
 {
-	void* PeAddr = (void*)FindByWString2(L"Accessed None").FindNextFunctionStart();
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
-	std::cout << (void*)FindByWString2(L"Accessed None") << std::endl;
-	std::cout << PeAddr << std::endl;
-
-	Off::InSDK::PEOffset = uintptr_t(PeAddr) - GetImageBase();
-
-	for (int i = 0; i < 0x150; i++)
+	auto Resolve32BitRelativeJump = [](void* FunctionPtr) -> void*
 	{
-		std::cout << "index: " << i << " " << Vft[i] << std::endl;
-
-		if (Vft[i] == PeAddr)
+		uint8_t* Address = reinterpret_cast<uint8_t*>(FunctionPtr);
+		if (*reinterpret_cast<uint8_t*>(FunctionPtr) == 0xE9)
 		{
-			Off::InSDK::PEIndex = i;
-			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
-			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
-			
-			return;
-		}
-	}
+			void* Ret = ((Address + 5) + *reinterpret_cast<int32_t*>(Address + 1));
 
-	// If PE wasn't found by string ref, use a sig (or two)
+			if (IsInProcessRange(uintptr_t(Ret)))
+				return Ret;
+		}
+
+		return FunctionPtr;
+	};
 
 	for (int i = 0; i < 0x150; i++)
 	{
 		if (!Vft[i])
 			break;
 
-		if (FindPatternInRange({ 0xF7, -1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, (uint8*)Vft[i], 0x400)
-		&&  FindPatternInRange({ 0xF7, -1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x80, 0x0, 0x0 }, (uint8*)Vft[i], 0x400))
+		if (FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, (uint8*)Resolve32BitRelativeJump(Vft[i]), 0x400)
+		&&  FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, (uint8*)Resolve32BitRelativeJump(Vft[i]), 0x400))
 		{
-			Off::InSDK::PEOffset = uintptr_t(Vft[i]) - GetImageBase();
 			Off::InSDK::PEIndex = i;
+			Off::InSDK::PEOffset = uintptr_t(Vft[i]) - GetImageBase();
 
 			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
 			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
 			return;
 		}
 	}
+
+	void* PeAddr = (void*)FindByWStringInAllSections(L"Accessed None").FindNextFunctionStart();
+
+	for (int i = 0; i < 0x150; i++)
+	{
+		if (!PeAddr)
+			break;
+
+		if (Resolve32BitRelativeJump(Vft[i]) == PeAddr)
+		{
+			Off::InSDK::PEIndex = i;
+			Off::InSDK::PEOffset = uintptr_t(PeAddr) - GetImageBase();
+
+			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
+			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
+			return;
+		}
+	}
+
+	// If PE wasn't found by string ref, use a sig (or two)
 }
 
 void Off::InSDK::InitPE(int32 Index)
@@ -62,6 +74,8 @@ void Off::InSDK::InitPE(int32 Index)
 void Off::Init()
 {
 	OffsetFinder::InitUObjectOffsets();
+
+	std::cout << std::hex;
 
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cout << "Off::UStruct::Children: " << Off::UStruct::Children << "\n";

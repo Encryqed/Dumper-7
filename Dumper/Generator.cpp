@@ -24,7 +24,7 @@ void Generator::Init()
 
 	FName::Init();
 	Off::Init();
-	Off::InSDK::InitPE(0x3E); //Must be last, relies on offsets initialized in Off::Init()
+	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
 
 	InitPredefinedMembers();
 	InitPredefinedFunctions();

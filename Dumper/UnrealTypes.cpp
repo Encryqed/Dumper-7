@@ -11,9 +11,9 @@ FName::FName(void* Ptr)
 
 void FName::Init()
 {
-	std::array<const char*, 4> PossibleSigs = { "48 8D ? ? 48 8D ? ? E8", "48 8D ? ? ? 48 8D ? ? E8", "48 8D ? ? 49 8B ? E8", "48 8D ? ? ? 49 8B ? E8" };
+	constexpr std::array<const char*, 4> PossibleSigs = { "48 8D ? ? 48 8D ? ? E8", "48 8D ? ? ? 48 8D ? ? E8", "48 8D ? ? 49 8B ? E8", "48 8D ? ? ? 49 8B ? E8" };
 
-	auto StringRef = FindByString("ForwardShadingQuality_");
+	auto StringRef = FindByStringInAllSections("ForwardShadingQuality_");
 
 	int i = 0;
 	while (!AppendString && i < PossibleSigs.size())
