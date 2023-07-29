@@ -30,7 +30,13 @@ private:
 class NameArray
 {
 private:
+	static constexpr uint32 FNameBlockOffsetBits = 0x10;
+	static constexpr uint32 FNameBlockMaxOffset = 0x1 << FNameBlockOffsetBits;
+
+private:
 	static uint8* GNames;
+
+	static inline int64 NameEntryStride = 0x0;
 
 	static inline void* (*ByIndex)(void* NamesArray, int32 ComparisonIndex) = nullptr;
 

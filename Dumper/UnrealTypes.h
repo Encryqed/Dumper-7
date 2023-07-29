@@ -115,6 +115,8 @@ public:
 		{
 			return Data;
 		}
+
+		return L"";
 	}
 
 	inline std::string ToString()
@@ -124,6 +126,7 @@ public:
 			std::wstring WData(Data);
 			return std::string(WData.begin(), WData.end());
 		}
+
 		return "";
 	}
 };

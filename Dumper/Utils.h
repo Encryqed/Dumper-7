@@ -203,7 +203,7 @@ static inline void* FindPatternInRange(const char* Signature, uint8_t* Start, ui
 	return FindPatternInRange(patternToByte(Signature), Start, Range, bRelative, Offset);
 }
 
-static inline void* FindPattern(const char* Signature, bool bRelative = false, uint32_t Offset = 0, bool bSearchAllSegments = false)
+static inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearchAllSegments = false)
 {
 	uint8_t* ImageBase = (uint8_t*)GetImageBase();
 
@@ -232,10 +232,10 @@ static inline void* FindPattern(const char* Signature, bool bRelative = false, u
 			}
 		}
 
-		return FindPatternInRange(Signature, TextSection, TextSize, bRelative, Offset);
+		return FindPatternInRange(Signature, TextSection, TextSize, Offset != 0x0, Offset);
 	}
 
-	return FindPatternInRange(Signature, ImageBase, SizeOfImage, bRelative, Offset);
+	return FindPatternInRange(Signature, ImageBase, SizeOfImage, Offset != 0x0, Offset);
 }
 
 struct MemAddress

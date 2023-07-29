@@ -1022,7 +1022,10 @@ protected:
 
 public:
 
-	TArray() = default;
+	inline TArray()
+		:NumElements(0), MaxElements(0), Data(nullptr)
+	{
+	}
 
 	inline TArray(int32 Size)
 		:NumElements(0), MaxElements(Size), Data(reinterpret_cast<T*>(malloc(sizeof(T) * Size)))
