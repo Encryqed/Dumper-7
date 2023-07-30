@@ -335,6 +335,7 @@ namespace OffsetFinder
 
 		UEStruct Guid = ObjectArray::FindObjectFast("Guid", EClassCastFlags::Struct).Cast<UEStruct>();
 
+		// FField::Next has wrong offset, fix that shit
 		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Guid, "A").GetAddress(), 0x04 });
 		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Guid, "B").GetAddress(), 0x04 });
 		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Guid, "C").GetAddress(), 0x04 });

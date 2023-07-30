@@ -10,9 +10,9 @@ private:
 	static constexpr int32 NameWideMask = 0x1;
 
 private:
-	static inline std::string(*GetStr)(uint8* NameEntry) = nullptr;
-
 	static inline int32 FNameEntryLengthShiftCount = 0x0;
+
+	static inline std::string(*GetStr)(uint8* NameEntry) = nullptr;
 
 private:
 	uint8* Address;
@@ -34,7 +34,10 @@ private:
 class NameArray
 {
 private:
-	static constexpr uint32 FNameBlockOffsetBits = 0x10;
+	/// <summary>
+	/// switch this back to 0x10 or implement it properly, retard
+	/// </summary>
+	static constexpr uint32 FNameBlockOffsetBits = 0x12; // 0x10
 	static constexpr uint32 FNameBlockMaxOffset = 0x1 << FNameBlockOffsetBits;
 
 private:

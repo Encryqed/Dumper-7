@@ -22,7 +22,7 @@ void FName::Init()
 		i++;
 	}
 
-	Off::InSDK::AppendNameToString = uintptr_t(AppendString) - GetImageBase();
+	Off::InSDK::AppendNameToString = AppendString ? uintptr_t(AppendString) - GetImageBase() : 0x0;
 
 	if (!AppendString)
 	{

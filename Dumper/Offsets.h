@@ -14,15 +14,19 @@ namespace Off
 
 		inline int32 PEIndex;
 		inline int32 PEOffset;
+
 		inline int32 GObjects;
 		inline int32 ChunkSize;
 		inline int32 FUObjectItemSize;
+		inline int32 FUObjectItemInitialOffset;
+
 		inline int32 AppendNameToString;
 		inline int32 FNameSize;
 	}
 
 	namespace FUObjectArray
 	{
+		inline int32 Ptr;
 		inline int32 Num;
 	}
 

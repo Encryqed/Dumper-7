@@ -111,7 +111,7 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 
 	int32 PerChunk = 0x0;
 
-	if (!NameArray)
+	if (!NameArray ||IsBadReadPtr (NameArray))
 		return false;
 
 	for (int i = 0; i < 0x800; i += 0x8)
@@ -202,24 +202,39 @@ void NameArray::Init()
 
 	std::cout << "Searching for GNames...\n\n";
 
-	uint8_t** GNamesAddress = reinterpret_cast<uint8_t**>(FindPattern("48 89 3D ? ? ? ? 8B 87 ? ? ? ? 05 ? ? ? ? 99 81 E2 ? ? ? ?", 3, true));
+	struct Signature
+	{
+		const char* Pattern;
+		int Relative;
+	};
 
-	if (!GNamesAddress)
-		GNamesAddress = reinterpret_cast<uint8_t**>(FindPattern("48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8B C0 C6 05", 3, true));
+	std::array<Signature, 3> Signatures = { {
+		{ "48 89 3D ? ? ? ? 8B 87 ? ? ? ? 05 ? ? ? ? 99 81 E2 ? ? ? ?", 3 }, // TNameEntryArray
+		{ "48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8B C0 C6 05", 3 }, // FNamePool
+		{ "48 8D 05 ? ? ? ? 48 83 C4 ? 5F C3 48 89 5C 24", 3 } // FNamePool Back4Blood
+	}};
+
+	uint8_t** GNamesAddress = nullptr;
+
+	for (auto Sig : Signatures)
+	{
+		if (GNamesAddress = reinterpret_cast<uint8_t**>(FindPattern(Sig.Pattern, Sig.Relative, true)))
+			break;
+	}
 
 	if (NameArray::InitializeNameArray(*GNamesAddress))
 	{
 		GNames = *GNamesAddress;
 		Settings::Internal::bUseNamePool = false;
 		FNameEntry::Init();
-		std::cout << "Found NameArray at offset: 0x" << std::hex << (reinterpret_cast<uint8_t*>(GNamesAddress) - ImageBase) << "\n" << std::endl;
+		std::cout << "Found NameArray at offset: 0x" << std::hex << (reinterpret_cast<uintptr_t>(GNamesAddress) - ImageBase) << "\n" << std::endl;
 		return;
 	}
 	else if (NameArray::InitializeNamePool(reinterpret_cast<uint8_t*>(GNamesAddress)))
 	{
 		GNames = reinterpret_cast<uint8_t*>(GNamesAddress);
 		Settings::Internal::bUseNamePool = true;
-		std::cout << "Found NamePool at offset: 0x" << std::hex << (reinterpret_cast<uint8_t*>(GNamesAddress) - ImageBase) << "\n" << std::endl;
+		std::cout << "Found NamePool at offset: 0x" << std::hex << (reinterpret_cast<uintptr_t>(GNamesAddress) - ImageBase) << "\n" << std::endl;
 		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
 		return;
 	}

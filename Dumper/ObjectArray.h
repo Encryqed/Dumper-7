@@ -9,11 +9,16 @@ private:
 	static uint8* GObjects;
 	static uint32 NumElementsPerChunk;
 	static uint32 SizeOfFUObjectItem;
+	static uint32 FUObjectItemInitialOffset;
 
-	static inline void*(*ByIndex)(void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) = nullptr;
+	static inline void*(*ByIndex)(void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) = nullptr;
 
 public:
 	static inline uint8_t* (*DecryptPtr)(void* ObjPtr) = [](void* Ptr) -> uint8* { return (uint8*)Ptr; };
+
+private:
+	static void InitializeFUObjectItem(uint8_t* FirstItemPtr);
+	static void InitializeChunkSize(uint8_t* GObjects);
 
 public:
 	static void Init(bool bScanAllMemory = false);
