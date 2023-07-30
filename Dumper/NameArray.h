@@ -10,9 +10,12 @@ private:
 	static constexpr int32 NameWideMask = 0x1;
 
 private:
-	uint8* Address;
-
 	static inline std::string(*GetStr)(uint8* NameEntry) = nullptr;
+
+	static inline int32 FNameEntryLengthShiftCount = 0x0;
+
+private:
+	uint8* Address;
 
 public:
 	FNameEntry() = default;
@@ -24,7 +27,8 @@ public:
 	void* GetAddress();
 
 private:
-	static void Init();
+	//Optional to avoid code duplication for FNamePool
+	static void Init(uint8_t* FirstChunkPtr = nullptr, int64 NameEntryStringOffset = 0x0);
 };
 
 class NameArray

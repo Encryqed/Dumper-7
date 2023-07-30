@@ -72,7 +72,7 @@ namespace Off
 		namespace NamePool
 		{
 			inline int32 HeaderOffset;
-			inline int32 FNameEntryLengthShiftCount;
+			inline int32 StringOffset;
 		}
 	}
 

@@ -23,19 +23,43 @@ void* FNameEntry::GetAddress()
 	return Address;
 }
 
-void FNameEntry::Init()
+void FNameEntry::Init(uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 {
 	if (Settings::Internal::bUseNamePool)
 	{
-		// Missing
+		constexpr int64 NoneStrLen = 0x4;
+		constexpr int64 BytePropertyStrLen = 0xC;
+
+		Off::FNameEntry::NamePool::StringOffset = NameEntryStringOffset;
+		Off::FNameEntry::NamePool::HeaderOffset = NameEntryStringOffset == 6 ? 4 : 0;
+
+		uint16 BytePropertyHeader = *reinterpret_cast<uint16*>(*reinterpret_cast<uint8**>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen);
+
+		while (BytePropertyHeader != BytePropertyStrLen)
+		{			
+			FNameEntryLengthShiftCount++;
+			BytePropertyHeader >>= 1;
+		}
 
 		GetStr = [](uint8* NameEntry) -> std::string
 		{
-			auto OffsetHeader = 0;
-			const int32 Len = reinterpret_cast<uint16>(NameEntry + OffsetHeader) << ;
+			const uint16 HeaderWithoutNumber = *reinterpret_cast<uint16*>(NameEntry + Off::FNameEntry::NamePool::HeaderOffset);
+			const int32 NameLen = HeaderWithoutNumber >> FNameEntry::FNameEntryLengthShiftCount;
 
-			// Missing
-			return "Eat ass, and fuck off!";
+			if (NameLen == 0)
+			{
+				const int32 EntryIdOffset = Off::FNameEntry::NamePool::StringOffset + ((Off::FNameEntry::NamePool::StringOffset == 6) * 2);
+
+				return NameArray::GetNameEntry(*reinterpret_cast<int32*>(NameEntry + EntryIdOffset)).GetString();
+			}
+
+			if (HeaderWithoutNumber & NameWideMask)
+			{
+				std::wstring WString(reinterpret_cast<const wchar_t*>(NameEntry + Off::FNameEntry::NamePool::StringOffset), NameLen);
+				return std::string(WString.begin(), WString.end());
+			}
+
+			return std::string(reinterpret_cast<const char*>(NameEntry + Off::FNameEntry::NamePool::StringOffset), NameLen);
 		};
 	}
 	else
@@ -66,8 +90,8 @@ void FNameEntry::Init()
 
 		GetStr = [](uint8* NameEntry) -> std::string
 		{
-			int32 NameIdx = *reinterpret_cast<int32*>(NameEntry + Off::FNameEntry::NameArray::IndexOffset);
-			void* NameString = reinterpret_cast<void*>(NameEntry + Off::FNameEntry::NameArray::StringOffset);
+			const int32 NameIdx = *reinterpret_cast<int32*>(NameEntry + Off::FNameEntry::NameArray::IndexOffset);
+			const void* NameString = reinterpret_cast<void*>(NameEntry + Off::FNameEntry::NameArray::StringOffset);
 
 			if (NameIdx & NameWideMask)
 			{
@@ -130,18 +154,16 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 
 bool NameArray::InitializeNamePool(uint8_t* NamePool)
 {
+	constexpr uint64 CoreUObjAsUint64 = 0x726F432F74706972; // little endian "ript/Cor" ["/Script/CoreUObject"]
+	constexpr uint32 NoneAsUint32 = 0x656E6F4E; // little endian "None"
+
+	constexpr int64 CoreUObjectStringLength = sizeof("/S");
+
 	uint8_t** ChunkPtr = reinterpret_cast<uint8_t**>(NamePool + 0x10);
 
 	// "/Script/CoreUObject"
 	uint8_t* CoreUObjectFNameEntry = nullptr;
-
-	int32 FNameEntryHeaderSize = 0x0;
-
-	constexpr uint64 CoreUObjAsUint64 = 0x726F432F74706972; // little endian "ript/Cor" ["/Script/CoreUObject"]
-	constexpr uint32 NoneAsUint32 = 0x656E6F4E; // little endian "None"
-
-	constexpr int32 CoreUObjectStringLength = sizeof("/S");
-
+	int64 FNameEntryHeaderSize = 0x0;
 
 	for (int i = 0; i < 0x1000; i++)
 	{
@@ -158,22 +180,6 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 
 	NameEntryStride = FNameEntryHeaderSize == 2 ? 2 : 4;
 
-	constexpr int64 NoneStrLeng = 0x4; //sizeof("None") - sizeof('\0');
-	constexpr int64 BytePropertyStrLeng = 0xC; //sizeof("ByteProperty") - sizeof('\0');
-
-	// if the first FNameEntry "None" ends at offset 6 we can be sure stride = 2. Offset 6 cannot be achieved by multipliying stride = 4 with an integer ( 6 / 4 = 1.5 [flaot)])
-	int64 FNameEntryLengthShiftCount = 0x0;
-
-	int32 HeaderOffset = FNameEntryHeaderSize == 6 ? 4 : 0; // check if Header includes ComparisonId (we don't care about it)
-
-	uint16 BytePropertyHeader = *reinterpret_cast<uint16*>(*ChunkPtr + FNameEntryHeaderSize + NoneStrLeng + HeaderOffset);
-
-	while (BytePropertyHeader != BytePropertyStrLeng)
-	{
-		FNameEntryLengthShiftCount++;
-		BytePropertyHeader >>= 1;
-	}
-
 	ByIndex = [](void* NamesArray, int32 ComparisonIndex) -> void*
 	{
 		const int32 ChunkIdx = ComparisonIndex >> FNameBlockOffsetBits;
@@ -184,11 +190,10 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 		return reinterpret_cast<uint8_t**>(ChunkPtr)[ChunkIdx] + NameEntryStride * InChunk;
 	};
 
-	FNameEntry::Init();
+	Settings::Internal::bUseNamePool = true;
+	FNameEntry::Init(reinterpret_cast<uint8*>(ChunkPtr), FNameEntryHeaderSize);
 
-	std::cout << ByIndex(NamePool, *(int32_t*)((uint8_t*)ObjectArray::GetByIndex(0x0).GetAddress() + 0x18)) << std::endl;
-
-	return 7;
+	return true;
 }
 
 void NameArray::Init()
@@ -207,15 +212,15 @@ void NameArray::Init()
 		GNames = *GNamesAddress;
 		Settings::Internal::bUseNamePool = false;
 		FNameEntry::Init();
-		std::cout << "Found NameArray at offset: 0x" << (void*)((uint8_t*)GNamesAddress - ImageBase) << std::endl;
+		std::cout << "Found NameArray at offset: 0x" << std::hex << (reinterpret_cast<uint8_t*>(GNamesAddress) - ImageBase) << "\n" << std::endl;
 		return;
 	}
-	else if (NameArray::InitializeNamePool(reinterpret_cast<uint8_t*>(GNamesAddress))) // call may need changes
+	else if (NameArray::InitializeNamePool(reinterpret_cast<uint8_t*>(GNamesAddress)))
 	{
 		GNames = reinterpret_cast<uint8_t*>(GNamesAddress);
 		Settings::Internal::bUseNamePool = true;
-		std::cout << "Found NamePool at offset: 0x" << (void*)((uint8_t*)GNamesAddress - ImageBase) << std::endl;
-		//FNameEntry::Init(); /* Moved to NameArray::InitializeNamePool to avoid duplicated logic */
+		std::cout << "Found NamePool at offset: 0x" << std::hex << (reinterpret_cast<uint8_t*>(GNamesAddress) - ImageBase) << "\n" << std::endl;
+		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
 		return;
 	}
 
@@ -224,8 +229,9 @@ void NameArray::Init()
 
 int32 NameArray::GetNumElements()
 {
-	return *reinterpret_cast<int32*>(GNames + Off::NameArray::NumElements);
+	return !Settings::Internal::bUseNamePool ? *reinterpret_cast<int32*>(GNames + Off::NameArray::NumElements) : 0;
 }
+
 int32 NameArray::GetNumChunks()
 {
 	return *reinterpret_cast<int32*>(GNames + Off::NameArray::ChunkCount);
