@@ -145,38 +145,10 @@ namespace OffsetFinder
 	/* UEnum */
 	inline int32_t FindFieldNextOffset()
 	{
-		int32_t Ret = 0xFFFF;
-		int32_t LastIteration = -1;
-
-		UEStruct ObjA = ObjectArray::GetByIndex<UEStruct>(0x4000).GetAddress();
-		UEStruct ObjB = ObjectArray::GetByIndex<UEStruct>(0x4001).GetAddress();
-
-		for (int i = 0; i < 3; LastIteration = -1, i++)
-		{
-			while (LastIteration == -1)
-			{
-				ObjA = ObjectArray::GetByIndex<UEStruct>(rand() % 0x4000).GetAddress();
-				ObjB = ObjectArray::GetByIndex<UEStruct>(rand() % 0x4000).GetAddress();
-
-				while (!ObjA || !ObjA.GetChild())
-					ObjA = ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
-
-				while (!ObjB || !ObjB.GetChild())
-					ObjB = ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
-
-
-				LastIteration = GetValidPointerOffset((uint8_t*)ObjA.GetChild(), (uint8_t*)ObjB.GetChild(), Off::UObject::Outer + 0x8, 0x40);
-
-				if (LastIteration != -1 && LastIteration < Ret)
-				{
-					Ret = LastIteration;
-					LastIteration = -1;
-					i = 0;
-				}
-			}
-		}
-
-		return Ret;
+		uint8_t* KismetSystemLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetSystemLibrary").GetChild().GetAddress());
+		uint8_t* KismetStringLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetStringLibrary").GetChild().GetAddress());
+		
+		return GetValidPointerOffset(KismetSystemLibraryChild, KismetStringLibraryChild, Off::UObject::Outer + 0x08, 0x48);
 	}
 
 	/* UEnum */
