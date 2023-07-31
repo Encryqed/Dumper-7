@@ -141,6 +141,9 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 					const int32 ChunkIdx = ComparisonIndex / 0x4000;
 					const int32 InChunk = ComparisonIndex % 0x4000;
 
+					if (ComparisonIndex > NameArray::GetNumElements())
+						return nullptr;
+
 					return reinterpret_cast<void***>(NamesArray)[ChunkIdx][InChunk];
 				};
 
@@ -180,14 +183,49 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 
 	NameEntryStride = FNameEntryHeaderSize == 2 ? 2 : 4;
 
+
+	Off::NameArray::ChunkCount = 0x0;
+	Off::NameArray::ByteCursor = 0x4;
+
+
+	for (int i = 0x0; i < 0x20; i += 4)
+	{
+		int32 PossibleChunkCount = *reinterpret_cast<int32*>(NamePool + i);
+
+		if (PossibleChunkCount <= 0 || PossibleChunkCount > 0x10000)
+			continue;
+
+		int32 NotNullptrCount = 0x0;
+
+		for (int j = 0x8; j < 0x10000; j += 8)
+		{
+			int32 ChunkOffset = i + 4 + j + (i % 8);
+
+			if ((*reinterpret_cast<uint8_t**>(NamePool + ChunkOffset)) != nullptr)
+				NotNullptrCount++;
+		}
+
+		if (PossibleChunkCount == NotNullptrCount)
+		{
+			Off::NameArray::ChunkCount = i;
+			Off::NameArray::ByteCursor = i + 4;
+			break;
+		}
+	}
+
 	ByIndex = [](void* NamesArray, int32 ComparisonIndex) -> void*
 	{
 		const int32 ChunkIdx = ComparisonIndex >> FNameBlockOffsetBits;
-		const int32 InChunk = ComparisonIndex & (FNameBlockMaxOffset - 1);
+		const int32 InChunkOffset = (ComparisonIndex & (FNameBlockMaxOffset - 1)) * NameEntryStride;
+
+		const bool bIsBeyondLastChunk = ChunkIdx == (NameArray::GetNumChunks() - 1) && InChunkOffset > NameArray::GetByteCursor();
+
+		if (ChunkIdx >= GetNumChunks() || bIsBeyondLastChunk)
+			return nullptr;
 
 		uint8_t* ChunkPtr = reinterpret_cast<uint8_t*>(NamesArray) + 0x10;
 
-		return reinterpret_cast<uint8_t**>(ChunkPtr)[ChunkIdx] + NameEntryStride * InChunk;
+		return reinterpret_cast<uint8_t**>(ChunkPtr)[ChunkIdx] + InChunkOffset;
 	};
 
 	Settings::Internal::bUseNamePool = true;
@@ -242,14 +280,19 @@ void NameArray::Init()
 	std::cout << "\nGNames couldn't be found!\n\n\n";
 }
 
+int32 NameArray::GetNumChunks()
+{
+	return *reinterpret_cast<int32*>(GNames + Off::NameArray::ChunkCount);
+}
+
 int32 NameArray::GetNumElements()
 {
 	return !Settings::Internal::bUseNamePool ? *reinterpret_cast<int32*>(GNames + Off::NameArray::NumElements) : 0;
 }
 
-int32 NameArray::GetNumChunks()
+int32 NameArray::GetByteCursor()
 {
-	return *reinterpret_cast<int32*>(GNames + Off::NameArray::ChunkCount);
+	return Settings::Internal::bUseNamePool ? *reinterpret_cast<int32*>(GNames + Off::NameArray::ByteCursor) : 0;
 }
 
 FNameEntry NameArray::GetNameEntry(void* Name)

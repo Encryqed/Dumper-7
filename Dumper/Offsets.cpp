@@ -6,18 +6,18 @@ void Off::InSDK::InitPE()
 {
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
-	auto Resolve32BitRelativeJump = [](void* FunctionPtr) -> void*
+	auto Resolve32BitRelativeJump = [](void* FunctionPtr) -> uint8_t*
 	{
 		uint8_t* Address = reinterpret_cast<uint8_t*>(FunctionPtr);
-		if (*reinterpret_cast<uint8_t*>(FunctionPtr) == 0xE9)
+		if (*Address == 0xE9)
 		{
-			void* Ret = ((Address + 5) + *reinterpret_cast<int32_t*>(Address + 1));
+			uint8_t* Ret = ((Address + 5) + *reinterpret_cast<int32_t*>(Address + 1));
 
 			if (IsInProcessRange(uintptr_t(Ret)))
 				return Ret;
 		}
 
-		return FunctionPtr;
+		return reinterpret_cast<uint8_t*>(FunctionPtr);
 	};
 
 	for (int i = 0; i < 0x150; i++)
@@ -25,8 +25,8 @@ void Off::InSDK::InitPE()
 		if (!Vft[i])
 			break;
 
-		if (FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, (uint8*)Resolve32BitRelativeJump(Vft[i]), 0x400)
-		&&  FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, (uint8*)Resolve32BitRelativeJump(Vft[i]), 0x400))
+		if (FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, Resolve32BitRelativeJump(Vft[i]), 0x400)
+		&&  FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, Resolve32BitRelativeJump(Vft[i]), 0x400))
 		{
 			Off::InSDK::PEIndex = i;
 			Off::InSDK::PEOffset = uintptr_t(Vft[i]) - GetImageBase();
@@ -80,7 +80,7 @@ void Off::Init()
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cout << "Off::UStruct::Children: " << Off::UStruct::Children << "\n";
 
-	Off::UField::Next = OffsetFinder::FindFieldNextOffset();
+	Off::UField::Next = OffsetFinder::FindUFieldNextOffset();
 	std::cout << "Off::UField::Next: " << Off::UField::Next << "\n";
 
 	Off::UStruct::SuperStruct = OffsetFinder::FindSuperOffset();
@@ -100,6 +100,12 @@ void Off::Init()
 		std::cout << "Off::UStruct::ChildProperties: " << Off::UStruct::ChildProperties << "\n";
 
 		OffsetFinder::FixupHardcodedOffsets(); // must be called after FindChildPropertiesOffset 
+
+		Off::FField::Next = OffsetFinder::FindFFieldNextOffset();
+		std::cout << "Off::FField::Next: " << Off::FField::Next << "\n";
+		
+		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
+		std::cout << "Off::FField::Name: " << Off::FField::Name << "\n";
 	}
 
 	Off::UClass::ClassDefaultObject = OffsetFinder::FindDefaultObjectOffset();

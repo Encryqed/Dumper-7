@@ -34,6 +34,7 @@ namespace Off
 	{
 		inline int32 ChunkCount;
 		inline int32 NumElements;
+		inline int32 ByteCursor;
 	}
 
 	namespace FField
@@ -66,13 +67,14 @@ namespace Off
 
 	namespace FNameEntry
 	{
-		// These values initialized by NameArray::Init()
+		// These values are initialized by FNameEntry::Init()
 		namespace NameArray
 		{
 			inline int32 StringOffset;
 			inline int32 IndexOffset;
 		}
 
+		// These values are initialized by FNameEntry::Init()
 		namespace NamePool
 		{
 			inline int32 HeaderOffset;

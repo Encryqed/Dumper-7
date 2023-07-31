@@ -17,11 +17,9 @@ void Generator::Init()
 	//FName::Init(/*FName::AppendString*/);
 	//Off::InSDK::InitPE(/*PEIndex*/);
 
-	//ObjectArray::DecryptPtr = [](void* Objptr) -> uint8_t* { return (uint8_t*)(uint64_t(Objptr) ^ 0x8375); };
+	ObjectArray::DecryptPtr = [](void* Objptr) -> uint8_t* { return (uint8_t*)(uint64_t(Objptr) ^ 0x8375); };
 
 	ObjectArray::Init();
-	//NameArray::Init();
-
 	FName::Init();
 	Off::Init();
 	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
@@ -405,7 +403,7 @@ void Generator::GenerateSDK()
 		}
 	}
 
-	_setmaxstdio(0x400); // set number of files which can be open simultaneously
+	_setmaxstdio(0x800); // set number of files which can be open simultaneously
 
 	Futures.reserve(ObjectPackages.size());
 

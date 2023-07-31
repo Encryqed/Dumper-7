@@ -142,13 +142,43 @@ namespace OffsetFinder
 		}
 	}
 
-	/* UEnum */
-	inline int32_t FindFieldNextOffset()
+	/* UField */
+	inline int32_t FindUFieldNextOffset()
 	{
 		uint8_t* KismetSystemLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetSystemLibrary").GetChild().GetAddress());
 		uint8_t* KismetStringLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetStringLibrary").GetChild().GetAddress());
 		
 		return GetValidPointerOffset(KismetSystemLibraryChild, KismetStringLibraryChild, Off::UObject::Outer + 0x08, 0x48);
+	}
+
+	/* FField */
+	inline int32_t FindFFieldNextOffset()
+	{
+		uint8_t* GuidChildren = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("Guid").GetChildProperties().GetAddress());
+		uint8_t* VectorChildren = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("Vector").GetChildProperties().GetAddress());
+
+		return GetValidPointerOffset(GuidChildren, VectorChildren, Off::FField::Owner + 0x8, 0x48);
+	}
+
+	inline int32_t FindFFieldNameOffset()
+	{
+		UEFField GuidChild = ObjectArray::FindObjectFast<UEStruct>("Guid").GetChildProperties();
+		UEFField VectorChild = ObjectArray::FindObjectFast<UEStruct>("Vector").GetChildProperties();
+
+		std::string GuidChildName = GuidChild.GetName();
+		std::string VectorChildName = VectorChild.GetName();
+
+		if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
+			return Off::FField::Name;
+
+		for (Off::FField::Name = Off::FField::Owner; Off::FField::Name < 0x40; Off::FField::Name += 4)
+		{
+			GuidChildName = GuidChild.GetName();
+			VectorChildName = VectorChild.GetName();
+			
+			if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
+				return Off::FField::Name;
+		}
 	}
 
 	/* UEnum */
