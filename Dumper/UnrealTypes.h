@@ -145,6 +145,7 @@ public:
 
 class FName
 {
+private:
 	static void(*AppendString)(void*, FString&);
 
 	inline static std::string(*ToStr)(void* Name) = nullptr;

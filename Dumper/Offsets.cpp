@@ -2,6 +2,8 @@
 #include "ObjectArray.h"
 #include "OffsetFinder.h"
 
+#include "NameArray.h"
+
 void Off::InSDK::InitPE()
 {
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
@@ -75,7 +77,7 @@ void Off::Init()
 {
 	OffsetFinder::InitUObjectOffsets();
 
-	std::cout << std::hex;
+	::NameArray::PostInit();
 
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cout << "Off::UStruct::Children: " << Off::UStruct::Children << "\n";

@@ -136,7 +136,7 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 				Off::NameArray::NumElements = i;
 				Off::NameArray::ChunkCount = i + 4;
 
-				ByIndex = [](void* NamesArray, int32 ComparisonIndex) -> void*
+				ByIndex = [](void* NamesArray, int32 ComparisonIndex, int32 NamePoolBlockOffsetBits) -> void*
 				{
 					const int32 ChunkIdx = ComparisonIndex / 0x4000;
 					const int32 InChunk = ComparisonIndex % 0x4000;
@@ -213,14 +213,14 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 		}
 	}
 
-	ByIndex = [](void* NamesArray, int32 ComparisonIndex) -> void*
+	ByIndex = [](void* NamesArray, int32 ComparisonIndex, int32 NamePoolBlockOffsetBits) -> void*
 	{
-		const int32 ChunkIdx = ComparisonIndex >> FNameBlockOffsetBits;
-		const int32 InChunkOffset = (ComparisonIndex & (FNameBlockMaxOffset - 1)) * NameEntryStride;
+		const int32 ChunkIdx = ComparisonIndex >> NamePoolBlockOffsetBits;
+		const int32 InChunkOffset = (ComparisonIndex & ((1 << NamePoolBlockOffsetBits) - 1)) * NameEntryStride;
 
-		const bool bIsBeyondLastChunk = ChunkIdx == (NameArray::GetNumChunks() - 1) && InChunkOffset > NameArray::GetByteCursor();
+		const bool bIsBeyondLastChunk = ChunkIdx == NameArray::GetNumChunks() && InChunkOffset > NameArray::GetByteCursor();
 
-		if (ChunkIdx >= GetNumChunks() || bIsBeyondLastChunk)
+		if (ChunkIdx < 0 || ChunkIdx > GetNumChunks() || bIsBeyondLastChunk)
 			return nullptr;
 
 		uint8_t* ChunkPtr = reinterpret_cast<uint8_t*>(NamesArray) + 0x10;
@@ -260,6 +260,12 @@ void NameArray::Init()
 			break;
 	}
 
+	if (!GNamesAddress)
+	{
+		std::cout << "\nGNames couldn't be found\n\n" << std::endl;
+		exit(1);
+	}
+
 	if (NameArray::InitializeNameArray(*GNamesAddress))
 	{
 		GNames = *GNamesAddress;
@@ -280,6 +286,45 @@ void NameArray::Init()
 	std::cout << "\nGNames couldn't be found!\n\n\n";
 }
 
+void NameArray::PostInit()
+{
+	if (GNames && Settings::Internal::bUseNamePool)
+	{
+		// Reverse-order iteration because newer objects are more likely to have a chunk-index equal to NumChunks - 1
+		
+		NameArray::FNameBlockOffsetBits = 0xE;
+
+		int i = ObjectArray::Num();
+		while (i >= 0)
+		{
+			const int32 CurrentBlock = NameArray::GetNumChunks();
+
+			UEObject Obj = ObjectArray::GetByIndex(i);
+
+			if (!Obj)
+			{
+				i--;
+				continue;
+			}
+
+			const int32 ObjNameChunkIdx = Obj.GetFName().GetCompIdx() >> NameArray::FNameBlockOffsetBits;
+
+			if (ObjNameChunkIdx == CurrentBlock)
+				break;
+
+			if (ObjNameChunkIdx > CurrentBlock)
+			{
+				NameArray::FNameBlockOffsetBits++;
+				i = ObjectArray::Num();
+			}
+
+			i--;
+		}
+
+		std::cout << "\nNameArray::FNameBlockOffsetBits: 0x" << std::hex << NameArray::FNameBlockOffsetBits << "\n" << std::endl;
+	}
+}
+
 int32 NameArray::GetNumChunks()
 {
 	return *reinterpret_cast<int32*>(GNames + Off::NameArray::ChunkCount);
@@ -297,11 +342,11 @@ int32 NameArray::GetByteCursor()
 
 FNameEntry NameArray::GetNameEntry(void* Name)
 {
-	return ByIndex(GNames, FName(Name).GetCompIdx());
+	return ByIndex(GNames, FName(Name).GetCompIdx(), FNameBlockOffsetBits);
 }
 
 FNameEntry NameArray::GetNameEntry(int32 Idx)
 {
-	return ByIndex(GNames, Idx);
+	return ByIndex(GNames, Idx, FNameBlockOffsetBits);
 }
 

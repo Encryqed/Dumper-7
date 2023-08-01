@@ -462,9 +462,10 @@ namespace Offsets
 {{
 	inline int32 GObjects          = 0x{:08X};
 	inline int32 AppendString      = 0x{:08X};
+	inline int32 GNames            = 0x{:08X};
 	inline int32 ProcessEvent      = 0x{:08X};
 }}
-)", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::PEOffset);
+)", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::GNames, Off::InSDK::PEOffset);
 
 	if (Settings::bShouldXorStrings)
 		HeaderStream << "#define XORSTR(str) str\n";

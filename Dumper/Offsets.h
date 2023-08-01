@@ -22,6 +22,8 @@ namespace Off
 
 		inline int32 AppendNameToString;
 		inline int32 FNameSize;
+
+		inline int32 GNames = 0x0;
 	}
 
 	namespace FUObjectArray

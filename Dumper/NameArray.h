@@ -34,18 +34,14 @@ private:
 class NameArray
 {
 private:
-	/// <summary>
-	/// switch this back to 0x10 or implement it properly, retard
-	/// </summary>
-	static constexpr uint32 FNameBlockOffsetBits = 0x10; // 0x10 // 0x12
-	static constexpr uint32 FNameBlockMaxOffset = 0x1 << FNameBlockOffsetBits;
+	static inline uint32 FNameBlockOffsetBits = 0x10;
 
 private:
 	static uint8* GNames;
 
 	static inline int64 NameEntryStride = 0x0;
 
-	static inline void* (*ByIndex)(void* NamesArray, int32 ComparisonIndex) = nullptr;
+	static inline void* (*ByIndex)(void* NamesArray, int32 ComparisonIndex, int32 NamePoolBlockOffsetBits) = nullptr;
 
 private:
 	static bool InitializeNameArray(uint8_t* NameArray);
@@ -53,6 +49,7 @@ private:
 
 public:
 	static void Init();
+	static void PostInit();
 
 	static void Init(int32 GNamesOffset, bool bIsNamePool);
 	
