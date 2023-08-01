@@ -18,7 +18,8 @@ SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and
   ObjectArray::Init(/*GObjectsOffset*/, /*ChunkSize*/, /*bIsChunked*/);
   ```
   ```cpp
-  ObjectArray::DecryptPtr = [](void* Objptr) -> uint8_t* { return (uint8_t*)(uint64_t(Objptr) ^ 0x8375); };
+  /* Make sure only to use types which exist in the sdk (eg. uint8, uint64) */
+  InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
   ```
 - FName::AppendString
   ```cpp
