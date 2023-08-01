@@ -37,7 +37,7 @@ private:
 	/// <summary>
 	/// switch this back to 0x10 or implement it properly, retard
 	/// </summary>
-	static constexpr uint32 FNameBlockOffsetBits = 0x12; // 0x10 // 0x12
+	static constexpr uint32 FNameBlockOffsetBits = 0x10; // 0x10 // 0x12
 	static constexpr uint32 FNameBlockMaxOffset = 0x1 << FNameBlockOffsetBits;
 
 private:

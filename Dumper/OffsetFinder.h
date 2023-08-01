@@ -30,7 +30,7 @@ namespace OffsetFinder
 		return HighestFoundOffset;
 	}
 
-
+	template<bool bCheckForVft = true>
 	inline int32_t GetValidPointerOffset(uint8_t* ObjA, uint8_t* ObjB, int32_t StartingOffset, int32_t MaxOffset)
 	{
 		if (IsBadReadPtr(ObjA) || IsBadReadPtr(ObjB))
@@ -38,10 +38,11 @@ namespace OffsetFinder
 
 		for (int j = StartingOffset; j <= MaxOffset; j += 0x8)
 		{
-			if (!IsBadReadPtr(*(void**)(ObjA + j)) && !IsBadReadPtr(*(void**)(ObjB + j)))
-			{
+			const bool bIsAValid = !IsBadReadPtr(*reinterpret_cast<void**>(ObjA + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void***>(ObjA + j)) : true);
+			const bool bIsBValid = !IsBadReadPtr(*reinterpret_cast<void**>(ObjB + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void***>(ObjB + j)) : true);
+
+			if (bIsAValid && bIsBValid)
 				return j;
-			}
 		}
 
 		return -1;

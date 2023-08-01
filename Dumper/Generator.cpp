@@ -17,7 +17,7 @@ void Generator::Init()
 	//FName::Init(/*FName::AppendString*/);
 	//Off::InSDK::InitPE(/*PEIndex*/);
 
-	ObjectArray::DecryptPtr = [](void* Objptr) -> uint8_t* { return (uint8_t*)(uint64_t(Objptr) ^ 0x8375); };
+	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
 
 	ObjectArray::Init();
 	FName::Init();
@@ -567,7 +567,7 @@ void Generator::InitPredefinedMembers()
 	};
 
 	if (Settings::Internal::bUseFProperty)
-		PredefinedMembers["UStruct"].emplace(PredefinedMembers["UStruct"].begin() + 2, "class FField*", "ChildProperties", Off::UStruct::ChildProperties, 0x08);
+		PredefinedMembers["UStruct"].insert({ "class FField* ", "ChildProperties", Off::UStruct::ChildProperties, 0x08 });
 
 	PredefinedMembers["UFunction"] =
 	{
@@ -926,6 +926,13 @@ inline Fn GetVFunction(const void* Instance, std::size_t Index)
 }
 )");
 
+	constexpr const char* DefaultDecryption = R"([](void* ObjPtr) -> uint8*
+	{
+		return reinterpret_cast<uint8*>(ObjPtr);
+	})";
+
+	std::string EncryptionStrToUse = ObjectArray::DecryptionLambdaStr.empty() ? DefaultDecryption : std::move(ObjectArray::DecryptionLambdaStr);
+
 	if (Off::InSDK::ChunkSize <= 0)
 	{
 		BasicHeader.Write(
@@ -933,12 +940,13 @@ inline Fn GetVFunction(const void* Instance, std::size_t Index)
 class TUObjectArray
 {{
 public:
-
 	struct FUObjectItem
 	{{
 		class UObject* Object;
 		uint8 Pad[0x{:02X}];
 	}};
+
+	static inline auto DecryptPtr = {};
 
 	FUObjectItem* Objects;
 	int32 MaxElements;
@@ -951,24 +959,46 @@ public:
 		return NumElements;
 	}}
 
+	inline FUObjectItem* GetDecrytedObjPtr() const
+	{{
+		return reinterpret_cast<FUObjectItem*>(DecryptPtr(Objects));
+	}}
+
 	inline class UObject* GetByIndex(const int32 Index) const
 	{{
 		if (Index < 0 || Index > NumElements)
 			return nullptr;
 
-		return Objects[Index].Object;
+		return GetDecrytedObjPtr()[Index].Object;
 	}}
 }};
-)", Off::InSDK::FUObjectItemSize - 0x8));
+)", Off::InSDK::FUObjectItemSize - 0x8, EncryptionStrToUse));
 	}
 	else
 	{
+		constexpr const char* MemmberString = R"(
+	FUObjectItem** Objects;
+	uint8 Pad_0[0x08];
+	int32 MaxElements;
+	int32 NumElements;
+	int32 MaxChunks;
+	int32 NumChunks;
+)";
+
+		constexpr const char* MemberStringWeirdLayout = R"(
+	uint8 Pad_0[0x10];
+	int32 MaxElements;
+	int32 NumElements;
+	int32 MaxChunks;
+	int32 NumChunks;
+	FUObjectItem** Objects;
+)";
+
 		BasicHeader.Write(
 			std::format(R"(
 class TUObjectArray
 {{
 public:
-
 	enum
 	{{
 		ElementsPerChunk = 0x{:X},
@@ -980,18 +1010,19 @@ public:
 		uint8 Pad[0x{:02X}];
 	}};
 
-	FUObjectItem** Objects;
-	uint8 Pad_0[0x08];
-	int32 MaxElements;
-	int32 NumElements;
-	int32 MaxChunks;
-	int32 NumChunks;
+	static inline auto DecryptPtr = {};
+	{}
 
 	// Call InitGObjects() before using these functions
 
 	inline int32 Num() const
 	{{
 		return NumElements;
+	}}
+
+	inline FUObjectItem** GetDecrytedObjPtr() const
+	{{
+		return reinterpret_cast<FUObjectItem**>(DecryptPtr(Objects));
 	}}
 
 	inline class UObject* GetByIndex(const int32 Index) const
@@ -1002,10 +1033,10 @@ public:
 		const int32 ChunkIndex = Index / ElementsPerChunk;
 		const int32 InChunkIdx = Index % ElementsPerChunk;
 
-		return Objects[ChunkIndex][InChunkIdx].Object;
+		return GetDecrytedObjPtr()[ChunkIndex][InChunkIdx].Object;
 	}}
 }};
-)", Off::InSDK::ChunkSize, Off::InSDK::FUObjectItemSize - 0x8));
+)", Off::InSDK::ChunkSize, Off::InSDK::FUObjectItemSize - 0x8, EncryptionStrToUse, Off::FUObjectArray::Ptr == 0 ? MemmberString : MemberStringWeirdLayout));
 	}
 
 	BasicHeader.Write(

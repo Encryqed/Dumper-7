@@ -103,7 +103,8 @@ struct FFixedUObjectArray
 uint8* ObjectArray::GObjects = nullptr;
 uint32 ObjectArray::NumElementsPerChunk = 0x10000;
 uint32 ObjectArray::SizeOfFUObjectItem = 0x18;
-uint32 ObjectArray::FUObjectItemInitialOffset = 0x0; 
+uint32 ObjectArray::FUObjectItemInitialOffset = 0x0;
+std::string ObjectArray::DecryptionLambdaStr = "";
 
 void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 {
@@ -129,6 +130,12 @@ void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 
 	Off::InSDK::FUObjectItemInitialOffset = FUObjectItemInitialOffset;
 	Off::InSDK::FUObjectItemSize = SizeOfFUObjectItem;
+}
+
+void ObjectArray::InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), const char* DecryptionLambdaAsStr)
+{
+	DecryptPtr = DecryptionFunction;
+	DecryptionLambdaStr = DecryptionLambdaAsStr;
 }
 
 void ObjectArray::InitializeChunkSize(uint8_t* ChunksPtr)

@@ -6,14 +6,21 @@
 class ObjectArray
 {
 private:
+	friend struct FChunkedFixedUObjectArray;
+	friend struct FFixedUObjectArray;
+
+private:
 	static uint8* GObjects;
 	static uint32 NumElementsPerChunk;
 	static uint32 SizeOfFUObjectItem;
 	static uint32 FUObjectItemInitialOffset;
 
+public:
+	static std::string DecryptionLambdaStr;
+
+private:
 	static inline void*(*ByIndex)(void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) = nullptr;
 
-public:
 	static inline uint8_t* (*DecryptPtr)(void* ObjPtr) = [](void* Ptr) -> uint8* { return (uint8*)Ptr; };
 
 private:
@@ -21,6 +28,8 @@ private:
 	static void InitializeChunkSize(uint8_t* GObjects);
 
 public:
+	static void InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), const char* DecryptionLambdaAsStr);
+
 	static void Init(bool bScanAllMemory = false);
 
 	static void Init(int32 GObjectsOffset, int32 NumElementsPerChunk, bool bIsChunked);
@@ -74,3 +83,6 @@ public:
 		return GObjects;
 	}
 };
+
+
+#define InitObjectArrayDecryption(DecryptionLambda) ObjectArray::InitDecryption(DecryptionLambda, #DecryptionLambda)
