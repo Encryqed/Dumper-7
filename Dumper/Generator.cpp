@@ -17,7 +17,11 @@ void Generator::Init()
 	//FName::Init(/*FName::AppendString*/);
 	//Off::InSDK::InitPE(/*PEIndex*/);
 
+	/* Back4Blood*/
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
+
+	/* Multiversus [Unsupported, weird GObjects-struct]*/
+	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
 
 	ObjectArray::Init();
 	FName::Init();
@@ -1154,22 +1158,21 @@ public:
 		R"(
 class FName
 {
-public:)");
+public:
+	int32 ComparisonIndex;)");
 
-	if (Off::InSDK::FNameSize == 0x8)
+	
+	if (Off::InSDK::FNameSize >= 0x8)
 	{
 		BasicHeader.Write(
 			R"(
-	int32 ComparisonIndex;
-	int32 Number;
-)");
+	int32 Number;)");
 	}
-	else
+	
+	if (Off::InSDK::FNameSize == 0x10)
 	{
 		BasicHeader.Write(
 			R"(
-	int32 ComparisonIndex;
-	int32 Number;
 	int32 DisplayIndex;
 	uint8 Pad[0x4];
 )");
@@ -1196,12 +1199,12 @@ public:)");
 		return OutputString.substr(pos + 1);
 	}}
 
-	inline bool operator==(const FName& Other)
+	inline bool operator==(const FName& Other) const
 	{{
 		return ComparisonIndex == Other.ComparisonIndex;
 	}}
 
-	inline bool operator!=(const FName& Other)
+	inline bool operator!=(const FName& Other) const
 	{{
 		return ComparisonIndex != Other.ComparisonIndex;
 	}}

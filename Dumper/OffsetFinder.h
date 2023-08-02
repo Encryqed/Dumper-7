@@ -346,6 +346,12 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
+	inline int32_t FindArrayDimOffset()
+	{
+		// Fix this tomorrow
+		return Off::UProperty::ElementSize - 0x4;
+	}
+
 	inline int32_t FindPropertyFlagsOffset()
 	{
 		std::vector<std::pair<void*, EPropertyFlags>> Infos;

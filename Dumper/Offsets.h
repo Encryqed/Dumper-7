@@ -34,7 +34,7 @@ namespace Off
 
 	namespace NameArray
 	{
-		inline int32 ChunkCount;
+		inline int32 MaxChunkIndex;
 		inline int32 NumElements;
 		inline int32 ByteCursor;
 	}

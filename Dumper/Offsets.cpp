@@ -122,7 +122,7 @@ void Off::Init()
 	Off::UProperty::ElementSize = OffsetFinder::FindElementSizeOffset();
 	std::cout << "Off::UProperty::ElementSize: " << Off::UProperty::ElementSize << "\n";
 
-	Off::UProperty::ArrayDim = Off::UProperty::ElementSize - 0x4;
+	Off::UProperty::ArrayDim = OffsetFinder::FindArrayDimOffset();
 	std::cout << "Off::UProperty::ArrayDim: " << Off::UProperty::ArrayDim << "\n";
 
 	Off::UProperty::Offset_Internal = OffsetFinder::FindOffsetInternalOffset();

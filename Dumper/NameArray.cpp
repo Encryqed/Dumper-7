@@ -134,7 +134,7 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 			if (NumChunks == ValidPtrCount)
 			{
 				Off::NameArray::NumElements = i;
-				Off::NameArray::ChunkCount = i + 4;
+				Off::NameArray::MaxChunkIndex = i + 4;
 
 				ByIndex = [](void* NamesArray, int32 ComparisonIndex, int32 NamePoolBlockOffsetBits) -> void*
 				{
@@ -184,30 +184,30 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 	NameEntryStride = FNameEntryHeaderSize == 2 ? 2 : 4;
 
 
-	Off::NameArray::ChunkCount = 0x0;
+	Off::NameArray::MaxChunkIndex = 0x0;
 	Off::NameArray::ByteCursor = 0x4;
 
 
 	for (int i = 0x0; i < 0x20; i += 4)
 	{
-		int32 PossibleChunkCount = *reinterpret_cast<int32*>(NamePool + i);
+		const int32 PossibleMaxChunkIdx = *reinterpret_cast<int32*>(NamePool + i);
 
-		if (PossibleChunkCount <= 0 || PossibleChunkCount > 0x10000)
+		if (PossibleMaxChunkIdx <= 0 || PossibleMaxChunkIdx > 0x10000)
 			continue;
 
 		int32 NotNullptrCount = 0x0;
 
-		for (int j = 0x8; j < 0x10000; j += 8)
+		for (int j = 0x0; j < 0x10000; j += 8)
 		{
-			int32 ChunkOffset = i + 4 + j + (i % 8);
+			const int32 ChunkOffset = i + 8 + j + (i % 8);
 
 			if ((*reinterpret_cast<uint8_t**>(NamePool + ChunkOffset)) != nullptr)
 				NotNullptrCount++;
 		}
 
-		if (PossibleChunkCount == NotNullptrCount)
+		if (PossibleMaxChunkIdx == (NotNullptrCount - 1))
 		{
-			Off::NameArray::ChunkCount = i;
+			Off::NameArray::MaxChunkIndex = i;
 			Off::NameArray::ByteCursor = i + 4;
 			break;
 		}
@@ -327,7 +327,7 @@ void NameArray::PostInit()
 
 int32 NameArray::GetNumChunks()
 {
-	return *reinterpret_cast<int32*>(GNames + Off::NameArray::ChunkCount);
+	return *reinterpret_cast<int32*>(GNames + Off::NameArray::MaxChunkIndex);
 }
 
 int32 NameArray::GetNumElements()
