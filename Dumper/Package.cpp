@@ -623,7 +623,7 @@ Types::Enum Package::GenerateEnum(UEEnum Enum)
 {
 	std::string EnumName = Enum.GetEnumTypeAsStr();
 
-	auto NameValue = Enum.GetNameValuePairs();
+	std::vector<TPair<FName, int64>> NameValue = Enum.GetNameValuePairs();
 
 	Types::Enum Enm(EnumName, "uint8");
 

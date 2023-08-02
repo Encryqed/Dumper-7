@@ -27,7 +27,7 @@ struct FChunkedFixedUObjectArray
 		if (NumChunks > 0x14 || NumChunks < 0x1)
 			return false;
 
-		if (MaxChunks > 0x22F || MaxChunks < 0x18)
+		if (MaxChunks > 0x22F || MaxChunks < 0x9)
 			return false;
 
 		if (NumElements > MaxElements || NumChunks > MaxChunks)

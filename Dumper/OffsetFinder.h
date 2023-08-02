@@ -408,10 +408,10 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, uint8_t>> Infos;
 
-		UEStruct GameStateBase = ObjectArray::FindObjectFast("GameStateBase", EClassCastFlags::Class).Cast<UEStruct>();
-		UEStruct PlayerController = ObjectArray::FindObjectFast("PlayerController", EClassCastFlags::Class).Cast<UEStruct>();
+		UEStruct GameStateBase = ObjectArray::FindClassFast("Engine");
+		UEStruct PlayerController = ObjectArray::FindClassFast("PlayerController");
 
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(GameStateBase, "bReplicatedHasBegunPlay").GetAddress(), 0xFF });
+		Infos.push_back({ ObjectArray::FindMemberInObjectFast(GameStateBase, "bIsOverridingSelectedColor").GetAddress(), 0xFF });
 		Infos.push_back({ ObjectArray::FindMemberInObjectFast(PlayerController, "bAutoManageActiveCameraTarget").GetAddress(), 0xFF });
 
 		return (FindOffset<1>(Infos, Off::UProperty::Offset_Internal) - 0x3);
