@@ -903,6 +903,45 @@ R"(
 	
 }
 
+
+struct MemberBuilder
+{
+private:
+	int32 CurrentSize = 0x0;
+	std::string Members;
+
+public:
+	const char* Indent = "\t";
+
+private:
+	inline void AddPadding(int32 Size)
+	{
+		static int32 PaddingIdx = 0x0;
+
+		CurrentSize += Size;
+		Members += std::format("{}uint8 Pad_{:X}[0x{:X}];\n", Indent, PaddingIdx++, Size);
+	}
+
+public:
+	inline void Add(std::string&& MemberTypeAndName, int32 Offset, int32 Size, bool bSkip = false)
+	{
+		if (bSkip)
+			return;
+
+		if (Offset > CurrentSize)
+			AddPadding(Offset - CurrentSize);
+
+		CurrentSize += Size;
+
+		Members += MemberTypeAndName;
+	}
+
+	inline std::string GetMembers()
+	{
+		return Members;
+	}
+};
+
 void Generator::GenerateBasicFile(const fs::path& SdkPath)
 {
 	FileWriter BasicHeader(SdkPath, Settings::FilePrefix ? Settings::FilePrefix + std::string("Basic") : "Basic", FileWriter::FileType::Header);
@@ -1154,35 +1193,207 @@ public:
 };
 )");
 
-	BasicHeader.Write(
-		R"(
-class FName
-{
+
+	if (Off::InSDK::AppendNameToString == 0x0 && !Settings::Internal::bUseNamePool)
+	{
+		MemberBuilder NameEntryMembers;
+		NameEntryMembers.Add("\tint32 NameIndex;\n", Off::FNameEntry::NameArray::IndexOffset, sizeof(int32));
+		NameEntryMembers.Add(
+R"(
+	union
+	{
+		char    AnsiName[1024];
+		wchar_t WideName[1024];
+	};
+)", Off::FNameEntry::NameArray::StringOffset, 0x0);
+
+		BasicHeader.Write(std::format(R"(
+class FNameEntry
+{{
 public:
-	int32 ComparisonIndex;)");
+	static constexpr uint32 NameWideMask = 0x1;
+	static constexpr uint32 NameIndexShiftCount = 0x1;
 
-	
-	if (Off::InSDK::FNameSize >= 0x8)
-	{
-		BasicHeader.Write(
-			R"(
-	int32 Number;)");
-	}
-	
-	if (Off::InSDK::FNameSize == 0x10)
-	{
-		BasicHeader.Write(
-			R"(
-	int32 DisplayIndex;
-	uint8 Pad[0x4];
-)");
-	}
+public:
+{}
 
-	BasicHeader.Write(
-		std::format(R"(
-	
-	inline std::string ToString() const
+public:
+	inline bool IsWide() const
 	{{
+		return (NameIndex & NameWideMask);
+	}}
+
+	inline std::string GetString() const
+	{{
+		if (IsWide())
+		{{
+			std::wstring WideString(WideName);
+			return std::string(WideString.begin(), WideString.end());
+		}}
+
+		return AnsiName;
+	}}
+}};
+)", NameEntryMembers.GetMembers()));
+
+		BasicHeader.Write(std::format(R"(
+class TNameEntryArray
+{{
+public:
+	
+	static constexpr uint32 ChunkTableSize = {};
+	static constexpr uint32 NumElementsPerChunk = 0x4000;
+
+public:
+	FNameEntry** Chunks[ChunkTableSize];
+	int32 NumElements;
+	int32 NumChunks;
+
+public:
+	inline bool IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx) const
+	{{
+		return Index < 0 || Index > NumElements;
+	}}
+
+	inline FNameEntry* GetEntryByIndex(int32 Index) const
+	{{
+		const int32 ChunkIdx = Index / NumElementsPerChunk;
+		const int32 InChunk  = Index % NumElementsPerChunk;
+
+		if (!IsValidIndex(Index, ChunkIdx, InChunk))
+			return nullptr;
+
+		return Chunks[ChunkIdx][InChunk];
+	}}	
+}};
+)", Off::NameArray::NumElements / 8));
+	}
+	else if (Off::InSDK::AppendNameToString == 0x0 && Settings::Internal::bUseNamePool)
+	{
+		const int32 FNameEntryHeaderSize = Off::FNameEntry::NamePool::StringOffset - Off::FNameEntry::NamePool::HeaderOffset;
+
+		MemberBuilder NumberedDataBuilder;
+		NumberedDataBuilder.Indent = "\t\t";
+		NumberedDataBuilder.Add("\t\tuint8 Pad[0x2]\n", -1, sizeof(uint8[0x2]), !Settings::Internal::bUseCasePreservingName);
+		NumberedDataBuilder.Add("\t\tuint32 Id;\n", -1, sizeof(uint32));
+		NumberedDataBuilder.Add("\t\tuint32 Number;", -1, sizeof(uint32));
+
+		MemberBuilder NameEntryHeaderMembers;
+		NameEntryHeaderMembers.Add("\tuint16 bIsWide : 1;\n", 0, 0);
+		NameEntryHeaderMembers.Add("\tuint16 Len : 15;", 0, 0, Settings::Internal::bUseCasePreservingName);
+		NameEntryHeaderMembers.Add("\tuint16 LowercaseProbeHash : 5;\n", 0, 0, !Settings::Internal::bUseCasePreservingName);
+		NameEntryHeaderMembers.Add("\tuint16 Len : 10;", 0, 0, !Settings::Internal::bUseCasePreservingName);
+
+		MemberBuilder NameEntryMembers;
+		NameEntryMembers.Add("\tFNameEntryHeader Header;\n", Off::FNameEntry::NamePool::HeaderOffset, sizeof(int32));
+		NameEntryMembers.Add(
+			R"(
+	union
+	{
+		char    AnsiName[1024];
+		wchar_t WideName[1024];
+		FNumberedData NumberedName;
+	};
+)", Off::FNameEntry::NameArray::StringOffset, 0x0);
+
+		BasicHeader.Write(std::format(R"(
+class FNameEntryHeader
+{{
+public:
+{}
+}};
+)", NameEntryHeaderMembers.GetMembers()));
+
+		BasicHeader.Write(std::format(R"(
+class FNameEntry
+{{
+public:
+	struct FNumberedData
+	{{
+{}
+	}};
+
+public:
+{}
+
+public:
+	inline bool IsWide() const
+	{{
+		return Header.bIsWide;
+	}}
+
+	inline std::string GetString() const
+	{{
+		if (IsWide())
+		{{
+			std::wstring WideString(WideName, Header.Len);
+			return std::string(WideString.begin(), WideString.end());
+		}}
+
+		return std::string(AnsiName, Header.Len);
+	}}
+
+}};
+)", NumberedDataBuilder.GetMembers(), NameEntryMembers.GetMembers()));
+
+
+		MemberBuilder NamePoolMembers;
+		NamePoolMembers.Add("\tuint32 CurrentBlock;\n", Off::NameArray::MaxChunkIndex, sizeof(uint32));
+		NamePoolMembers.Add("\tuint32 CurrentByteCursor;\n", Off::NameArray::ByteCursor, sizeof(uint32));
+		NamePoolMembers.Add("\tuint8** Blocks;\n", Off::NameArray::ChunksStart, sizeof(uint8**));
+
+		BasicHeader.Write(std::format(R"(
+class FNamePool
+{{
+public:
+	static constexpr uint32 FNameBlockOffsetBits = {};
+	static constexpr uint32 FNameBlockOffsets = 1 << FNameBlockOffsetBits;
+
+	static constexpr uint32 FNameEntryStride = {};
+
+public:
+	// Members of FNamePool with padding
+{}
+
+public:
+	inline bool IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx) const
+	{{
+		return ChunkIdx <= CurrentBlock && !(ChunkIdx == CurrentBlock && InChunkIdx > CurrentByteCursor);
+	}}
+
+	inline FNameEntry* GetEntryByIndex(int32 Index) const
+	{{
+		const int32 ChunkIdx = Index >> FNameBlockOffsetBits;
+		const int32 InChunk = (Index & (FNameBlockOffsets - 1));
+
+		if (!IsValidIndex(Index, ChunkIdx, InChunk))
+			return nullptr;
+
+		return reinterpret_cast<FNameEntry*>(Blocks[ChunkIdx] + (InChunk * FNameEntryStride));
+	}}
+}};
+)", Off::InSDK::FNamePoolBlockOffsetBits, Off::InSDK::FNameEntryStride, NamePoolMembers.GetMembers()));
+	}
+
+
+	std::string FNameMemberStr = "int32 ComparisonIndex;\n";
+
+	constexpr const char* DisplayIdx = "\tint32 DisplayIndex;\n";
+	constexpr const char* Number =     "\tint32 Number;\n";
+	constexpr const char* Pad =        "\tuint8 Pad[0x4];\n";
+;
+	FNameMemberStr += Off::FName::Number == 4 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
+	FNameMemberStr += Off::FName::Number == 8 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
+	FNameMemberStr += Settings::Internal::bUseCasePreservingName ? Pad : "";
+
+	std::string GetDisplayIndexString = std::format(R"(inline int32 GetDisplayIndex() const
+	{{
+		return {};
+	}})", Settings::Internal::bUseCasePreservingName ? "DisplayIndex" : "ComparisonIndex");
+
+	constexpr const char* GetRawStringWithAppendString =
+ R"(inline std::string GetRawString() const
+	{
 		static FString TempString(1024);
 		static auto AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + Offsets::AppendString);
 
@@ -1190,6 +1401,64 @@ public:
 
 		std::string OutputString = TempString.ToString();
 		TempString.ResetNum();
+
+		return OutputString;
+	})";
+
+	constexpr const char* GetRawStringWithNameArray =
+ R"(inline std::string GetRawString() const
+	{
+		if (!GNames)
+			InitGNames();
+
+		std::string RetStr = FName::GNames->GetEntryByIndex(GetDisplayIndex())->GetString();
+
+		if (Number > 0)
+			RetStr += ("_" + std::to_string(Number - 1));
+
+		return RetStr;
+	})";
+
+	constexpr const char* GetRawStringWithNameArrayWithOutlineNumber =
+ R"(inline std::string GetRawString() const
+	{
+		if (!GNames)
+			InitGNames();
+
+		const FNameEntry* Entry = FName::GNames->GetEntryByIndex(GetDisplayIndex());
+
+		if (Entry->Header.Length == 0)
+			return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString() + "_" + std::to_string(Entry->Number - 1);
+
+		return Entry.GetString();
+	})";
+
+	BasicHeader.Write(
+		std::format(R"(
+class FName
+{{
+public:
+	// GNames - either of type TNameEntryArray [<4.23] or FNamePool [>=4.23]
+	static inline {}* GNames = nullptr;
+
+	// Members of FName - depending on configuration [WITH_CASE_PRESERVING_NAME | FNAME_OUTLINE_NUMBER]
+	{}
+
+	// GetDisplayIndex - returns the Id of the string depending on the configuration [default: ComparisonIndex, WITH_CASE_PRESERVING_NAME: DisplayIndex]
+	{}
+
+	// GetRawString - returns an unedited string as the engine uses it
+	{}
+
+	static inline void InitGNames()
+	{{
+		GNames = {}(uint64(GetModuleHandle(0)) + Offsets::GNames);
+	}}
+
+	// ToString - returns an edited string as it's used by most SDKs ["/Script/CoreUObject" -> "CoreUObject"]
+	inline std::string ToString() const
+	{{
+		std::string OutputString = GetRawString();
 
 		size_t pos = OutputString.rfind('/');
 
@@ -1209,7 +1478,11 @@ public:
 		return ComparisonIndex != Other.ComparisonIndex;
 	}}
 }};
-)", Off::InSDK::AppendNameToString));
+)", Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "FNamePool" : "TNameEntryArray" : "void"
+  , FNameMemberStr
+  , GetDisplayIndexString
+  , Off::InSDK::AppendNameToString == 0 ? Off::InSDK::FNameSize == 4 ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString
+  , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "reinterpret_cast<FNamePool*>" : "*reinterpret_cast<TNameEntryArray**>" : "Reinterpret_cast<void*>"));
 
 	BasicHeader.Write(
 		R"(
@@ -1230,10 +1503,12 @@ public:
 	{
 		return ClassPtr;
 	}
+
 	inline UClass* operator->()
 	{
 		return ClassPtr;
 	}
+
 	inline TSubclassOf& operator=(UClass* Class)
 	{
 		ClassPtr = Class;
@@ -1245,14 +1520,17 @@ public:
 	{
 		return ClassPtr == Other.ClassPtr;
 	}
+
 	inline bool operator!=(const TSubclassOf& Other) const
 	{
 		return ClassPtr != Other.ClassPtr;
 	}
+
 	inline bool operator==(UClass* Other) const
 	{
 		return ClassPtr == Other;
 	}
+
 	inline bool operator!=(UClass* Other) const
 	{
 		return ClassPtr != Other;

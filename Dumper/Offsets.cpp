@@ -148,6 +148,8 @@ void Off::Init()
 	Off::UObjectProperty::PropertyClass = PropertySize;
 	Off::UStructProperty::Struct = PropertySize;
 	Off::UEnumProperty::Base = PropertySize;
-	
+
 	Off::UClassProperty::MetaClass = PropertySize + 0x8; //0x8 inheritance from UObjectProperty
+	
+	OffsetFinder::FixFNameSize();
 }

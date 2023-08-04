@@ -157,12 +157,51 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 
 bool NameArray::InitializeNamePool(uint8_t* NamePool)
 {
+	Off::NameArray::MaxChunkIndex = 0x0;
+	Off::NameArray::ByteCursor = 0x4;
+
+	Off::NameArray::ChunksStart = 0x10;
+
+	for (int i = 0x0; i < 0x20; i += 4)
+	{
+		const int32 PossibleMaxChunkIdx = *reinterpret_cast<int32*>(NamePool + i);
+
+		if (PossibleMaxChunkIdx <= 0 || PossibleMaxChunkIdx > 0x10000)
+			continue;
+
+		int32 NotNullptrCount = 0x0;
+		bool bFoundFirstPtr = false;
+
+		for (int j = 0x0; j < 0x10000; j += 8)
+		{
+			const int32 ChunkOffset = i + 8 + j + (i % 8);
+
+			if ((*reinterpret_cast<uint8_t**>(NamePool + ChunkOffset)) != nullptr)
+			{
+				NotNullptrCount++;
+
+				if (!bFoundFirstPtr)
+				{
+					bFoundFirstPtr = true;
+					Off::NameArray::ChunksStart = i + 8 + j + (i % 8);
+				}
+			}
+		}
+
+		if (PossibleMaxChunkIdx == (NotNullptrCount - 1))
+		{
+			Off::NameArray::MaxChunkIndex = i;
+			Off::NameArray::ByteCursor = i + 4;
+			break;
+		}
+	}
+
 	constexpr uint64 CoreUObjAsUint64 = 0x726F432F74706972; // little endian "ript/Cor" ["/Script/CoreUObject"]
 	constexpr uint32 NoneAsUint32 = 0x656E6F4E; // little endian "None"
 
 	constexpr int64 CoreUObjectStringLength = sizeof("/S");
 
-	uint8_t** ChunkPtr = reinterpret_cast<uint8_t**>(NamePool + 0x10);
+	uint8_t** ChunkPtr = reinterpret_cast<uint8_t**>(NamePool + Off::NameArray::ChunksStart);
 
 	// "/Script/CoreUObject"
 	uint8_t* CoreUObjectFNameEntry = nullptr;
@@ -182,36 +221,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 	}
 
 	NameEntryStride = FNameEntryHeaderSize == 2 ? 2 : 4;
-
-
-	Off::NameArray::MaxChunkIndex = 0x0;
-	Off::NameArray::ByteCursor = 0x4;
-
-
-	for (int i = 0x0; i < 0x20; i += 4)
-	{
-		const int32 PossibleMaxChunkIdx = *reinterpret_cast<int32*>(NamePool + i);
-
-		if (PossibleMaxChunkIdx <= 0 || PossibleMaxChunkIdx > 0x10000)
-			continue;
-
-		int32 NotNullptrCount = 0x0;
-
-		for (int j = 0x0; j < 0x10000; j += 8)
-		{
-			const int32 ChunkOffset = i + 8 + j + (i % 8);
-
-			if ((*reinterpret_cast<uint8_t**>(NamePool + ChunkOffset)) != nullptr)
-				NotNullptrCount++;
-		}
-
-		if (PossibleMaxChunkIdx == (NotNullptrCount - 1))
-		{
-			Off::NameArray::MaxChunkIndex = i;
-			Off::NameArray::ByteCursor = i + 4;
-			break;
-		}
-	}
+	Off::InSDK::FNameEntryStride = NameEntryStride;
 
 	ByIndex = [](void* NamesArray, int32 ComparisonIndex, int32 NamePoolBlockOffsetBits) -> void*
 	{
@@ -283,6 +293,8 @@ void NameArray::Init()
 		return;
 	}
 
+	Off::InSDK::GNames = uintptr_t(GNamesAddress) - ImageBase;
+
 	std::cout << "\nGNames couldn't be found!\n\n\n";
 }
 
@@ -320,6 +332,7 @@ void NameArray::PostInit()
 
 			i--;
 		}
+		Off::InSDK::FNamePoolBlockOffsetBits = NameArray::FNameBlockOffsetBits;
 
 		std::cout << "\nNameArray::FNameBlockOffsetBits: 0x" << std::hex << NameArray::FNameBlockOffsetBits << "\n" << std::endl;
 	}

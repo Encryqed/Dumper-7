@@ -4,6 +4,41 @@
 void(*FName::AppendString)(void*, FString&) = nullptr;
 
 
+inline std::string MakeNameValid(std::string&& Name)
+{
+	char& FirstChar = Name[0];
+
+	if (Name == "bool")
+	{
+		FirstChar -= 0x20;
+
+		return Name;
+	}
+
+	if (Name == "TRUE")
+		return "TURR";
+
+	if (Name == "FALSE")
+		return "FLASE";
+
+	if (FirstChar <= '9' && FirstChar >= '0')
+		Name = '_' + Name;
+
+	// this way I don't need to bother checking for c++ types (except bool) like int in the names
+	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
+		FirstChar = FirstChar - 0x20;
+
+	for (char& c : Name)
+	{
+		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
+		{
+			c = '_';
+		}
+	}
+
+	return Name;
+}
+
 FName::FName(void* Ptr)
 	: Address((uint8*)Ptr)
 {
@@ -83,6 +118,11 @@ std::string FName::ToString()
 		return OutputString;
 
 	return OutputString.substr(pos + 1);
+}
+
+std::string FName::ToValidString()
+{
+	return MakeNameValid(ToString());
 }
 
 int32 FName::GetCompIdx()

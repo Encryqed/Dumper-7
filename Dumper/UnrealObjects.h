@@ -31,6 +31,8 @@ public:
 
 	void* GetAddress();
 
+	operator bool() const;
+
 	EFieldClassID GetId() const;
 
 	EClassCastFlags GetCastFlags() const;
@@ -181,6 +183,8 @@ public:
 
 	std::vector<UEProperty> GetProperties() const;
 
+	UEProperty FindMember(const std::string& MemberName, EClassCastFlags TypeFlags = EClassCastFlags::None) const;
+
 	bool HasMembers() const;
 };
 
@@ -233,6 +237,8 @@ public:
 	void* GetAddress();
 
 	std::pair<UEClass, UEFFieldClass> GetClass() const;
+
+	operator bool() const;
 
 	template<typename UEType>
 	UEType Cast();

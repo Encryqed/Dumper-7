@@ -8,45 +8,15 @@ std::unordered_map<int32, std::string> UEEnum::BigEnums;
 std::unordered_map<std::string, uint32> UEProperty::UnknownProperties;
 std::unordered_map<int32, uint32> UEStruct::StructSizes;
 
-inline std::string MakeNameValid(std::string&& Name)
-{
-	char& FirstChar = Name[0];
-
-	if (Name == "bool")
-	{
-		FirstChar -= 0x20;
-
-		return Name;
-	}
-
-	if (Name == "TRUE")
-		return "TURR";
-
-	if (Name == "FALSE")
-		return "FLASE";
-
-	if (FirstChar <= '9' && FirstChar >= '0')
-		Name = '_' + Name;
-
-	// this way I don't need to bother checking for c++ types (except bool) like int in the names
-	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
-		FirstChar = FirstChar - 0x20;
-
-	for (char& c : Name)
-	{
-		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
-		{
-			c = '_';
-		}
-	}
-
-	return Name;
-}
-
 
 void* UEFFieldClass::GetAddress()
 {
 	return Class;
+}
+
+UEFFieldClass::operator bool() const
+{
+	return Class != nullptr;
 }
 
 EFieldClassID UEFFieldClass::GetId() const
@@ -86,7 +56,7 @@ std::string UEFFieldClass::GetName() const
 
 std::string UEFFieldClass::GetValidName() const
 {
-	return MakeNameValid(GetName());
+	return Class ? GetFName().ToValidString() : "None";
 }
 
 std::string UEFFieldClass::GetCppName() const
@@ -187,7 +157,7 @@ std::string UEFField::GetName() const
 
 std::string UEFField::GetValidName() const
 {
-	return MakeNameValid(GetName());
+	return Field ? GetFName().ToValidString() : "None";
 }
 
 std::string UEFField::GetCppName() const
@@ -301,7 +271,7 @@ std::string UEObject::GetName() const
 
 std::string UEObject::GetValidName() const
 {
-	return MakeNameValid(GetName());
+	return Object ? GetFName().ToValidString() : "None";
 }
 
 std::string UEObject::GetCppName() const
@@ -506,6 +476,33 @@ std::vector<UEProperty> UEStruct::GetProperties() const
 	return Properties;
 }
 
+UEProperty UEStruct::FindMember(const std::string& MemberName, EClassCastFlags TypeFlags) const
+{
+	if (!Object)
+		return nullptr;
+
+	if (Settings::Internal::bUseFProperty)
+	{
+		for (UEFField Field = GetChildProperties(); Field; Field = Field.GetNext())
+		{
+			if (Field.IsA(TypeFlags) && Field.GetName() == MemberName)
+			{
+				return Field.Cast<UEProperty>();
+			}
+		}
+	}
+
+	for (UEField Field = GetChild(); Field; Field = Field.GetNext())
+	{
+		if (Field.IsA(TypeFlags) && Field.GetName() == MemberName)
+		{
+			return Field.Cast<UEProperty>();
+		}
+	}
+
+	return nullptr;
+}
+
 bool UEStruct::HasMembers() const
 {
 	if (!Object)
@@ -618,6 +615,11 @@ std::pair<UEClass, UEFFieldClass> UEProperty::GetClass() const
 	return { UEObject(Base).GetClass(), UEFFieldClass(0) };
 }
 
+UEProperty::operator bool() const
+{
+	return Base != nullptr && ((Base + Off::UObject::Class) != nullptr || (Base + Off::FField::Class) != nullptr);
+}
+
 template<typename UEType>
 UEType UEProperty::Cast()
 {
@@ -699,7 +701,7 @@ std::string UEProperty::GetName() const
 
 std::string UEProperty::GetValidName() const
 {
-	return MakeNameValid(GetName());
+	return Base ? GetFName().ToValidString() : "None";
 }
 
 std::string UEProperty::GetCppType() const

@@ -165,6 +165,7 @@ public:
 
 public:
 	std::string ToString();
+	std::string ToValidString();
 
 	int32 GetCompIdx();
 	int32 GetNumber();
