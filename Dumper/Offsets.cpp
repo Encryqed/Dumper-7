@@ -24,7 +24,7 @@ void Off::InSDK::InitPE()
 
 	for (int i = 0; i < 0x150; i++)
 	{
-		if (!Vft[i])
+		if (!Vft[i] ||IsBadReadPtr(Vft[i]))
 			break;
 
 		if (FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, Resolve32BitRelativeJump(Vft[i]), 0x400)
@@ -76,6 +76,8 @@ void Off::InSDK::InitPE(int32 Index)
 void Off::Init()
 {
 	OffsetFinder::InitUObjectOffsets();
+
+	OffsetFinder::InitFNameSettings();
 
 	::NameArray::PostInit();
 
@@ -150,6 +152,4 @@ void Off::Init()
 	Off::UEnumProperty::Base = PropertySize;
 
 	Off::UClassProperty::MetaClass = PropertySize + 0x8; //0x8 inheritance from UObjectProperty
-	
-	OffsetFinder::FixFNameSize();
 }

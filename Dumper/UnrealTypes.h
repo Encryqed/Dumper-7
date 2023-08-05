@@ -164,6 +164,8 @@ public:
 	static void Init(int32 AppendStringOffset);
 
 public:
+	inline const void* GetAddress() const { return Address; }
+
 	std::string ToString();
 	std::string ToValidString();
 

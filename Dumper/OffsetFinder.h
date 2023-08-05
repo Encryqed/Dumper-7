@@ -79,24 +79,6 @@ namespace OffsetFinder
 
 			Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8, 0x40);
 		}
-
-		Off::InSDK::FNameSize = Off::UObject::Outer - Off::UObject::Name;
-		Off::FName::CompIdx = 0x0;
-
-		if (Off::InSDK::FNameSize > 0x8)
-		{
-			Settings::Internal::bUseCasePreservingName = true;
-
-			Off::FName::Number = 0x8;
-			Off::FName::Number = Settings::Internal::bUseNamePool ? 0x4 : 0x8;
-		}
-		else // for now assume sizeof(FName) == 8, update it later with OffsetFinder::FixFNameSize();
-		{
-			Settings::Internal::bUseCasePreservingName = false;
-
-			Off::FName::CompIdx = 0x0;
-			Off::FName::Number =  Settings::Internal::bUseNamePool ? 0x4 : 0x8;
-		}
 	}
 
 	inline void FixupHardcodedOffsets()
@@ -144,12 +126,66 @@ namespace OffsetFinder
 		}
 	}
 
-	inline void FixFNameSize()
+	inline void InitFNameSettings()
 	{
-		if (ObjectArray::FindClassFast("NetDriver").FindMember("NetDriverName").GetSize() == 4)
+		UEObject FirstObject = ObjectArray::GetByIndex(0);
+		
+		const uint8* NameAddress = static_cast<const uint8*>(FirstObject.GetFName().GetAddress());
+
+		const int32 FNameFirstInt /* ComparisonIndex */ =  *reinterpret_cast<const int32*>(NameAddress);
+		const int32 FNameSecondInt /* [Number/DisplayIndex] */ = *reinterpret_cast<const int32*>(NameAddress + 0x4);
+
+		const int32 FNameSize = Off::UObject::Outer - Off::UObject::Name;
+
+		Off::FName::CompIdx = 0x0;
+		Off::FName::Number = 0x4; // defaults for check
+
+		 // FNames for which FName::Number == [1...4]
+		auto GetNumNamesWithNumberOneToFour = []() -> int32
 		{
-			Off::FName::Number = -1;
-			Off::InSDK::FNameSize = 4;
+			int32 NamesWithNumberOneToFour = 0x0;
+
+			for (UEObject Obj : ObjectArray())
+			{
+				const int32 Number = Obj.GetFName().GetNumber();
+
+				if (Number > 0x0 && Number < 0x5)
+					NamesWithNumberOneToFour++;
+			}
+			std::cout << NamesWithNumberOneToFour << std::endl;
+
+			return NamesWithNumberOneToFour;
+		};
+
+		Off::FName::CompIdx = 0x0;
+
+		if (FNameSize == 0x8 && FNameFirstInt == FNameSecondInt) /* WITH_CASE_PRESERVING_NAME + FNAME_OUTLINE_NUMBER*/
+		{
+			Settings::Internal::bUseCasePreservingName = true;
+			Settings::Internal::bUseUoutlineNumberName = true;
+
+			Off::FName::Number = -0x1;
+			Off::InSDK::FNameSize = 0x8;
+		}
+		else if (FNameSize == 0x10) /* WITH_CASE_PRESERVING_NAME */
+		{
+			Settings::Internal::bUseCasePreservingName = true;
+
+			Off::FName::Number = FNameFirstInt == FNameSecondInt ? 0x8 : 0x4;
+
+			Off::InSDK::FNameSize = 0xC;
+		}
+		else if (GetNumNamesWithNumberOneToFour() < 0x50) /* FNAME_OUTLINE_NUMBER*/
+		{
+			Off::FName::Number = -0x1;
+
+			Off::InSDK::FNameSize = 0x4;
+		}
+		else /* Default */
+		{
+			Off::FName::Number = 0x8;
+
+			Off::InSDK::FNameSize = 0x8;
 		}
 	}
 
@@ -205,10 +241,16 @@ namespace OffsetFinder
 		struct Name08Byte { uint8 Pad[0x08]; };
 		struct Name16Byte { uint8 Pad[0x10]; };
 
+		uint8* ArrayAddress = static_cast<uint8*>(Infos[0].first) + Ret;
+
 		if (Settings::Internal::bUseCasePreservingName)
 		{
-			if (reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret)->operator[](1).Second != 1)
+			TArray<TPair<Name16Byte, int64>>& ArrayOfNameValuePairs = *reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(ArrayAddress);
+
+			if (ArrayOfNameValuePairs[1].Second != 1)
 				Settings::Internal::bIsEnumNameOnly = true;
+
+			
 		}
 		else
 		{
@@ -284,7 +326,15 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindObjectFast("WasInputKeyJustPressed").GetAddress(), EFunctionFlags::Final | EFunctionFlags::Native | EFunctionFlags::Public | EFunctionFlags::BlueprintCallable | EFunctionFlags::BlueprintPure | EFunctionFlags::Const });
 		Infos.push_back({ ObjectArray::FindObjectFast("ToggleSpeaking").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
-		
+
+		int32 Ret = FindOffset(Infos);
+
+		if (Ret == 0x28)
+		{
+			for (auto& [_, Flags] : Infos)
+				Flags = Flags | EFunctionFlags::RequiredAPI;
+		}
+
 		return FindOffset(Infos);
 	}
 

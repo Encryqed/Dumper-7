@@ -1324,6 +1324,7 @@ public:
 
 	inline std::string GetString() const
 	{{
+		// ADD #NAME_NO_NUMBER SUPPORT
 		if (IsWide())
 		{{
 			std::wstring WideString(WideName, Header.Len);
@@ -1481,7 +1482,7 @@ public:
 )", Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "FNamePool" : "TNameEntryArray" : "void"
   , FNameMemberStr
   , GetDisplayIndexString
-  , Off::InSDK::AppendNameToString == 0 ? Off::InSDK::FNameSize == 4 ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString
+  , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseUoutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString
   , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "reinterpret_cast<FNamePool*>" : "*reinterpret_cast<TNameEntryArray**>" : "Reinterpret_cast<void*>"));
 
 	BasicHeader.Write(

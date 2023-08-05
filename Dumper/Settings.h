@@ -44,6 +44,7 @@ namespace Settings
 		inline bool bUseNamePool = false;
 
 		inline bool bUseCasePreservingName = false;
+		inline bool bUseUoutlineNumberName = false;
 
 		inline bool bUseMaskForFieldOwner = false;
 
