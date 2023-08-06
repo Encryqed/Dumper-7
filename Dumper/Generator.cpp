@@ -18,7 +18,7 @@ void Generator::Init()
 	//Off::InSDK::InitPE(/*PEIndex*/);
 
 	/* Back4Blood*/
-	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
+	InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
 
 	/* Multiversus [Unsupported, weird GObjects-struct]*/
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
@@ -936,8 +936,11 @@ public:
 		Members += MemberTypeAndName;
 	}
 
-	inline std::string GetMembers()
+	inline std::string GetMembers(int32 RequiredSize = 0)
 	{
+		if (RequiredSize > CurrentSize)
+			AddPadding(RequiredSize - CurrentSize);
+
 		return Members;
 	}
 };
@@ -975,7 +978,17 @@ inline Fn GetVFunction(const void* Instance, std::size_t Index)
 		return reinterpret_cast<uint8*>(ObjPtr);
 	})";
 
-	std::string EncryptionStrToUse = ObjectArray::DecryptionLambdaStr.empty() ? DefaultDecryption : std::move(ObjectArray::DecryptionLambdaStr);
+	std::string DecryptionStrToUse = ObjectArray::DecryptionLambdaStr.empty() ? DefaultDecryption : std::move(ObjectArray::DecryptionLambdaStr);
+
+	MemberBuilder FUObjectItemMemberBuilder;
+	FUObjectItemMemberBuilder.Add("\tclass UObject* Object;\n", Off::InSDK::FUObjectItemInitialOffset, sizeof(void*));
+
+	BasicHeader.Write(std::format(R"(
+struct FUObjectItem
+{{
+{}
+}};
+)", FUObjectItemMemberBuilder.GetMembers(Off::InSDK::FUObjectItemSize)));
 
 	if (Off::InSDK::ChunkSize <= 0)
 	{
@@ -984,20 +997,15 @@ inline Fn GetVFunction(const void* Instance, std::size_t Index)
 class TUObjectArray
 {{
 public:
-	struct FUObjectItem
-	{{
-		class UObject* Object;
-		uint8 Pad[0x{:02X}];
-	}};
-
 	static inline auto DecryptPtr = {};
 
+public:
 	FUObjectItem* Objects;
 	int32 MaxElements;
 	int32 NumElements;
 
+public:
 	// Call InitGObjects() before using these functions
-
 	inline int Num() const
 	{{
 		return NumElements;
@@ -1016,7 +1024,7 @@ public:
 		return GetDecrytedObjPtr()[Index].Object;
 	}}
 }};
-)", Off::InSDK::FUObjectItemSize - 0x8, EncryptionStrToUse));
+)", DecryptionStrToUse));
 	}
 	else
 	{
@@ -1048,17 +1056,12 @@ public:
 		ElementsPerChunk = 0x{:X},
 	}};
 
-	struct FUObjectItem
-	{{
-		class UObject* Object;
-		uint8 Pad[0x{:02X}];
-	}};
-
+public:
 	static inline auto DecryptPtr = {};
 	{}
 
+public:
 	// Call InitGObjects() before using these functions
-
 	inline int32 Num() const
 	{{
 		return NumElements;
@@ -1080,7 +1083,7 @@ public:
 		return GetDecrytedObjPtr()[ChunkIndex][InChunkIdx].Object;
 	}}
 }};
-)", Off::InSDK::ChunkSize, Off::InSDK::FUObjectItemSize - 0x8, EncryptionStrToUse, Off::FUObjectArray::Ptr == 0 ? MemmberString : MemberStringWeirdLayout));
+)", Off::InSDK::ChunkSize, DecryptionStrToUse, Off::FUObjectArray::Ptr == 0 ? MemmberString : MemberStringWeirdLayout));
 	}
 
 	BasicHeader.Write(

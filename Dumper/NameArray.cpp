@@ -282,6 +282,8 @@ void NameArray::Init()
 		exit(1);
 	}
 
+	Off::InSDK::GNames = uintptr_t(GNamesAddress) - ImageBase;
+
 	if (NameArray::InitializeNameArray(*GNamesAddress))
 	{
 		GNames = *GNamesAddress;
@@ -298,8 +300,6 @@ void NameArray::Init()
 		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
 		return;
 	}
-
-	Off::InSDK::GNames = uintptr_t(GNamesAddress) - ImageBase;
 
 	std::cout << "\nGNames couldn't be found!\n\n\n";
 }
