@@ -65,6 +65,14 @@ void FName::Init()
 
 		ToStr = [](void* Name) -> std::string
 		{
+			if (!Settings::Internal::bUseUoutlineNumberName)
+			{
+				const int32 Number = FName(Name).GetNumber();
+
+				if (Number > 0)
+					return NameArray::GetNameEntry(Name).GetString() + "_" + std::to_string(Number - 1);
+			}
+
 			return NameArray::GetNameEntry(Name).GetString();
 		};
 

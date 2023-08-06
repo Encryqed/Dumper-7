@@ -152,7 +152,6 @@ namespace OffsetFinder
 				if (Number > 0x0 && Number < 0x5)
 					NamesWithNumberOneToFour++;
 			}
-			std::cout << NamesWithNumberOneToFour << std::endl;
 
 			return NamesWithNumberOneToFour;
 		};
@@ -183,7 +182,7 @@ namespace OffsetFinder
 		}
 		else /* Default */
 		{
-			Off::FName::Number = 0x8;
+			Off::FName::Number = 0x4;
 
 			Off::InSDK::FNameSize = 0x8;
 		}

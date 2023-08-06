@@ -1324,7 +1324,6 @@ public:
 
 	inline std::string GetString() const
 	{{
-		// ADD #NAME_NO_NUMBER SUPPORT
 		if (IsWide())
 		{{
 			std::wstring WideString(WideName, Header.Len);
@@ -1381,11 +1380,9 @@ public:
 
 	constexpr const char* DisplayIdx = "\tint32 DisplayIndex;\n";
 	constexpr const char* Number =     "\tint32 Number;\n";
-	constexpr const char* Pad =        "\tuint8 Pad[0x4];\n";
 ;
 	FNameMemberStr += Off::FName::Number == 4 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
 	FNameMemberStr += Off::FName::Number == 8 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
-	FNameMemberStr += Settings::Internal::bUseCasePreservingName ? Pad : "";
 
 	std::string GetDisplayIndexString = std::format(R"(inline int32 GetDisplayIndex() const
 	{{
@@ -1429,7 +1426,12 @@ public:
 		const FNameEntry* Entry = FName::GNames->GetEntryByIndex(GetDisplayIndex());
 
 		if (Entry->Header.Length == 0)
-			return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString() + "_" + std::to_string(Entry->Number - 1);
+		{{
+			if (Entry->Number > 0)
+				return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString() + "_" + std::to_string(Entry->Number - 1);
+
+			return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString();
+		}}
 
 		return Entry.GetString();
 	})";
