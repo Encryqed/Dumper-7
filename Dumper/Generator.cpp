@@ -18,7 +18,7 @@ void Generator::Init()
 	//Off::InSDK::InitPE(/*PEIndex*/);
 
 	/* Back4Blood*/
-	InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
+	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
 
 	/* Multiversus [Unsupported, weird GObjects-struct]*/
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
@@ -1283,12 +1283,12 @@ public:
 
 		MemberBuilder NameEntryHeaderMembers;
 		NameEntryHeaderMembers.Add("\tuint16 bIsWide : 1;\n", 0, 0);
-		NameEntryHeaderMembers.Add("\tuint16 Len : 15;", 0, 0, Settings::Internal::bUseCasePreservingName);
-		NameEntryHeaderMembers.Add("\tuint16 LowercaseProbeHash : 5;\n", 0, 0, !Settings::Internal::bUseCasePreservingName);
-		NameEntryHeaderMembers.Add("\tuint16 Len : 10;", 0, 0, !Settings::Internal::bUseCasePreservingName);
+		NameEntryHeaderMembers.Add("\tuint16 Len : 15;", 0, 0, !Settings::Internal::bUseCasePreservingName);
+		NameEntryHeaderMembers.Add("\tuint16 LowercaseProbeHash : 5;\n", 0, 0, Settings::Internal::bUseCasePreservingName);
+		NameEntryHeaderMembers.Add("\tuint16 Len : 10;", 0, 0, Settings::Internal::bUseCasePreservingName);
 
 		MemberBuilder NameEntryMembers;
-		NameEntryMembers.Add("\tFNameEntryHeader Header;\n", Off::FNameEntry::NamePool::HeaderOffset, sizeof(int32));
+		NameEntryMembers.Add("\tFNameEntryHeader Header;\n", Off::FNameEntry::NamePool::HeaderOffset, sizeof(uint16));
 		NameEntryMembers.Add(
 			R"(
 	union
@@ -1343,7 +1343,7 @@ public:
 		MemberBuilder NamePoolMembers;
 		NamePoolMembers.Add("\tuint32 CurrentBlock;\n", Off::NameArray::MaxChunkIndex, sizeof(uint32));
 		NamePoolMembers.Add("\tuint32 CurrentByteCursor;\n", Off::NameArray::ByteCursor, sizeof(uint32));
-		NamePoolMembers.Add("\tuint8** Blocks;\n", Off::NameArray::ChunksStart, sizeof(uint8**));
+		NamePoolMembers.Add("\tuint8* Blocks[8192];\n", Off::NameArray::ChunksStart, sizeof(uint8**));
 
 		BasicHeader.Write(std::format(R"(
 class FNamePool

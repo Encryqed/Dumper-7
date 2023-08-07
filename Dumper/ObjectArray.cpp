@@ -380,6 +380,14 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 				{
 					LowestOffset = Property.Cast<UEProperty>().GetOffset();
 				}
+
+				if (Property.IsA(EClassCastFlags::EnumProperty))
+				{
+					UEEnum Enum = Property.Cast<UEEnumProperty>().GetEnum();
+				
+					if (Property.Cast<UEEnumProperty>().GetSize() != 0x1 && Enum)
+						UEEnum::BigEnums[Enum.GetIndex()] = Property.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
+				}
 			}
 
 			if (!Super || Object.IsA(EClassCastFlags::Function))
@@ -408,16 +416,6 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 		else if (Object.IsA(EClassCastFlags::Enum))
 		{
 			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
-		}
-		else if (Object.IsA(EClassCastFlags::EnumProperty) && Object.Cast<UEEnumProperty>().GetSize() != 1)
-		{
-			static auto DelegateInlinePropertyClass = ObjectArray::FindClassFast("MulticastInlineDelegateProperty");
-
-			if (Object.GetClass().HasType(DelegateInlinePropertyClass))
-				continue;
-
-			if(Object.Cast<UEEnumProperty>().GetSize() != 1)
-				UEEnum::BigEnums[Object.Cast<UEEnumProperty>().GetEnum().GetIndex()] = Object.Cast<UEEnumProperty>().GetUnderlayingProperty().GetCppType();
 		}
 	}
 }

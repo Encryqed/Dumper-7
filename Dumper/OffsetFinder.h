@@ -174,8 +174,10 @@ namespace OffsetFinder
 
 			Off::InSDK::FNameSize = 0xC;
 		}
-		else if (GetNumNamesWithNumberOneToFour() < 0x50) /* FNAME_OUTLINE_NUMBER*/
+		else if (GetNumNamesWithNumberOneToFour() < 0x3A) /* FNAME_OUTLINE_NUMBER*/
 		{
+			Settings::Internal::bUseUoutlineNumberName = true;
+
 			Off::FName::Number = -0x1;
 
 			Off::InSDK::FNameSize = 0x4;
