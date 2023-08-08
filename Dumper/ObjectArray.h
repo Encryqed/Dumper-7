@@ -8,6 +8,7 @@ class ObjectArray
 private:
 	friend struct FChunkedFixedUObjectArray;
 	friend struct FFixedUObjectArray;
+	friend class ObjectArrayValidator;
 
 private:
 	static uint8* GObjects;

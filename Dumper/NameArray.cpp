@@ -51,7 +51,7 @@ void FNameEntry::Init(uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 				const int32 EntryIdOffset = Off::FNameEntry::NamePool::StringOffset + ((Off::FNameEntry::NamePool::StringOffset == 6) * 2);
 
 				const int32 NextEntryIndex = *reinterpret_cast<int32*>(NameEntry + EntryIdOffset);
-				const int32 Number = *reinterpret_cast<int32*>(EntryIdOffset + sizeof(int32));
+				const int32 Number = *reinterpret_cast<int32*>(NameEntry + EntryIdOffset + sizeof(int32));
 
 				if (Number > 0)
 					return NameArray::GetNameEntry(NextEntryIndex).GetString() + "_" + std::to_string(Number - 1);

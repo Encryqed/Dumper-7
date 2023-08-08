@@ -1255,7 +1255,7 @@ public:
 public:
 	inline bool IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx) const
 	{{
-		return Index < 0 || Index > NumElements;
+		return return Index >= 0 && Index < NumElements;
 	}}
 
 	inline FNameEntry* GetEntryByIndex(int32 Index) const
