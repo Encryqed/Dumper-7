@@ -6,14 +6,8 @@ void(*FName::AppendString)(void*, FString&) = nullptr;
 
 inline std::string MakeNameValid(std::string&& Name)
 {
-	char& FirstChar = Name[0];
-
 	if (Name == "bool")
-	{
-		FirstChar -= 0x20;
-
-		return Name;
-	}
+		return "Bool";
 
 	if (Name == "TRUE")
 		return "TURR";
@@ -21,12 +15,12 @@ inline std::string MakeNameValid(std::string&& Name)
 	if (Name == "FALSE")
 		return "FLASE";
 
-	if (FirstChar <= '9' && FirstChar >= '0')
+	if (Name[0] <= '9' && Name[0] >= '0')
 		Name = '_' + Name;
 
 	// this way I don't need to bother checking for c++ types (except bool) like int in the names
-	if ((FirstChar <= 'z' && FirstChar >= 'a') && FirstChar != 'b')
-		FirstChar = FirstChar - 0x20;
+	if ((Name[0] <= 'z' && Name[0] >= 'a') && Name[0] != 'b')
+		Name[0] -= 0x20;
 
 	for (char& c : Name)
 	{

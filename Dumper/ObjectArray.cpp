@@ -118,9 +118,9 @@ private:
 		const int32 MaxElements = *reinterpret_cast<int32*>(Address + OffMaxElements);
 		const int32 NumElements = *reinterpret_cast<int32*>(Address + OffNumElements);
 
-		uint8* ObjectsPtr = ObjectArray::DecryptPtr(*reinterpret_cast<void**>(Address + OffObjectsPtr));
+		uint8** ObjectsPtr = reinterpret_cast<uint8**>(ObjectArray::DecryptPtr(*reinterpret_cast<void**>(Address + OffObjectsPtr)));
 
-		if (NumElements > MaxElements)
+		if (NumElements >= MaxElements)
 			return false;
 
 		if (MaxElements > 0x400000 || NumElements < 0x1000)
@@ -141,6 +141,31 @@ private:
 				return false;
 
 			if (((NumElements / 0x10000) + 1) != NumChunks || (MaxElements / 0x10000) != MaxChunks)
+				return false;
+
+			for (int i = 0; i < NumChunks; i++)
+			{
+				if (!ObjectsPtr[i] || IsBadReadPtr(ObjectsPtr[i]))
+					return false;
+			}
+		}
+		else
+		{
+			int32 ValidObjectPtrCount = 0x0;
+			bool bPrevIndexWasValidPtr = false;
+
+			for (int i = 0x0; i <= 0x8; i++) // void*
+			{
+				// Check for FUObjectItem::Object and FUObjectItem::Object::VFT
+				const bool bIsValidObjectPtr = !IsBadReadPtr(ObjectsPtr[i]) && !IsBadReadPtr(*reinterpret_cast<void**>((ObjectsPtr[i])));
+
+				if (!bPrevIndexWasValidPtr && bIsValidObjectPtr)
+					ValidObjectPtrCount++;
+
+				bPrevIndexWasValidPtr = !bPrevIndexWasValidPtr && bIsValidObjectPtr;
+			}
+
+			if (ValidObjectPtrCount < 0x2 || ValidObjectPtrCount > 0x4)
 				return false;
 		}
 
@@ -255,21 +280,21 @@ void ObjectArray::Init(bool bScanAllMemory)
 	//ChunkedValidator.OffNumChunks = 0x1C;
 	//
 	//ObjectArrayValidator FixedValidator;
-	//ChunkedValidator.OffObjectsPtr = 0x0;
-	//ChunkedValidator.OffMaxElements = 0x8;
-	//ChunkedValidator.OffNumElements = 0xC;
-	//ChunkedValidator.OffMaxChunks = -1;
-	//ChunkedValidator.OffNumChunks = -1;
+	//FixedValidator.OffObjectsPtr = 0x0;
+	//FixedValidator.OffMaxElements = 0x8;
+	//FixedValidator.OffNumElements = 0xC;
+	//FixedValidator.OffMaxChunks = -1;
+	//FixedValidator.OffNumChunks = -1;
 
 	for (int i = 0; i < SearchRange; i += 0x4)
 	{
 		//if (ChunkedValidator.IsValid(SearchBase + i))
 		//{
-		//	std::cout << "Found valid FChunkedFixedUObjectArray!" << std::endl;
+		//	std::cout << "Found valid FChunkedFixedUObjectArray: " << reinterpret_cast<void*>(ImageBase + i) << std::endl;
 		//}
 		//else if (FixedValidator.IsValid(SearchBase + i))
 		//{
-		//	std::cout << "Found valid FFixedUObjectArray!" << std::endl;
+		//	std::cout << "Found valid FFixedUObjectArray: " << reinterpret_cast<void*>(ImageBase + i) << std::endl;
 		//}
 
 		auto FixedArray = reinterpret_cast<FFixedUObjectArray*>(SearchBase + i);
