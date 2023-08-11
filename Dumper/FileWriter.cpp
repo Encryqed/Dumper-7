@@ -1,5 +1,4 @@
 #include "FileWriter.h"
-#include "Generator.h"
 #include "Settings.h"
 
 FileWriter::FileWriter(const fs::path& FilePath)
@@ -61,7 +60,7 @@ void FileWriter::Close()
 	FileStream.close();
 }
 
-void FileWriter::Write(std::string& Text)
+void FileWriter::Write(const std::string& Text)
 {
 	FileStream << Text;
 }

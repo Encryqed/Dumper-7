@@ -30,7 +30,7 @@ namespace OffsetFinder
 		return HighestFoundOffset;
 	}
 
-
+	template<bool bCheckForVft = true>
 	inline int32_t GetValidPointerOffset(uint8_t* ObjA, uint8_t* ObjB, int32_t StartingOffset, int32_t MaxOffset)
 	{
 		if (IsBadReadPtr(ObjA) || IsBadReadPtr(ObjB))
@@ -38,10 +38,11 @@ namespace OffsetFinder
 
 		for (int j = StartingOffset; j <= MaxOffset; j += 0x8)
 		{
-			if (!IsBadReadPtr(*(void**)(ObjA + j)) && !IsBadReadPtr(*(void**)(ObjB + j)))
-			{
+			const bool bIsAValid = !IsBadReadPtr(*reinterpret_cast<void**>(ObjA + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void***>(ObjA + j)) : true);
+			const bool bIsBValid = !IsBadReadPtr(*reinterpret_cast<void**>(ObjB + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void***>(ObjB + j)) : true);
+
+			if (bIsAValid && bIsBValid)
 				return j;
-			}
 		}
 
 		return -1;
@@ -77,23 +78,6 @@ namespace OffsetFinder
 			ObjB = (uint8*)ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
 
 			Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8, 0x40);
-		}
-
-		Off::InSDK::FNameSize = Off::UObject::Outer - Off::UObject::Name;
-
-		if (Off::InSDK::FNameSize > 0x8)
-		{
-			Settings::Internal::bUseCasePreservingName = true;
-
-			Off::FName::CompIdx = 0x0;
-			Off::FName::Number = 0x8;
-		}
-		else
-		{
-			Settings::Internal::bUseCasePreservingName = false;
-
-			Off::FName::CompIdx = 0x0;
-			Off::FName::Number = 0x4;
 		}
 	}
 
@@ -142,41 +126,107 @@ namespace OffsetFinder
 		}
 	}
 
-	/* UEnum */
-	inline int32_t FindFieldNextOffset()
+	inline void InitFNameSettings()
 	{
-		int32_t Ret = 0xFFFF;
-		int32_t LastIteration = -1;
+		UEObject FirstObject = ObjectArray::GetByIndex(0);
+		
+		const uint8* NameAddress = static_cast<const uint8*>(FirstObject.GetFName().GetAddress());
 
-		UEStruct ObjA = ObjectArray::GetByIndex<UEStruct>(0x4000).GetAddress();
-		UEStruct ObjB = ObjectArray::GetByIndex<UEStruct>(0x4001).GetAddress();
+		const int32 FNameFirstInt /* ComparisonIndex */ =  *reinterpret_cast<const int32*>(NameAddress);
+		const int32 FNameSecondInt /* [Number/DisplayIndex] */ = *reinterpret_cast<const int32*>(NameAddress + 0x4);
 
-		for (int i = 0; i < 3; LastIteration = -1, i++)
+		const int32 FNameSize = Off::UObject::Outer - Off::UObject::Name;
+
+		Off::FName::CompIdx = 0x0;
+		Off::FName::Number = 0x4; // defaults for check
+
+		 // FNames for which FName::Number == [1...4]
+		auto GetNumNamesWithNumberOneToFour = []() -> int32
 		{
-			while (LastIteration == -1)
+			int32 NamesWithNumberOneToFour = 0x0;
+
+			for (UEObject Obj : ObjectArray())
 			{
-				ObjA = ObjectArray::GetByIndex<UEStruct>(rand() % 0x4000).GetAddress();
-				ObjB = ObjectArray::GetByIndex<UEStruct>(rand() % 0x4000).GetAddress();
+				const int32 Number = Obj.GetFName().GetNumber();
 
-				while (!ObjA || !ObjA.GetChild())
-					ObjA = ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
-
-				while (!ObjB || !ObjB.GetChild())
-					ObjB = ObjectArray::GetByIndex(rand() % 0x4000).GetAddress();
-
-
-				LastIteration = GetValidPointerOffset((uint8_t*)ObjA.GetChild(), (uint8_t*)ObjB.GetChild(), Off::UObject::Outer + 0x8, 0x40);
-
-				if (LastIteration != -1 && LastIteration < Ret)
-				{
-					Ret = LastIteration;
-					LastIteration = -1;
-					i = 0;
-				}
+				if (Number > 0x0 && Number < 0x5)
+					NamesWithNumberOneToFour++;
 			}
-		}
 
-		return Ret;
+			return NamesWithNumberOneToFour;
+		};
+
+		Off::FName::CompIdx = 0x0;
+
+		if (FNameSize == 0x8 && FNameFirstInt == FNameSecondInt) /* WITH_CASE_PRESERVING_NAME + FNAME_OUTLINE_NUMBER*/
+		{
+			Settings::Internal::bUseCasePreservingName = true;
+			Settings::Internal::bUseUoutlineNumberName = true;
+
+			Off::FName::Number = -0x1;
+			Off::InSDK::FNameSize = 0x8;
+		}
+		else if (FNameSize == 0x10) /* WITH_CASE_PRESERVING_NAME */
+		{
+			Settings::Internal::bUseCasePreservingName = true;
+
+			Off::FName::Number = FNameFirstInt == FNameSecondInt ? 0x8 : 0x4;
+
+			Off::InSDK::FNameSize = 0xC;
+		}
+		else if (GetNumNamesWithNumberOneToFour() < 0x3A) /* FNAME_OUTLINE_NUMBER*/
+		{
+			Settings::Internal::bUseUoutlineNumberName = true;
+
+			Off::FName::Number = -0x1;
+
+			Off::InSDK::FNameSize = 0x4;
+		}
+		else /* Default */
+		{
+			Off::FName::Number = 0x4;
+
+			Off::InSDK::FNameSize = 0x8;
+		}
+	}
+
+	/* UField */
+	inline int32_t FindUFieldNextOffset()
+	{
+		uint8_t* KismetSystemLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetSystemLibrary").GetChild().GetAddress());
+		uint8_t* KismetStringLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetStringLibrary").GetChild().GetAddress());
+		
+		return GetValidPointerOffset(KismetSystemLibraryChild, KismetStringLibraryChild, Off::UObject::Outer + 0x08, 0x48);
+	}
+
+	/* FField */
+	inline int32_t FindFFieldNextOffset()
+	{
+		uint8_t* GuidChildren = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("Guid").GetChildProperties().GetAddress());
+		uint8_t* VectorChildren = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("Vector").GetChildProperties().GetAddress());
+
+		return GetValidPointerOffset(GuidChildren, VectorChildren, Off::FField::Owner + 0x8, 0x48);
+	}
+
+	inline int32_t FindFFieldNameOffset()
+	{
+		UEFField GuidChild = ObjectArray::FindObjectFast<UEStruct>("Guid").GetChildProperties();
+		UEFField VectorChild = ObjectArray::FindObjectFast<UEStruct>("Vector").GetChildProperties();
+
+		std::string GuidChildName = GuidChild.GetName();
+		std::string VectorChildName = VectorChild.GetName();
+
+		if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
+			return Off::FField::Name;
+
+		for (Off::FField::Name = Off::FField::Owner; Off::FField::Name < 0x40; Off::FField::Name += 4)
+		{
+			GuidChildName = GuidChild.GetName();
+			VectorChildName = VectorChild.GetName();
+			
+			if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
+				return Off::FField::Name;
+		}
 	}
 
 	/* UEnum */
@@ -192,10 +242,16 @@ namespace OffsetFinder
 		struct Name08Byte { uint8 Pad[0x08]; };
 		struct Name16Byte { uint8 Pad[0x10]; };
 
+		uint8* ArrayAddress = static_cast<uint8*>(Infos[0].first) + Ret;
+
 		if (Settings::Internal::bUseCasePreservingName)
 		{
-			if (reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret)->operator[](1).Second != 1)
+			TArray<TPair<Name16Byte, int64>>& ArrayOfNameValuePairs = *reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(ArrayAddress);
+
+			if (ArrayOfNameValuePairs[1].Second != 1)
 				Settings::Internal::bIsEnumNameOnly = true;
+
+			
 		}
 		else
 		{
@@ -271,7 +327,15 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindObjectFast("WasInputKeyJustPressed").GetAddress(), EFunctionFlags::Final | EFunctionFlags::Native | EFunctionFlags::Public | EFunctionFlags::BlueprintCallable | EFunctionFlags::BlueprintPure | EFunctionFlags::Const });
 		Infos.push_back({ ObjectArray::FindObjectFast("ToggleSpeaking").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
-		
+
+		int32 Ret = FindOffset(Infos);
+
+		if (Ret == 0x28)
+		{
+			for (auto& [_, Flags] : Infos)
+				Flags = Flags | EFunctionFlags::RequiredAPI;
+		}
+
 		return FindOffset(Infos);
 	}
 
@@ -335,22 +399,35 @@ namespace OffsetFinder
 
 		UEStruct Guid = ObjectArray::FindObjectFast("Guid", EClassCastFlags::Struct).Cast<UEStruct>();
 
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Guid, "A").GetAddress(), 0x04 });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Guid, "B").GetAddress(), 0x04 });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Guid, "C").GetAddress(), 0x04 });
+		Infos.push_back({ Guid.FindMember("A").GetAddress(), 0x04 });
+		Infos.push_back({ Guid.FindMember("B").GetAddress(), 0x04 });
+		Infos.push_back({ Guid.FindMember("C").GetAddress(), 0x04 });
 
 		return FindOffset(Infos);
+	}
+
+	inline int32_t FindArrayDimOffset()
+	{
+		std::vector<std::pair<void*, int32_t>> Infos;
+
+		UEStruct Guid = ObjectArray::FindObjectFast("Guid", EClassCastFlags::Struct).Cast<UEStruct>();
+
+		Infos.push_back({ Guid.FindMember("A").GetAddress(), 0x01 });
+		Infos.push_back({ Guid.FindMember("B").GetAddress(), 0x01 });
+		Infos.push_back({ Guid.FindMember("C").GetAddress(), 0x01 });
+
+		const int32_t MinOffset = Off::UProperty::ElementSize - 0x10;
+		const int32_t MaxOffset = Off::UProperty::ElementSize + 0x10;
+
+		return FindOffset(Infos, MinOffset, MaxOffset);
 	}
 
 	inline int32_t FindPropertyFlagsOffset()
 	{
 		std::vector<std::pair<void*, EPropertyFlags>> Infos;
 
-		UEStruct Actor = ObjectArray::FindObjectFast("Actor", EClassCastFlags::Class).Cast<UEStruct>();
-		UEStruct PlayerController = ObjectArray::FindObjectFast("PlayerController", EClassCastFlags::Class).Cast<UEStruct>();
-
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Actor, "bActorEnableCollision").GetAddress(), EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPrivate });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(PlayerController, "HiddenActors").GetAddress(), EPropertyFlags::ZeroConstructor | EPropertyFlags::NativeAccessSpecifierPublic });
+		Infos.push_back({ ObjectArray::FindClassFast("Actor").FindMember("bActorEnableCollision").GetAddress(), EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPrivate });
+		Infos.push_back({ ObjectArray::FindClassFast("PlayerController").FindMember("HiddenActors").GetAddress(), EPropertyFlags::ZeroConstructor | EPropertyFlags::NativeAccessSpecifierPublic });
 
 		int FlagsOffset = FindOffset(Infos);
 
@@ -372,9 +449,9 @@ namespace OffsetFinder
 
 		UEStruct Color = ObjectArray::FindObjectFast("Color", EClassCastFlags::Struct).Cast<UEStruct>();
 
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Color, "B").GetAddress(), 0x00 });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Color, "G").GetAddress(), 0x01 });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Color, "R").GetAddress(), 0x02 });
+		Infos.push_back({ Color.FindMember("B").GetAddress(), 0x00 });
+		Infos.push_back({ Color.FindMember("G").GetAddress(), 0x01 });
+		Infos.push_back({ Color.FindMember("R").GetAddress(), 0x02 });
 
 		return FindOffset(Infos);
 	}
@@ -385,10 +462,10 @@ namespace OffsetFinder
 		std::vector<std::pair<void*, void*>> Infos;
 
 		void* ENetRoleObject = ObjectArray::FindObjectFast("ENetRole").GetAddress();
-		UEStruct Actor = ObjectArray::FindObjectFast("Actor", EClassCastFlags::Class).Cast<UEStruct>();
+		UEStruct Actor = ObjectArray::FindClassFast("Actor");
 
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Actor, "RemoteRole").GetAddress(), ENetRoleObject });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Actor, "Role").GetAddress(), ENetRoleObject });
+		Infos.push_back({Actor.FindMember("RemoteRole").GetAddress(), ENetRoleObject });
+		Infos.push_back({Actor.FindMember("Role").GetAddress(), ENetRoleObject });
 
 		return FindOffset(Infos);
 	}
@@ -398,11 +475,8 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, uint8_t>> Infos;
 
-		UEStruct GameStateBase = ObjectArray::FindObjectFast("GameStateBase", EClassCastFlags::Class).Cast<UEStruct>();
-		UEStruct PlayerController = ObjectArray::FindObjectFast("PlayerController", EClassCastFlags::Class).Cast<UEStruct>();
-
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(GameStateBase, "bReplicatedHasBegunPlay").GetAddress(), 0xFF });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(PlayerController, "bAutoManageActiveCameraTarget").GetAddress(), 0xFF });
+		Infos.push_back({ ObjectArray::FindClassFast("Engine").FindMember("bIsOverridingSelectedColor").GetAddress(), 0xFF });
+		Infos.push_back({ ObjectArray::FindClassFast("PlayerController").FindMember("bAutoManageActiveCameraTarget").GetAddress(), 0xFF });
 
 		return (FindOffset<1>(Infos, Off::UProperty::Offset_Internal) - 0x3);
 	}
@@ -426,8 +500,8 @@ namespace OffsetFinder
 
 		UEStruct GameModeBase = ObjectArray::FindObjectFast("GameModeBase", EClassCastFlags::Class).Cast<UEStruct>();
 
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(GameModeBase, "GameSessionClass").GetAddress(), ObjectArray::FindObjectFast("GameSession").GetAddress() });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(GameModeBase, "GameStateClass").GetAddress(), ObjectArray::FindObjectFast("GameStateBase").GetAddress() });
+		Infos.push_back({ GameModeBase.FindMember("GameSessionClass").GetAddress(), ObjectArray::FindObjectFast("GameSession").GetAddress() });
+		Infos.push_back({ GameModeBase.FindMember( "GameStateClass").GetAddress(), ObjectArray::FindObjectFast("GameStateBase").GetAddress() });
 
 		return FindOffset(Infos);
 	}
@@ -440,8 +514,8 @@ namespace OffsetFinder
 		UEStruct Transform = ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct).Cast<UEStruct>();
 
 		void* VectorStruct = ObjectArray::FindObjectFast("Vector").GetAddress();
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Transform, "Scale3D").GetAddress(), VectorStruct });
-		Infos.push_back({ ObjectArray::FindMemberInObjectFast(Transform, "Translation").GetAddress(), VectorStruct });
+		Infos.push_back({ Transform.FindMember("Scale3D").GetAddress(), VectorStruct });
+		Infos.push_back({ Transform.FindMember("Translation").GetAddress(), VectorStruct });
 
 		return FindOffset(Infos);
 	}
@@ -452,9 +526,9 @@ namespace OffsetFinder
 		if (!Settings::Internal::bUseFProperty)
 			return PropertySize;
 
-		if (auto Object = ObjectArray::FindMemberInObjectFast(ObjectArray::FindClassFast("GameViewportClient"), "DebugProperties", EClassCastFlags::ArrayProperty))
+		if (UEProperty Property = ObjectArray::FindClassFast("GameViewportClient").FindMember("DebugProperties", EClassCastFlags::ArrayProperty))
 		{
-			void* AddressToCheck = *(void**)((uint8*)Object.GetAddress() + PropertySize);
+			void* AddressToCheck = *reinterpret_cast<void**>(reinterpret_cast<uint8*>(Property.GetAddress()) + PropertySize);
 
 			if (IsBadReadPtr(AddressToCheck))
 				return PropertySize + 0x8;
@@ -469,7 +543,7 @@ namespace OffsetFinder
 		if (!Settings::Internal::bUseFProperty)
 			return PropertySize;
 
-		if (auto Object = ObjectArray::FindMemberInObjectFast(ObjectArray::FindClassFast("InputDeviceSubsystem"), "ActiveProperties", EClassCastFlags::SetProperty))
+		if (auto Object = ObjectArray::FindObjectFast<UEStruct>("LevelCollection", EClassCastFlags::Struct).FindMember("Levels", EClassCastFlags::SetProperty))
 		{
 			void* AddressToCheck = *(void**)((uint8*)Object.GetAddress() + PropertySize);
 
@@ -486,7 +560,7 @@ namespace OffsetFinder
 		if (!Settings::Internal::bUseFProperty)
 			return PropertySize;
 
-		if (auto Object = ObjectArray::FindMemberInObjectFast(ObjectArray::FindClassFast("ActorContainer"), "Actors", EClassCastFlags::MapProperty))
+		if (auto Object = ObjectArray::FindClassFast("UserDefinedEnum").FindMember("DisplayNameMap", EClassCastFlags::MapProperty))
 		{
 			void* AddressToCheck = *(void**)((uint8*)Object.GetAddress() + PropertySize);
 

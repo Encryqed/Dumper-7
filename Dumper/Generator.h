@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <chrono>
 #include <future>
+#include <set>
 #include "FileWriter.h"
 #include "Settings.h"
 #include "Package.h"
@@ -36,10 +37,12 @@ private:
 		std::string Name;
 		int32 Offset;
 		int32 Size;
+
+		inline bool operator<(const PredefinedMember& Other) const { return Offset < Other.Offset; }
 	};
 
 	typedef std::unordered_map<std::string, std::pair<std::string, std::vector<PredefinedFunction>>> FunctionsMap;
-	typedef std::unordered_map<std::string, std::vector<PredefinedMember>> MemberMap;
+	typedef std::unordered_map<std::string, std::set<PredefinedMember>> MemberMap;
 
 	static FunctionsMap PredefinedFunctions; // Types.cpp
 	static MemberMap PredefinedMembers; // Package.cpp

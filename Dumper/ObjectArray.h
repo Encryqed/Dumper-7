@@ -6,16 +6,31 @@
 class ObjectArray
 {
 private:
+	friend struct FChunkedFixedUObjectArray;
+	friend struct FFixedUObjectArray;
+	friend class ObjectArrayValidator;
+
+private:
 	static uint8* GObjects;
 	static uint32 NumElementsPerChunk;
 	static uint32 SizeOfFUObjectItem;
-
-	static inline void*(*ByIndex)(void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 PerChunk) = nullptr;
-
-public:
-	static inline uint8_t* (*DecryptPtr)(void* ObjPtr) = [](void* Ptr) -> uint8_t* { return (uint8_t*)Ptr; };
+	static uint32 FUObjectItemInitialOffset;
 
 public:
+	static std::string DecryptionLambdaStr;
+
+private:
+	static inline void*(*ByIndex)(void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) = nullptr;
+
+	static inline uint8_t* (*DecryptPtr)(void* ObjPtr) = [](void* Ptr) -> uint8* { return (uint8*)Ptr; };
+
+private:
+	static void InitializeFUObjectItem(uint8_t* FirstItemPtr);
+	static void InitializeChunkSize(uint8_t* GObjects);
+
+public:
+	static void InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), const char* DecryptionLambdaAsStr);
+
 	static void Init(bool bScanAllMemory = false);
 
 	static void Init(int32 GObjectsOffset, int32 NumElementsPerChunk, bool bIsChunked);
@@ -37,9 +52,6 @@ public:
 
 	template<typename UEType = UEObject>
 	static UEType FindObjectFastInOuter(std::string Name, std::string Outer);
-
-	template<typename UEType = UEFField>
-	static UEType FindMemberInObjectFast(UEStruct Struct, std::string MemberName, EClassCastFlags TypeFlags = EClassCastFlags::None);
 
 	static UEClass FindClass(std::string FullName);
 
@@ -69,3 +81,6 @@ public:
 		return GObjects;
 	}
 };
+
+
+#define InitObjectArrayDecryption(DecryptionLambda) ObjectArray::InitDecryption(DecryptionLambda, #DecryptionLambda)

@@ -14,16 +14,32 @@ namespace Off
 
 		inline int32 PEIndex;
 		inline int32 PEOffset;
+
 		inline int32 GObjects;
 		inline int32 ChunkSize;
 		inline int32 FUObjectItemSize;
+		inline int32 FUObjectItemInitialOffset;
+
 		inline int32 AppendNameToString;
 		inline int32 FNameSize;
+
+		inline int32 GNames = 0x0;
+		inline int32 FNamePoolBlockOffsetBits = 0x0;
+		inline int32 FNameEntryStride = 0x0;
 	}
 
 	namespace FUObjectArray
 	{
+		inline int32 Ptr;
 		inline int32 Num;
+	}
+
+	namespace NameArray
+	{
+		inline int32 ChunksStart;
+		inline int32 MaxChunkIndex;
+		inline int32 NumElements;
+		inline int32 ByteCursor;
 	}
 
 	namespace FField
@@ -40,6 +56,7 @@ namespace Off
 	namespace FFieldClass
 	{
 		// Fixed for CasePreserving FNames by OffsetFinder::FixupHardcodedOffsets();
+		// Fixed for OutlineNumber FNames by OffsetFinder::FixFNameSize();
 		inline int32 Name = 0x00;
 		inline int32 Id = 0x08;
 		inline int32 CastFlags = 0x10;
@@ -50,8 +67,25 @@ namespace Off
 	namespace FName
 	{
 		// These values initialized by OffsetFinder::InitUObjectOffsets()
-		inline int32 CompIdx;
-		inline int32 Number;
+		inline int32 CompIdx = 0x0;
+		inline int32 Number = 0x4;
+	}
+
+	namespace FNameEntry
+	{
+		// These values are initialized by FNameEntry::Init()
+		namespace NameArray
+		{
+			inline int32 StringOffset;
+			inline int32 IndexOffset;
+		}
+
+		// These values are initialized by FNameEntry::Init()
+		namespace NamePool
+		{
+			inline int32 HeaderOffset;
+			inline int32 StringOffset;
+		}
 	}
 
 	namespace UObject

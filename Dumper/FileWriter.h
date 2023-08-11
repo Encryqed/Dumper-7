@@ -38,7 +38,7 @@ public:
 	void Open(std::string FileName);
 	void Open(std::string FileName, FileType Type);
 	void Close();
-	void Write(std::string& Text);
+	void Write(const std::string& Text);
 	void Write(std::string&& Text);
 	void WriteIncludes(Types::Includes& Includes);
 	void WriteParamStruct(Types::Struct& Struct);

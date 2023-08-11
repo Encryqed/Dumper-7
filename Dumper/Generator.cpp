@@ -1,4 +1,5 @@
 #include "Generator.h"
+#include "NameArray.h"
 
 #include <future>
 
@@ -16,7 +17,11 @@ void Generator::Init()
 	//FName::Init(/*FName::AppendString*/);
 	//Off::InSDK::InitPE(/*PEIndex*/);
 
-	//ObjectArray::DecryptPtr = [](void* Objptr) -> uint8_t* { return (uint8_t*)(uint64_t(Objptr) ^ 0x8375); };
+	/* Back4Blood*/
+	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
+
+	/* Multiversus [Unsupported, weird GObjects-struct]*/
+	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
 
 	ObjectArray::Init();
 	FName::Init();
@@ -402,7 +407,7 @@ void Generator::GenerateSDK()
 		}
 	}
 
-	_setmaxstdio(0x400); // set number of files which can be open simultaneously
+	_setmaxstdio(0x800); // set number of files which can be open simultaneously
 
 	Futures.reserve(ObjectPackages.size());
 
@@ -461,9 +466,10 @@ namespace Offsets
 {{
 	inline int32 GObjects          = 0x{:08X};
 	inline int32 AppendString      = 0x{:08X};
+	inline int32 GNames            = 0x{:08X};
 	inline int32 ProcessEvent      = 0x{:08X};
 }}
-)", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::PEOffset);
+)", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::GNames, Off::InSDK::PEOffset);
 
 	if (Settings::bShouldXorStrings)
 		HeaderStream << "#define XORSTR(str) str\n";
@@ -566,7 +572,7 @@ void Generator::InitPredefinedMembers()
 	};
 
 	if (Settings::Internal::bUseFProperty)
-		PredefinedMembers["UStruct"].emplace(PredefinedMembers["UStruct"].begin() + 2, "class FField*", "ChildProperties", Off::UStruct::ChildProperties, 0x08);
+		PredefinedMembers["UStruct"].insert({ "class FField* ", "ChildProperties", Off::UStruct::ChildProperties, 0x08 });
 
 	PredefinedMembers["UFunction"] =
 	{
@@ -897,6 +903,48 @@ R"(
 	
 }
 
+
+struct MemberBuilder
+{
+private:
+	int32 CurrentSize = 0x0;
+	std::string Members;
+
+public:
+	const char* Indent = "\t";
+
+private:
+	inline void AddPadding(int32 Size)
+	{
+		static int32 PaddingIdx = 0x0;
+
+		CurrentSize += Size;
+		Members += std::format("{}uint8 Pad_{:X}[0x{:X}];\n", Indent, PaddingIdx++, Size);
+	}
+
+public:
+	inline void Add(std::string&& MemberTypeAndName, int32 Offset, int32 Size, bool bSkip = false)
+	{
+		if (bSkip)
+			return;
+
+		if (Offset > CurrentSize)
+			AddPadding(Offset - CurrentSize);
+
+		CurrentSize += Size;
+
+		Members += MemberTypeAndName;
+	}
+
+	inline std::string GetMembers(int32 RequiredSize = 0)
+	{
+		if (RequiredSize > CurrentSize)
+			AddPadding(RequiredSize - CurrentSize);
+
+		return Members;
+	}
+};
+
 void Generator::GenerateBasicFile(const fs::path& SdkPath)
 {
 	FileWriter BasicHeader(SdkPath, Settings::FilePrefix ? Settings::FilePrefix + std::string("Basic") : "Basic", FileWriter::FileType::Header);
@@ -925,6 +973,23 @@ inline Fn GetVFunction(const void* Instance, std::size_t Index)
 }
 )");
 
+	constexpr const char* DefaultDecryption = R"([](void* ObjPtr) -> uint8*
+	{
+		return reinterpret_cast<uint8*>(ObjPtr);
+	})";
+
+	std::string DecryptionStrToUse = ObjectArray::DecryptionLambdaStr.empty() ? DefaultDecryption : std::move(ObjectArray::DecryptionLambdaStr);
+
+	MemberBuilder FUObjectItemMemberBuilder;
+	FUObjectItemMemberBuilder.Add("\tclass UObject* Object;\n", Off::InSDK::FUObjectItemInitialOffset, sizeof(void*));
+
+	BasicHeader.Write(std::format(R"(
+struct FUObjectItem
+{{
+{}
+}};
+)", FUObjectItemMemberBuilder.GetMembers(Off::InSDK::FUObjectItemSize)));
+
 	if (Off::InSDK::ChunkSize <= 0)
 	{
 		BasicHeader.Write(
@@ -932,22 +997,23 @@ inline Fn GetVFunction(const void* Instance, std::size_t Index)
 class TUObjectArray
 {{
 public:
+	static inline auto DecryptPtr = {};
 
-	struct FUObjectItem
-	{{
-		class UObject* Object;
-		uint8 Pad[0x{:02X}];
-	}};
-
+public:
 	FUObjectItem* Objects;
 	int32 MaxElements;
 	int32 NumElements;
 
+public:
 	// Call InitGObjects() before using these functions
-
 	inline int Num() const
 	{{
 		return NumElements;
+	}}
+
+	inline FUObjectItem* GetDecrytedObjPtr() const
+	{{
+		return reinterpret_cast<FUObjectItem*>(DecryptPtr(Objects));
 	}}
 
 	inline class UObject* GetByIndex(const int32 Index) const
@@ -955,42 +1021,55 @@ public:
 		if (Index < 0 || Index > NumElements)
 			return nullptr;
 
-		return Objects[Index].Object;
+		return GetDecrytedObjPtr()[Index].Object;
 	}}
 }};
-)", Off::InSDK::FUObjectItemSize - 0x8));
+)", DecryptionStrToUse));
 	}
 	else
 	{
-		BasicHeader.Write(
-			std::format(R"(
-class TUObjectArray
-{{
-public:
-
-	enum
-	{{
-		ElementsPerChunk = 0x{:X},
-	}};
-
-	struct FUObjectItem
-	{{
-		class UObject* Object;
-		uint8 Pad[0x{:02X}];
-	}};
-
+		constexpr const char* MemmberString = R"(
 	FUObjectItem** Objects;
 	uint8 Pad_0[0x08];
 	int32 MaxElements;
 	int32 NumElements;
 	int32 MaxChunks;
 	int32 NumChunks;
+)";
 
+		constexpr const char* MemberStringWeirdLayout = R"(
+	uint8 Pad_0[0x10];
+	int32 MaxElements;
+	int32 NumElements;
+	int32 MaxChunks;
+	int32 NumChunks;
+	FUObjectItem** Objects;
+)";
+
+		BasicHeader.Write(
+			std::format(R"(
+class TUObjectArray
+{{
+public:
+	enum
+	{{
+		ElementsPerChunk = 0x{:X},
+	}};
+
+public:
+	static inline auto DecryptPtr = {};
+	{}
+
+public:
 	// Call InitGObjects() before using these functions
-
 	inline int32 Num() const
 	{{
 		return NumElements;
+	}}
+
+	inline FUObjectItem** GetDecrytedObjPtr() const
+	{{
+		return reinterpret_cast<FUObjectItem**>(DecryptPtr(Objects));
 	}}
 
 	inline class UObject* GetByIndex(const int32 Index) const
@@ -1001,10 +1080,10 @@ public:
 		const int32 ChunkIndex = Index / ElementsPerChunk;
 		const int32 InChunkIdx = Index % ElementsPerChunk;
 
-		return Objects[ChunkIndex][InChunkIdx].Object;
+		return GetDecrytedObjPtr()[ChunkIndex][InChunkIdx].Object;
 	}}
 }};
-)", Off::InSDK::ChunkSize, Off::InSDK::FUObjectItemSize - 0x8));
+)", Off::InSDK::ChunkSize, DecryptionStrToUse, Off::FUObjectArray::Ptr == 0 ? MemmberString : MemberStringWeirdLayout));
 	}
 
 	BasicHeader.Write(
@@ -1019,7 +1098,10 @@ protected:
 
 public:
 
-	TArray() = default;
+	inline TArray()
+		:NumElements(0), MaxElements(0), Data(nullptr)
+	{
+	}
 
 	inline TArray(int32 Size)
 		:NumElements(0), MaxElements(Size), Data(reinterpret_cast<T*>(malloc(sizeof(T) * Size)))
@@ -1114,36 +1196,205 @@ public:
 };
 )");
 
-	BasicHeader.Write(
-		R"(
-class FName
-{
-public:)");
 
-	if (Off::InSDK::FNameSize == 0x8)
+	if (Off::InSDK::AppendNameToString == 0x0 && !Settings::Internal::bUseNamePool)
 	{
-		BasicHeader.Write(
-			R"(
-	int32 ComparisonIndex;
-	int32 Number;
-)");
-	}
-	else
+		MemberBuilder NameEntryMembers;
+		NameEntryMembers.Add("\tint32 NameIndex;\n", Off::FNameEntry::NameArray::IndexOffset, sizeof(int32));
+		NameEntryMembers.Add(
+R"(
+	union
 	{
-		BasicHeader.Write(
-			R"(
-	int32 ComparisonIndex;
-	int32 Number;
-	int32 DisplayIndex;
-	uint8 Pad[0x4];
-)");
-	}
+		char    AnsiName[1024];
+		wchar_t WideName[1024];
+	};
+)", Off::FNameEntry::NameArray::StringOffset, 0x0);
 
-	BasicHeader.Write(
-		std::format(R"(
-	
-	inline std::string ToString() const
+		BasicHeader.Write(std::format(R"(
+class FNameEntry
+{{
+public:
+	static constexpr uint32 NameWideMask = 0x1;
+	static constexpr uint32 NameIndexShiftCount = 0x1;
+
+public:
+{}
+
+public:
+	inline bool IsWide() const
 	{{
+		return (NameIndex & NameWideMask);
+	}}
+
+	inline std::string GetString() const
+	{{
+		if (IsWide())
+		{{
+			std::wstring WideString(WideName);
+			return std::string(WideString.begin(), WideString.end());
+		}}
+
+		return AnsiName;
+	}}
+}};
+)", NameEntryMembers.GetMembers()));
+
+		BasicHeader.Write(std::format(R"(
+class TNameEntryArray
+{{
+public:
+	
+	static constexpr uint32 ChunkTableSize = {};
+	static constexpr uint32 NumElementsPerChunk = 0x4000;
+
+public:
+	FNameEntry** Chunks[ChunkTableSize];
+	int32 NumElements;
+	int32 NumChunks;
+
+public:
+	inline bool IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx) const
+	{{
+		return return Index >= 0 && Index < NumElements;
+	}}
+
+	inline FNameEntry* GetEntryByIndex(int32 Index) const
+	{{
+		const int32 ChunkIdx = Index / NumElementsPerChunk;
+		const int32 InChunk  = Index % NumElementsPerChunk;
+
+		if (!IsValidIndex(Index, ChunkIdx, InChunk))
+			return nullptr;
+
+		return Chunks[ChunkIdx][InChunk];
+	}}	
+}};
+)", Off::NameArray::NumElements / 8));
+	}
+	else if (Off::InSDK::AppendNameToString == 0x0 && Settings::Internal::bUseNamePool)
+	{
+		const int32 FNameEntryHeaderSize = Off::FNameEntry::NamePool::StringOffset - Off::FNameEntry::NamePool::HeaderOffset;
+
+		MemberBuilder NumberedDataBuilder;
+		NumberedDataBuilder.Indent = "\t\t";
+		NumberedDataBuilder.Add("\t\tuint8 Pad[0x2]\n", -1, sizeof(uint8[0x2]), !Settings::Internal::bUseCasePreservingName);
+		NumberedDataBuilder.Add("\t\tuint32 Id;\n", -1, sizeof(uint32));
+		NumberedDataBuilder.Add("\t\tuint32 Number;", -1, sizeof(uint32));
+
+		MemberBuilder NameEntryHeaderMembers;
+		NameEntryHeaderMembers.Add("\tuint16 bIsWide : 1;\n", 0, 0);
+		NameEntryHeaderMembers.Add("\tuint16 Len : 15;", 0, 0, !Settings::Internal::bUseCasePreservingName);
+		NameEntryHeaderMembers.Add("\tuint16 LowercaseProbeHash : 5;\n", 0, 0, Settings::Internal::bUseCasePreservingName);
+		NameEntryHeaderMembers.Add("\tuint16 Len : 10;", 0, 0, Settings::Internal::bUseCasePreservingName);
+
+		MemberBuilder NameEntryMembers;
+		NameEntryMembers.Add("\tFNameEntryHeader Header;\n", Off::FNameEntry::NamePool::HeaderOffset, sizeof(uint16));
+		NameEntryMembers.Add(
+			R"(
+	union
+	{
+		char    AnsiName[1024];
+		wchar_t WideName[1024];
+		FNumberedData NumberedName;
+	};
+)", Off::FNameEntry::NameArray::StringOffset, 0x0);
+
+		BasicHeader.Write(std::format(R"(
+class FNameEntryHeader
+{{
+public:
+{}
+}};
+)", NameEntryHeaderMembers.GetMembers()));
+
+		BasicHeader.Write(std::format(R"(
+class FNameEntry
+{{
+public:
+	struct FNumberedData
+	{{
+{}
+	}};
+
+public:
+{}
+
+public:
+	inline bool IsWide() const
+	{{
+		return Header.bIsWide;
+	}}
+
+	inline std::string GetString() const
+	{{
+		if (IsWide())
+		{{
+			std::wstring WideString(WideName, Header.Len);
+			return std::string(WideString.begin(), WideString.end());
+		}}
+
+		return std::string(AnsiName, Header.Len);
+	}}
+
+}};
+)", NumberedDataBuilder.GetMembers(), NameEntryMembers.GetMembers()));
+
+
+		MemberBuilder NamePoolMembers;
+		NamePoolMembers.Add("\tuint32 CurrentBlock;\n", Off::NameArray::MaxChunkIndex, sizeof(uint32));
+		NamePoolMembers.Add("\tuint32 CurrentByteCursor;\n", Off::NameArray::ByteCursor, sizeof(uint32));
+		NamePoolMembers.Add("\tuint8* Blocks[8192];\n", Off::NameArray::ChunksStart, sizeof(uint8**));
+
+		BasicHeader.Write(std::format(R"(
+class FNamePool
+{{
+public:
+	static constexpr uint32 FNameBlockOffsetBits = {};
+	static constexpr uint32 FNameBlockOffsets = 1 << FNameBlockOffsetBits;
+
+	static constexpr uint32 FNameEntryStride = {};
+
+public:
+	// Members of FNamePool with padding
+{}
+
+public:
+	inline bool IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx) const
+	{{
+		return ChunkIdx <= CurrentBlock && !(ChunkIdx == CurrentBlock && InChunkIdx > CurrentByteCursor);
+	}}
+
+	inline FNameEntry* GetEntryByIndex(int32 Index) const
+	{{
+		const int32 ChunkIdx = Index >> FNameBlockOffsetBits;
+		const int32 InChunk = (Index & (FNameBlockOffsets - 1));
+
+		if (!IsValidIndex(Index, ChunkIdx, InChunk))
+			return nullptr;
+
+		return reinterpret_cast<FNameEntry*>(Blocks[ChunkIdx] + (InChunk * FNameEntryStride));
+	}}
+}};
+)", Off::InSDK::FNamePoolBlockOffsetBits, Off::InSDK::FNameEntryStride, NamePoolMembers.GetMembers()));
+	}
+
+
+	std::string FNameMemberStr = "int32 ComparisonIndex;\n";
+
+	constexpr const char* DisplayIdx = "\tint32 DisplayIndex;\n";
+	constexpr const char* Number =     "\tint32 Number;\n";
+;
+	FNameMemberStr += Off::FName::Number == 4 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
+	FNameMemberStr += Off::FName::Number == 8 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
+
+	std::string GetDisplayIndexString = std::format(R"(inline int32 GetDisplayIndex() const
+	{{
+		return {};
+	}})", Settings::Internal::bUseCasePreservingName ? "DisplayIndex" : "ComparisonIndex");
+
+	constexpr const char* GetRawStringWithAppendString =
+ R"(inline std::string GetRawString() const
+	{
 		static FString TempString(1024);
 		static auto AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + Offsets::AppendString);
 
@@ -1151,6 +1402,69 @@ public:)");
 
 		std::string OutputString = TempString.ToString();
 		TempString.ResetNum();
+
+		return OutputString;
+	})";
+
+	constexpr const char* GetRawStringWithNameArray =
+ R"(inline std::string GetRawString() const
+	{
+		if (!GNames)
+			InitGNames();
+
+		std::string RetStr = FName::GNames->GetEntryByIndex(GetDisplayIndex())->GetString();
+
+		if (Number > 0)
+			RetStr += ("_" + std::to_string(Number - 1));
+
+		return RetStr;
+	})";
+
+	constexpr const char* GetRawStringWithNameArrayWithOutlineNumber =
+ R"(inline std::string GetRawString() const
+	{
+		if (!GNames)
+			InitGNames();
+
+		const FNameEntry* Entry = FName::GNames->GetEntryByIndex(GetDisplayIndex());
+
+		if (Entry->Header.Length == 0)
+		{{
+			if (Entry->Number > 0)
+				return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString() + "_" + std::to_string(Entry->Number - 1);
+
+			return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString();
+		}}
+
+		return Entry.GetString();
+	})";
+
+	BasicHeader.Write(
+		std::format(R"(
+class FName
+{{
+public:
+	// GNames - either of type TNameEntryArray [<4.23] or FNamePool [>=4.23]
+	static inline {}* GNames = nullptr;
+
+	// Members of FName - depending on configuration [WITH_CASE_PRESERVING_NAME | FNAME_OUTLINE_NUMBER]
+	{}
+
+	// GetDisplayIndex - returns the Id of the string depending on the configuration [default: ComparisonIndex, WITH_CASE_PRESERVING_NAME: DisplayIndex]
+	{}
+
+	// GetRawString - returns an unedited string as the engine uses it
+	{}
+
+	static inline void InitGNames()
+	{{
+		GNames = {}(uint64(GetModuleHandle(0)) + Offsets::GNames);
+	}}
+
+	// ToString - returns an edited string as it's used by most SDKs ["/Script/CoreUObject" -> "CoreUObject"]
+	inline std::string ToString() const
+	{{
+		std::string OutputString = GetRawString();
 
 		size_t pos = OutputString.rfind('/');
 
@@ -1160,17 +1474,21 @@ public:)");
 		return OutputString.substr(pos + 1);
 	}}
 
-	inline bool operator==(const FName& Other)
+	inline bool operator==(const FName& Other) const
 	{{
 		return ComparisonIndex == Other.ComparisonIndex;
 	}}
 
-	inline bool operator!=(const FName& Other)
+	inline bool operator!=(const FName& Other) const
 	{{
 		return ComparisonIndex != Other.ComparisonIndex;
 	}}
 }};
-)", Off::InSDK::AppendNameToString));
+)", Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "FNamePool" : "TNameEntryArray" : "void"
+  , FNameMemberStr
+  , GetDisplayIndexString
+  , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseUoutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString
+  , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "reinterpret_cast<FNamePool*>" : "*reinterpret_cast<TNameEntryArray**>" : "Reinterpret_cast<void*>"));
 
 	BasicHeader.Write(
 		R"(
@@ -1191,10 +1509,12 @@ public:
 	{
 		return ClassPtr;
 	}
+
 	inline UClass* operator->()
 	{
 		return ClassPtr;
 	}
+
 	inline TSubclassOf& operator=(UClass* Class)
 	{
 		ClassPtr = Class;
@@ -1206,14 +1526,17 @@ public:
 	{
 		return ClassPtr == Other.ClassPtr;
 	}
+
 	inline bool operator!=(const TSubclassOf& Other) const
 	{
 		return ClassPtr != Other.ClassPtr;
 	}
+
 	inline bool operator==(UClass* Other) const
 	{
 		return ClassPtr == Other;
 	}
+
 	inline bool operator!=(UClass* Other) const
 	{
 		return ClassPtr != Other;

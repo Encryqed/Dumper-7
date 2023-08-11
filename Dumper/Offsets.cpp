@@ -2,43 +2,62 @@
 #include "ObjectArray.h"
 #include "OffsetFinder.h"
 
+#include "NameArray.h"
+
 void Off::InSDK::InitPE()
 {
-	void* PeAddr = (void*)FindByWString(L"Accessed None").FindNextFunctionStart();
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
-	Off::InSDK::PEOffset = uintptr_t(PeAddr) - GetImageBase();
+	auto Resolve32BitRelativeJump = [](void* FunctionPtr) -> uint8_t*
+	{
+		uint8_t* Address = reinterpret_cast<uint8_t*>(FunctionPtr);
+		if (*Address == 0xE9)
+		{
+			uint8_t* Ret = ((Address + 5) + *reinterpret_cast<int32_t*>(Address + 1));
+
+			if (IsInProcessRange(uintptr_t(Ret)))
+				return Ret;
+		}
+
+		return reinterpret_cast<uint8_t*>(FunctionPtr);
+	};
 
 	for (int i = 0; i < 0x150; i++)
 	{
-		if (Vft[i] == PeAddr)
+		if (!Vft[i] ||IsBadReadPtr(Vft[i]))
+			break;
+
+		if (FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, Resolve32BitRelativeJump(Vft[i]), 0x400)
+		&&  FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, Resolve32BitRelativeJump(Vft[i]), 0x400))
 		{
 			Off::InSDK::PEIndex = i;
+			Off::InSDK::PEOffset = uintptr_t(Vft[i]) - GetImageBase();
+
 			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
 			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
-			
+			return;
+		}
+	}
+
+	void* PeAddr = (void*)FindByWStringInAllSections(L"Accessed None").FindNextFunctionStart();
+
+	for (int i = 0; i < 0x150; i++)
+	{
+		if (!PeAddr)
+			break;
+
+		if (Resolve32BitRelativeJump(Vft[i]) == PeAddr)
+		{
+			Off::InSDK::PEIndex = i;
+			Off::InSDK::PEOffset = uintptr_t(PeAddr) - GetImageBase();
+
+			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
+			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
 			return;
 		}
 	}
 
 	// If PE wasn't found by string ref, use a sig (or two)
-
-	for (int i = 0; i < 0x150; i++)
-	{
-		if (!Vft[i])
-			break;
-
-		if (FindPatternInRange({ 0xF7, -1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, (uint8*)Vft[i], 0x400)
-		&&  FindPatternInRange({ 0xF7, -1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x80, 0x0, 0x0 }, (uint8*)Vft[i], 0x400))
-		{
-			Off::InSDK::PEOffset = uintptr_t(Vft[i]) - GetImageBase();
-			Off::InSDK::PEIndex = i;
-
-			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
-			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
-			return;
-		}
-	}
 }
 
 void Off::InSDK::InitPE(int32 Index)
@@ -58,10 +77,14 @@ void Off::Init()
 {
 	OffsetFinder::InitUObjectOffsets();
 
+	OffsetFinder::InitFNameSettings();
+
+	::NameArray::PostInit();
+
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cout << "Off::UStruct::Children: " << Off::UStruct::Children << "\n";
 
-	Off::UField::Next = OffsetFinder::FindFieldNextOffset();
+	Off::UField::Next = OffsetFinder::FindUFieldNextOffset();
 	std::cout << "Off::UField::Next: " << Off::UField::Next << "\n";
 
 	Off::UStruct::SuperStruct = OffsetFinder::FindSuperOffset();
@@ -81,6 +104,12 @@ void Off::Init()
 		std::cout << "Off::UStruct::ChildProperties: " << Off::UStruct::ChildProperties << "\n";
 
 		OffsetFinder::FixupHardcodedOffsets(); // must be called after FindChildPropertiesOffset 
+
+		Off::FField::Next = OffsetFinder::FindFFieldNextOffset();
+		std::cout << "Off::FField::Next: " << Off::FField::Next << "\n";
+		
+		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
+		std::cout << "Off::FField::Name: " << Off::FField::Name << "\n";
 	}
 
 	Off::UClass::ClassDefaultObject = OffsetFinder::FindDefaultObjectOffset();
@@ -95,7 +124,7 @@ void Off::Init()
 	Off::UProperty::ElementSize = OffsetFinder::FindElementSizeOffset();
 	std::cout << "Off::UProperty::ElementSize: " << Off::UProperty::ElementSize << "\n";
 
-	Off::UProperty::ArrayDim = Off::UProperty::ElementSize - 0x4;
+	Off::UProperty::ArrayDim = OffsetFinder::FindArrayDimOffset();
 	std::cout << "Off::UProperty::ArrayDim: " << Off::UProperty::ArrayDim << "\n";
 
 	Off::UProperty::Offset_Internal = OffsetFinder::FindOffsetInternalOffset();
@@ -121,6 +150,6 @@ void Off::Init()
 	Off::UObjectProperty::PropertyClass = PropertySize;
 	Off::UStructProperty::Struct = PropertySize;
 	Off::UEnumProperty::Base = PropertySize;
-	
+
 	Off::UClassProperty::MetaClass = PropertySize + 0x8; //0x8 inheritance from UObjectProperty
 }

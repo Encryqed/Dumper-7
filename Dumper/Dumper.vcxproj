@@ -143,6 +143,7 @@
     <ClCompile Include="Offsets.cpp" />
     <ClCompile Include="Package.cpp" />
     <ClCompile Include="Types.cpp" />
+    <ClCompile Include="NameArray.cpp" />
     <ClCompile Include="UnrealObjects.cpp" />
     <ClCompile Include="UnrealTypes.cpp" />
   </ItemGroup>
@@ -156,6 +157,7 @@
     <ClInclude Include="Package.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="Types.h" />
+    <ClInclude Include="NameArray.h" />
     <ClInclude Include="UnrealObjects.h" />
     <ClInclude Include="UnrealTypes.h" />
     <ClInclude Include="Utils.h" />

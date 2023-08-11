@@ -623,7 +623,7 @@ Types::Enum Package::GenerateEnum(UEEnum Enum)
 {
 	std::string EnumName = Enum.GetEnumTypeAsStr();
 
-	auto NameValue = Enum.GetNameValuePairs();
+	std::vector<TPair<FName, int64>> NameValue = Enum.GetNameValuePairs();
 
 	Types::Enum Enm(EnumName, "uint8");
 
@@ -632,7 +632,7 @@ Types::Enum Package::GenerateEnum(UEEnum Enum)
 
 	for (int i = 0; i < NameValue.size(); i++)
 	{
-		std::string TooFullOfAName = NameValue[i].First.ToString();
+		std::string TooFullOfAName = NameValue[i].First.ToValidString();
 
 		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
 	}

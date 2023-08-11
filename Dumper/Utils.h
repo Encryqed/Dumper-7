@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <fstream>
 
 struct CLIENT_ID
 {
@@ -120,13 +121,21 @@ inline uintptr_t GetImageBase()
 	return (uintptr_t)ProcessEnvironmentBlock->ImageBaseAddress;
 }
 
+inline bool IsInProcessRange(uintptr_t Address)
+{
+	static uintptr_t ImageBase = GetImageBase();
+	static PIMAGE_NT_HEADERS NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase)->e_lfanew);
+
+	return Address > ImageBase && Address < (NtHeader->OptionalHeader.SizeOfImage + ImageBase);
+}
+
 static bool IsBadReadPtr(void* p)
 {
 	MEMORY_BASIC_INFORMATION mbi;
 
 	if (VirtualQuery(p, &mbi, sizeof(mbi)))
 	{
-		DWORD mask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
+		constexpr DWORD mask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
 		bool b = !(mbi.Protect & mask);
 		if (mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS))
 			b = true;
@@ -194,7 +203,7 @@ static inline void* FindPatternInRange(const char* Signature, uint8_t* Start, ui
 	return FindPatternInRange(patternToByte(Signature), Start, Range, bRelative, Offset);
 }
 
-static inline void* FindPattern(const char* Signature, bool bRelative = false, uint32_t Offset = 0, bool bSearchAllSegments = false)
+static inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearchAllSegments = false)
 {
 	uint8_t* ImageBase = (uint8_t*)GetImageBase();
 
@@ -223,10 +232,10 @@ static inline void* FindPattern(const char* Signature, bool bRelative = false, u
 			}
 		}
 
-		return FindPatternInRange(Signature, TextSection, TextSize, bRelative, Offset);
+		return FindPatternInRange(Signature, TextSection, TextSize, Offset != 0x0, Offset);
 	}
 
-	return FindPatternInRange(Signature, ImageBase, SizeOfImage, bRelative, Offset);
+	return FindPatternInRange(Signature, ImageBase, SizeOfImage, Offset != 0x0, Offset);
 }
 
 struct MemAddress
@@ -402,7 +411,7 @@ inline MemAddress FindByString(Type RefStr)
 
 	for (int i = 0; i < DataSize; i++)
 	{
-		if (std::is_same<Type, const char*>())
+		if constexpr (std::is_same<Type, const char*>())
 		{
 			if (strcmp((const char*)RefStr, (const char*)(DataSection + i)) == 0)
 			{
@@ -427,7 +436,7 @@ inline MemAddress FindByString(Type RefStr)
 		// opcode: lea
 		if ((TextSection[i] == uint8_t(0x4C) || TextSection[i] == uint8_t(0x48)) && TextSection[i + 1] == uint8_t(0x8D))
 		{
-			const uint8_t* StrPtr = *(uint32_t*)(TextSection + i + 3) + 7 + TextSection + i;
+			const uint8_t* StrPtr = *(int32_t*)(TextSection + i + 3) + 7 + TextSection + i;
 
 			if (StrPtr == StringAddress)
 			{
@@ -445,5 +454,61 @@ inline MemAddress FindByWString(const wchar_t* RefStr)
 {
 	return FindByString<const wchar_t*>(RefStr);
 }
+
+/* Slower than FindByString */
+template<typename Type = const char*>
+inline MemAddress FindByStringInAllSections(Type RefStr)
+{
+	uintptr_t ImageBase = GetImageBase();
+	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
+	PIMAGE_NT_HEADERS NtHeader = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
+
+	const DWORD SizeOfImage = NtHeader->OptionalHeader.SizeOfImage;
+
+	uint8_t* SearchStart = (uint8_t*)ImageBase;
+	DWORD SearchRange = SizeOfImage;
+
+	for (int i = 0; i < SearchRange; i++)
+	{
+		// opcode: lea
+		if ((SearchStart[i] == uint8_t(0x4C) || SearchStart[i] == uint8_t(0x48)) && SearchStart[i + 1] == uint8_t(0x8D))
+		{
+			const uint8_t* StrPtr = *(int32_t*)(SearchStart + i + 3) + 7 + SearchStart + i;
+
+			if (!IsInProcessRange((uintptr_t)StrPtr))
+				continue;
+
+			if constexpr (std::is_same<Type, const char*>())
+			{
+				if (strcmp((const char*)RefStr, (const char*)StrPtr) == 0)
+				{
+					//std::cout << "FoundStr ref: " << (const char*)(SearchStart + i) << "\n";
+
+					return { SearchStart + i };
+				}
+			}
+			else
+			{
+				auto a = std::wstring((const wchar_t*)StrPtr);
+
+				if (wcscmp((const wchar_t*)RefStr, (const wchar_t*)StrPtr) == 0) 
+				{
+					//std::wcout << L"FoundStr wref: " << (const wchar_t*)(SearchStart + i) << L"\n";
+
+					return { SearchStart + i };
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+/* Slower than FindByWString */
+inline MemAddress FindByWStringInAllSections(const wchar_t* RefStr)
+{
+	return FindByStringInAllSections<const wchar_t*>(RefStr);
+}
+
 
 

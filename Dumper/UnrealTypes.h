@@ -115,6 +115,8 @@ public:
 		{
 			return Data;
 		}
+
+		return L"";
 	}
 
 	inline std::string ToString()
@@ -124,6 +126,7 @@ public:
 			std::wstring WData(Data);
 			return std::string(WData.begin(), WData.end());
 		}
+
 		return "";
 	}
 };
@@ -139,112 +142,41 @@ public:
 	}
 };
 
+
 class FName
 {
+private:
 	static void(*AppendString)(void*, FString&);
 
-public:
+	inline static std::string(*ToStr)(void* Name) = nullptr;
+
+private:
 	uint8* Address;
 
+public:
 	FName() = default;
 
-	FName(void* Ptr)
-		: Address((uint8*)Ptr)
-	{
-	}
+	FName(void* Ptr);
 
-	static void Init()
-	{
-		std::array<const char*, 4> PossibleSigs = { "48 8D ? ? 48 8D ? ? E8", "48 8D ? ? ? 48 8D ? ? E8", "48 8D ? ? 49 8B ? E8", "48 8D ? ? ? 49 8B ? E8" };
+public:
+	static void Init();
 
-		auto StringRef = FindByString("ForwardShadingQuality_");
+	static void Init(int32 AppendStringOffset);
 
-		int i = 0;
-		while (!AppendString && i < PossibleSigs.size())
-		{
-			AppendString = reinterpret_cast<void(*)(void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x60, -1 /* auto */));
-			i++;
-		}
+public:
+	inline const void* GetAddress() const { return Address; }
 
-		Off::InSDK::AppendNameToString = uintptr_t(AppendString) - GetImageBase();
+	std::string ToString();
+	std::string ToValidString();
 
-		std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
-	}
+	int32 GetCompIdx();
+	int32 GetNumber();
 
-	static void Init(int32 AppendStringOffset)
-	{
-		AppendString = reinterpret_cast<void(*)(void*, FString&)>(GetImageBase() + AppendStringOffset);
+	bool operator==(FName Other);
 
-		Off::InSDK::AppendNameToString = AppendStringOffset;
+	bool operator!=(FName Other);
 
-		std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
-	}
+	static std::string CompIdxToString(int CmpIdx);
 
-	inline std::string ToString()
-	{
-		static thread_local FFreableString TempString(1024);
-		
-		if (!AppendString)
-			Init();
-
-		AppendString(Address, TempString);
-
-		std::string OutputString = TempString.ToString();
-		TempString.ResetNum();
-
-		size_t pos = OutputString.rfind('/');
-
-		if (pos == std::string::npos)
-			return OutputString;
-
-		return OutputString.substr(pos + 1);
-	}
-
-	inline int32 GetCompIdx()
-	{
-		return *reinterpret_cast<int32*>(Address + Off::FName::CompIdx);
-	}
-	inline int32 GetNumber()
-	{
-		return *reinterpret_cast<int32*>(Address + Off::FName::Number);
-	}
-
-	inline bool operator==(FName Other)
-	{
-		return GetCompIdx() == Other.GetCompIdx();
-	}
-
-	inline bool operator!=(FName Other)
-	{
-		return GetCompIdx() != Other.GetCompIdx();
-	}
-
-	static inline std::string CompIdxToString(int CmpIdx)
-	{
-		if (!Settings::Internal::bUseCasePreservingName)
-		{
-			struct FakeFName
-			{
-				int CompIdx;
-				uint8 Pad[0x4];
-			} Name(CmpIdx);
-
-			return FName(&Name).ToString();
-		}
-		else
-		{
-			struct FakeFName
-			{
-				int CompIdx;
-				uint8 Pad[0xC];
-			} Name(CmpIdx);
-
-			return FName(&Name).ToString();
-		}
-	}
-
-	static inline void* DEBUGGetAppendString()
-	{
-		return (void*)(AppendString);
-	}
+	static void* DEBUGGetAppendString();
 };
