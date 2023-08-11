@@ -100,78 +100,7 @@ struct FFixedUObjectArray
 	}
 };
 
-class ObjectArrayValidator
-{
-private:
-	friend class ObjectArray;
 
-public:
-	int32 OffObjectsPtr = 0x0;
-	int32 OffMaxElements = 0x0;
-	int32 OffNumElements = 0x0;
-	int32 OffMaxChunks = 0x0;
-	int32 OffNumChunks = 0x0;
-
-private:
-	inline bool IsValid(uint8_t* Address)
-	{
-		const int32 MaxElements = *reinterpret_cast<int32*>(Address + OffMaxElements);
-		const int32 NumElements = *reinterpret_cast<int32*>(Address + OffNumElements);
-
-		uint8** ObjectsPtr = reinterpret_cast<uint8**>(ObjectArray::DecryptPtr(*reinterpret_cast<void**>(Address + OffObjectsPtr)));
-
-		if (NumElements >= MaxElements)
-			return false;
-
-		if (MaxElements > 0x400000 || NumElements < 0x1000)
-			return false;
-
-		if (!ObjectsPtr || IsBadReadPtr(ObjectsPtr))
-			return false;
-
-		if (OffMaxChunks != -1 && OffNumChunks != -1)
-		{
-			const int32 MaxChunks = *reinterpret_cast<int32*>(Address + OffMaxChunks);
-			const int32 NumChunks = *reinterpret_cast<int32*>(Address + OffNumChunks);
-
-			if (NumChunks > 0x14 || NumChunks < 0x1)
-				return false;
-
-			if (MaxChunks > 0x22F || MaxChunks < 0x9)
-				return false;
-
-			if (((NumElements / 0x10000) + 1) != NumChunks || (MaxElements / 0x10000) != MaxChunks)
-				return false;
-
-			for (int i = 0; i < NumChunks; i++)
-			{
-				if (!ObjectsPtr[i] || IsBadReadPtr(ObjectsPtr[i]))
-					return false;
-			}
-		}
-		else
-		{
-			int32 ValidObjectPtrCount = 0x0;
-			bool bPrevIndexWasValidPtr = false;
-
-			for (int i = 0x0; i <= 0x8; i++) // void*
-			{
-				// Check for FUObjectItem::Object and FUObjectItem::Object::VFT
-				const bool bIsValidObjectPtr = !IsBadReadPtr(ObjectsPtr[i]) && !IsBadReadPtr(*reinterpret_cast<void**>((ObjectsPtr[i])));
-
-				if (!bPrevIndexWasValidPtr && bIsValidObjectPtr)
-					ValidObjectPtrCount++;
-
-				bPrevIndexWasValidPtr = !bPrevIndexWasValidPtr && bIsValidObjectPtr;
-			}
-
-			if (ValidObjectPtrCount < 0x2 || ValidObjectPtrCount > 0x4)
-				return false;
-		}
-
-		return true;
-	}
-};
 
 uint8* ObjectArray::GObjects = nullptr;
 uint32 ObjectArray::NumElementsPerChunk = 0x10000;
@@ -272,30 +201,9 @@ void ObjectArray::Init(bool bScanAllMemory)
 	if (!bScanAllMemory)
 		std::cout << "Searching for GObjects...\n\n";
 
-	//ObjectArrayValidator ChunkedValidator;
-	//ChunkedValidator.OffObjectsPtr = 0x0;
-	//ChunkedValidator.OffMaxElements = 0x10;
-	//ChunkedValidator.OffNumElements = 0x14;
-	//ChunkedValidator.OffMaxChunks = 0x18;
-	//ChunkedValidator.OffNumChunks = 0x1C;
-	//
-	//ObjectArrayValidator FixedValidator;
-	//FixedValidator.OffObjectsPtr = 0x0;
-	//FixedValidator.OffMaxElements = 0x8;
-	//FixedValidator.OffNumElements = 0xC;
-	//FixedValidator.OffMaxChunks = -1;
-	//FixedValidator.OffNumChunks = -1;
 
 	for (int i = 0; i < SearchRange; i += 0x4)
 	{
-		//if (ChunkedValidator.IsValid(SearchBase + i))
-		//{
-		//	std::cout << "Found valid FChunkedFixedUObjectArray: " << reinterpret_cast<void*>(ImageBase + i) << std::endl;
-		//}
-		//else if (FixedValidator.IsValid(SearchBase + i))
-		//{
-		//	std::cout << "Found valid FFixedUObjectArray: " << reinterpret_cast<void*>(ImageBase + i) << std::endl;
-		//}
 
 		auto FixedArray = reinterpret_cast<FFixedUObjectArray*>(SearchBase + i);
 		auto ChunkedArray = reinterpret_cast<FChunkedFixedUObjectArray*>(SearchBase + i);
