@@ -448,16 +448,18 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 		Func.AddComment(std::format("{:{}}{:{}}({})", Param.GetCppType(), 35, Param.GetValidName(), 65, Param.StringifyFlags()));
 	}
 
+	FuncBody += "\tstatic auto Func = nullptr;\n\n\tif (!Func)\n";
+
 	if (Settings::bShouldXorStrings)
 	{
-		FuncBody += std::format("\tstatic auto Func = Class->GetFunction({0}(\"{1}\"), {0}(\"{2}\"));\n\n", Settings::XORString, Super.GetName(), Function.GetName());
+		FuncBody += std::format("\t\tFunc = Class->GetFunction({0}(\"{1}\"), {0}(\"{2}\"));\n\n", Settings::XORString, Super.GetName(), Function.GetName());
 	}
 	else
 	{
-		FuncBody += std::format("\tstatic auto Func = Class->GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
+		FuncBody += std::format("\t\tFunc = Class->GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
 	}
 
-	FuncBody += std::format("\t{}{} Parms;\n", (Settings::bUseNamespaceForParams ? Settings::ParamNamespaceName + std::string("::") : ""), Function.GetParamStructName());
+	FuncBody += std::format("\t{}{} Parms{{}};\n", (Settings::bUseNamespaceForParams ? Settings::ParamNamespaceName + std::string("::") : ""), Function.GetParamStructName());
 
 	for (auto& Param : Func.GetParameters())
 	{

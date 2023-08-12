@@ -83,13 +83,15 @@ std::string Types::Class::GetGeneratedBody()
 		InnerBody += ClassMember.GetGeneratedBody();
 	}
 
+	InnerBody += std::format("\n\tstatic class UClass* StaticClass()\n\t{{\n\t\tstatic class UClass* Clss = nullptr;\n\n\t\tif (!Clss)\n", Settings::XORString, RawName);;
+
 	if (Settings::bShouldXorStrings)
 	{
-		InnerBody += std::format("\n\tstatic class UClass* StaticClass()\n\t{{\n\t\tstatic class UClass* Clss = UObject::FindClassFast({}(\"{}\"));\n\t\treturn Clss;\n\t}}\n\n", Settings::XORString, RawName);
+		InnerBody += std::format("\t\t\tClss = UObject::FindClassFast({}(\"{}\"));\n\n\t\treturn Clss;\n\t}}\n\n", Settings::XORString, RawName);
 	}
 	else
 	{
-		InnerBody += std::format("\n\tstatic class UClass* StaticClass()\n\t{{\n\t\tstatic class UClass* Clss = UObject::FindClassFast(\"{}\");\n\t\treturn Clss;\n\t}}\n\n", RawName);
+		InnerBody += std::format("\t\t\tClss = UObject::FindClassFast(\"{}\");\n\n\t\treturn Clss;\n\t}}\n\n", RawName);
 	}
 	
 	if (Generator::PredefinedFunctions.find(CppName) != Generator::PredefinedFunctions.end())
