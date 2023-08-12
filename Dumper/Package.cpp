@@ -448,7 +448,7 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 		Func.AddComment(std::format("{:{}}{:{}}({})", Param.GetCppType(), 35, Param.GetValidName(), 65, Param.StringifyFlags()));
 	}
 
-	FuncBody += "\tstatic auto Func = nullptr;\n\n\tif (!Func)\n";
+	FuncBody += "\tstatic class UFunction* Func = nullptr;\n\n\tif (!Func)\n";
 
 	if (Settings::bShouldXorStrings)
 	{
