@@ -1675,24 +1675,19 @@ public:
 };
 )");
 
-	std::string AssetPathWithPadding = "\tFName AssetPathName;"; 
-	
-	if (Off::InSDK::FNameSize == 0x10)
-		AssetPathWithPadding += std::format("\n\tuint8 Pad[0x{:X}];", 0x10 - Off::InSDK::FNameSize);
-
 	BasicHeader.Write(
-		std::format(R"(
+		R"(
 class FSoftObjectPath_
-{{
+{
 public:
-	{}
+	FName AssetPathName;
 	FString SubPathString;
-}};
-)", AssetPathWithPadding));
+};
+)");
 
 	BasicHeader.Write(
 		R"(
-class FSoftObjectPtr : public TPersistentObjectPtr<FSoftObjectPath_>
+class alignas(8) FSoftObjectPtr : public TPersistentObjectPtr<FSoftObjectPath_>
 {
 public:
 

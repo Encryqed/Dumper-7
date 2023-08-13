@@ -83,31 +83,16 @@ std::string Types::Class::GetGeneratedBody()
 		InnerBody += ClassMember.GetGeneratedBody();
 	}
 
-	InnerBody += std::format(R"(
-	static inline class UClass* StaticClass()
-	{{
-		static class UClass* Clss = nullptr;
+	InnerBody += std::format("\n\tstatic class UClass* StaticClass()\n\t{{\n\t\tstatic class UClass* Clss = nullptr;\n\n\t\tif (!Clss)\n", Settings::XORString, RawName);;
 
-		if (!Clss)
-			Clss = UObject::FindClassFast({});
-
-		return Clss;
-	}}
-)", Settings::bShouldXorStrings ? std::format("{}(\"{}\")", Settings::XORString, RawName) : std::format("\"{}\"", RawName));
-
-	InnerBody += std::format(R"(
-	static inline class {0}* GetDefault()
-	{{
-		static {0}* Default = nullptr;
-
-		if (!Default)
-			Default = static_cast<{0}*>({0}::StaticClass()->DefaultObject);
-
-		return Default;
-	}}
-
-)", CppName);
-
+	if (Settings::bShouldXorStrings)
+	{
+		InnerBody += std::format("\t\t\tClss = UObject::FindClassFast({}(\"{}\"));\n\n\t\treturn Clss;\n\t}}\n\n", Settings::XORString, RawName);
+	}
+	else
+	{
+		InnerBody += std::format("\t\t\tClss = UObject::FindClassFast(\"{}\");\n\n\t\treturn Clss;\n\t}}\n\n", RawName);
+	}
 	
 	if (Generator::PredefinedFunctions.find(CppName) != Generator::PredefinedFunctions.end())
 	{
