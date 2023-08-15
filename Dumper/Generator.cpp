@@ -464,10 +464,10 @@ void Generator::GenerateSDKHeader(const fs::path& SdkPath, int32 BiggestPackageI
 		R"(
 namespace Offsets
 {{
-	inline int32 GObjects          = 0x{:08X};
-	inline int32 AppendString      = 0x{:08X};
-	inline int32 GNames            = 0x{:08X};
-	inline int32 ProcessEvent      = 0x{:08X};
+	constexpr int32 GObjects          = 0x{:08X};
+	constexpr int32 AppendString      = 0x{:08X};
+	constexpr int32 GNames            = 0x{:08X};
+	constexpr int32 ProcessEvent      = 0x{:08X};
 }}
 )", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::GNames, Off::InSDK::PEOffset);
 
@@ -881,26 +881,112 @@ R"(
 	{
 		"CoreUObject",
 		{
-			{
-				"\tinline bool operator==(const FVector& Other) const",
-				"",
-R"(
+{ "\tinline FVector()", "", R"(
+		: X(0.0f), Y(0.0f), Z(0.0f)
+	{
+	})"
+			},
+{ "\tinline FVector(float Value)", "", R"(
+		: X(Value), Y(Value), Z(Value)
+	{
+	})"
+			},
+{ "\tinline FVector(float x, float y, float z)", "", R"(
+		: X(x), Y(y), Z(z)
+	{
+	})"
+			},
+{ "\tinline bool operator==(const FVector& Other) const", "", R"(
 	{
 		return X == Other.X && Y == Other.Y && Z == Other.Z;
 	})"
 			},
-			{
-				"\tinline bool operator!=(const FVector& Other) const",
-				"",
-R"(
+{ "\tinline bool operator!=(const FVector& Other) const", "", R"(
 	{
 		return X != Other.X || Y != Other.Y || Z != Other.Z;
+	})"
+			},
+{ "\tFVector operator+(const FVector& Other) const;", "\tFVector FVector::operator+(const FVector& Other) const", R"(
+	{
+		return { X + Other.X, Y + Other.Y, Z + Other.Z };
+	})"
+			},
+{ "\tFVector operator-(const FVector& Other) const;", "\tFVector FVector::operator-(const FVector& Other) const", R"(
+	{
+		return { X - Other.X, Y - Other.Y, Z - Other.Z };
+	})"
+			},
+{ "\tFVector operator*(float Scalar) const;", "\tFVector FVector::operator*(float Scalar) const", R"(
+	{
+		return { X * Scalar, Y * Scalar, Z * Scalar };
+	})"
+			},
+{ "\tFVector operator/(float Scalar) const;", "\tFVector FVector::operator/(float Scalar) const", R"(
+	{
+		if (Scalar == 0.0f)
+			return FVector();
+
+		return { X / Scalar, Y / Scalar, Z / Scalar };
+	})"
+			}
+		}
+	};
+
+	PredefinedFunctions["UEngine"] =
+	{
+		"Engine",
+		{
+			{
+				"\tstatic class UEngine* GetEngine();",
+				"\tclass UEngine* UEngine::GetEngine()",
+R"(
+	{
+		static UEngine* GEngine = nullptr;
+
+		if (!GEngine)
+		{
+			for (int i = 0; i < UObject::GObjects->Num(); i++)
+			{
+				UObject* Obj = UObject::GObjects->GetByIndex(i);
+
+				if (!Obj)
+					continue;
+
+				if (Obj->IsA(UEngine::StaticClass()) && !Obj->IsDefaultObject())
+					GEngine = static_cast<UEngine*>(Obj);
+			}
+		}
+
+		return GEngine; 
 	}
 )"
 			}
 		}
 	};
-	
+		
+	PredefinedFunctions["UWorld"] =
+	{
+		"Engine",
+		{
+			{
+				"\tstatic class UWorld* GetWorld();",
+				"\tclass UWorld* UWorld::GetWorld()",
+R"(
+	{
+		if (UEngine* Engine = UEngine::GetEngine())
+		{
+			if (!Engine->GameViewport)
+				return nullptr;
+
+			return Engine->GameViewport->World;
+		}
+
+		return nullptr;
+	}
+)"
+			}
+		}
+	};
 }
 
 
@@ -1506,6 +1592,17 @@ public:
 	}
 
 	inline UClass* Get()
+	{
+		return ClassPtr;
+	}
+
+	inline operator UClass*() const
+	{
+		return ClassPtr;
+	}
+
+	template<typename Target, typename = std::enable_if<std::is_base_of_v<Target, ClassType>, bool>::type>
+	inline operator TSubclassOf<Target>() const
 	{
 		return ClassPtr;
 	}

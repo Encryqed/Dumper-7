@@ -264,6 +264,11 @@ UEObject UEObject::GetOutermost() const
 	return Outermost;
 }
 
+std::string UEObject::StringifyObjFlags() const
+{
+	return StringifyObjectFlags(GetFlags());
+}
+
 std::string UEObject::GetName() const
 {
 	return Object ? GetFName().ToString() : "None";
@@ -535,6 +540,11 @@ bool UEStruct::HasMembers() const
 EClassCastFlags UEClass::GetCastFlags() const
 {
 	return *reinterpret_cast<EClassCastFlags*>(Object + Off::UClass::CastFlags);
+}
+
+std::string UEClass::StringifyCastFlags() const
+{
+	return StringifyClassCastFlags(GetCastFlags());
 }
 
 bool UEClass::IsType(EClassCastFlags TypeFlag) const

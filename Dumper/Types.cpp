@@ -45,6 +45,9 @@ void Types::Struct::AddMembers(std::vector<Member>& NewMembers)
 
 std::string Types::Struct::GetGeneratedBody()
 {
+	if (CppName.empty())
+		return "";
+
 	for (Member StructMember : StructMembers)
 	{
 		InnerBody += StructMember.GetGeneratedBody();
@@ -83,17 +86,8 @@ std::string Types::Class::GetGeneratedBody()
 		InnerBody += ClassMember.GetGeneratedBody();
 	}
 
-	InnerBody += std::format("\n\tstatic class UClass* StaticClass()\n\t{{\n\t\tstatic class UClass* Clss = nullptr;\n\n\t\tif (!Clss)\n", Settings::XORString, RawName);;
+	InnerBody += "\n";
 
-	if (Settings::bShouldXorStrings)
-	{
-		InnerBody += std::format("\t\t\tClss = UObject::FindClassFast({}(\"{}\"));\n\n\t\treturn Clss;\n\t}}\n\n", Settings::XORString, RawName);
-	}
-	else
-	{
-		InnerBody += std::format("\t\t\tClss = UObject::FindClassFast(\"{}\");\n\n\t\treturn Clss;\n\t}}\n\n", RawName);
-	}
-	
 	if (Generator::PredefinedFunctions.find(CppName) != Generator::PredefinedFunctions.end())
 	{
 		for (auto& PredefFunc : Generator::PredefinedFunctions[CppName].second)
@@ -109,7 +103,7 @@ std::string Types::Class::GetGeneratedBody()
 
 	for (Function ClassFunction : ClassFunctions)
 	{
-		InnerBody += std::format("\t{};\n", ClassFunction.GetDeclaration());
+		InnerBody += std::format("\t{}\n", ClassFunction.GetDeclaration());
 	}
 
 	return Comments + Declaration + InnerBody + "};\n\n";
@@ -154,13 +148,13 @@ std::string Types::Member::GetGeneratedBody()
 	return std::format("\t{:{}}{:{}} {}\n", Type, 45, Name + ";", 50, Comment);
 }
 
-Types::Function::Function(std::string Type, std::string Name, std::string SuperName, std::vector<Parameter> Parameters)
+Types::Function::Function(std::string Type, std::string Name, std::string SuperName, std::vector<Parameter> Parameters, bool bIsStatic, bool bAddNewLine)
 {
 	this->Parameters = Parameters;
 
 	std::string ParamStr = GetParametersAsString();
 
-	DeclarationH = std::format("{} {}({})", Type, Name, ParamStr);
+	DeclarationH = std::format("{}{} {}({});{}", (bIsStatic ? "static " : ""), Type, Name, ParamStr, (bAddNewLine ? "\n" : ""));
 	DeclarationCPP = std::format("{} {}::{}({})", Type, SuperName, Name, ParamStr);
 
 	Body = "{";

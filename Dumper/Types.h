@@ -104,7 +104,7 @@ namespace Types
 		std::string Comments;
 
 	public:
-		Function(std::string Type, std::string Name, std::string SuperName, std::vector<Parameter> Parameters = {});
+		Function(std::string Type, std::string Name, std::string SuperName, std::vector<Parameter> Parameters = {}, bool bIsStatic = false, bool bAddNewLine = false);
 
 		std::vector<Parameter>& GetParameters();
 		std::string GetParametersAsString();

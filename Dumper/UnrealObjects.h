@@ -134,6 +134,8 @@ public:
 
 	UEObject GetOutermost() const;
 
+	std::string StringifyObjFlags() const;
+
 	std::string GetName() const;
 	std::string GetValidName() const;
 	std::string GetCppName() const;
@@ -206,6 +208,7 @@ class UEClass : public UEStruct
 
 public:
 	EClassCastFlags GetCastFlags() const;
+	std::string StringifyCastFlags() const;
 	bool IsType(EClassCastFlags TypeFlag) const;
 	bool HasType(UEClass TypeClass) const;
 	UEObject GetDefaultObject() const;

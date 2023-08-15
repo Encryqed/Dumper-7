@@ -363,7 +363,7 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 
 	for (UEObject Object : ObjectArray())
 	{
-		if (!Object || Object.HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+		if (!Object || Object.HasAnyFlags(EObjectFlags::ClassDefaultObject))
 			continue;
 
 		if (Object.IsA(EClassCastFlags::Struct))

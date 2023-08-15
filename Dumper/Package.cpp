@@ -558,8 +558,10 @@ Types::Struct Package::GenerateStruct(UEStruct Struct, bool bIsFunction)
 Types::Class Package::GenerateClass(UEClass Class)
 {
 	std::string ClassName = Class.GetCppName();
+	std::string RawName = Class.GetName();
+	std::string FullName = Class.GetFullName();
 
-	Types::Class RetClass(ClassName, Class.GetName());
+	Types::Class RetClass(ClassName, RawName);
 
 	int Size = Class.GetStructSize();
 	int SuperSize = 0;
@@ -573,7 +575,7 @@ Types::Class Package::GenerateClass(UEClass Class)
 
 	if (UEStruct Super = Class.GetSuper())
 	{
-		RetClass = Types::Class(ClassName, Class.GetName(), Super.GetCppName());
+		RetClass = Types::Class(ClassName, RawName, Super.GetCppName());
 		SuperSize = Super.GetStructSize();
 
 		auto It = UEStruct::StructSizes.find(Super.GetIndex());
@@ -585,12 +587,40 @@ Types::Class Package::GenerateClass(UEClass Class)
 	}
 
 	RetClass.AddComment(std::format("0x{:X} (0x{:X} - 0x{:X})", Size - SuperSize, Size, SuperSize));
-	RetClass.AddComment(Class.GetFullName());
+	RetClass.AddComment(FullName);
 
-	std::vector<UEProperty> Properties = Class.GetProperties();
+	Types::Function StaticClass("class UClass*", "StaticClass", ClassName, {}, true);
 
-	static int NumProps = 0;
-	static int NumFuncs = 0;
+	StaticClass.AddComment(FullName);
+	StaticClass.AddComment("(" + Class.StringifyCastFlags() + ")"); // Func.AddComment("(" + Function.StringifyFlags() + ")");
+
+	StaticClass.AddBody(
+		std::format(
+R"(	static class UClass* Clss = nullptr;
+
+	if (!Clss)
+		Clss = UObject::FindClassFast({});
+
+	return Clss;)", Settings::bShouldXorStrings ? std::format("{}(\"{}\")", Settings::XORString, RawName) : std::format("\"{}\"", RawName)));
+
+	Types::Function GetDefault("class " + ClassName + "*", "GetDefault", ClassName, {}, true, true);
+
+	GetDefault.AddComment(Class.GetDefaultObject().GetFullName());
+	GetDefault.AddComment("(" + Class.GetDefaultObject().StringifyObjFlags() + ")");
+
+	GetDefault.AddBody(
+		std::format(
+	 R"(	static {0}* Default = nullptr;
+
+	if (!Default)
+		Default = static_cast<{0}*>({0}::StaticClass()->DefaultObject);
+
+	return Default;)", ClassName));
+
+	RetClass.AddFunction(StaticClass);
+	RetClass.AddFunction(GetDefault);
+	AllFunctions.push_back(StaticClass);
+	AllFunctions.push_back(GetDefault);
 	
 	for (UEField Child = Class.GetChild(); Child; Child = Child.GetNext())
 	{
@@ -599,7 +629,9 @@ Types::Class Package::GenerateClass(UEClass Class)
 			RetClass.AddFunction(GenerateFunction(Child.Cast<UEFunction&>(), Class));
 		}
 	}
-	
+
+	std::vector<UEProperty> Properties = Class.GetProperties();
+
 	std::sort(Properties.begin(), Properties.end(), [](UEProperty Left, UEProperty Right) -> bool
 		{
 			if (Left.IsA(EClassCastFlags::BoolProperty) && Right.IsA(EClassCastFlags::BoolProperty))
