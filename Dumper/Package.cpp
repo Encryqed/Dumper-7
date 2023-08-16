@@ -468,12 +468,12 @@ Types::Function Package::GenerateFunction(UEFunction& Function, UEStruct& Super)
 	}
 
 	if (Function.HasFlags(EFunctionFlags::Native))
-		FuncBody += "\n\n\tauto Flags = Func->FunctionFlags;\n\tFunc->FunctionFlags |= 0x400;";
+		FuncBody += "\n\n\tauto Flgs = Func->FunctionFlags;\n\tFunc->FunctionFlags |= 0x400;";
 
 	FuncBody += "\n\n\tUObject::ProcessEvent(Func, &Parms);\n";
 
 	if (Function.HasFlags(EFunctionFlags::Native))
-		FuncBody += "\n\n\tFunc->FunctionFlags = Flags;\n";
+		FuncBody += "\n\n\tFunc->FunctionFlags = Flgs;\n";
 
 
 	for (auto& Name : OutPtrParamNames)

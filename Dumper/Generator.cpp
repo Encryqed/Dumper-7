@@ -882,16 +882,16 @@ R"(
 		"CoreUObject",
 		{
 { "\tinline FVector()", "", R"(
-		: X(0.0f), Y(0.0f), Z(0.0f)
+		: X(0.0), Y(0.0), Z(0.0)
 	{
 	})"
 			},
-{ "\tinline FVector(float Value)", "", R"(
+{ "\tinline FVector(decltype(X) Value)", "", R"(
 		: X(Value), Y(Value), Z(Value)
 	{
 	})"
 			},
-{ "\tinline FVector(float x, float y, float z)", "", R"(
+{ "\tinline FVector(decltype(X) x, decltype(Y) y, decltype(Z) z)", "", R"(
 		: X(x), Y(y), Z(z)
 	{
 	})"
@@ -916,12 +916,12 @@ R"(
 		return { X - Other.X, Y - Other.Y, Z - Other.Z };
 	})"
 			},
-{ "\tFVector operator*(float Scalar) const;", "\tFVector FVector::operator*(float Scalar) const", R"(
+{ "\tFVector operator*(decltype(X) Scalar) const;", "\tFVector FVector::operator*(decltype(X) Scalar) const", R"(
 	{
 		return { X * Scalar, Y * Scalar, Z * Scalar };
 	})"
 			},
-{ "\tFVector operator/(float Scalar) const;", "\tFVector FVector::operator/(float Scalar) const", R"(
+{ "\tFVector operator/(decltype(X) Scalar) const;", "\tFVector FVector::operator/(decltype(X) Scalar) const", R"(
 	{
 		if (Scalar == 0.0f)
 			return FVector();
