@@ -241,7 +241,7 @@ static inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool
 struct MemAddress
 {
 public:
-	uint8* Address;
+	uint8_t* Address;
 
 private:
 	//pasted
@@ -264,7 +264,7 @@ private:
 		}
 		return bytes;
 	}
-	static bool IsFunctionRet(uint8* Address)
+	static bool IsFunctionRet(uint8_t* Address)
 	{
 		int Align = 0x10 - (uintptr_t(Address) % 0x10);
 		//if (Opcode == RET && (OpcodeBefore is a POP opcode || OpcodeTwoBefore is a different POP Opcode)
@@ -273,11 +273,11 @@ private:
 
 public:
 	inline MemAddress(void* Addr)
-		: Address((uint8*)Addr)
+		: Address((uint8_t*)Addr)
 	{
 	}
 	inline MemAddress(uintptr_t Addr)
-		: Address((uint8*)Addr)
+		: Address((uint8_t*)Addr)
 	{
 	}
 	operator bool()
@@ -345,7 +345,7 @@ public:
 				//opcode: call
 				if (Address[i + j] == 0xE8)
 				{
-					uint8* CallAddr = Address + i + j;
+					uint8_t* CallAddr = Address + i + j;
 
 					void* Func = CallAddr + *reinterpret_cast<int32*>(CallAddr + 1) + 5; /*Addr + Offset + 5*/
 

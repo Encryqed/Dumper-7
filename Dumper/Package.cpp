@@ -668,7 +668,7 @@ Types::Enum Package::GenerateEnum(UEEnum Enum)
 	{
 		std::string TooFullOfAName = NameValue[i].First.ToValidString();
 
-		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of(":") + 1), NameValue[i].Second);
+		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of("__") + 1), NameValue[i].Second);
 	}
 
 	if (EnumName.find("PixelFormat") != -1)
