@@ -1577,9 +1577,9 @@ public:
   , FNameMemberStr
   , GetDisplayIndexString
   , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseUoutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString
-  , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "reinterpret_cast<FNamePool*>" : "*reinterpret_cast<TNameEntryArray**>" : "reinterpret_cast<void*>"
-  , " && Number == Other.Number")
-  , " || Number != Other.Number");
+  , Off::InSDK::AppendNameToString == 0 ? Settings::InIternal::bUseNamePool ? "reinterpret_cast<FNamePool*>" : "*reinterpret_cast<TNameEntryArray**>" : "reinterpret_cast<void*>"
+  , " && Number == Other.Number"
+  , " || Number != Other.Number"));
 
 	BasicHeader.Write(
 		R"(
