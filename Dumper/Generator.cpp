@@ -443,8 +443,6 @@ void Generator::GenerateSDKHeader(const fs::path& SdkPath, int32 BiggestPackageI
 	HeaderStream << std::format("// {}\n\n", Settings::GameVersion);
 	HeaderStream << std::format("// Main-package: {}\n\n", ObjectArray::GetByIndex(BiggestPackageIdx).GetValidName());
 
-	HeaderStream << "#define WINDOWS_IGNORE_PACKING_MISMATCH\n\n";
-
 	HeaderStream << "#include <string>\n";
 	HeaderStream << "#include <Windows.h>\n";
 	HeaderStream << "#include <iostream>\n";

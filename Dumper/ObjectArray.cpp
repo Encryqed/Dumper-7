@@ -403,9 +403,10 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 				{
 					auto It = UEStruct::StructSizes.find(S.GetIndex());
 
-					if (It != UEStruct::StructSizes.end() && It->second > LowestOffset)
+					if (It != UEStruct::StructSizes.end())
 					{
-						It->second = LowestOffset;
+						if (It->second > LowestOffset)
+							It->second = LowestOffset;
 					}
 					else
 					{

@@ -523,9 +523,7 @@ Types::Struct Package::GenerateStruct(UEStruct Struct, bool bIsFunction)
 	auto It = UEStruct::StructSizes.find(Struct.GetIndex());
 
 	if (It != UEStruct::StructSizes.end())
-	{
 		Size = It->second;
-	}
 
 	if (!bIsFunction)
 	{
@@ -539,9 +537,7 @@ Types::Struct Package::GenerateStruct(UEStruct Struct, bool bIsFunction)
 			auto It = UEStruct::StructSizes.find(Super.GetIndex());
 
 			if (It != UEStruct::StructSizes.end())
-			{
 				SuperSize = It->second;
-			}
 		}
 	}
 
@@ -588,9 +584,7 @@ Types::Class Package::GenerateClass(UEClass Class)
 	auto It = UEStruct::StructSizes.find(Class.GetIndex());
 
 	if (It != UEStruct::StructSizes.end())
-	{
 		Size = It->second;
-	}
 
 	if (UEStruct Super = Class.GetSuper())
 	{
@@ -600,9 +594,7 @@ Types::Class Package::GenerateClass(UEClass Class)
 		auto It = UEStruct::StructSizes.find(Super.GetIndex());
 
 		if (It != UEStruct::StructSizes.end())
-		{
 			SuperSize = It->second;
-		}
 	}
 
 	RetClass.AddComment(std::format("0x{:X} (0x{:X} - 0x{:X})", Size - SuperSize, Size, SuperSize));
