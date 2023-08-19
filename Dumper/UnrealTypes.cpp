@@ -4,7 +4,7 @@
 void(*FName::AppendString)(void*, FString&) = nullptr;
 
 
-inline std::string MakeNameValid(std::string&& Name)
+std::string MakeNameValid(std::string&& Name)
 {
 	if (Name == "bool")
 		return "Bool";
@@ -22,11 +22,31 @@ inline std::string MakeNameValid(std::string&& Name)
 	if ((Name[0] <= 'z' && Name[0] >= 'a') && Name[0] != 'b')
 		Name[0] -= 0x20;
 
-	for (char& c : Name)
+	for (int i = 0; i < Name.length(); i++)
 	{
+		switch (Name[i])
+		{
+		case '+':
+			Name.replace(i, 1, "Plus");
+			continue;
+		case '-':
+			Name.replace(i, 1, "Minus");
+			continue;
+		case '*':
+			Name.replace(i, 1, "Star");
+			continue;
+		case '/':
+			Name.replace(i, 1, "Slash");
+			continue;
+		default:
+			break;
+		}
+
+		char c = Name[i];
+
 		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
 		{
-			c = '_';
+			Name[i] = '_';
 		}
 	}
 

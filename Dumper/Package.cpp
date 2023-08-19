@@ -128,7 +128,7 @@ void PackageDependencyManager::GetFunctionDependency(UEFunction Func, std::unord
 
 void Package::InitAssertionStream(const fs::path& GenPath)
 {
-	if (Settings::Debug::bGenerateAssertionFile)
+	if constexpr (Settings::Debug::bGenerateAssertionFile)
 	{
 		DebugAssertionStream.open(GenPath / "Assertions.h");
 
@@ -138,7 +138,7 @@ void Package::InitAssertionStream(const fs::path& GenPath)
 
 void Package::CloseAssertionStream()
 {
-	if (Settings::Debug::bGenerateAssertionFile)
+	if constexpr (Settings::Debug::bGenerateAssertionFile)
 	{
 		DebugAssertionStream.flush();
 		DebugAssertionStream.close();
@@ -302,12 +302,18 @@ void Package::GenerateMembers(const std::vector<UEProperty>& MemberVector, UEStr
 		return; // generated struct based on override, return now
 		
 
-	if (Settings::Debug::bGenerateAssertionFile)
+	if constexpr (Settings::Debug::bGenerateAssertionFile)
 	{
-		if (!Super.IsA(EClassCastFlags::Function) && !MemberVector.empty())
+		if constexpr (!Settings::Debug::bLimitAssertionsToEngienPackage)
 		{
-			Package::DebugAssertionStream << "\n//" << SuperName << "\n";
-			Package::DebugAssertionStream << std::format("static_assert(sizeof({}) == 0x{:04X}, \"Class {} has wrong size!\");\n", SuperName, StructSize, SuperName);
+			if (PackageObject == EnginePackage)
+			{
+				if (!Super.IsA(EClassCastFlags::Function) && !MemberVector.empty())
+				{
+					Package::DebugAssertionStream << "\n//" << SuperName << "\n";
+					Package::DebugAssertionStream << std::format("static_assert(sizeof({}) == 0x{:04X}, \"Class {} has wrong size!\");\n", SuperName, StructSize, SuperName);
+				}
+			}
 		}
 	}
 
@@ -365,11 +371,24 @@ void Package::GenerateMembers(const std::vector<UEProperty>& MemberVector, UEStr
 
 		Struct.AddMember(Member);
 
-		if (Settings::Debug::bGenerateAssertionFile)
+		if constexpr (Settings::Debug::bGenerateAssertionFile)
 		{
-			if (!Super.IsA(EClassCastFlags::Function) && PrevBoolPropertyEnd != Offset)
+			bool bWriteAssertion = true;
+
+			if constexpr (Settings::Debug::bLimitAssertionsToEngienPackage)
+				bWriteAssertion = PackageObject == EnginePackage;
+
+			if (bWriteAssertion)
 			{
-				Package::DebugAssertionStream << std::format("static_assert(offsetof({}, {}) == 0x{:04X}, \"Wrong offset on {}::{}!\");\n", SuperName, Name, Offset, SuperName, Name);
+				if (!Super.IsA(EClassCastFlags::Function) && PrevBoolPropertyEnd != Offset)
+				{
+					size_t SpacePos = Name.find(' ');
+					size_t BracePos = Name.find('[');
+
+					Name = Name.substr(0, SpacePos != std::string::npos ? SpacePos : BracePos != std::string::npos ? BracePos : Name.length());
+
+					Package::DebugAssertionStream << std::format("static_assert(offsetof({}, {}) == 0x{:04X}, \"Wrong offset on {}::{}!\");\n", SuperName, Name, Offset, SuperName, Name);
+				}
 			}
 		}
 	}
@@ -666,9 +685,9 @@ Types::Enum Package::GenerateEnum(UEEnum Enum)
 
 	for (int i = 0; i < NameValue.size(); i++)
 	{
-		std::string TooFullOfAName = NameValue[i].First.ToValidString();
+		std::string TooFullOfAName = NameValue[i].First.ToString();
 
-		Enm.AddMember(TooFullOfAName.substr(TooFullOfAName.find_last_of("__") + 1), NameValue[i].Second);
+		Enm.AddMember(MakeNameValid(TooFullOfAName.substr(TooFullOfAName.find_last_of("::") + 1)), NameValue[i].Second);
 	}
 
 	if (EnumName.find("PixelFormat") != -1)

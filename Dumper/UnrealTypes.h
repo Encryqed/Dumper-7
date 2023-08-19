@@ -8,6 +8,8 @@
 #include "Utils.h"
 #include "Offsets.h"
 
+extern std::string MakeNameValid(std::string&& Name);
+
 template<typename ValueType, typename KeyType>
 class alignas(4) TPair
 {

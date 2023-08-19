@@ -30,7 +30,8 @@ namespace Settings
 
 	namespace Debug
 	{
-		inline constexpr bool bGenerateAssertionFile = false;
+		inline constexpr bool bGenerateAssertionFile = true;
+		inline constexpr bool bLimitAssertionsToEngienPackage = true;
 	}
 
 	// Dont touch this
