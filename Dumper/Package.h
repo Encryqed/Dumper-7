@@ -120,11 +120,16 @@ public:
 
 	void Process(const std::vector<int32_t>& PackageMembers);
 
-	void GenerateMembers(const std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize);
-	Types::Function GenerateFunction(UEFunction& Function, UEStruct& Super);
-	Types::Struct GenerateStruct(UEStruct Struct, bool bIsFunction = false);
-	Types::Class GenerateClass(UEClass Class);
-	Types::Enum GenerateEnum(UEEnum Enum);
+	static void StaticGenerateMembers(const std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize);
+	static Types::Function StaticGenerateFunction(UEFunction& Function, UEStruct& Super);
+	static Types::Struct StaticGenerateStruct(UEStruct Struct, bool bIsFunction = false);
+	static Types::Class StaticGenerateClass(UEClass Class, std::vector<Types::Function>& PackageFunctions);
+	static Types::Enum StaticGenerateEnum(UEEnum Enum);
+
+	void GenerateFunction(UEFunction& Function, UEStruct& Super);
+	void GenerateStruct(UEStruct Struct, bool bIsFunction = false);
+	void GenerateClass(UEClass Class);
+	void GenerateEnum(UEEnum Enum);
 
 	inline bool IsEmpty()
 	{

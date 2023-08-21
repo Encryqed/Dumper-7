@@ -8,14 +8,7 @@ Types::Struct::Struct(std::string Name, bool bIsClass, std::string Super)
 
 	CppName = Name;
 
-	if (!bIsClass)
-	{
-		Declaration = (Super == "" ? std::format("struct {}\n", Name) : std::format("struct {} : public {}\n", Name, Super));
-	}
-	else
-	{
-		Declaration = (Super == "" ? std::format("class {}\n", Name) : std::format("class {} : public {}\n", Name, Super));
-	}
+	Declaration = (Super.empty() ? std::format("{} {}\n", (bIsClass ? "class" : "struct"), Name) : std::format("{} {} : public {}\n", (bIsClass ? "class" : "struct"), Name, Super));
 
 	InnerBody = "{\npublic:\n";
 }

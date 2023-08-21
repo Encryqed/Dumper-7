@@ -128,7 +128,6 @@ namespace Types
 		std::string RawName; //For StaticClass()
 
 	public:
-
 		using Struct::Struct;
 
 		Class(std::string CppName, std::string Name, std::string Super = "")
@@ -136,9 +135,11 @@ namespace Types
 		{
 		}
 
+	public:
 		void AddFunction(Function& NewFunction);
 		void AddFunction(Function&& NewFunction);
 
+	public:
 		std::string GetGeneratedBody();
 	};
 }
