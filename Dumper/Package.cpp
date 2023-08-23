@@ -612,7 +612,7 @@ Types::Class Package::StaticGenerateClass(UEClass Class, std::vector<Types::Func
 	return Clss;)", Settings::bShouldXorStrings ? std::format("{}(\"{}\")", Settings::XORString, RawName) : std::format("\"{}\"", RawName)));
 
 
-	Types::Function GetDefault("class " + ClassName + "*", "GetDefault", ClassName, {}, true, true);
+	Types::Function GetDefault("class " + ClassName + "*", "GetDefaultObj", ClassName, {}, true, true);
 
 	GetDefault.AddComment(Class.GetDefaultObject().GetFullName());
 	GetDefault.AddComment("(" + Class.GetDefaultObject().StringifyObjFlags() + ")");
