@@ -1482,8 +1482,11 @@ public:
 	constexpr const char* GetRawStringWithAppendString =
  R"(inline std::string GetRawString() const
 	{
-		static FString TempString(1024);
-		static auto AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + Offsets::AppendString);
+		thread_local FString TempString(1024);
+		static auto AppendString = nullptr;
+
+		if (!AppendString)
+			AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + Offsets::AppendString);
 
 		AppendString(this, TempString);
 

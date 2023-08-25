@@ -123,8 +123,8 @@ inline uintptr_t GetImageBase()
 
 inline bool IsInProcessRange(uintptr_t Address)
 {
-	static uintptr_t ImageBase = GetImageBase();
-	static PIMAGE_NT_HEADERS NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase)->e_lfanew);
+	uintptr_t ImageBase = GetImageBase();
+	PIMAGE_NT_HEADERS NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase)->e_lfanew);
 
 	return Address > ImageBase && Address < (NtHeader->OptionalHeader.SizeOfImage + ImageBase);
 }
