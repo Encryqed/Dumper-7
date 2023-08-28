@@ -412,7 +412,7 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 	if (FunctionName.empty())
 		FunctionName = std::format("UnknownFunction_{:04X}", NumUnnamedFunctions++);
 
-	std::vector<std::string> OutPtrParamNames;
+	std::vector<std::pair<std::string, bool>> OutPtrParamNames;
 
 	bool bHasRetType = false;
 
@@ -420,6 +420,7 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 	{
 		bool bIsRef = false;
 		bool bIsOut = false;
+		bool bIsMoveType = Param.IsA(EClassCastFlags::StructProperty) || Param.IsA(EClassCastFlags::ArrayProperty) || Param.IsA(EClassCastFlags::StrProperty);
 		bool bIsRet = Param.HasPropertyFlags(EPropertyFlags::ReturnParm);
 
 		std::string Type = Param.GetCppType();
@@ -435,10 +436,10 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 		{
 			Type += "*";
 			bIsOut = true;
-			OutPtrParamNames.push_back(Param.GetValidName());
+			OutPtrParamNames.push_back({ Param.GetValidName(), bIsMoveType });
 		}
 
-		if (!bIsRet && !bIsOut && !bIsRef && (Param.IsA(EClassCastFlags::StructProperty) || Param.IsA(EClassCastFlags::ArrayProperty) || Param.IsA(EClassCastFlags::StrProperty)))
+		if (!bIsRet && !bIsOut && !bIsRef && bIsMoveType)
 		{
 			Type += "&";
 
@@ -455,7 +456,7 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 			Params.push_back(Types::Parameter(Type, Param.GetValidName(), bIsOut && !bIsRef));
 		}
 	}
-	
+
 	Types::Function Func(ReturnType, FunctionName, Super.GetCppName(), Params);
 
 	Func.AddComment(Function.GetFullName());
@@ -495,9 +496,9 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 		FuncBody += "\n\n\tFunc->FunctionFlags = Flgs;\n";
 
 
-	for (auto& Name : OutPtrParamNames)
+	for (auto& [Name, bMove] : OutPtrParamNames)
 	{
-		FuncBody += std::format("\n\tif ({0} != nullptr)\n\t\t*{0} = Parms.{0};\n", Name);
+		FuncBody += std::format("\n\tif ({0} != nullptr)\n\t\t*{0} = {1}Parms.{0}{2};\n", Name, bMove ? "std::move(" : "", bMove ? ")" : "");
 	}
 
 	if (bHasRetType)

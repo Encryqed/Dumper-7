@@ -466,8 +466,9 @@ namespace Offsets
 	constexpr int32 AppendString      = 0x{:08X};
 	constexpr int32 GNames            = 0x{:08X};
 	constexpr int32 ProcessEvent      = 0x{:08X};
+	constexpr int32 ProcessEventIdx   = 0x{:08X};
 }}
-)", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::GNames, Off::InSDK::PEOffset);
+)", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::GNames, Off::InSDK::PEOffset, Off::InSDK::PEIndex);
 
 	if (Settings::bShouldXorStrings)
 		HeaderStream << std::format("#define {}(str) str\n", Settings::XORString);
@@ -812,12 +813,11 @@ R"(
 			},
 			{
 				"\tinline void ProcessEvent(class UFunction* Function, void* Parms) const", "",
-				std::format(
 R"(
-	{{
-		return GetVFunction<void(*)(const UObject*, class UFunction*, void*)>(this, 0x{:X} /*0x{:X}*/)(this, Function, Parms);
-	}}
-)", Off::InSDK::PEIndex, Off::InSDK::PEOffset)
+	{
+		return GetVFunction<void(*)(const UObject*, class UFunction*, void*)>(this, Offsets::ProcessEventIdx)(this, Function, Parms);
+	}
+)"
 			}
 		}
 	};
@@ -1483,7 +1483,7 @@ public:
  R"(inline std::string GetRawString() const
 	{
 		thread_local FString TempString(1024);
-		static auto AppendString = nullptr;
+		static void(*AppendString)(const FName*, FString&) = nullptr;
 
 		if (!AppendString)
 			AppendString = reinterpret_cast<void(*)(const FName*, FString&)>(uintptr_t(GetModuleHandle(0)) + Offsets::AppendString);

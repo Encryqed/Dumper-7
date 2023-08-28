@@ -3,9 +3,22 @@
 
 void(*FName::AppendString)(void*, FString&) = nullptr;
 
-
 std::string MakeNameValid(std::string&& Name)
 {
+	static constexpr const char* Numbers[10] =
+	{
+		"Zero",
+		"One",
+		"Two",
+		"Three",
+		"Four",
+		"Five",
+		"Six",
+		"Seven",
+		"Eight",
+		"Nine"
+	};
+
 	if (Name == "bool")
 		return "Bool";
 
@@ -15,12 +28,17 @@ std::string MakeNameValid(std::string&& Name)
 	if (Name == "FALSE")
 		return "FLASE";
 
-	if (Name[0] <= '9' && Name[0] >= '0')
-		Name = '_' + Name;
+	if (Name == "NULL")
+		return "NULLL";
 
-	// this way I don't need to bother checking for c++ types (except bool) like int in the names
-	if ((Name[0] <= 'z' && Name[0] >= 'a') && Name[0] != 'b')
+	if (Name[0] <= '9' && Name[0] >= '0')
+	{
+		Name.replace(0, 1, Numbers[Name[0] - '0']);
+	}
+	else if ((Name[0] <= 'z' && Name[0] >= 'a') && Name[0] != 'b')
+	{
 		Name[0] -= 0x20;
+	}
 
 	for (int i = 0; i < Name.length(); i++)
 	{
@@ -52,6 +70,23 @@ std::string MakeNameValid(std::string&& Name)
 
 	return Name;
 }
+
+//std::string MakeNameValid(std::string&& Name)
+//{
+//	
+//
+//	for (int i = 0; i < Name.length(); i++)
+//	{
+//		char c = Name[i];
+//
+//		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
+//		{
+//			Name[i] = '_';
+//		}
+//	}
+//
+//	return Name;
+//}
 
 FName::FName(void* Ptr)
 	: Address((uint8*)Ptr)
