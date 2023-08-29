@@ -334,21 +334,24 @@ void Generator::GenerateIDAMappings()
 		}
 		else if (Obj.IsA(EClassCastFlags::Class))
 		{
-			Generator::InitPredefinedMembers;
+			static auto MangleFunctionName = [](std::string&& ClassName, std::string&& FuncName) -> std::string
+			{
+				return "_ZN" + std::to_string(ClassName.length()) + ClassName + std::to_string(FuncName.length() + 4) + "exec" + FuncName + "Ev";
+			};
 
 			for (UEField F = Obj.Cast<UEClass>().GetChild(); F; F = F.GetNext())
 			{
 				if (!F.IsA(EClassCastFlags::Function))
 					continue;
 
-				std::string Name = Obj.Cast<UEClass>().GetCppName() + "::exec" + F.Cast<UEFunction>().GetValidName();
+				std::string MangledName = MangleFunctionName(Obj.Cast<UEClass>().GetCppName(), F.Cast<UEFunction>().GetValidName());
 
 				uint32 Offset = static_cast<uint32>(GetOffset(F.Cast<UEFunction>().GetExecFunction()));
-				uint16 NameLen = static_cast<uint16>(Name.length());
+				uint16 NameLen = static_cast<uint16>(MangledName.length());
 
 				IDAMappingsStream.write(reinterpret_cast<const char*>(&Offset), sizeof(Offset));
 				IDAMappingsStream.write(reinterpret_cast<const char*>(&NameLen), sizeof(NameLen));
-				IDAMappingsStream.write(Name.c_str(), NameLen);
+				IDAMappingsStream.write(MangledName.c_str(), NameLen);
 			}
 		}
 	}
