@@ -575,7 +575,9 @@ void Generator::InitPredefinedMembers()
 
 	PredefinedMembers["UFunction"] =
 	{
-		{ "uint32", "FunctionFlags", Off::UFunction::FunctionFlags, 0x08 }
+		{ "using FNativeFuncPtr = void (*)(void* Context, void* TheStack, void* Result)", "", 0x0, 0x0 },
+		{ "uint32", "FunctionFlags", Off::UFunction::FunctionFlags, 0x08 },
+		{ "FNativeFuncPtr", "ExecFunction", Off::UFunction::ExecFunction, 0x08 }
 	};
 
 	PredefinedMembers["UClass"] =
@@ -664,7 +666,7 @@ void Generator::InitPredefinedMembers()
 	PredefinedMembers["FFieldVariant"] =
 	{
 		{ "union { class FField* Field; class UObject* Object; }", "Container", 0x0, 0x8 },
-		{ UObjectIdentifierType, UObjectIdentifierName, 0x0, !Settings::Internal::bUseMaskForFieldOwner }
+		{ UObjectIdentifierType, UObjectIdentifierName, Settings::Internal::bUseMaskForFieldOwner ? 0x0 : 0x8, !Settings::Internal::bUseMaskForFieldOwner }
 	};
 
 	PredefinedMembers["FField"] =

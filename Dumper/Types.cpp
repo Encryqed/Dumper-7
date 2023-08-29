@@ -126,9 +126,9 @@ std::string Types::Includes::GetGeneratedBody()
 
 Types::Member::Member(std::string Type, std::string Name, std::string Comment)
 {
-	this->Type = Type + " ";
+	this->Type = Type + (Name.empty() ? "" : " ");
 	this->Name = Name;
-	this->Comment = Comment != "" ? "// " + Comment : "";
+	this->Comment = Comment != "" ? ("// " + Comment) : "";
 }
 
 void Types::Member::AddComment(std::string Comment)

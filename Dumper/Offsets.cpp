@@ -24,7 +24,7 @@ void Off::InSDK::InitPE()
 
 	for (int i = 0; i < 0x150; i++)
 	{
-		if (!Vft[i] ||IsBadReadPtr(Vft[i]))
+		if (!Vft[i] || !IsInProcessRange(reinterpret_cast<uintptr_t>(Vft[i])))
 			break;
 
 		if (FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, Resolve32BitRelativeJump(Vft[i]), 0x400)
@@ -120,6 +120,9 @@ void Off::Init()
 
 	Off::UFunction::FunctionFlags = OffsetFinder::FindFunctionFlagsOffset();
 	std::cout << "Off::UFunction::FunctionFlags: " << Off::UFunction::FunctionFlags << "\n\n";
+
+	Off::UFunction::ExecFunction = OffsetFinder::FindFunctionNativeFuncOffset();
+	std::cout << "Off::UFunction::ExecFunction: " << Off::UFunction::ExecFunction << "\n\n";
 
 	Off::UProperty::ElementSize = OffsetFinder::FindElementSizeOffset();
 	std::cout << "Off::UProperty::ElementSize: " << Off::UProperty::ElementSize << "\n";

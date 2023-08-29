@@ -118,6 +118,7 @@ namespace Off
 	namespace UFunction
 	{
 		inline int32 FunctionFlags;
+		inline int32 ExecFunction;
 	}
 
 	namespace UClass

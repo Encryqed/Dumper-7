@@ -117,7 +117,7 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 
 	int32 PerChunk = 0x0;
 
-	if (!NameArray ||IsBadReadPtr (NameArray))
+	if (!NameArray || IsBadReadPtr(NameArray))
 		return false;
 
 	for (int i = 0; i < 0x800; i += 0x8)

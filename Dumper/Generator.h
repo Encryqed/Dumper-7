@@ -38,7 +38,7 @@ private:
 		int32 Offset;
 		int32 Size;
 
-		inline bool operator<(const PredefinedMember& Other) const { return  Offset != Other.Offset ? Offset < Other.Offset : Other.Size != 0; }
+		inline bool operator<(const PredefinedMember& Other) const { return  Offset != Other.Offset ? Offset < Other.Offset : Size < Other.Size; }
 	};
 
 	typedef std::unordered_map<std::string, std::pair<std::string, std::vector<PredefinedFunction>>> FunctionsMap;

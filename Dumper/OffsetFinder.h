@@ -339,6 +339,23 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
+	inline int32_t FindFunctionNativeFuncOffset()
+	{
+		std::vector<std::pair<void*, EFunctionFlags>> Infos;
+
+		uintptr_t WasInputKeyJustPressed = reinterpret_cast<uintptr_t>(ObjectArray::FindObjectFast("WasInputKeyJustPressed").GetAddress());
+		uintptr_t ToggleSpeaking = reinterpret_cast<uintptr_t>(ObjectArray::FindObjectFast("ToggleSpeaking").GetAddress());
+		uintptr_t SwitchLevel = reinterpret_cast<uintptr_t>(ObjectArray::FindObjectFast("SwitchLevel").GetAddress());
+
+		for (int i = 0x40; i < 0x140; i += 8)
+		{
+			if (IsInProcessRange(*reinterpret_cast<uintptr_t*>(WasInputKeyJustPressed + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(ToggleSpeaking + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(SwitchLevel + i)))
+				return i;
+		}
+
+		return 0x0;
+	}
+
 	inline int32_t FindNumParamsOffset()
 	{
 		std::vector<std::pair<void*, uint8_t>> Infos;
