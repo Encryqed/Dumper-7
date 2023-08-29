@@ -121,6 +121,18 @@ inline uintptr_t GetImageBase()
 	return (uintptr_t)ProcessEnvironmentBlock->ImageBaseAddress;
 }
 
+inline uintptr_t GetOffset(void* Addr)
+{
+	static uintptr_t ImageBase = 0x0;
+
+	if (ImageBase == 0x0)
+		ImageBase = GetImageBase();
+
+	uintptr_t AddrAsInt = reinterpret_cast<uintptr_t>(Addr);
+
+	return AddrAsInt > ImageBase ? (AddrAsInt - ImageBase) : 0x0;
+}
+
 inline bool IsInProcessRange(uintptr_t Address)
 {
 	uintptr_t ImageBase = GetImageBase();

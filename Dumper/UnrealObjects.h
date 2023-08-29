@@ -116,6 +116,7 @@ public:
 
 	void* GetAddress();
 
+	void* GetVft() const;
 	EObjectFlags GetFlags() const;
 	int32 GetIndex() const;
 	UEClass GetClass() const;
@@ -197,6 +198,8 @@ class UEFunction : public UEStruct
 public:
 	EFunctionFlags GetFunctionFlags() const;
 	bool HasFlags(EFunctionFlags Flags) const;
+
+	void* GetExecFunction() const;
 
 	std::string StringifyFlags() const;
 	std::string GetParamStructName() const;

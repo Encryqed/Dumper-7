@@ -106,7 +106,7 @@ void FName::Init()
 		i++;
 	}
 
-	Off::InSDK::AppendNameToString = AppendString ? uintptr_t(AppendString) - GetImageBase() : 0x0;
+	Off::InSDK::AppendNameToString = AppendString ? GetOffset(AppendString) : 0x0;
 
 	if (!AppendString)
 	{

@@ -31,7 +31,7 @@ void Off::InSDK::InitPE()
 		&&  FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, Resolve32BitRelativeJump(Vft[i]), 0x400))
 		{
 			Off::InSDK::PEIndex = i;
-			Off::InSDK::PEOffset = uintptr_t(Vft[i]) - GetImageBase();
+			Off::InSDK::PEOffset = GetOffset(Vft[i]);
 
 			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
 			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
@@ -49,7 +49,7 @@ void Off::InSDK::InitPE()
 		if (Resolve32BitRelativeJump(Vft[i]) == PeAddr)
 		{
 			Off::InSDK::PEIndex = i;
-			Off::InSDK::PEOffset = uintptr_t(PeAddr) - GetImageBase();
+			Off::InSDK::PEOffset = GetOffset(PeAddr);
 
 			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
 			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";

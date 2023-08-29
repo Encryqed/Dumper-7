@@ -279,6 +279,83 @@ void Generator::GenerateMappings()
 	MappingsStream.CopyFromOtherBuffer(Buffer);
 }
 
+void Generator::GenerateIDAMappings()
+{
+	fs::path DumperFolder;
+	fs::path GenFolder;
+
+	try
+	{
+		DumperFolder = Settings::SDKGenerationPath;
+		GenFolder = DumperFolder / (Settings::GameVersion + '-' + Settings::GameName + "_IDA_MAPPINGS");
+
+		if (!fs::exists(DumperFolder))
+		{
+			fs::create_directories(DumperFolder);
+		}
+
+		if (fs::exists(GenFolder))
+		{
+			fs::path Old = GenFolder.generic_string() + "_OLD";
+
+			fs::remove_all(Old);
+
+			fs::rename(GenFolder, Old);
+		}
+
+		fs::create_directory(GenFolder);
+	}
+	catch (const std::filesystem::filesystem_error& fe)
+	{
+		std::cout << "Could not create required folders! Info: \n";
+		std::cout << fe.what() << std::endl;
+		return;
+	}
+
+	/*
+	uint32 Offset;
+	uint16 NameLen;
+	char*  Name[NmaeLen];
+	*/
+	std::ofstream IDAMappingsStream(GenFolder / (Settings::GameVersion + ".idmap"), std::ios::binary);
+
+	for (UEObject Obj : ObjectArray())
+	{
+		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
+		{
+			std::string Name = Obj.GetClass().GetCppName() + "_VFT";
+
+			uint32 Offset = static_cast<uint32>(GetOffset(Obj.GetVft()));
+			uint16 NameLen = static_cast<uint16>(Name.length());
+
+			IDAMappingsStream.write(reinterpret_cast<const char*>(&Offset), sizeof(Offset));
+			IDAMappingsStream.write(reinterpret_cast<const char*>(&NameLen), sizeof(NameLen));
+			IDAMappingsStream.write(Name.c_str(), NameLen);
+		}
+		else if (Obj.IsA(EClassCastFlags::Class))
+		{
+			Generator::InitPredefinedMembers;
+
+			for (UEField F = Obj.Cast<UEClass>().GetChild(); F; F = F.GetNext())
+			{
+				if (!F.IsA(EClassCastFlags::Function))
+					continue;
+
+				std::string Name = Obj.Cast<UEClass>().GetCppName() + "::exec" + F.Cast<UEFunction>().GetValidName();
+
+				uint32 Offset = static_cast<uint32>(GetOffset(F.Cast<UEFunction>().GetExecFunction()));
+				uint16 NameLen = static_cast<uint16>(Name.length());
+
+				IDAMappingsStream.write(reinterpret_cast<const char*>(&Offset), sizeof(Offset));
+				IDAMappingsStream.write(reinterpret_cast<const char*>(&NameLen), sizeof(NameLen));
+				IDAMappingsStream.write(Name.c_str(), NameLen);
+			}
+		}
+	}
+
+	IDAMappingsStream.close();
+}
+
 void Generator::HandlePackageGeneration(const fs::path* const SDKFolder, int32 PackageIndex, std::vector<int32>* MemberIndices)
 {
 	UEObject Object = ObjectArray::GetByIndex(PackageIndex);

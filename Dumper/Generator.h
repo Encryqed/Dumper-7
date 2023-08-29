@@ -62,6 +62,7 @@ private:
 
 public:
 	static void GenerateMappings();
+	static void GenerateIDAMappings();
 	static void GenerateSDK();
 
 private:

@@ -206,6 +206,11 @@ void* UEObject::GetAddress()
 	return Object;
 }
 
+void* UEObject::GetVft() const
+{
+	return *reinterpret_cast<void**>(Object);
+}
+
 EObjectFlags UEObject::GetFlags() const
 {
 	return *reinterpret_cast<EObjectFlags*>(Object + Off::UObject::Flags);
@@ -598,6 +603,11 @@ EFunctionFlags UEFunction::GetFunctionFlags() const
 bool UEFunction::HasFlags(EFunctionFlags FuncFlags) const
 {
 	return GetFunctionFlags() & FuncFlags;
+}
+
+void* UEFunction::GetExecFunction() const
+{
+	return *reinterpret_cast<void**>(Object + Off::UFunction::ExecFunction);
 }
 
 std::string UEFunction::StringifyFlags()  const

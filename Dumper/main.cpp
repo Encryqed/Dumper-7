@@ -46,6 +46,7 @@ DWORD MainThread(HMODULE Module)
 
 	Generator::GenerateSDK();
 	Generator::GenerateMappings();
+	Generator::GenerateIDAMappings();
 
 	auto t_C = high_resolution_clock::now();
 	
