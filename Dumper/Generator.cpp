@@ -1742,11 +1742,41 @@ public:
 
 	BasicHeader.Write(
 		R"(
-class FText
+class FTextData 
 {
 public:
-	FString TextData;
-	uint8 IdkTheRest[0x8];
+	uint8 Pad[0x28];
+	wchar_t* Name;
+	int32 Length;
+};
+)");
+
+	BasicHeader.Write(
+		R"(
+class FText 
+{
+public:
+	FTextData* Data;
+	uint8 Pad[0x10];
+
+	wchar_t* Get() const 
+	{
+		if (Data) 
+			return Data->Name;
+
+		return nullptr;
+	}
+
+	std::string ToString()
+	{
+		if (Data)
+		{
+			std::wstring Temp(Data->Name);
+			return std::string(Temp.begin(), Temp.end());
+		}
+
+		return "";
+	}
 };
 )");
 
