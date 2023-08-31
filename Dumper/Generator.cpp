@@ -323,6 +323,11 @@ void Generator::GenerateIDAMappings()
 	{
 		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
 		{
+			UEClass Super = Obj.GetClass().GetSuper().Cast<UEClass>();
+
+			if (Super && Obj.GetVft() == Super.GetDefaultObject().GetVft())
+				continue;
+			
 			std::string Name = Obj.GetClass().GetCppName() + "_VFT";
 
 			uint32 Offset = static_cast<uint32>(GetOffset(Obj.GetVft()));
@@ -352,9 +357,43 @@ void Generator::GenerateIDAMappings()
 				IDAMappingsStream.write(reinterpret_cast<const char*>(&Offset), sizeof(Offset));
 				IDAMappingsStream.write(reinterpret_cast<const char*>(&NameLen), sizeof(NameLen));
 				IDAMappingsStream.write(MangledName.c_str(), NameLen);
+
+				bool NetValidate = Obj.Cast<UEFunction>().HasFlags(EFunctionFlags::NetValidate);
+
+				uintptr_t ExecAddress = reinterpret_cast<uintptr_t>(F.Cast<UEFunction>().GetExecFunction());
+
+				void* RelativeCallPointer = FindPatternInRange({ 0xFF, 0x90 }, reinterpret_cast<uint8_t*>(ExecAddress), 0x400);
+
+				if (!RelativeCallPointer)
+					continue;
+
+				uint8_t* CallBytes = (uint8_t*)(RelativeCallPointer);
+
+				//printf("Offset: %p\n", RelativeCallPointer);
+				//printf("CallBytes 0: %x\n", *reinterpret_cast<int32_t*>(CallBytes + 2));
+				/*uint8_t* CallBytes = reinterpret_cast<uint8_t*>(RelativeCallPointer);
+				uint32_t VftOffset = *(reinterpret_cast<uint32_t*>(CallBytes + 2));
+
+				printf("Offset: %x\n", VftOffset);*/
 			}
 		}
 	}
+
+	std::cout << "1: " << *reinterpret_cast<int32*>(GetImageBase() + 0x27D1B91 + 1) << std::endl;
+	std::cout << "2: " << *reinterpret_cast<int32*>(GetImageBase() + 0x27D1B91 + 2) << std::endl;
+	std::cout << "3: " << *reinterpret_cast<int32*>(GetImageBase() + 0x27D1B91 + 3) << std::endl;
+	std::cout << "4: " << *reinterpret_cast<int32*>(GetImageBase() + 0x27D1B91 + 4) << std::endl;
+	std::cout << "5: " << *reinterpret_cast<int32*>(GetImageBase() + 0x27D1B91 + 5) << std::endl;
+	std::cout << "6: " << *reinterpret_cast<int32*>(GetImageBase() + 0x27D1B91 + 6) << std::endl;
+	std::cout << "7: " << *reinterpret_cast<int32*>(GetImageBase() + 0x27D1B91 + 7) << std::endl;
+
+	std::cout << "8: " << *reinterpret_cast<uint32*>(GetImageBase() + 0x27D1B91 + 1) << std::endl;
+	std::cout << "9: " << *reinterpret_cast<uint32*>(GetImageBase() + 0x27D1B91 + 2) << std::endl;
+	std::cout << "A: " << *reinterpret_cast<uint32*>(GetImageBase() + 0x27D1B91 + 3) << std::endl;
+	std::cout << "B: " << *reinterpret_cast<uint32*>(GetImageBase() + 0x27D1B91 + 4) << std::endl;
+	std::cout << "C: " << *reinterpret_cast<uint32*>(GetImageBase() + 0x27D1B91 + 5) << std::endl;
+	std::cout << "D: " << *reinterpret_cast<uint32*>(GetImageBase() + 0x27D1B91 + 6) << std::endl;
+	std::cout << "E: " << *reinterpret_cast<uint32*>(GetImageBase() + 0x27D1B91 + 7) << std::endl;
 
 	IDAMappingsStream.close();
 }
@@ -2164,7 +2203,7 @@ public:
 		{ "FSetProperty", "FProperty" },
 		{ "FEnumProperty", "FProperty" }
 	}};
-	//bool Package::GeneratePredefinedMembers(const std::string& SuperName, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
+
 
 	ClassSizePairs.reserve(FPropertyClassSuperPairs.size());
 	for (auto& [ClassName, SuperName] : FPropertyClassSuperPairs)

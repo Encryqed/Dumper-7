@@ -148,20 +148,21 @@ void Package::CloseAssertionStream()
 int32 Package::GeneratePredefinedMembers(const std::string& ClassName, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
 {
 	int PrevPropertyEnd = SuperSize;
-	int PrevPropertySize = 0;
+	int PrevPropertySize = -1;
 
 	auto Predef = Generator::PredefinedMembers.find(ClassName);
 	if (Predef != Generator::PredefinedMembers.end())
 	{
 		for (auto& Member : Predef->second)
 		{
-			if (Member.Offset > PrevPropertyEnd && PrevPropertySize > 0)
+			if (Member.Offset > PrevPropertyEnd && PrevPropertySize != 0)
 			{
 				Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, Member.Offset - PrevPropertyEnd, "Fixing Size After Last (Predefined) Property  [ Dumper-7 ]"));
 			}
 
 			Struct.AddMember(Types::Member(Member.Type, Member.Name, std::format("(0x{:02X}[0x{:02X}]) NOT AUTO-GENERATED PROPERTY", Member.Offset, Member.Size)));
 
+			PrevPropertySize = Member.Size;
 			PrevPropertyEnd = Member.Size > 0 ? Member.Offset + Member.Size : PrevPropertyEnd;
 		}
 

@@ -158,7 +158,7 @@ static bool IsBadReadPtr(void* p)
 	return true;
 };
 
-static inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0)
+static inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0, int SkipCount = 0)
 {
 	const auto PatternLength = Signature.size();
 	const auto PatternBytes = Signature.data();
@@ -166,6 +166,8 @@ static inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* St
 	for (int i = 0; i < (Range - PatternLength); i++)
 	{
 		bool bFound = true;
+		int CurrentSkips = 0;
+
 		for (auto j = 0ul; j < PatternLength; ++j)
 		{
 			if (Start[i + j] != PatternBytes[j] && PatternBytes[j] != -1)
@@ -176,6 +178,12 @@ static inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* St
 		}
 		if (bFound)
 		{
+			if (CurrentSkips != SkipCount)
+			{
+				CurrentSkips++;
+				continue;
+			}
+
 			uintptr_t Address = uintptr_t(Start + i);
 			if (bRelative)
 			{
