@@ -555,7 +555,7 @@ namespace Offsets
 }}
 )", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::GNames, Off::InSDK::PEOffset, Off::InSDK::PEIndex);
 
-	if (Settings::bShouldXorStrings)
+	if (Settings::XORString)
 		HeaderStream << std::format("#define {}(str) str\n", Settings::XORString);
 
 	HeaderStream << "\n#include \"PropertyFixup.hpp\"\n";
@@ -601,6 +601,24 @@ namespace Offsets
 		Package::PackageSorterParams.GetIncludesForPackage(Pack.first, EIncludeFileType::Params, IncludesString, Settings::bIncludeOnlyRelevantPackages);
 	
 		HeaderStream << IncludesString;
+	}
+
+	if constexpr (Settings::Debug::bGenerateAssertionsForPredefinedMembers)
+	{
+		HeaderStream << "\n\n";
+
+		for (auto& Predef : Generator::PredefinedMembers)
+		{
+			HeaderStream << "\n";
+
+			for (auto& Member : Predef.second)
+			{
+				if (Member.Size == 0)
+					continue;
+
+				HeaderStream << std::format("static_assert(offsetof({3}::{0}, {1}) == 0x{2:X}, \"{0}::{1} has a wrong offset!\");\n", Predef.first, Member.Name, Member.Offset, Settings::SDKNamespaceName ? Settings::SDKNamespaceName : "");
+			}
+		}
 	}
 
 	HeaderStream.close();
@@ -692,7 +710,7 @@ void Generator::InitPredefinedMembers()
 		{ "uint8", "FieldMask", Off::UBoolProperty::Base + 0x3, 0x01 }
 	};
 
-	PredefinedMembers[PrefixPropertyName("ObjectProperty")] =
+	PredefinedMembers[PrefixPropertyName("ObjectPropertyBase")] =
 	{
 		{ "class UClass*", "PropertyClass", Off::UObjectProperty::PropertyClass, 0x08 }
 	};
@@ -2191,8 +2209,8 @@ public:
 		{ "FProperty", "FField" },
 		{ "FByteProperty", "FProperty" },
 		{ "FBoolProperty", "FProperty" },
-		{ "FObjectProperty", "FProperty" },
-		{ "FClassProperty", "FObjectProperty" },
+		{ "FObjectPropertyBase", "FProperty" },
+		{ "FClassProperty", "FObjectPropertyBase" },
 		{ "FStructProperty", "FProperty" },
 		{ "FArrayProperty", "FProperty" },
 		{ "FMapProperty", "FProperty" },

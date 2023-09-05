@@ -41,8 +41,8 @@ private:
 		inline bool operator<(const PredefinedMember& Other) const { return  Offset != Other.Offset ? Offset < Other.Offset : Size < Other.Size; }
 	};
 
-	typedef std::unordered_map<std::string, std::pair<std::string, std::vector<PredefinedFunction>>> FunctionsMap;
-	typedef std::unordered_map<std::string, std::set<PredefinedMember>> MemberMap;
+	using FunctionsMap = std::unordered_map<std::string, std::pair<std::string, std::vector<PredefinedFunction>>>;
+	using MemberMap = std::unordered_map<std::string, std::set<PredefinedMember>> ;
 
 	static FunctionsMap PredefinedFunctions; // Types.cpp
 	static MemberMap PredefinedMembers; // Package.cpp

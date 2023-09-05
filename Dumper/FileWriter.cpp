@@ -76,6 +76,9 @@ void FileWriter::WriteIncludes(Types::Includes& Includes)
 
 void FileWriter::WriteParamStruct(Types::Struct& Struct)
 {
+	if (Struct.IsEmpty())
+		return;
+
 	if (!bWroteParametersBefore)
 	{
 		bWroteParametersBefore = true;
@@ -216,19 +219,19 @@ void FileWriter::SetFileHeader()
 	if (CurrentFileType == FileType::Function || CurrentFileType == FileType::Parameter || CurrentFileType == FileType::Source)
 		FileStream << "#include \"../SDK.hpp\"\n\n";
 
-	if (Settings::bUseNamespaceForSDK)
+	if (Settings::SDKNamespaceName)
 		FileStream << std::format("namespace {}\n{{\n", Settings::SDKNamespaceName);
 
-	if (CurrentFileType == FileType::Parameter && Settings::bUseNamespaceForParams)
+	if (CurrentFileType == FileType::Parameter && Settings::ParamNamespaceName)
 		FileStream << std::format("namespace {}\n{{\n", Settings::ParamNamespaceName);
 }
 
 void FileWriter::SetFileEnding()
 {
-	if (Settings::bUseNamespaceForSDK)
+	if (Settings::SDKNamespaceName)
 		FileStream << "}\n";
 
-	if (CurrentFileType == FileType::Parameter && Settings::bUseNamespaceForParams)
+	if (CurrentFileType == FileType::Parameter && Settings::ParamNamespaceName)
 		FileStream << "}\n";
 
 	FileStream << R"(

@@ -89,6 +89,11 @@ namespace Types
 		void AddMembers(std::vector<Member>& NewMembers);
 
 		std::string GetGeneratedBody();
+
+		inline bool IsEmpty()
+		{
+			return CppName.empty() && Declaration.empty();
+		}
 	};
 
 

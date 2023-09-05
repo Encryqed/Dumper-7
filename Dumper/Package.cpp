@@ -166,12 +166,16 @@ int32 Package::GeneratePredefinedMembers(const std::string& ClassName, Types::St
 			PrevPropertyEnd = Member.Size > 0 ? Member.Offset + Member.Size : PrevPropertyEnd;
 		}
 
+		const int EightByteAlign = PrevPropertyEnd % 0x8;
+		const int NewSize = PrevPropertyEnd + EightByteAlign;
+		StructSize = NewSize > StructSize ? NewSize : StructSize;
+
 		if (StructSize > PrevPropertyEnd)
 		{
 			Struct.AddMember(GenerateBytePadding(PrevPropertyEnd, StructSize - PrevPropertyEnd, "Fixing Size Of Struct [ Dumper-7 ]"));
 		}
 
-		return PrevPropertyEnd;
+		return StructSize;
 	}
 
 	return 0;
@@ -417,9 +421,12 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 	std::vector<std::pair<std::string, bool>> OutPtrParamNames;
 
 	bool bHasRetType = false;
+	bool bHasParams = false;
 
 	for (UEProperty Param : Function.GetProperties())
 	{
+		bHasParams = true;
+
 		bool bIsRef = false;
 		bool bIsOut = false;
 		bool bIsMoveType = Param.IsA(EClassCastFlags::StructProperty) || Param.IsA(EClassCastFlags::ArrayProperty) || Param.IsA(EClassCastFlags::StrProperty);
@@ -472,7 +479,7 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 
 	FuncBody += "\tstatic class UFunction* Func = nullptr;\n\n\tif (!Func)\n";
 
-	if (Settings::bShouldXorStrings)
+	if (Settings::XORString)
 	{
 		FuncBody += std::format("\t\tFunc = Class->GetFunction({0}(\"{1}\"), {0}(\"{2}\"));\n\n", Settings::XORString, Super.GetName(), Function.GetName());
 	}
@@ -481,7 +488,8 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 		FuncBody += std::format("\t\tFunc = Class->GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
 	}
 
-	FuncBody += std::format("\t{}{} Parms{{}};\n", (Settings::bUseNamespaceForParams ? Settings::ParamNamespaceName + std::string("::") : ""), Function.GetParamStructName());
+	if (bHasParams)
+		FuncBody += std::format("\t{}{} Parms{{}};\n", (Settings::ParamNamespaceName ? Settings::ParamNamespaceName + std::string("::") : ""), Function.GetParamStructName());
 
 	for (auto& Param : Func.GetParameters())
 	{
@@ -492,7 +500,7 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 	if (Function.HasFlags(EFunctionFlags::Native))
 		FuncBody += "\n\n\tauto Flgs = Func->FunctionFlags;\n\tFunc->FunctionFlags |= 0x400;";
 
-	FuncBody += "\n\n\tUObject::ProcessEvent(Func, &Parms);\n";
+	FuncBody += bHasParams ? "\n\n\tUObject::ProcessEvent(Func, &Parms);\n" : "\n\n\tUObject::ProcessEvent(Func, nullptr);\n";
 
 	if (Function.HasFlags(EFunctionFlags::Native))
 		FuncBody += "\n\n\tFunc->FunctionFlags = Flgs;\n";
@@ -507,7 +515,9 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 		FuncBody += "\n\treturn Parms.ReturnValue;\n";
 
 	Func.AddBody(FuncBody);
-	Func.SetParamStruct(StaticGenerateStruct(Function, true));
+
+	if (bHasParams)
+		Func.SetParamStruct(StaticGenerateStruct(Function, true));
 
 	return Func;
 }
@@ -612,7 +622,7 @@ Types::Class Package::StaticGenerateClass(UEClass Class, std::vector<Types::Func
 	if (!Clss)
 		Clss = UObject::FindClassFast({});
 
-	return Clss;)", Settings::bShouldXorStrings ? std::format("{}(\"{}\")", Settings::XORString, RawName) : std::format("\"{}\"", RawName)));
+	return Clss;)", Settings::XORString ? std::format("{}(\"{}\")", Settings::XORString, RawName) : std::format("\"{}\"", RawName)));
 
 
 	Types::Function GetDefault("class " + ClassName + "*", "GetDefaultObj", ClassName, {}, true, true);

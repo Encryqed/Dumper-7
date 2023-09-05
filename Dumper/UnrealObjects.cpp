@@ -914,17 +914,17 @@ std::string UEClassProperty::GetCppType() const
 
 std::string UEWeakObjectProperty::GetCppType() const
 {
-	return std::format("TWeakObjectPtr<class {}>", GetPropertyClass().GetCppName());
+	return std::format("TWeakObjectPtr<class {}>", GetPropertyClass() ? GetPropertyClass().GetCppName() : "UObject");
 }
 
 std::string UELazyObjectProperty::GetCppType() const
 {
-	return std::format("TLazyObjectPtr<class {}>", GetPropertyClass().GetCppName());
+	return std::format("TLazyObjectPtr<class {}>", GetPropertyClass() ? GetPropertyClass().GetCppName() : "UObject");
 }
 
 std::string UESoftObjectProperty::GetCppType() const
 {
-	return std::format("TSoftObjectPtr<class {}>", GetPropertyClass().GetCppName());
+	return std::format("TSoftObjectPtr<class {}>", GetPropertyClass() ? GetPropertyClass().GetCppName() : "UObject");
 }
 
 std::string UESoftClassProperty::GetCppType() const

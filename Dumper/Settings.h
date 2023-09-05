@@ -7,31 +7,34 @@ namespace Settings
 	inline std::string GameName = "";
 	inline std::string GameVersion = "";
 
+
 	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
 
-	//use nullptr if you don't want your files to be prefixed
-	inline constexpr const char* FilePrefix = nullptr;
 
 	//includes only packages required for the games main package (the package with the most structs/classes/enums)
 	inline constexpr const bool bIncludeOnlyRelevantPackages = false;
 
-	inline constexpr const bool bUseNamespaceForParams = true;
 
-	inline constexpr const bool bUseNamespaceForSDK = true;
+	//No prefix for files -> FilePrefix = nullptr
+	inline constexpr const char* FilePrefix = nullptr;
 
-	inline constexpr const bool bShouldXorStrings = false;
-
-
+	//No seperate namespace for SDK -> SDKNamespaceName = nullptr
 	inline constexpr const char* SDKNamespaceName = "SDK";
 
+	//No seperate namespace for Params -> ParamNamespaceName = nullptr
 	inline constexpr const char* ParamNamespaceName = "Params";
 
-	inline constexpr const char* XORString = "XORSTR";
+	//Do not XOR strings -> XORString = nullptr
+	inline constexpr const char* XORString = nullptr;
+
 
 	namespace Debug
 	{
 		inline constexpr bool bGenerateAssertionFile = false;
 		inline constexpr bool bLimitAssertionsToEngienPackage = true;
+
+		// Recommended
+		inline constexpr bool bGenerateAssertionsForPredefinedMembers = true;
 	}
 
 	// Dont touch this
