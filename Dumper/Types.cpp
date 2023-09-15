@@ -7,6 +7,7 @@ Types::Struct::Struct(std::string Name, bool bIsClass, std::string Super)
 	StructMembers.reserve(50);
 
 	CppName = Name;
+	CustomAlignSize = 0;
 
 	Declaration = (Super.empty() ? std::format("{} {}\n", (bIsClass ? "class" : "struct"), Name) : std::format("{} {} : public {}\n", (bIsClass ? "class" : "struct"), Name, Super));
 
@@ -59,7 +60,25 @@ std::string Types::Struct::GetGeneratedBody()
 		}
 	}
 
-	return Comments + Declaration + InnerBody + "};\n\n";
+	std::string PackingStart = "";
+	std::string PackingEnd = "";
+
+	if (CustomAlignSize > 0)
+	{
+		PackingStart = std::format(R"(
+#ifdef _MSC_VER
+	#pragma pack(push, 0x{:X})
+#endif
+)", CustomAlignSize);
+
+		PackingEnd = R"(
+#ifdef _MSC_VER
+	#pragma pack(pop)
+#endif
+)";
+	}
+
+	return PackingStart + Comments + Declaration + InnerBody + "};" + PackingEnd + "\n\n";
 }
 
 void Types::Class::AddFunction(Function& NewFunction)

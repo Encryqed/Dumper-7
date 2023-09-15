@@ -616,7 +616,13 @@ namespace Offsets
 				if (Member.Size == 0)
 					continue;
 
-				HeaderStream << std::format("static_assert(offsetof({3}::{0}, {1}) == 0x{2:X}, \"{0}::{1} has a wrong offset!\");\n", Predef.first, Member.Name, Member.Offset, Settings::SDKNamespaceName ? Settings::SDKNamespaceName : "");
+				std::string Name = Member.Name;
+
+				const int ArrayInfo = Member.Name.find_first_of("[");
+				if (ArrayInfo != -1)
+					Name = Member.Name.substr(0, ArrayInfo);
+
+				HeaderStream << std::format("static_assert(offsetof({3}::{0}, {1}) == 0x{2:X}, \"{0}::{1} has a wrong offset!\");\n", Predef.first, Name, Member.Offset, Settings::SDKNamespaceName ? Settings::SDKNamespaceName : "");
 			}
 		}
 	}
@@ -771,6 +777,10 @@ void Generator::InitPredefinedMembers()
 		{ "union { class FField* Field; class UObject* Object; }", "Container", 0x0, 0x8 },
 		{ UObjectIdentifierType, UObjectIdentifierName, Settings::Internal::bUseMaskForFieldOwner ? 0x0 : 0x8, !Settings::Internal::bUseMaskForFieldOwner }
 	};
+
+	if (!Settings::Internal::bUseMaskForFieldOwner)
+		PredefinedMembers["FFieldVariant"].insert({ "uint8", "Pad[0x7]", 0x9, 0x7 });
+
 
 	PredefinedMembers["FField"] =
 	{
@@ -1575,9 +1585,12 @@ public:
 
 	constexpr const char* DisplayIdx = "\tint32 DisplayIndex;\n";
 	constexpr const char* Number =     "\tint32 Number;\n";
-;
+	constexpr const char* Pad =        "\tint32 Pad;\n";
+
 	FNameMemberStr += Off::FName::Number == 4 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
 	FNameMemberStr += Off::FName::Number == 8 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
+	FNameMemberStr += !Settings::Internal::bUseUoutlineNumberName && Settings::Internal::bUseCasePreservingName ? Pad : "";
+	
 
 	std::string GetDisplayIndexString = std::format(R"(inline int32 GetDisplayIndex() const
 	{{
@@ -1684,8 +1697,8 @@ public:
   , GetDisplayIndexString
   , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseUoutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString
   , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "reinterpret_cast<FNamePool*>" : "*reinterpret_cast<TNameEntryArray**>" : "reinterpret_cast<void*>"
-  , " && Number == Other.Number"
-  , " || Number != Other.Number"));
+  , !Settings::Internal::bUseUoutlineNumberName ? " && Number == Other.Number" : ""
+  , !Settings::Internal::bUseUoutlineNumberName ? " || Number != Other.Number" : ""));
 
 	BasicHeader.Write(
 		R"(

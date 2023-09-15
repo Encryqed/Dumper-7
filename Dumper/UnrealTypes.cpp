@@ -95,14 +95,21 @@ FName::FName(void* Ptr)
 
 void FName::Init()
 {
-	constexpr std::array<const char*, 4> PossibleSigs = { "48 8D ? ? 48 8D ? ? E8", "48 8D ? ? ? 48 8D ? ? E8", "48 8D ? ? 49 8B ? E8", "48 8D ? ? ? 49 8B ? E8" };
+	constexpr std::array<const char*, 5> PossibleSigs = 
+	{ 
+		"48 8D ? ? 48 8D ? ? E8",
+		"48 8D ? ? ? 48 8D ? ? E8",
+		"48 8D ? ? 49 8B ? E8",
+		"48 8D ? ? ? 49 8B ? E8",
+		"48 8D ? ? 48 8B ? E8"
+	};
 
-	auto StringRef = FindByStringInAllSections("ForwardShadingQuality_");
+	MemAddress StringRef = FindByStringInAllSections("ForwardShadingQuality_");
 
 	int i = 0;
 	while (!AppendString && i < PossibleSigs.size())
 	{
-		AppendString = reinterpret_cast<void(*)(void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x60, -1 /* auto */));
+		AppendString = reinterpret_cast<void(*)(void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x80, -1 /* auto */));
 		i++;
 	}
 

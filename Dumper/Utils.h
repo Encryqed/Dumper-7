@@ -284,6 +284,7 @@ private:
 		}
 		return bytes;
 	}
+
 	static bool IsFunctionRet(uint8_t* Address)
 	{
 		int Align = 0x10 - (uintptr_t(Address) % 0x10);
@@ -311,6 +312,11 @@ public:
 	explicit operator uintptr_t()
 	{
 		return uintptr_t(Address);
+	}
+
+	inline MemAddress operator+(int Value) const
+	{
+		return Address + Value;
 	}
 
 	template<typename T = void>
@@ -477,7 +483,7 @@ inline MemAddress FindByWString(const wchar_t* RefStr)
 
 /* Slower than FindByString */
 template<typename Type = const char*>
-inline MemAddress FindByStringInAllSections(Type RefStr)
+inline MemAddress FindByStringInAllSections(Type RefStr, void* StartAddress = nullptr)
 {
 	uintptr_t ImageBase = GetImageBase();
 	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
@@ -485,7 +491,7 @@ inline MemAddress FindByStringInAllSections(Type RefStr)
 
 	const DWORD SizeOfImage = NtHeader->OptionalHeader.SizeOfImage;
 
-	uint8_t* SearchStart = (uint8_t*)ImageBase;
+	uint8_t* SearchStart = StartAddress ? reinterpret_cast<uint8_t*>(StartAddress) : reinterpret_cast<uint8_t*>(ImageBase);
 	DWORD SearchRange = SizeOfImage;
 
 	for (int i = 0; i < SearchRange; i++)

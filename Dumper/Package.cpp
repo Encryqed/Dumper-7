@@ -153,6 +153,9 @@ int32 Package::GeneratePredefinedMembers(const std::string& ClassName, Types::St
 	auto Predef = Generator::PredefinedMembers.find(ClassName);
 	if (Predef != Generator::PredefinedMembers.end())
 	{
+		Struct.SetCustomAlignment(0x1);
+
+		bool bIsFirstMember = true;
 		for (auto& Member : Predef->second)
 		{
 			if (Member.Offset > PrevPropertyEnd && PrevPropertySize != 0)
@@ -166,9 +169,7 @@ int32 Package::GeneratePredefinedMembers(const std::string& ClassName, Types::St
 			PrevPropertyEnd = Member.Size > 0 ? Member.Offset + Member.Size : PrevPropertyEnd;
 		}
 
-		const int EightByteAlign = PrevPropertyEnd % 0x8;
-		const int NewSize = PrevPropertyEnd + EightByteAlign;
-		StructSize = NewSize > StructSize ? NewSize : StructSize;
+		StructSize = max(StructSize, PrevPropertyEnd);
 
 		if (StructSize > PrevPropertyEnd)
 		{
