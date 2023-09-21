@@ -2,14 +2,15 @@
 #include "Enums.h"
 #include "Generator.h"
 
-Types::Struct::Struct(std::string Name, bool bIsClass, std::string Super)
+Types::Struct::Struct(std::string Name, std::string Package, bool bIsClass, std::string Super)
 {
 	StructMembers.reserve(50);
 
-	CppName = Name;
+	PackageName = std::move(Package);
+	CppName = std::move(Name);
 	CustomAlignSize = 0;
 
-	Declaration = (Super.empty() ? std::format("{} {}\n", (bIsClass ? "class" : "struct"), Name) : std::format("{} {} : public {}\n", (bIsClass ? "class" : "struct"), Name, Super));
+	Declaration = (Super.empty() ? std::format("{} {}\n", (bIsClass ? "class" : "struct"), CppName) : std::format("{} {} : public {}\n", (bIsClass ? "class" : "struct"), CppName, Super));
 
 	InnerBody = "{\npublic:\n";
 }
@@ -37,6 +38,25 @@ void Types::Struct::AddMembers(std::vector<Member>& NewMembers)
 	}
 }
 
+void Types::Struct::AddPredefinedMembers()
+{
+	if (Generator::PredefinedFunctions.find(PackageName) != Generator::PredefinedFunctions.end())
+	{
+		for (auto& [ClassName, PredefFunc] : Generator::PredefinedFunctions[PackageName])
+		{
+			if (ClassName != CppName)
+				continue;
+
+			InnerBody += "\n" + PredefFunc.DeclarationH;
+
+			if (PredefFunc.DeclarationCPP == "")
+				InnerBody += PredefFunc.Body;
+
+			InnerBody += "\n";
+		}
+	}
+}
+
 std::string Types::Struct::GetGeneratedBody()
 {
 	if (CppName.empty())
@@ -47,18 +67,7 @@ std::string Types::Struct::GetGeneratedBody()
 		InnerBody += StructMember.GetGeneratedBody();
 	}
 
-	if (Generator::PredefinedFunctions.find(CppName) != Generator::PredefinedFunctions.end())
-	{
-		for (auto& PredefFunc : Generator::PredefinedFunctions[CppName].second)
-		{
-			InnerBody += "\n" + PredefFunc.DeclarationH;
-	
-			if (PredefFunc.DeclarationCPP == "")
-				InnerBody += PredefFunc.Body;
-	
-			InnerBody += "\n";
-		}
-	}
+	AddPredefinedMembers();
 
 	std::string PackingStart = "";
 	std::string PackingEnd = "";
@@ -100,18 +109,7 @@ std::string Types::Class::GetGeneratedBody()
 
 	InnerBody += "\n";
 
-	if (Generator::PredefinedFunctions.find(CppName) != Generator::PredefinedFunctions.end())
-	{
-		for (auto& PredefFunc : Generator::PredefinedFunctions[CppName].second)
-		{
-			InnerBody += "\n" + PredefFunc.DeclarationH;
-
-			if (PredefFunc.DeclarationCPP == "")
-				InnerBody += PredefFunc.Body;
-			
-			InnerBody += "\n";
-		}
-	}
+	AddPredefinedMembers();
 
 	for (Function ClassFunction : ClassFunctions)
 	{

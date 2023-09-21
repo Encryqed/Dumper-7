@@ -388,33 +388,46 @@ void Generator::HandlePackageGeneration(const fs::path* const SDKFolder, int32 P
 		if (fs::exists(*SDKFolder / (FileName + "_classes.hpp")))
 			FileName += "_1";
 
-		FileWriter ClassFile(*SDKFolder, FileName, FileWriter::FileType::Class);
-		ClassFile.WriteClasses(Pack.AllClasses);
-		ClassFile.Close();
-
-		FileWriter StructsFile(*SDKFolder, FileName, FileWriter::FileType::Struct);
-		StructsFile.WriteEnums(Pack.AllEnums);
-		StructsFile.WriteStructs(Pack.AllStructs);
-		ClassFile.Close();
-
-		FileWriter FunctionFile(*SDKFolder, FileName, FileWriter::FileType::Function);
-		FileWriter ParameterFile(*SDKFolder, FileName, FileWriter::FileType::Parameter);
-
-		if (PackageName == "CoreUObject")
-			FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
-
-		for (auto& [ClassName, PackageFunctionsPairs] : Generator::PredefinedFunctions)
+		if (!Pack.AllClasses.empty())
 		{
-			if (PackageFunctionsPairs.first != PackageName)
-				continue;
+			FileWriter ClassFile(*SDKFolder, FileName, FileWriter::FileType::Class);
+			ClassFile.WriteClasses(Pack.AllClasses);
+			ClassFile.Close();
+		}
 
-			for (auto& PredefFunc : PackageFunctionsPairs.second)
+		if (!Pack.AllEnums.empty() || !Pack.AllStructs.empty())
+		{
+			FileWriter StructsFile(*SDKFolder, FileName, FileWriter::FileType::Struct);
+			StructsFile.WriteEnums(Pack.AllEnums);
+			StructsFile.WriteStructs(Pack.AllStructs);
+			StructsFile.Close();
+		}
+
+		FileWriter FunctionFile; (*SDKFolder, FileName, FileWriter::FileType::Function);
+		FileWriter ParameterFile; (*SDKFolder, FileName, FileWriter::FileType::Parameter);
+
+		if (!Pack.AllFunctions.empty() || Generator::PredefinedFunctions.find(PackageName) != Generator::PredefinedFunctions.end())
+		{
+			FunctionFile = FileWriter(*SDKFolder, FileName, FileWriter::FileType::Function);
+			ParameterFile = FileWriter(*SDKFolder, FileName, FileWriter::FileType::Parameter);
+
+			if (PackageName == "CoreUObject")
+				FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
+
+
+			for (auto& [PackageName, ClassFunctionsPairs] : Generator::PredefinedFunctions)
 			{
-				if (!PredefFunc.DeclarationCPP.empty())
+				if (PackageName != PackageName)
+					continue;
+
+				for (auto& [ClassName, Function] : ClassFunctionsPairs)
 				{
-					FunctionFile.Write(PredefFunc.DeclarationCPP);
-					FunctionFile.Write(PredefFunc.Body);
-					FunctionFile.Write("\n");
+					if (!Function.DeclarationCPP.empty())
+					{
+						FunctionFile.Write(Function.DeclarationCPP);
+						FunctionFile.Write(Function.Body);
+						FunctionFile.Write("\n");
+					}
 				}
 			}
 		}
@@ -500,7 +513,7 @@ void Generator::GenerateSDK()
 	{
 		Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
 	}
-
+	
 	for (auto& Future : Futures)
 	{
 		Future.wait();
@@ -795,10 +808,11 @@ void Generator::InitPredefinedMembers()
 
 void Generator::InitPredefinedFunctions()
 {
-	PredefinedFunctions["UObject"] =
+	PredefinedFunctions["CoreUObject"] =
 	{
-		"CoreUObject",
+		/* UObject */
 		{
+			"UObject",
 			{
 				"\tbool HasTypeFlag(EClassCastFlags TypeFlag) const;",
 				"\tbool UObject::HasTypeFlag(EClassCastFlags TypeFlag) const",
@@ -807,7 +821,10 @@ R"(
 		return TypeFlag != EClassCastFlags::None ? Class->CastFlags & TypeFlag : true;
 	}
 )"
-			},
+			}
+		},
+		{
+			"UObject",
 			{
 				"\tbool IsDefaultObject() const", "",
 R"(
@@ -815,7 +832,10 @@ R"(
 		return (Flags & 0x10) == 0x10;
 	}
 )"
-			},
+			}
+		},
+		{
+			"UObject",
 			{
 				"\tstd::string GetName() const;",
 				"\tstd::string UObject::GetName() const",
@@ -824,7 +844,10 @@ R"(
 		return this ? Name.ToString() : "None";
 	}
 )"
-			},
+			}
+		},
+		{
+			"UObject",
 			{
 				"\tstd::string GetFullName() const;",
 				"\tstd::string UObject::GetFullName() const",
@@ -850,7 +873,10 @@ R"(
 		return "None";
 	}
 )"
-			},
+			}
+		},
+		{
+			"UObject",
 			{
 				"\ttemplate<typename UEType = UObject>\n\tstatic UEType* FindObject(const std::string& FullName, EClassCastFlags RequiredType = EClassCastFlags::None)", "",
 R"(
@@ -871,7 +897,10 @@ R"(
 		return nullptr;
 	}
 )"
-			},
+			}
+		},
+		{
+			"UObject",
 			{
 				"\ttemplate<typename UEType = UObject>\n\tstatic UEType* FindObjectFast(const std::string& Name, EClassCastFlags RequiredType = EClassCastFlags::None)", "",
 R"(
@@ -892,7 +921,10 @@ R"(
 		return nullptr;
 	}
 )"
-			},
+			}
+		},
+		{
+			"UObject",
 			{
 				"\tstatic class UClass* FindClass(const std::string& ClassFullName)", "",
 R"(
@@ -900,7 +932,10 @@ R"(
 		return FindObject<class UClass>(ClassFullName, EClassCastFlags::Class);
 	}
 )"
-			},
+			}
+		},
+		{
+			"UObject",
 			{
 				"\tstatic class UClass* FindClassFast(const std::string& ClassName)", "",
 R"(
@@ -908,7 +943,10 @@ R"(
 		return FindObjectFast<class UClass>(ClassName, EClassCastFlags::Class);
 	}
 )"
-			},
+			}
+		},
+		{
+			"UObject",
 			{
 				"\tbool IsA(class UClass* Clss) const;",
 				"\tbool UObject::IsA(class UClass* Clss) const",
@@ -925,7 +963,10 @@ R"(
 		return false;
 	}
 )"
-			},
+			}
+		},
+		{
+			"UObject",
 			{
 				"\tinline void ProcessEvent(class UFunction* Function, void* Parms) const", "",
 R"(
@@ -934,13 +975,10 @@ R"(
 	}
 )"
 			}
-		}
-	};
-
-	PredefinedFunctions["UClass"] =
-	{
-		"CoreUObject",
+		},
+		/* UClass */
 		{
+			"UClass",
 			{
 				"\tclass UFunction* GetFunction(const std::string& ClassName, const std::string& FuncName);",
 				"\tclass UFunction* UClass::GetFunction(const std::string& ClassName, const std::string& FuncName)",
@@ -963,13 +1001,10 @@ R"(
 	}
 )"
 			}
-		}
-	};
-
-	PredefinedFunctions["FGuid"] =
-	{
-		"CoreUObject",
+		},
+		/* FGuide */
 		{
+			"FGuide",
 			{
 				"\tinline bool operator==(const FGuid& Other) const",
 				"",
@@ -977,7 +1012,10 @@ R"(
 	{
 		return A == Other.A && B == Other.B && C == Other.C && D == Other.D;
 	})"
-			},
+			}
+		},
+		{
+			"FGuide",
 			{
 				"\tinline bool operator!=(const FGuid& Other) const",
 				"",
@@ -987,53 +1025,74 @@ R"(
 	}
 )"
 			}
-		}
-	};
-
-	PredefinedFunctions["FVector"] =
-	{
-		"CoreUObject",
+		},
+		/* FVector */
 		{
+			"FVector",
 { "\tinline FVector()", "", R"(
 		: X(0.0), Y(0.0), Z(0.0)
 	{
 	})"
-			},
+			}
+		},
+		{
+			"FVector",
 { "\tinline FVector(decltype(X) Value)", "", R"(
 		: X(Value), Y(Value), Z(Value)
 	{
 	})"
-			},
+			}
+		},
+		{
+			"FVector",
 { "\tinline FVector(decltype(X) x, decltype(Y) y, decltype(Z) z)", "", R"(
 		: X(x), Y(y), Z(z)
 	{
 	})"
-			},
+			}
+		},
+		{
+			"FVector",
 { "\tinline bool operator==(const FVector& Other) const", "", R"(
 	{
 		return X == Other.X && Y == Other.Y && Z == Other.Z;
 	})"
-			},
+			}
+		},
+		{
+			"FVector",
 { "\tinline bool operator!=(const FVector& Other) const", "", R"(
 	{
 		return X != Other.X || Y != Other.Y || Z != Other.Z;
 	})"
-			},
+			}
+		},
+		{
+			"FVector",
 { "\tFVector operator+(const FVector& Other) const;", "\tFVector FVector::operator+(const FVector& Other) const", R"(
 	{
 		return { X + Other.X, Y + Other.Y, Z + Other.Z };
 	})"
-			},
+			}
+		},
+		{
+			"FVector",
 { "\tFVector operator-(const FVector& Other) const;", "\tFVector FVector::operator-(const FVector& Other) const", R"(
 	{
 		return { X - Other.X, Y - Other.Y, Z - Other.Z };
 	})"
-			},
+			}
+		},
+		{
+			"FVector",
 { "\tFVector operator*(decltype(X) Scalar) const;", "\tFVector FVector::operator*(decltype(X) Scalar) const", R"(
 	{
 		return { X * Scalar, Y * Scalar, Z * Scalar };
 	})"
-			},
+			}
+		},
+		{
+			"FVector",
 { "\tFVector operator/(decltype(X) Scalar) const;", "\tFVector FVector::operator/(decltype(X) Scalar) const", R"(
 	{
 		if (Scalar == 0.0f)
@@ -1045,10 +1104,11 @@ R"(
 		}
 	};
 
-	PredefinedFunctions["UEngine"] =
+	PredefinedFunctions["Engine"] =
 	{
-		"Engine",
+		/* UEngine */
 		{
+			"UEngine",
 			{
 				"\tstatic class UEngine* GetEngine();",
 				"\tclass UEngine* UEngine::GetEngine()",
@@ -1077,13 +1137,10 @@ R"(
 	}
 )"
 			}
-		}
-	};
-		
-	PredefinedFunctions["UWorld"] =
-	{
-		"Engine",
+		},
+		/* UWorld */
 		{
+			"UWorld",
 			{
 				"\tstatic class UWorld* GetWorld();",
 				"\tclass UWorld* UWorld::GetWorld()",
@@ -2240,7 +2297,7 @@ public:
 		if (SuperName && strcmp(SuperName, "") != 0)
 			SuperSize = ClassSizePairs[SuperName];
 
-		Types::Struct NewStruct(ClassName, true, SuperName);
+		Types::Struct NewStruct(ClassName, "", true, SuperName);
 		ClassSizePairs[ClassName] = Package::GeneratePredefinedMembers(ClassName, NewStruct, 0, SuperSize); // fix supersize
 
 		BasicHeader.Write(NewStruct.GetGeneratedBody());

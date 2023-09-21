@@ -26,7 +26,8 @@ inline bool operator&(EEnumClass Left, EEnumClass Right)																								
 {																																										\
 	return (((std::underlying_type<EEnumClass>::type)(Left) & (std::underlying_type<EEnumClass>::type)(Right)) == (std::underlying_type<EEnumClass>::type)(Right));		\
 }																																										
-																																																																																		
+
+
 enum class EPropertyFlags : uint64
 {
 	None							= 0x0000000000000000,
@@ -341,249 +342,197 @@ ENUM_OPERATORS(EFieldClassID);
 
 static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags)
 {
-	std::vector<const char*> Buffer;
+	std::string RetFlags;
 
-	if (FunctionFlags & EFunctionFlags::Final) { Buffer.push_back("Final"); }
-	if (FunctionFlags & EFunctionFlags::RequiredAPI) { Buffer.push_back("RequiredAPI"); }
-	if (FunctionFlags & EFunctionFlags::BlueprintAuthorityOnly) { Buffer.push_back("BlueprintAuthorityOnly"); }
-	if (FunctionFlags & EFunctionFlags::BlueprintCosmetic) { Buffer.push_back("BlueprintCosmetic"); }
-	if (FunctionFlags & EFunctionFlags::Net) { Buffer.push_back("Net"); }
-	if (FunctionFlags & EFunctionFlags::NetReliable) { Buffer.push_back("NetReliable"); }
-	if (FunctionFlags & EFunctionFlags::NetRequest) { Buffer.push_back("NetRequest"); }
-	if (FunctionFlags & EFunctionFlags::Exec) { Buffer.push_back("Exec"); }
-	if (FunctionFlags & EFunctionFlags::Native) { Buffer.push_back("Native"); }
-	if (FunctionFlags & EFunctionFlags::Event) { Buffer.push_back("Event"); }
-	if (FunctionFlags & EFunctionFlags::NetResponse) { Buffer.push_back("NetResponse"); }
-	if (FunctionFlags & EFunctionFlags::Static) { Buffer.push_back("Static"); }
-	if (FunctionFlags & EFunctionFlags::NetMulticast) { Buffer.push_back("NetMulticast"); }
-	if (FunctionFlags & EFunctionFlags::UbergraphFunction) { Buffer.push_back("UbergraphFunction"); }
-	if (FunctionFlags & EFunctionFlags::MulticastDelegate) { Buffer.push_back("MulticastDelegate"); }
-	if (FunctionFlags & EFunctionFlags::Public) { Buffer.push_back("Public"); }
-	if (FunctionFlags & EFunctionFlags::Private) { Buffer.push_back("Private"); }
-	if (FunctionFlags & EFunctionFlags::Protected) { Buffer.push_back("Protected"); }
-	if (FunctionFlags & EFunctionFlags::Delegate) { Buffer.push_back("Delegate"); }
-	if (FunctionFlags & EFunctionFlags::NetServer) { Buffer.push_back("NetServer"); }
-	if (FunctionFlags & EFunctionFlags::HasOutParms) { Buffer.push_back("HasOutParams"); }
-	if (FunctionFlags & EFunctionFlags::HasDefaults) { Buffer.push_back("HasDefaults"); }
-	if (FunctionFlags & EFunctionFlags::NetClient) { Buffer.push_back("NetClient"); }
-	if (FunctionFlags & EFunctionFlags::DLLImport) { Buffer.push_back("DLLImport"); }
-	if (FunctionFlags & EFunctionFlags::BlueprintCallable) { Buffer.push_back("BlueprintCallable"); }
-	if (FunctionFlags & EFunctionFlags::BlueprintEvent) { Buffer.push_back("BlueprintEvent"); }
-	if (FunctionFlags & EFunctionFlags::BlueprintPure) { Buffer.push_back("BlueprintPure"); }
-	if (FunctionFlags & EFunctionFlags::EditorOnly) { Buffer.push_back("EditorOnly"); }
-	if (FunctionFlags & EFunctionFlags::Const) { Buffer.push_back("Const"); }
-	if (FunctionFlags & EFunctionFlags::NetValidate) { Buffer.push_back("NetValidate"); }
+	if (FunctionFlags & EFunctionFlags::Final) { RetFlags += "Final, "; }
+	if (FunctionFlags & EFunctionFlags::RequiredAPI) { RetFlags += "RequiredAPI, "; }
+	if (FunctionFlags & EFunctionFlags::BlueprintAuthorityOnly) { RetFlags += "BlueprintAuthorityOnly, "; }
+	if (FunctionFlags & EFunctionFlags::BlueprintCosmetic) { RetFlags += "BlueprintCosmetic, "; }
+	if (FunctionFlags & EFunctionFlags::Net) { RetFlags += "Net, "; }
+	if (FunctionFlags & EFunctionFlags::NetReliable) { RetFlags += "NetReliable, "; }
+	if (FunctionFlags & EFunctionFlags::NetRequest) { RetFlags += "NetRequest, "; }
+	if (FunctionFlags & EFunctionFlags::Exec) { RetFlags += "Exec, "; }
+	if (FunctionFlags & EFunctionFlags::Native) { RetFlags += "Native, "; }
+	if (FunctionFlags & EFunctionFlags::Event) { RetFlags += "Event, "; }
+	if (FunctionFlags & EFunctionFlags::NetResponse) { RetFlags += "NetResponse, "; }
+	if (FunctionFlags & EFunctionFlags::Static) { RetFlags += "Static, "; }
+	if (FunctionFlags & EFunctionFlags::NetMulticast) { RetFlags += "NetMulticast, "; }
+	if (FunctionFlags & EFunctionFlags::UbergraphFunction) { RetFlags += "UbergraphFunction, "; }
+	if (FunctionFlags & EFunctionFlags::MulticastDelegate) { RetFlags += "MulticastDelegate, "; }
+	if (FunctionFlags & EFunctionFlags::Public) { RetFlags += "Public, "; }
+	if (FunctionFlags & EFunctionFlags::Private) { RetFlags += "Private, "; }
+	if (FunctionFlags & EFunctionFlags::Protected) { RetFlags += "Protected, "; }
+	if (FunctionFlags & EFunctionFlags::Delegate) { RetFlags += "Delegate, "; }
+	if (FunctionFlags & EFunctionFlags::NetServer) { RetFlags += "NetServer, "; }
+	if (FunctionFlags & EFunctionFlags::HasOutParms) { RetFlags += "HasOutParams, "; }
+	if (FunctionFlags & EFunctionFlags::HasDefaults) { RetFlags += "HasDefaults, "; }
+	if (FunctionFlags & EFunctionFlags::NetClient) { RetFlags += "NetClient, "; }
+	if (FunctionFlags & EFunctionFlags::DLLImport) { RetFlags += "DLLImport, "; }
+	if (FunctionFlags & EFunctionFlags::BlueprintCallable) { RetFlags += "BlueprintCallable, "; }
+	if (FunctionFlags & EFunctionFlags::BlueprintEvent) { RetFlags += "BlueprintEvent, "; }
+	if (FunctionFlags & EFunctionFlags::BlueprintPure) { RetFlags += "BlueprintPure, "; }
+	if (FunctionFlags & EFunctionFlags::EditorOnly) { RetFlags += "EditorOnly, "; }
+	if (FunctionFlags & EFunctionFlags::Const) { RetFlags += "Const, "; }
+	if (FunctionFlags & EFunctionFlags::NetValidate) { RetFlags += "NetValidate, "; }
 
-	switch (Buffer.size())
-	{
-	case 0:
-		return std::string("None");
-		break;
-	case 1:
-		return std::string(Buffer[0]);
-		break;
-	default:
-		std::ostringstream os;
-		std::copy(Buffer.begin(), Buffer.end() - 1, std::ostream_iterator<const char*>(os, ", "));
-		os << *Buffer.rbegin();
-		return os.str();
-	}
+	return RetFlags.size() > 2 ? RetFlags.erase(RetFlags.size() - 2) : RetFlags;
 }
 
 static std::string StringifyPropertyFlags(EPropertyFlags PropertyFlags)
 {
-	std::vector<const char*> Buffer;
+	std::string RetFlags;
 
-	if (PropertyFlags & EPropertyFlags::Edit) { Buffer.push_back("Edit"); }
-	if (PropertyFlags & EPropertyFlags::ConstParm) { Buffer.push_back("ConstParm"); }
-	if (PropertyFlags & EPropertyFlags::BlueprintVisible) { Buffer.push_back("BlueprintVisible"); }
-	if (PropertyFlags & EPropertyFlags::ExportObject) { Buffer.push_back("ExportObject"); }
-	if (PropertyFlags & EPropertyFlags::BlueprintReadOnly) { Buffer.push_back("BlueprintReadOnly"); }
-	if (PropertyFlags & EPropertyFlags::Net) { Buffer.push_back("Net"); }
-	if (PropertyFlags & EPropertyFlags::EditFixedSize) { Buffer.push_back("EditFixedSize"); }
-	if (PropertyFlags & EPropertyFlags::Parm) { Buffer.push_back("Parm"); }
-	if (PropertyFlags & EPropertyFlags::OutParm) { Buffer.push_back("OutParm"); }
-	if (PropertyFlags & EPropertyFlags::ZeroConstructor) { Buffer.push_back("ZeroConstructor"); }
-	if (PropertyFlags & EPropertyFlags::ReturnParm) { Buffer.push_back("ReturnParm"); }
-	if (PropertyFlags & EPropertyFlags::DisableEditOnTemplate) { Buffer.push_back("DisableEditOnTemplate"); }
-	if (PropertyFlags & EPropertyFlags::Transient) { Buffer.push_back("Transient"); }
-	if (PropertyFlags & EPropertyFlags::Config) { Buffer.push_back("Config"); }
-	if (PropertyFlags & EPropertyFlags::DisableEditOnInstance) { Buffer.push_back("DisableEditOnInstance"); }
-	if (PropertyFlags & EPropertyFlags::EditConst) { Buffer.push_back("EditConst"); }
-	if (PropertyFlags & EPropertyFlags::GlobalConfig) { Buffer.push_back("GlobalConfig"); }
-	if (PropertyFlags & EPropertyFlags::InstancedReference) { Buffer.push_back("InstancedReference"); }
-	if (PropertyFlags & EPropertyFlags::DuplicateTransient) { Buffer.push_back("DuplicateTransient"); }
-	if (PropertyFlags & EPropertyFlags::SubobjectReference) { Buffer.push_back("SubobjectReference"); }
-	if (PropertyFlags & EPropertyFlags::SaveGame) { Buffer.push_back("SaveGame"); }
-	if (PropertyFlags & EPropertyFlags::NoClear) { Buffer.push_back("NoClear"); }
-	if (PropertyFlags & EPropertyFlags::ReferenceParm) { Buffer.push_back("ReferenceParm"); }
-	if (PropertyFlags & EPropertyFlags::BlueprintAssignable) { Buffer.push_back("BlueprintAssignable"); }
-	if (PropertyFlags & EPropertyFlags::Deprecated) { Buffer.push_back("Deprecated"); }
-	if (PropertyFlags & EPropertyFlags::IsPlainOldData) { Buffer.push_back("IsPlainOldData"); }
-	if (PropertyFlags & EPropertyFlags::RepSkip) { Buffer.push_back("RepSkip"); }
-	if (PropertyFlags & EPropertyFlags::RepNotify) { Buffer.push_back("RepNotify"); }
-	if (PropertyFlags & EPropertyFlags::Interp) { Buffer.push_back("Interp"); }
-	if (PropertyFlags & EPropertyFlags::NonTransactional) { Buffer.push_back("NonTransactional"); }
-	if (PropertyFlags & EPropertyFlags::EditorOnly) { Buffer.push_back("EditorOnly"); }
-	if (PropertyFlags & EPropertyFlags::NoDestructor) { Buffer.push_back("NoDestructor"); }
-	if (PropertyFlags & EPropertyFlags::AutoWeak) { Buffer.push_back("AutoWeak"); }
-	if (PropertyFlags & EPropertyFlags::ContainsInstancedReference) { Buffer.push_back("ContainsInstancedReference"); }
-	if (PropertyFlags & EPropertyFlags::AssetRegistrySearchable) { Buffer.push_back("AssetRegistrySearchable"); }
-	if (PropertyFlags & EPropertyFlags::SimpleDisplay) { Buffer.push_back("SimpleDisplay"); }
-	if (PropertyFlags & EPropertyFlags::AdvancedDisplay) { Buffer.push_back("AdvancedDisplay"); }
-	if (PropertyFlags & EPropertyFlags::Protected) { Buffer.push_back("Protected"); }
-	if (PropertyFlags & EPropertyFlags::BlueprintCallable) { Buffer.push_back("BlueprintCallable"); }
-	if (PropertyFlags & EPropertyFlags::BlueprintAuthorityOnly) { Buffer.push_back("BlueprintAuthorityOnly"); }
-	if (PropertyFlags & EPropertyFlags::TextExportTransient) { Buffer.push_back("TextExportTransient"); }
-	if (PropertyFlags & EPropertyFlags::NonPIEDuplicateTransient) { Buffer.push_back("NonPIEDuplicateTransient"); }
-	if (PropertyFlags & EPropertyFlags::ExposeOnSpawn) { Buffer.push_back("ExposeOnSpawn"); }
-	if (PropertyFlags & EPropertyFlags::PersistentInstance) { Buffer.push_back("PersistentInstance"); }
-	if (PropertyFlags & EPropertyFlags::UObjectWrapper) { Buffer.push_back("UObjectWrapper"); }
-	if (PropertyFlags & EPropertyFlags::HasGetValueTypeHash) { Buffer.push_back("HasGetValueTypeHash"); }
-	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierPublic) { Buffer.push_back("NativeAccessSpecifierPublic"); }
-	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierProtected) { Buffer.push_back("NativeAccessSpecifierProtected"); }
-	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierPrivate) { Buffer.push_back("NativeAccessSpecifierPrivate"); }
+	if (PropertyFlags & EPropertyFlags::Edit) { RetFlags += "Edit, "; }
+	if (PropertyFlags & EPropertyFlags::ConstParm) { RetFlags += "ConstParm, "; }
+	if (PropertyFlags & EPropertyFlags::BlueprintVisible) { RetFlags += "BlueprintVisible, "; }
+	if (PropertyFlags & EPropertyFlags::ExportObject) { RetFlags += "ExportObject, "; }
+	if (PropertyFlags & EPropertyFlags::BlueprintReadOnly) { RetFlags += "BlueprintReadOnly, "; }
+	if (PropertyFlags & EPropertyFlags::Net) { RetFlags += "Net, "; }
+	if (PropertyFlags & EPropertyFlags::EditFixedSize) { RetFlags += "EditFixedSize, "; }
+	if (PropertyFlags & EPropertyFlags::Parm) { RetFlags += "Parm, "; }
+	if (PropertyFlags & EPropertyFlags::OutParm) { RetFlags += "OutParm, "; }
+	if (PropertyFlags & EPropertyFlags::ZeroConstructor) { RetFlags += "ZeroConstructor, "; }
+	if (PropertyFlags & EPropertyFlags::ReturnParm) { RetFlags += "ReturnParm, "; }
+	if (PropertyFlags & EPropertyFlags::DisableEditOnTemplate) { RetFlags += "DisableEditOnTemplate, "; }
+	if (PropertyFlags & EPropertyFlags::Transient) { RetFlags += "Transient, "; }
+	if (PropertyFlags & EPropertyFlags::Config) { RetFlags += "Config, "; }
+	if (PropertyFlags & EPropertyFlags::DisableEditOnInstance) { RetFlags += "DisableEditOnInstance, "; }
+	if (PropertyFlags & EPropertyFlags::EditConst) { RetFlags += "EditConst, "; }
+	if (PropertyFlags & EPropertyFlags::GlobalConfig) { RetFlags += "GlobalConfig, "; }
+	if (PropertyFlags & EPropertyFlags::InstancedReference) { RetFlags += "InstancedReference, "; }
+	if (PropertyFlags & EPropertyFlags::DuplicateTransient) { RetFlags += "DuplicateTransient, "; }
+	if (PropertyFlags & EPropertyFlags::SubobjectReference) { RetFlags += "SubobjectReference, "; }
+	if (PropertyFlags & EPropertyFlags::SaveGame) { RetFlags += "SaveGame, "; }
+	if (PropertyFlags & EPropertyFlags::NoClear) { RetFlags += "NoClear, "; }
+	if (PropertyFlags & EPropertyFlags::ReferenceParm) { RetFlags += "ReferenceParm, "; }
+	if (PropertyFlags & EPropertyFlags::BlueprintAssignable) { RetFlags += "BlueprintAssignable, "; }
+	if (PropertyFlags & EPropertyFlags::Deprecated) { RetFlags += "Deprecated, "; }
+	if (PropertyFlags & EPropertyFlags::IsPlainOldData) { RetFlags += "IsPlainOldData, "; }
+	if (PropertyFlags & EPropertyFlags::RepSkip) { RetFlags += "RepSkip, "; }
+	if (PropertyFlags & EPropertyFlags::RepNotify) { RetFlags += "RepNotify, "; }
+	if (PropertyFlags & EPropertyFlags::Interp) { RetFlags += "Interp, "; }
+	if (PropertyFlags & EPropertyFlags::NonTransactional) { RetFlags += "NonTransactional, "; }
+	if (PropertyFlags & EPropertyFlags::EditorOnly) { RetFlags += "EditorOnly, "; }
+	if (PropertyFlags & EPropertyFlags::NoDestructor) { RetFlags += "NoDestructor, "; }
+	if (PropertyFlags & EPropertyFlags::AutoWeak) { RetFlags += "AutoWeak, "; }
+	if (PropertyFlags & EPropertyFlags::ContainsInstancedReference) { RetFlags += "ContainsInstancedReference, "; }
+	if (PropertyFlags & EPropertyFlags::AssetRegistrySearchable) { RetFlags += "AssetRegistrySearchable, "; }
+	if (PropertyFlags & EPropertyFlags::SimpleDisplay) { RetFlags += "SimpleDisplay, "; }
+	if (PropertyFlags & EPropertyFlags::AdvancedDisplay) { RetFlags += "AdvancedDisplay, "; }
+	if (PropertyFlags & EPropertyFlags::Protected) { RetFlags += "Protected, "; }
+	if (PropertyFlags & EPropertyFlags::BlueprintCallable) { RetFlags += "BlueprintCallable, "; }
+	if (PropertyFlags & EPropertyFlags::BlueprintAuthorityOnly) { RetFlags += "BlueprintAuthorityOnly, "; }
+	if (PropertyFlags & EPropertyFlags::TextExportTransient) { RetFlags += "TextExportTransient, "; }
+	if (PropertyFlags & EPropertyFlags::NonPIEDuplicateTransient) { RetFlags += "NonPIEDuplicateTransient, "; }
+	if (PropertyFlags & EPropertyFlags::ExposeOnSpawn) { RetFlags += "ExposeOnSpawn, "; }
+	if (PropertyFlags & EPropertyFlags::PersistentInstance) { RetFlags += "PersistentInstance, "; }
+	if (PropertyFlags & EPropertyFlags::UObjectWrapper) { RetFlags += "UObjectWrapper, "; }
+	if (PropertyFlags & EPropertyFlags::HasGetValueTypeHash) { RetFlags += "HasGetValueTypeHash, "; }
+	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierPublic) { RetFlags += "NativeAccessSpecifierPublic, "; }
+	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierProtected) { RetFlags += "NativeAccessSpecifierProtected, "; }
+	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierPrivate) { RetFlags += "NativeAccessSpecifierPrivate, "; }
 
-	switch (Buffer.size())
-	{
-	case 0:
-		return std::string("None");
-		break;
-	case 1:
-		return std::string(Buffer[0]);
-		break;
-	default:
-		std::ostringstream os;
-		std::copy(Buffer.begin(), Buffer.end() - 1, std::ostream_iterator<const char*>(os, ", "));
-		os << *Buffer.rbegin();
-		return os.str();
-	}
+	return RetFlags.size() > 2 ? RetFlags.erase(RetFlags.size() - 2) : RetFlags;
 }
 
 static std::string StringifyObjectFlags(EObjectFlags ObjFlags)
 {
-	std::vector<const char*> Buffer;
+	std::string RetFlags;
 
-	if (ObjFlags & EObjectFlags::Public) { Buffer.push_back("Public"); }
-	if (ObjFlags & EObjectFlags::Standalone) { Buffer.push_back("Standalone"); }
-	if (ObjFlags & EObjectFlags::MarkAsNative) { Buffer.push_back("MarkAsNative"); }
-	if (ObjFlags & EObjectFlags::Transactional) { Buffer.push_back("Transactional"); }
-	if (ObjFlags & EObjectFlags::ClassDefaultObject) { Buffer.push_back("ClassDefaultObject"); }
-	if (ObjFlags & EObjectFlags::ArchetypeObject) { Buffer.push_back("ArchetypeObject"); }
-	if (ObjFlags & EObjectFlags::Transient) { Buffer.push_back("Transient"); }
-	if (ObjFlags & EObjectFlags::MarkAsRootSet) { Buffer.push_back("MarkAsRootSet"); }
-	if (ObjFlags & EObjectFlags::TagGarbageTemp) { Buffer.push_back("TagGarbageTemp"); }
-	if (ObjFlags & EObjectFlags::NeedInitialization) { Buffer.push_back("NeedInitialization"); }
-	if (ObjFlags & EObjectFlags::NeedLoad) { Buffer.push_back("NeedLoad"); }
-	if (ObjFlags & EObjectFlags::KeepForCooker) { Buffer.push_back("KeepForCooker"); }
-	if (ObjFlags & EObjectFlags::NeedPostLoad) { Buffer.push_back("NeedPostLoad"); }
-	if (ObjFlags & EObjectFlags::NeedPostLoadSubobjects) { Buffer.push_back("NeedPostLoadSubobjects"); }
-	if (ObjFlags & EObjectFlags::NewerVersionExists) { Buffer.push_back("NewerVersionExists"); }
-	if (ObjFlags & EObjectFlags::BeginDestroyed) { Buffer.push_back("BeginDestroyed"); }
-	if (ObjFlags & EObjectFlags::FinishDestroyed) { Buffer.push_back("FinishDestroyed"); }
-	if (ObjFlags & EObjectFlags::BeingRegenerated) { Buffer.push_back("BeingRegenerated"); }
-	if (ObjFlags & EObjectFlags::DefaultSubObject) { Buffer.push_back("DefaultSubObject"); }
-	if (ObjFlags & EObjectFlags::WasLoaded) { Buffer.push_back("WasLoaded"); }
-	if (ObjFlags & EObjectFlags::TextExportTransient) { Buffer.push_back("TextExportTransient"); }
-	if (ObjFlags & EObjectFlags::LoadCompleted) { Buffer.push_back("LoadCompleted"); }
-	if (ObjFlags & EObjectFlags::InheritableComponentTemplate) { Buffer.push_back("InheritableComponentTemplate"); }
-	if (ObjFlags & EObjectFlags::DuplicateTransient) { Buffer.push_back("DuplicateTransient"); }
-	if (ObjFlags & EObjectFlags::StrongRefOnFrame) { Buffer.push_back("StrongRefOnFrame"); }
-	if (ObjFlags & EObjectFlags::NonPIEDuplicateTransient) { Buffer.push_back("NonPIEDuplicateTransient"); }
-	if (ObjFlags & EObjectFlags::Dynamic) { Buffer.push_back("Dynamic"); }
-	if (ObjFlags & EObjectFlags::WillBeLoaded) { Buffer.push_back("WillBeLoaded"); }
+	if (ObjFlags & EObjectFlags::Public) { RetFlags += "Public, "; }
+	if (ObjFlags & EObjectFlags::Standalone) { RetFlags += "Standalone, "; }
+	if (ObjFlags & EObjectFlags::MarkAsNative) { RetFlags += "MarkAsNative, "; }
+	if (ObjFlags & EObjectFlags::Transactional) { RetFlags += "Transactional, "; }
+	if (ObjFlags & EObjectFlags::ClassDefaultObject) { RetFlags += "ClassDefaultObject, "; }
+	if (ObjFlags & EObjectFlags::ArchetypeObject) { RetFlags += "ArchetypeObject, "; }
+	if (ObjFlags & EObjectFlags::Transient) { RetFlags += "Transient, "; }
+	if (ObjFlags & EObjectFlags::MarkAsRootSet) { RetFlags += "MarkAsRootSet, "; }
+	if (ObjFlags & EObjectFlags::TagGarbageTemp) { RetFlags += "TagGarbageTemp, "; }
+	if (ObjFlags & EObjectFlags::NeedInitialization) { RetFlags += "NeedInitialization, "; }
+	if (ObjFlags & EObjectFlags::NeedLoad) { RetFlags += "NeedLoad, "; }
+	if (ObjFlags & EObjectFlags::KeepForCooker) { RetFlags += "KeepForCooker, "; }
+	if (ObjFlags & EObjectFlags::NeedPostLoad) { RetFlags += "NeedPostLoad, "; }
+	if (ObjFlags & EObjectFlags::NeedPostLoadSubobjects) { RetFlags += "NeedPostLoadSubobjects, "; }
+	if (ObjFlags & EObjectFlags::NewerVersionExists) { RetFlags += "NewerVersionExists, "; }
+	if (ObjFlags & EObjectFlags::BeginDestroyed) { RetFlags += "BeginDestroyed, "; }
+	if (ObjFlags & EObjectFlags::FinishDestroyed) { RetFlags += "FinishDestroyed, "; }
+	if (ObjFlags & EObjectFlags::BeingRegenerated) { RetFlags += "BeingRegenerated, "; }
+	if (ObjFlags & EObjectFlags::DefaultSubObject) { RetFlags += "DefaultSubObject, "; }
+	if (ObjFlags & EObjectFlags::WasLoaded) { RetFlags += "WasLoaded, "; }
+	if (ObjFlags & EObjectFlags::TextExportTransient) { RetFlags += "TextExportTransient, "; }
+	if (ObjFlags & EObjectFlags::LoadCompleted) { RetFlags += "LoadCompleted, "; }
+	if (ObjFlags & EObjectFlags::InheritableComponentTemplate) { RetFlags += "InheritableComponentTemplate, "; }
+	if (ObjFlags & EObjectFlags::DuplicateTransient) { RetFlags += "DuplicateTransient, "; }
+	if (ObjFlags & EObjectFlags::StrongRefOnFrame) { RetFlags += "StrongRefOnFrame, "; }
+	if (ObjFlags & EObjectFlags::NonPIEDuplicateTransient) { RetFlags += "NonPIEDuplicateTransient, "; }
+	if (ObjFlags & EObjectFlags::Dynamic) { RetFlags += "Dynamic, "; }
+	if (ObjFlags & EObjectFlags::WillBeLoaded) { RetFlags += "WillBeLoaded, "; }
 
-	switch (Buffer.size())
-	{
-	case 0:
-		return std::string("None");
-		break;
-	case 1:
-		return std::string(Buffer[0]);
-		break;
-	default:
-		std::ostringstream os;
-		std::copy(Buffer.begin(), Buffer.end() - 1, std::ostream_iterator<const char*>(os, ", "));
-		os << *Buffer.rbegin();
-		return os.str();
-	}
+	return RetFlags.size() > 2 ? RetFlags.erase(RetFlags.size() - 2) : RetFlags;
 }
 
 static std::string StringifyClassCastFlags(EClassCastFlags CastFlags)
 {
-	std::vector<const char*> Buffer;
+	std::string RetFlags;
 
-	if (CastFlags & EClassCastFlags::Field) { Buffer.push_back("Field"); }
-	if (CastFlags & EClassCastFlags::Int8Property) { Buffer.push_back("Int8Property"); }
-	if (CastFlags & EClassCastFlags::Enum) { Buffer.push_back("Enum"); }
-	if (CastFlags & EClassCastFlags::Struct) { Buffer.push_back("Struct"); }
-	if (CastFlags & EClassCastFlags::ScriptStruct) { Buffer.push_back("ScriptStruct"); }
-	if (CastFlags & EClassCastFlags::Class) { Buffer.push_back("Class"); }
-	if (CastFlags & EClassCastFlags::ByteProperty) { Buffer.push_back("ByteProperty"); }
-	if (CastFlags & EClassCastFlags::IntProperty) { Buffer.push_back("IntProperty"); }
-	if (CastFlags & EClassCastFlags::FloatProperty) { Buffer.push_back("FloatProperty"); }
-	if (CastFlags & EClassCastFlags::UInt64Property) { Buffer.push_back("UInt64Property"); }
-	if (CastFlags & EClassCastFlags::ClassProperty) { Buffer.push_back("ClassProperty"); }
-	if (CastFlags & EClassCastFlags::UInt32Property) { Buffer.push_back("UInt32Property"); }
-	if (CastFlags & EClassCastFlags::InterfaceProperty) { Buffer.push_back("InterfaceProperty"); }
-	if (CastFlags & EClassCastFlags::NameProperty) { Buffer.push_back("NameProperty"); }
-	if (CastFlags & EClassCastFlags::StrProperty) { Buffer.push_back("StrProperty"); }
-	if (CastFlags & EClassCastFlags::Property) { Buffer.push_back("Property"); }
-	if (CastFlags & EClassCastFlags::ObjectProperty) { Buffer.push_back("ObjectProperty"); }
-	if (CastFlags & EClassCastFlags::BoolProperty) { Buffer.push_back("BoolProperty"); }
-	if (CastFlags & EClassCastFlags::UInt16Property) { Buffer.push_back("UInt16Property"); }
-	if (CastFlags & EClassCastFlags::Function) { Buffer.push_back("Function"); }
-	if (CastFlags & EClassCastFlags::StructProperty) { Buffer.push_back("StructProperty"); }
-	if (CastFlags & EClassCastFlags::ArrayProperty) { Buffer.push_back("ArrayProperty"); }
-	if (CastFlags & EClassCastFlags::Int64Property) { Buffer.push_back("Int64Property"); }
-	if (CastFlags & EClassCastFlags::DelegateProperty) { Buffer.push_back("DelegateProperty"); }
-	if (CastFlags & EClassCastFlags::NumericProperty) { Buffer.push_back("NumericProperty"); }
-	if (CastFlags & EClassCastFlags::MulticastDelegateProperty) { Buffer.push_back("MulticastDelegateProperty"); }
-	if (CastFlags & EClassCastFlags::ObjectPropertyBase) { Buffer.push_back("ObjectPropertyBase"); }
-	if (CastFlags & EClassCastFlags::WeakObjectProperty) { Buffer.push_back("WeakObjectProperty"); }
-	if (CastFlags & EClassCastFlags::LazyObjectProperty) { Buffer.push_back("LazyObjectProperty"); }
-	if (CastFlags & EClassCastFlags::SoftObjectProperty) { Buffer.push_back("SoftObjectProperty"); }
-	if (CastFlags & EClassCastFlags::TextProperty) { Buffer.push_back("TextProperty"); }
-	if (CastFlags & EClassCastFlags::Int16Property) { Buffer.push_back("Int16Property"); }
-	if (CastFlags & EClassCastFlags::DoubleProperty) { Buffer.push_back("DoubleProperty"); }
-	if (CastFlags & EClassCastFlags::SoftClassProperty) { Buffer.push_back("SoftClassProperty"); }
-	if (CastFlags & EClassCastFlags::Package) { Buffer.push_back("Package"); }
-	if (CastFlags & EClassCastFlags::Level) { Buffer.push_back("Level"); }
-	if (CastFlags & EClassCastFlags::Actor) { Buffer.push_back("Actor"); }
-	if (CastFlags & EClassCastFlags::PlayerController) { Buffer.push_back("PlayerController"); }
-	if (CastFlags & EClassCastFlags::Pawn) { Buffer.push_back("Pawn"); }
-	if (CastFlags & EClassCastFlags::SceneComponent) { Buffer.push_back("SceneComponent"); }
-	if (CastFlags & EClassCastFlags::PrimitiveComponent) { Buffer.push_back("PrimitiveComponent"); }
-	if (CastFlags & EClassCastFlags::SkinnedMeshComponent) { Buffer.push_back("SkinnedMeshComponent"); }
-	if (CastFlags & EClassCastFlags::SkeletalMeshComponent) { Buffer.push_back("SkeletalMeshComponent"); }
-	if (CastFlags & EClassCastFlags::Blueprint) { Buffer.push_back("Blueprint"); }
-	if (CastFlags & EClassCastFlags::DelegateFunction) { Buffer.push_back("DelegateFunction"); }
-	if (CastFlags & EClassCastFlags::StaticMeshComponent) { Buffer.push_back("StaticMeshComponent"); }
-	if (CastFlags & EClassCastFlags::MapProperty) { Buffer.push_back("MapProperty"); }
-	if (CastFlags & EClassCastFlags::SetProperty) { Buffer.push_back("SetProperty"); }
-	if (CastFlags & EClassCastFlags::EnumProperty) { Buffer.push_back("EnumProperty"); }
-	if (CastFlags & EClassCastFlags::SparseDelegateFunction) { Buffer.push_back("SparseDelegateFunction"); }
-	if (CastFlags & EClassCastFlags::MulticastInlineDelegateProperty) { Buffer.push_back("MulticastInlineDelegateProperty"); }
-	if (CastFlags & EClassCastFlags::MulticastSparseDelegateProperty) { Buffer.push_back("MulticastSparseDelegateProperty"); }
-	if (CastFlags & EClassCastFlags::FieldPathProperty) { Buffer.push_back("MarkAsFieldPathPropertyRootSet"); }
-	if (CastFlags & EClassCastFlags::ObjectPtrProperty) { Buffer.push_back("ObjectPtrProperty"); }
-	if (CastFlags & EClassCastFlags::ClassPtrProperty) { Buffer.push_back("ClassPtrProperty"); }
-	if (CastFlags & EClassCastFlags::LargeWorldCoordinatesRealProperty) { Buffer.push_back("LargeWorldCoordinatesRealProperty"); }
+	if (CastFlags & EClassCastFlags::Field) { RetFlags += "Field, "; }
+	if (CastFlags & EClassCastFlags::Int8Property) { RetFlags += "Int8Property, "; }
+	if (CastFlags & EClassCastFlags::Enum) { RetFlags += "Enum, "; }
+	if (CastFlags & EClassCastFlags::Struct) { RetFlags += "Struct, "; }
+	if (CastFlags & EClassCastFlags::ScriptStruct) { RetFlags += "ScriptStruct, "; }
+	if (CastFlags & EClassCastFlags::Class) { RetFlags += "Class, "; }
+	if (CastFlags & EClassCastFlags::ByteProperty) { RetFlags += "ByteProperty, "; }
+	if (CastFlags & EClassCastFlags::IntProperty) { RetFlags += "IntProperty, "; }
+	if (CastFlags & EClassCastFlags::FloatProperty) { RetFlags += "FloatProperty, "; }
+	if (CastFlags & EClassCastFlags::UInt64Property) { RetFlags += "UInt64Property, "; }
+	if (CastFlags & EClassCastFlags::ClassProperty) { RetFlags += "ClassProperty, "; }
+	if (CastFlags & EClassCastFlags::UInt32Property) { RetFlags += "UInt32Property, "; }
+	if (CastFlags & EClassCastFlags::InterfaceProperty) { RetFlags += "InterfaceProperty, "; }
+	if (CastFlags & EClassCastFlags::NameProperty) { RetFlags += "NameProperty, "; }
+	if (CastFlags & EClassCastFlags::StrProperty) { RetFlags += "StrProperty, "; }
+	if (CastFlags & EClassCastFlags::Property) { RetFlags += "Property, "; }
+	if (CastFlags & EClassCastFlags::ObjectProperty) { RetFlags += "ObjectProperty, "; }
+	if (CastFlags & EClassCastFlags::BoolProperty) { RetFlags += "BoolProperty, "; }
+	if (CastFlags & EClassCastFlags::UInt16Property) { RetFlags += "UInt16Property, "; }
+	if (CastFlags & EClassCastFlags::Function) { RetFlags += "Function, "; }
+	if (CastFlags & EClassCastFlags::StructProperty) { RetFlags += "StructProperty, "; }
+	if (CastFlags & EClassCastFlags::ArrayProperty) { RetFlags += "ArrayProperty, "; }
+	if (CastFlags & EClassCastFlags::Int64Property) { RetFlags += "Int64Property, "; }
+	if (CastFlags & EClassCastFlags::DelegateProperty) { RetFlags += "DelegateProperty, "; }
+	if (CastFlags & EClassCastFlags::NumericProperty) { RetFlags += "NumericProperty, "; }
+	if (CastFlags & EClassCastFlags::MulticastDelegateProperty) { RetFlags += "MulticastDelegateProperty, "; }
+	if (CastFlags & EClassCastFlags::ObjectPropertyBase) { RetFlags += "ObjectPropertyBase, "; }
+	if (CastFlags & EClassCastFlags::WeakObjectProperty) { RetFlags += "WeakObjectProperty, "; }
+	if (CastFlags & EClassCastFlags::LazyObjectProperty) { RetFlags += "LazyObjectProperty, "; }
+	if (CastFlags & EClassCastFlags::SoftObjectProperty) { RetFlags += "SoftObjectProperty, "; }
+	if (CastFlags & EClassCastFlags::TextProperty) { RetFlags += "TextProperty, "; }
+	if (CastFlags & EClassCastFlags::Int16Property) { RetFlags += "Int16Property, "; }
+	if (CastFlags & EClassCastFlags::DoubleProperty) { RetFlags += "DoubleProperty, "; }
+	if (CastFlags & EClassCastFlags::SoftClassProperty) { RetFlags += "SoftClassProperty, "; }
+	if (CastFlags & EClassCastFlags::Package) { RetFlags += "Package, "; }
+	if (CastFlags & EClassCastFlags::Level) { RetFlags += "Level, "; }
+	if (CastFlags & EClassCastFlags::Actor) { RetFlags += "Actor, "; }
+	if (CastFlags & EClassCastFlags::PlayerController) { RetFlags += "PlayerController, "; }
+	if (CastFlags & EClassCastFlags::Pawn) { RetFlags += "Pawn, "; }
+	if (CastFlags & EClassCastFlags::SceneComponent) { RetFlags += "SceneComponent, "; }
+	if (CastFlags & EClassCastFlags::PrimitiveComponent) { RetFlags += "PrimitiveComponent, "; }
+	if (CastFlags & EClassCastFlags::SkinnedMeshComponent) { RetFlags += "SkinnedMeshComponent, "; }
+	if (CastFlags & EClassCastFlags::SkeletalMeshComponent) { RetFlags += "SkeletalMeshComponent, "; }
+	if (CastFlags & EClassCastFlags::Blueprint) { RetFlags += "Blueprint, "; }
+	if (CastFlags & EClassCastFlags::DelegateFunction) { RetFlags += "DelegateFunction, "; }
+	if (CastFlags & EClassCastFlags::StaticMeshComponent) { RetFlags += "StaticMeshComponent, "; }
+	if (CastFlags & EClassCastFlags::MapProperty) { RetFlags += "MapProperty, "; }
+	if (CastFlags & EClassCastFlags::SetProperty) { RetFlags += "SetProperty, "; }
+	if (CastFlags & EClassCastFlags::EnumProperty) { RetFlags += "EnumProperty, "; }
+	if (CastFlags & EClassCastFlags::SparseDelegateFunction) { RetFlags += "SparseDelegateFunction, "; }
+	if (CastFlags & EClassCastFlags::MulticastInlineDelegateProperty) { RetFlags += "MulticastInlineDelegateProperty, "; }
+	if (CastFlags & EClassCastFlags::MulticastSparseDelegateProperty) { RetFlags += "MulticastSparseDelegateProperty, "; }
+	if (CastFlags & EClassCastFlags::FieldPathProperty) { RetFlags += "MarkAsFieldPathPropertyRootSet, "; }
+	if (CastFlags & EClassCastFlags::ObjectPtrProperty) { RetFlags += "ObjectPtrProperty, "; }
+	if (CastFlags & EClassCastFlags::ClassPtrProperty) { RetFlags += "ClassPtrProperty, "; }
+	if (CastFlags & EClassCastFlags::LargeWorldCoordinatesRealProperty) { RetFlags += "LargeWorldCoordinatesRealProperty, "; }
 
-	switch (Buffer.size())
-	{
-	case 0:
-		return std::string("None");
-		break;
-	case 1:
-		return std::string(Buffer[0]);
-		break;
-	default:
-		std::ostringstream os;
-		std::copy(Buffer.begin(), Buffer.end() - 1, std::ostream_iterator<const char*>(os, ", "));
-		os << *Buffer.rbegin();
-		return os.str();
-	}
+	return RetFlags.size() > 2 ? RetFlags.erase(RetFlags.size() - 2) : RetFlags;
 }
 
 static EMappingsTypeFlags EPropertyFlagsToMappingFlags(EClassCastFlags Flags)

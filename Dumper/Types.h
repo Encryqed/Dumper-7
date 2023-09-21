@@ -74,6 +74,7 @@ namespace Types
 	{
 	protected:
 		std::string CppName;
+		std::string PackageName;
 		std::string Declaration;
 		std::string InnerBody;
 		std::string Comments;
@@ -82,7 +83,7 @@ namespace Types
 
 	public:
 		Struct() = default;
-		Struct(std::string Name, bool bIsClass = false, std::string Super = "");
+		Struct(std::string Name, std::string Package, bool bIsClass = false, std::string Super = "");
 
 		void AddComment(std::string Comment);
 		void AddMember(Member& NewMember);
@@ -94,6 +95,7 @@ namespace Types
 			CustomAlignSize = AlignOverride;
 		}
 
+		void AddPredefinedMembers();
 		std::string GetGeneratedBody();
 
 		inline bool IsEmpty()
@@ -141,8 +143,8 @@ namespace Types
 	public:
 		using Struct::Struct;
 
-		Class(std::string CppName, std::string Name, std::string Super = "")
-			: Struct(CppName, true, Super), RawName(Name)
+		Class(std::string CppName, std::string PackageName, std::string Name, std::string Super = "")
+			: Struct(CppName, PackageName, true, Super), RawName(Name)
 		{
 		}
 

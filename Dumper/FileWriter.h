@@ -29,11 +29,15 @@ private:
 	bool bWroteParametersBefore;
 
 public:
+	FileWriter() = default;
 	FileWriter(const fs::path& FilePath);
 	FileWriter(const fs::path& FilePath, const std::string& FileName, FileType Type);
 	FileWriter(const std::string& FileName);
 	FileWriter(const std::string& FileName, FileType Type);
 	~FileWriter();
+
+	FileWriter& operator=(FileWriter&&) = default;
+	FileWriter& operator=(const FileWriter&) = default;
 
 	void Open(std::string FileName);
 	void Open(std::string FileName, FileType Type);

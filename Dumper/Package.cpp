@@ -267,10 +267,6 @@ void Package::AddPackage(int32 Idx)
 
 void Package::Process(const std::vector<int32_t>& PackageMembers)
 {
-	//AddPackage(PackageObject.GetIndex());
-
-	//GatherDependencies(PackageMembers);
-
 	for (int32_t Index : PackageMembers)
 	{
 		UEObject Object = ObjectArray::GetByIndex(Index);
@@ -527,7 +523,7 @@ Types::Struct Package::StaticGenerateStruct(UEStruct Struct, bool bIsFunction)
 {
 	std::string StructName = !bIsFunction ? Struct.GetCppName() : Struct.Cast<UEFunction>().GetParamStructName();
 
-	Types::Struct RetStruct(StructName);
+	Types::Struct RetStruct(StructName, Struct.GetOutermost().GetName());
 
 	int Size = Struct.GetStructSize();
 	int SuperSize = 0;
@@ -541,7 +537,7 @@ Types::Struct Package::StaticGenerateStruct(UEStruct Struct, bool bIsFunction)
 	{
 		if (UEStruct Super = Struct.GetSuper())
 		{
-			RetStruct = Types::Struct(StructName, false, Super.GetCppName());
+			RetStruct = Types::Struct(StructName, Struct.GetOutermost().GetName(), false, Super.GetCppName());
 			SuperSize = Super.GetStructSize();
 
 			UEObject SuperPackage = Super.GetOutermost();
@@ -717,8 +713,6 @@ void Package::GenerateStruct(UEStruct Struct, bool bIsFunction)
 void Package::GenerateClass(UEClass Class)
 {
 	Types::Class RetClass = StaticGenerateClass(Class, AllFunctions);
-
-	
 
 	AllClasses.push_back(RetClass);
 }
