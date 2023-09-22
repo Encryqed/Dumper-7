@@ -12,22 +12,37 @@
       <Filter>Engine\Private</Filter>
     </ClCompile>
     <ClCompile Include="Generator.cpp">
-      <Filter>Generator\Private</Filter>
+      <Filter>LegacyGenerator\Private</Filter>
     </ClCompile>
     <ClCompile Include="Types.cpp">
-      <Filter>Generator\Private</Filter>
+      <Filter>LegacyGenerator\Private</Filter>
     </ClCompile>
     <ClCompile Include="FileWriter.cpp">
-      <Filter>Generator\Private</Filter>
+      <Filter>LegacyGenerator\Private</Filter>
     </ClCompile>
     <ClCompile Include="Package.cpp">
-      <Filter>Generator\Private</Filter>
+      <Filter>LegacyGenerator\Private</Filter>
     </ClCompile>
     <ClCompile Include="NameArray.cpp">
       <Filter>Engine\Private</Filter>
     </ClCompile>
     <ClCompile Include="UnrealTypes.cpp">
       <Filter>Engine\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratorBase.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Nodes.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="ReflectionParser.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="CppGenerator.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="DependencyManager.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -43,14 +58,23 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{da88a5f5-413a-4b03-9503-d846f46c9162}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Generator">
+    <Filter Include="LegacyGenerator">
       <UniqueIdentifier>{a6bcdd0a-a630-4efa-bd57-2592e3c779cd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Generator\Private">
+    <Filter Include="LegacyGenerator\Private">
       <UniqueIdentifier>{08d7d513-d8c3-4514-8b6e-c7843ff07ded}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Generator\Public">
+    <Filter Include="LegacyGenerator\Public">
       <UniqueIdentifier>{6e2d36b6-6458-4b6a-9568-d2ac002e81c7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeneratorRewrite">
+      <UniqueIdentifier>{0b1b2a6f-5a40-495a-8226-c3a327549ed4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeneratorRewrite\Public">
+      <UniqueIdentifier>{73815208-262e-4c07-ad93-0ffc74b48976}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeneratorRewrite\Private">
+      <UniqueIdentifier>{d7d31e29-fabc-4f1a-94be-53c5f4940c91}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -76,22 +100,37 @@
       <Filter>Engine\Public</Filter>
     </ClInclude>
     <ClInclude Include="Generator.h">
-      <Filter>Generator\Public</Filter>
+      <Filter>LegacyGenerator\Public</Filter>
     </ClInclude>
     <ClInclude Include="Types.h">
-      <Filter>Generator\Public</Filter>
+      <Filter>LegacyGenerator\Public</Filter>
     </ClInclude>
     <ClInclude Include="Package.h">
-      <Filter>Generator\Public</Filter>
+      <Filter>LegacyGenerator\Public</Filter>
     </ClInclude>
     <ClInclude Include="Settings.h">
-      <Filter>Generator</Filter>
+      <Filter>LegacyGenerator</Filter>
     </ClInclude>
     <ClInclude Include="FileWriter.h">
-      <Filter>Generator\Public</Filter>
+      <Filter>LegacyGenerator\Public</Filter>
     </ClInclude>
     <ClInclude Include="NameArray.h">
       <Filter>Engine\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratorBase.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Nodes.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="ReflectionParser.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="CppGenerator.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="DependencyManager.h">
+      <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

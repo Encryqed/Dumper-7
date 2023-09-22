@@ -236,7 +236,7 @@ void Generator::GenerateMappings()
 
 		auto Properties = Struct.SelfStruct.GetProperties();
 
-		for (auto Property : Properties)
+		for (auto Property : Struct.SelfStruct.GetProperties())
 		{
 			PropertyCount += Property.GetArrayDim();
 			SerializableCount++;
@@ -247,7 +247,7 @@ void Generator::GenerateMappings()
 
 		SerializableCount = 0; // recycling for indices
 
-		for (auto Property : Properties)
+		for (auto Property : Struct.SelfStruct.GetProperties())
 		{
 			Buffer.Write<uint16>(SerializableCount); // Index
 			Buffer.Write<uint8>(Property.GetArrayDim());
@@ -507,11 +507,16 @@ void Generator::GenerateSDK()
 
 	_setmaxstdio(0x800); // set number of files which can be open simultaneously
 
-	Futures.reserve(ObjectPackages.size());
+	//Futures.reserve(ObjectPackages.size());
+	//
+	//for (auto& [PackageIndex, MemberIndices] : ObjectPackages)
+	//{
+	//	Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
+	//}
 
 	for (auto& [PackageIndex, MemberIndices] : ObjectPackages)
 	{
-		Futures.push_back(std::async(std::launch::async, HandlePackageGeneration, &SDKFolder, PackageIndex, &MemberIndices));
+		HandlePackageGeneration(&SDKFolder, PackageIndex, &MemberIndices);
 	}
 	
 	for (auto& Future : Futures)
