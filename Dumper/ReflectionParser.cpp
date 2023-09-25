@@ -9,7 +9,6 @@ StructNode ReflectionParser::ParseStructNode(UEStruct Struct)
 {
 	StructNode OutNode;
 
-	OutNode.UniqueName = "";
 	OutNode.RawName = Struct.GetName();
 	OutNode.FullName = Struct.GetFullName();
 	OutNode.Size = Struct.GetStructSize();

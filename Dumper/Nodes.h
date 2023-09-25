@@ -10,7 +10,11 @@ struct MemberNode
 	int32 Size;
 	int32 ArrayDim;
 	EObjectFlags ObjFlags;
-	EPropertyFlags PropFlags;
+	EPropertyFlags PropertyFlags;
+	EClassCastFlags CastFlags;
+	bool bIsBitField;
+	uint8 BitFieldIndex;
+	uint8 BitMask;
 
 	/* Prefer using other members instead of directly accessing UnrealProperty */
 	UEProperty* UnrealProperty;
@@ -28,8 +32,11 @@ struct UniqueNameBase
 	/* "unedited" name --> eg. "PlayerController", "Vector", "ENetRole" */
 	std::string RawName;
 
-	/* unique name --> eg. "APlayerController", "PackageName::UDuplicatedClass", "ENetRol" */
-	std::string UniqueName;
+	/* prefixed name --> eg. "Some+Class" -> "ASome_Class" */
+	std::string PrefixedName;
+
+	/* unique name --> empty if name is unique, else package name  */
+	std::string UniqueNamePrefix;
 
 	/* full name --> "Class Engine.PlayerController" */
 	std::string FullName;
@@ -47,6 +54,7 @@ struct EnumNode : public UniqueNameBase
 struct StructNodeBase : public UniqueNameBase
 {
 	int32 Size;
+	int32 SuperSize;
 };
 
 struct FunctionNode : public StructNodeBase
@@ -66,8 +74,6 @@ struct StructNode : public StructNodeBase
 {
 	/* Prefer using other members instead of directly accessing UnrealStruct */
 	UEStruct* UnrealStruct;
-
-	StructNode* Super;
 
 	/* Field for all Properties or PredefinedMembers */
 	std::vector<MemberNode> Members;

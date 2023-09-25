@@ -154,6 +154,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CppGenerator.h" />
+    <ClInclude Include="CppGeneratorTest.h" />
     <ClInclude Include="DependencyManager.h" />
     <ClInclude Include="Enums.h" />
     <ClInclude Include="FileWriter.h" />

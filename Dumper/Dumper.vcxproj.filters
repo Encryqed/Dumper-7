@@ -76,6 +76,9 @@
     <Filter Include="GeneratorRewrite\Private">
       <UniqueIdentifier>{d7d31e29-fabc-4f1a-94be-53c5f4940c91}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Tests">
+      <UniqueIdentifier>{ae8563d1-816c-4218-9877-a95f062ca4ff}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ObjectArray.h">
@@ -131,6 +134,9 @@
     </ClInclude>
     <ClInclude Include="DependencyManager.h">
       <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="CppGeneratorTest.h">
+      <Filter>Tests</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -291,8 +291,6 @@ void Package::Process(const std::vector<int32_t>& PackageMembers)
 
 void Package::StaticGenerateMembers(const std::vector<UEProperty>& MemberVector, UEStruct& Super, Types::Struct& Struct, int32 StructSize, int32 SuperSize)
 {
-	const bool bIsSuperFunction = Super.IsA(EClassCastFlags::Function);
-
 	bool bLastPropertyWasBitField = false;
 
 	int PrevPropertyEnd = SuperSize;
@@ -348,7 +346,7 @@ void Package::StaticGenerateMembers(const std::vector<UEProperty>& MemberVector,
 
 			const uint8 BitIndex = Property.Cast<UEBoolProperty>().GetBitIndex();
 
-			Comment = std::format("Mask: 0x{:X}, PropSize: 0x{:X}{}", Property.Cast<UEBoolProperty>().GetFieldMask(), Size, Comment);
+			Comment = std::format("Mask: 0x{:X}, PropSize: 0x{:X} {}", Property.Cast<UEBoolProperty>().GetFieldMask(), Size, Comment);
 
 			if (PrevBoolPropertyEnd < Offset)
 				PrevBoolPropertyBit = 1;
