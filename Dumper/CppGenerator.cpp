@@ -1,22 +1,22 @@
 #include "CppGenerator.h"
 
 
-void CppGenerator::GenerateStruct(const StructInfo& Struct)
+void CppGenerator::GenerateStruct(const StructNode& Struct)
 {
 
 }
 
-void CppGenerator::GenerateClass(const ClassInfo& Class)
+void CppGenerator::GenerateClass(const StructNode& Class)
 {
 
 }
 
-void CppGenerator::GenerateFunction(const FunctionInfo& Function)
+void CppGenerator::GenerateFunction(const FunctionNode& Function)
 {
 
 }
 
-void CppGenerator::GenerateSDK()
+void CppGenerator::Generate(const DependencyManager& Dependencies)
 {
 
 }

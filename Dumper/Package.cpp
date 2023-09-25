@@ -552,11 +552,8 @@ Types::Struct Package::StaticGenerateStruct(UEStruct Struct, bool bIsFunction)
 	RetStruct.AddComment(std::format("0x{:X} (0x{:X} - 0x{:X})", Size - SuperSize, Size, SuperSize));
 	RetStruct.AddComment(Struct.GetFullName());
 
-	std::vector<UEProperty> Properties;
+	std::vector<UEProperty> Properties = Struct.GetProperties();
 	
-	for (UEProperty Property : Struct.GetProperties())
-		Properties.push_back(Property);
-
 	static int NumProps = 0;
 	static int NumFuncs = 0;
 
@@ -655,11 +652,8 @@ Types::Class Package::StaticGenerateClass(UEClass Class, std::vector<Types::Func
 		}
 	}
 
-	std::vector<UEProperty> Properties;
+	std::vector<UEProperty> Properties = Class.GetProperties();
 	
-	for (UEProperty Property : Class.GetProperties())
-		Properties.push_back(Property);
-
 	std::sort(Properties.begin(), Properties.end(), [](UEProperty Left, UEProperty Right) -> bool
 		{
 			if (Left.IsA(EClassCastFlags::BoolProperty) && Right.IsA(EClassCastFlags::BoolProperty))

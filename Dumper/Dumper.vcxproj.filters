@@ -29,7 +29,7 @@
     <ClCompile Include="UnrealTypes.cpp">
       <Filter>Engine\Private</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratorBase.cpp">
+    <ClCompile Include="GeneratorRewrite.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
     <ClCompile Include="Nodes.cpp">
@@ -117,7 +117,7 @@
     <ClInclude Include="NameArray.h">
       <Filter>Engine\Public</Filter>
     </ClInclude>
-    <ClInclude Include="GeneratorBase.h">
+    <ClInclude Include="GeneratorRewrite.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
     <ClInclude Include="Nodes.h">

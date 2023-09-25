@@ -49,6 +49,19 @@ struct StructNodeBase : public UniqueNameBase
 	int32 Size;
 };
 
+struct FunctionNode : public StructNodeBase
+{
+	/* [nullptr for PredefinedFunctions] Prefer using other members instead of directly accessing UnrealFunction */
+	UEFunction* UnrealFunction;
+
+	std::vector<ParamNode> Params;
+	class ClassNode* OuterClass;
+	EFunctionFlags FuncFlags;
+
+	int RetValueIndex = -1;
+	bool bIsNative = false;
+};
+
 struct StructNode : public StructNodeBase
 {
 	/* Prefer using other members instead of directly accessing UnrealStruct */
@@ -61,17 +74,4 @@ struct StructNode : public StructNodeBase
 
 	/* Field for all UFunctions or PredefinedFunctions */
 	std::vector<FunctionNode> Functions;
-};
-
-struct FunctionNode : public StructNodeBase
-{
-	/* [nullptr for PredefinedFunctions] Prefer using other members instead of directly accessing UnrealFunction */
-	UEFunction* UnrealFunction;
-
-	std::vector<ParamNode> Params;
-	class ClassNode* OuterClass;
-	EFunctionFlags FuncFlags;
-
-	int RetValueIndex = -1;
-	bool bIsNative = false;
 };

@@ -199,4 +199,9 @@ namespace Off
 
 		inline int32 Base;
 	}
+
+	namespace ULevel
+	{
+		inline int32 Actors;
+	}
 }

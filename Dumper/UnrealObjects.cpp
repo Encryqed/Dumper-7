@@ -437,40 +437,6 @@ std::string UEEnum::GetEnumTypeAsStr() const
 	return "enum class " + (Temp[0] == 'E' ? Temp : 'E' + Temp);
 }
 
-BasicPropertyIterator::BasicPropertyIterator(void* Struct, bool bIsEnd)
-{ 
-	CurrentProperty = nullptr;
-
-	if (!bIsEnd)
-	{
-		CurrentProperty = Settings::Internal::bUseFProperty ? UEStruct(Struct).GetChildProperties().GetAddress() : UEStruct(Struct).GetChild().GetAddress();
-
-		UEProperty CurrentProp = UEProperty(CurrentProperty);
-
-		while (CurrentProperty && !CurrentProp.IsA(EClassCastFlags::Property))
-			CurrentProperty = CurrentProp.UnsafeGetNext().GetAddress();
-	}
-}
-
-bool BasicPropertyIterator::operator==(const BasicPropertyIterator& Other) const { return  CurrentProperty == Other.CurrentProperty; }
-bool BasicPropertyIterator::operator!=(const BasicPropertyIterator& Other) const { return  !CurrentProperty || CurrentProperty != Other.CurrentProperty; }
-
-BasicPropertyIterator& BasicPropertyIterator::operator++() 
-{
-	UEProperty CurrentProp = UEProperty(CurrentProperty);
-
-	CurrentProperty = CurrentProp.UnsafeGetNext().GetAddress();
-
-	while (CurrentProperty && !CurrentProp.IsA(EClassCastFlags::Property))
-		CurrentProperty = CurrentProp.UnsafeGetNext().GetAddress();
-
-	return *this;
-}
-
-BasicPropertyIterator BasicPropertyIteratorWrapper::begin() const { return BasicPropertyIterator(Struct); }
-BasicPropertyIterator BasicPropertyIteratorWrapper::end() const { return BasicPropertyIterator(Struct, true); }
-
-
 UEStruct UEStruct::GetSuper() const
 {
 	return UEStruct(*reinterpret_cast<void**>(Object + Off::UStruct::SuperStruct));
@@ -491,9 +457,28 @@ int32 UEStruct::GetStructSize() const
 	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
 }
 
-BasicPropertyIteratorWrapper UEStruct::GetProperties() const
+std::vector<UEProperty> UEStruct::GetProperties() const
 {
-	return BasicPropertyIteratorWrapper(const_cast<uint8*>(Object));
+	std::vector<UEProperty> Properties;
+
+	if (Settings::Internal::bUseFProperty)
+	{
+		for (UEFField Field = GetChildProperties(); Field; Field = Field.GetNext())
+		{
+			if (Field.IsA(EClassCastFlags::Property))
+				Properties.push_back(Field.Cast<UEProperty>());
+		}
+
+		return Properties;
+	}
+
+	for (UEField Field = GetChild(); Field; Field = Field.GetNext())
+	{
+		if (Field.IsA(EClassCastFlags::Property))
+			Properties.push_back(Field.Cast<UEProperty>());
+	}
+
+	return Properties;
 }
 
 UEProperty UEStruct::FindMember(const std::string& MemberName, EClassCastFlags TypeFlags) const

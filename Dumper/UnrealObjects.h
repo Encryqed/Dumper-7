@@ -171,39 +171,6 @@ public:
 	std::string GetEnumTypeAsStr() const;
 };
 
-class BasicPropertyIterator
-{
-private:
-	void* CurrentProperty;
-
-public:
-	BasicPropertyIterator(void* Struct, bool bIsEnd = false);
-
-	inline void* GetPropPtr() const { return CurrentProperty; }
-
-public:
-	bool operator==(const BasicPropertyIterator& Other) const;
-	bool operator!=(const BasicPropertyIterator& Other) const;
-
-	BasicPropertyIterator& operator++();
-};
-
-class BasicPropertyIteratorWrapper
-{
-private:
-	void* Struct;
-
-public:
-	BasicPropertyIteratorWrapper(void* Str)
-		: Struct(Str)
-	{
-	}
-
-public:
-	BasicPropertyIterator begin() const;
-	BasicPropertyIterator end() const;
-};
-
 class UEStruct : public UEField
 {
 	using UEField::UEField;
@@ -217,7 +184,7 @@ public:
 	UEFField GetChildProperties() const;
 	int32 GetStructSize() const;
 
-	BasicPropertyIteratorWrapper GetProperties() const;
+	std::vector<UEProperty> GetProperties() const;
 
 	UEProperty FindMember(const std::string& MemberName, EClassCastFlags TypeFlags = EClassCastFlags::None) const;
 

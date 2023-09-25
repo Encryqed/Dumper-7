@@ -148,6 +148,9 @@ void Off::Init()
 	Off::UMapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(PropertySize);
 	std::cout << "Off::UMapProperty::Base: " << Off::UMapProperty::Base << "\n\n";
 
+	Off::ULevel::Actors = OffsetFinder::FindLevelActorsOffset();
+	std::cout << "Off::ULevel::Actors: " << Off::ULevel::Actors << "\n\n";
+
 	Off::UByteProperty::Enum = PropertySize;
 	Off::UBoolProperty::Base = PropertySize;
 	Off::UObjectProperty::PropertyClass = PropertySize;

@@ -1,14 +1,24 @@
 #pragma once
-#include "GeneratorBase.h"
+#include <filesystem>
+#include "DependencyManager.h"
+#include "Nodes.h"
 
-class CppGenerator : public GeneratorBase
+namespace fs = std::filesystem;
+
+class CppGenerator
 {
-    virtual void GenerateStruct(const StructInfo& Struct) override;
-    virtual void GenerateClass(const ClassInfo& Class) override;
-    virtual void GenerateFunction(const FunctionInfo& Function) override;
+    static inline std::string MainFolderName = "CppSDK";
+    static inline std::string SubfolderName = "SDK";
 
-    virtual void GenerateSDK() override;
+    static inline fs::path MainFolder;
+    static inline fs::path Subfolder;
 
-    virtual void InitPredefinedMembers() override;
-    virtual void InitPredefinedFunctions() override;
+    static void GenerateStruct(const StructNode& Struct);
+    static void GenerateClass(const StructNode& Class);
+    static void GenerateFunction(const FunctionNode& Function);
+
+    static void Generate(const DependencyManager& Dependencies);
+
+    static void InitPredefinedMembers();
+    static void InitPredefinedFunctions();
 };
