@@ -289,11 +289,6 @@ public:
 	}
 };
 
-inline UEProperty operator*(const BasicPropertyIterator& It)
-{
-	return UEProperty(It.GetPropPtr());
-}
-
 class UEByteProperty : public UEProperty
 {
 	using UEProperty::UEProperty;
