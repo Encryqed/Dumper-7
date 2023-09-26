@@ -3,7 +3,7 @@
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
 {
-	return std::format("\t{:{}}{:{}} {}\n", Type, 45, Name + ";", 50, std::move(Comment));
+	return std::format("\t{:{}}{:{}} // {}\n", Type, 45, Name + ";", 50, std::move(Comment));
 }
 
 
@@ -21,12 +21,12 @@ std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 Pad
 	return MakeMemberString("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::move(Reason));
 }
 
-std::string CppGenerator::GenerateMember(const std::vector<MemberNode>& Members, int32 SuperSize)
+std::string CppGenerator::GenerateMembers(const std::vector<MemberNode>& Members, int32 SuperSize)
 {
 	constexpr int EstimatedCharactersPerLine = 0x80;
 
-	if (Members.size() <= 0)
-		return "\n";
+	if (Members.empty())
+		return "";
 
 	std::string OutMembers;
 	OutMembers.reserve(Members.size() * EstimatedCharactersPerLine);
@@ -69,23 +69,52 @@ std::string CppGenerator::GenerateMember(const std::vector<MemberNode>& Members,
 			bLastPropertyWasBitField = true;
 		}
 
-		MakeMemberString(Member.Type, Member.Name, std::move(Comment));
+		PrevPropertyEnd = Member.Offset + Member.Size;
+		OutMembers += MakeMemberString(Member.Type, Member.Name, std::move(Comment));
 	}
 
 	return OutMembers;
 }
 
-void CppGenerator::GenerateStruct(std::ofstream& StructFile, const StructNode& Struct)
+void CppGenerator::GenerateStruct(StreamType& StructFile, const StructNode& Struct)
+{
+	std::string UniqueName = Struct.UniqueNamePrefix.empty() ? Struct.PrefixedName : Struct.UniqueNamePrefix + "::" + Struct.PrefixedName;
+	std::string UniqueSuperName;
+
+	if (Struct.Super)
+		UniqueSuperName = Struct.Super->UniqueNamePrefix.empty() ? Struct.Super->PrefixedName : Struct.Super->UniqueNamePrefix + "::" + Struct.Super->PrefixedName;
+
+
+	StructFile << std::format(R"(
+// 0x{:X} (0x{:X} - 0x{:X})
+// {}
+struct {}{}
+{{
+)", Struct.Size - Struct.SuperSize, Struct.Size, Struct.SuperSize, Struct.FullName, UniqueName, Struct.Super ? (" : public " + UniqueSuperName) : "");
+
+	if (!Struct.Members.empty())
+		StructFile << "public:\n" + GenerateMembers(Struct.Members, Struct.SuperSize);
+
+	StructFile << "};\n";
+
+//	StructFile << std::format(
+//		R"(
+//// 0x{:X} (0x{:X} - 0x{:X})
+//// {}
+//struct {}{}
+//{{
+//public:
+//{}
+//}};)", Struct.Size - Struct.SuperSize, Struct.Size, Struct.SuperSize, Struct.FullName, 
+//	   UniqueName, (Struct.Super ? ": public " + UniqueSuperName : ""), GenerateMembers(Struct.Members, Struct.SuperSize));
+}
+
+void CppGenerator::GenerateClass(StreamType& ClassFile, const StructNode& Class)
 {
 
 }
 
-void CppGenerator::GenerateClass(std::ofstream& ClassFile, const StructNode& Class)
-{
-
-}
-
-void CppGenerator::GenerateFunction(std::ofstream& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function)
+void CppGenerator::GenerateFunction(StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function)
 {
 
 }

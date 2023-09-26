@@ -5,7 +5,7 @@
 
 namespace fs = std::filesystem;
 
-struct Package
+struct PackageRewrite
 {
     // Function params that are & or * don't require sorting
     bool bHasClasses;
@@ -21,6 +21,9 @@ private:
     friend class CppGeneratorTest;
 
 private:
+    using StreamType = std::stringstream /*current config: debug, default: std::ofstream*/;
+
+private:
     static inline std::string MainFolderName = "CppSDK";
     static inline std::string SubfolderName = "SDK";
 
@@ -33,10 +36,10 @@ private:
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
     static std::string GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
 
-    static std::string GenerateMember(const std::vector<MemberNode>& Members, int32 SuperSize);
-    static void GenerateStruct(std::ofstream& StructFile, const StructNode& Struct);
-    static void GenerateClass(std::ofstream& ClassFile, const StructNode& Class);
-    static void GenerateFunction(std::ofstream& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function);
+    static std::string GenerateMembers(const std::vector<MemberNode>& Members, int32 SuperSize);
+    static void GenerateStruct(StreamType& StructFile, const StructNode& Struct);
+    static void GenerateClass(StreamType& ClassFile, const StructNode& Class);
+    static void GenerateFunction(StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function);
 
 public:
     static void Generate(const DependencyManager& Dependencies);

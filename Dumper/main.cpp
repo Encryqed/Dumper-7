@@ -4,6 +4,8 @@
 #include <fstream>
 #include "Generator.h"
 
+#include "CppGeneratorTest.h"
+
 enum class EFortToastType : uint8
 {
         Default                        = 0,
@@ -44,9 +46,11 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
-	Generator::GenerateSDK();
-	Generator::GenerateMappings();
-	Generator::GenerateIDAMappings();
+	CppGeneratorTest::TestAll();
+
+	//Generator::GenerateSDK();
+	//Generator::GenerateMappings();
+	//Generator::GenerateIDAMappings();
 
 	auto t_C = high_resolution_clock::now();
 	

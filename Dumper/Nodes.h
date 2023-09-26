@@ -8,16 +8,16 @@ struct MemberNode
 
 	int32 Offset;
 	int32 Size;
-	int32 ArrayDim;
-	EObjectFlags ObjFlags;
-	EPropertyFlags PropertyFlags;
-	EClassCastFlags CastFlags;
-	bool bIsBitField;
-	uint8 BitFieldIndex;
-	uint8 BitMask;
+	int32 ArrayDim = 0x1;
+	EObjectFlags ObjFlags = EObjectFlags::NoFlags;
+	EPropertyFlags PropertyFlags = EPropertyFlags::None;
+	EClassCastFlags CastFlags = EClassCastFlags::None;
+	bool bIsBitField = false;
+	uint8 BitFieldIndex = 0x0;
+	uint8 BitMask = 0xFF;
 
 	/* Prefer using other members instead of directly accessing UnrealProperty */
-	UEProperty* UnrealProperty;
+	UEProperty* UnrealProperty = nullptr;
 };
 
 struct ParamNode : public MemberNode
@@ -74,6 +74,7 @@ struct StructNode : public StructNodeBase
 {
 	/* Prefer using other members instead of directly accessing UnrealStruct */
 	UEStruct* UnrealStruct;
+	StructNode* Super;
 
 	/* Field for all Properties or PredefinedMembers */
 	std::vector<MemberNode> Members;
