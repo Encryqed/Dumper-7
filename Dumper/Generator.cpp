@@ -1031,9 +1031,6 @@ R"(
 			},
 { "\tFVector operator*(decltype(X) Scalar) const;", "\tFVector FVector::operator*(decltype(X) Scalar) const", R"(
 	{
-		if (Scalar == 0.0f)
-			return FVector();
-
 		return { X * Scalar, Y * Scalar, Z * Scalar };
 	})"
 			},
@@ -1089,9 +1086,6 @@ R"(
 			},
 { "\tFVector4 operator*(decltype(X) Scalar) const;", "\tFVector4 FVector4::operator*(decltype(X) Scalar) const", R"(
 	{
-		if (Scalar == 0.0f)
-			return FVector4();
-
 		return { X * Scalar, Y * Scalar, Z * Scalar, W * Scalar };
 	})"
 			},
@@ -1147,9 +1141,6 @@ R"(
 			},
 { "\tFVector2D operator*(decltype(X) Scalar) const;", "\tFVector2D FVector2D::operator*(decltype(X) Scalar) const", R"(
 	{
-		if (Scalar == 0.0f)
-			return FVector2D();
-
 		return { X * Scalar, Y * Scalar };
 	})"
 			},
@@ -1205,9 +1196,6 @@ R"(
 			},
 { "\tFRotator operator*(decltype(Pitch) Scalar) const;", "\tFRotator FRotator::operator*(decltype(Pitch) Scalar) const", R"(
 	{
-		if (Scalar == 0.0f)
-			return FRotator();
-
 		return { Pitch * Scalar, Yaw * Scalar, Roll * Scalar };
 	})"
 			},
@@ -1263,9 +1251,6 @@ R"(
 			},
 { "\tFQuat operator*(decltype(X) Scalar) const;", "\tFQuat FQuat::operator*(decltype(X) Scalar) const", R"(
 	{
-		if (Scalar == 0.0f)
-			return FQuat();
-
 		return { X * Scalar, Y * Scalar, Z * Scalar, W * Scalar };
 	})"
 			},
@@ -1320,65 +1305,21 @@ R"(
 		"Engine",
 		{
 			{
-				"\tstatic class UGameEngine* GetGameEngine();",
-				"\tclass UGameEngine* UGameEngine::GetGameEngine()",
+				"\tstatic class UGameEngine* GetEngine();",
+				"\tclass UGameEngine* UGameEngine::GetEngine()",
 R"(
 	{
 		static UGameEngine* GGameEngine = nullptr;
 
 		if (!GGameEngine)
 		{
-			for (int i = 0; i < UObject::GObjects->Num(); i++)
-			{
-				UObject* Obj = UObject::GObjects->GetByIndex(i);
+			GameEngine = UEngine::GetEngine();
 
-				if (!Obj)
-					continue;
-
-				if (Obj->IsA(UGameEngine::StaticClass()) && !Obj->IsDefaultObject())
-				{
-					GGameEngine = static_cast<UGameEngine*>(Obj);
-					break;
-				}
-			}
+			if (!GGameEngine->IsA(UGameEngine::StaticClass()))
+				GameEngine = nullptr;
 		}
 
 		return GGameEngine; 
-	}
-)"
-			}
-		}
-	};
-	
-	PredefinedFunctions["UEngine"] =
-	{
-		"Engine",
-		{
-			{
-				"\tstatic class UEngine* GetEngine();",
-				"\tclass UEngine* UEngine::GetEngine()",
-R"(
-	{
-		static UEngine* GEngine = nullptr;
-
-		if (!GEngine)
-		{
-			for (int i = 0; i < UObject::GObjects->Num(); i++)
-			{
-				UObject* Obj = UObject::GObjects->GetByIndex(i);
-
-				if (!Obj)
-					continue;
-
-				if (Obj->IsA(UEngine::StaticClass()) && !Obj->IsDefaultObject())
-				{
-					GEngine = static_cast<UEngine*>(Obj);
-					break;
-				}
-			}
-		}
-
-		return GEngine; 
 	}
 )"
 			}
