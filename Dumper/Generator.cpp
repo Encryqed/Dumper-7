@@ -1031,6 +1031,9 @@ R"(
 			},
 { "\tFVector operator*(decltype(X) Scalar) const;", "\tFVector FVector::operator*(decltype(X) Scalar) const", R"(
 	{
+		if (Scalar == 0.0f)
+			return FVector();
+
 		return { X * Scalar, Y * Scalar, Z * Scalar };
 	})"
 			},
@@ -1045,6 +1048,308 @@ R"(
 		}
 	};
 
+	PredefinedFunctions["FVector4"] =
+	{
+		"CoreUObject",
+		{
+{ "\tinline FVector4()", "", R"(
+		: X(0.0), Y(0.0), Z(0.0), W(0.0)
+	{
+	})"
+			},
+{ "\tinline FVector4(decltype(X) Value)", "", R"(
+		: X(Value), Y(Value), Z(Value), W(Value)
+	{
+	})"
+			},
+{ "\tinline FVector4(decltype(X) x, decltype(Y) y, decltype(Z) z, decltype(W) w)", "", R"(
+		: X(x), Y(y), Z(z), W(w)
+	{
+	})"
+			},
+{ "\tinline bool operator==(const FVector4& Other) const", "", R"(
+	{
+		return X == Other.X && Y == Other.Y && Z == Other.Z && W == Other.W;
+	})"
+			},
+{ "\tinline bool operator!=(const FVector4& Other) const", "", R"(
+	{
+		return X != Other.X || Y != Other.Y || Z != Other.Z || W != Other.W;
+	})"
+			},
+{ "\tFVector4 operator+(const FVector4& Other) const;", "\tFVector4 FVector4::operator+(const FVector4& Other) const", R"(
+	{
+		return { X + Other.X, Y + Other.Y, Z + Other.Z, W + Other.W };
+	})"
+			},
+{ "\tFVector4 operator-(const FVector4& Other) const;", "\tFVector4 FVector4::operator-(const FVector4& Other) const", R"(
+	{
+		return { X - Other.X, Y - Other.Y, Z - Other.Z, W - Other.W };
+	})"
+			},
+{ "\tFVector4 operator*(decltype(X) Scalar) const;", "\tFVector4 FVector4::operator*(decltype(X) Scalar) const", R"(
+	{
+		if (Scalar == 0.0f)
+			return FVector4();
+
+		return { X * Scalar, Y * Scalar, Z * Scalar, W * Scalar };
+	})"
+			},
+{ "\tFVector4 operator/(decltype(X) Scalar) const;", "\tFVector4 FVector4::operator/(decltype(X) Scalar) const", R"(
+	{
+		if (Scalar == 0.0f)
+			return FVector4();
+
+		return { X / Scalar, Y / Scalar, Z / Scalar, W / Scalar };
+	})"
+			}
+		}
+	};
+
+	PredefinedFunctions["FVector2D"] =
+	{
+		"CoreUObject",
+		{
+{ "\tinline FVector2D()", "", R"(
+		: X(0.0), Y(0.0)
+	{
+	})"
+			},
+{ "\tinline FVector2D(decltype(X) Value)", "", R"(
+		: X(Value), Y(Value)
+	{
+	})"
+			},
+{ "\tinline FVector2D(decltype(X) x, decltype(Y) y)", "", R"(
+		: X(x), Y(y)
+	{
+	})"
+			},
+{ "\tinline bool operator==(const FVector2D& Other) const", "", R"(
+	{
+		return X == Other.X && Y == Other.Y;
+	})"
+			},
+{ "\tinline bool operator!=(const FVector2D& Other) const", "", R"(
+	{
+		return X != Other.X || Y != Other.Y;
+	})"
+			},
+{ "\tFVector2D operator+(const FVector2D& Other) const;", "\tFVector2D FVector2D::operator+(const FVector2D& Other) const", R"(
+	{
+		return { X + Other.X, Y + Other.Y };
+	})"
+			},
+{ "\tFVector2D operator-(const FVector2D& Other) const;", "\tFVector2D FVector2D::operator-(const FVector2D& Other) const", R"(
+	{
+		return { X - Other.X, Y - Other.Y };
+	})"
+			},
+{ "\tFVector2D operator*(decltype(X) Scalar) const;", "\tFVector2D FVector2D::operator*(decltype(X) Scalar) const", R"(
+	{
+		if (Scalar == 0.0f)
+			return FVector2D();
+
+		return { X * Scalar, Y * Scalar };
+	})"
+			},
+{ "\tFVector2D operator/(decltype(X) Scalar) const;", "\tFVector2D FVector2D::operator/(decltype(X) Scalar) const", R"(
+	{
+		if (Scalar == 0.0f)
+			return FVector2D();
+
+		return { X / Scalar, Y / Scalar };
+	})"
+			}
+		}
+	};
+
+	PredefinedFunctions["FRotator"] =
+	{
+		"CoreUObject",
+		{
+{ "\tinline FRotator()", "", R"(
+		: Pitch(0.0), Yaw(0.0), Roll(0.0)
+	{
+	})"
+			},
+{ "\tinline FRotator(decltype(Pitch) Value)", "", R"(
+		: Pitch(Value), Yaw(Value), Roll(Value)
+	{
+	})"
+			},
+{ "\tinline FRotator(decltype(Pitch) pitch, decltype(Yaw) yaw, decltype(Roll) roll)", "", R"(
+		: Pitch(pitch), Yaw(yaw), Roll(roll)
+	{
+	})"
+			},
+{ "\tinline bool operator==(const FRotator& Other) const", "", R"(
+	{
+		return Pitch == Other.Pitch && Yaw == Other.Yaw && Roll == Other.Roll;
+	})"
+			},
+{ "\tinline bool operator!=(const FRotator& Other) const", "", R"(
+	{
+		return Pitch != Other.Pitch || Yaw != Other.Yaw || Roll != Other.Roll;
+	})"
+			},
+{ "\tFRotator operator+(const FRotator& Other) const;", "\tFRotator FRotator::operator+(const FRotator& Other) const", R"(
+	{
+		return { Pitch + Other.Pitch, Yaw + Other.Yaw, Roll + Other.Roll };
+	})"
+			},
+{ "\tFRotator operator-(const FRotator& Other) const;", "\tFRotator FRotator::operator-(const FRotator& Other) const", R"(
+	{
+		return { Pitch - Other.Pitch, Yaw - Other.Yaw, Roll - Other.Roll };
+	})"
+			},
+{ "\tFRotator operator*(decltype(Pitch) Scalar) const;", "\tFRotator FRotator::operator*(decltype(Pitch) Scalar) const", R"(
+	{
+		if (Scalar == 0.0f)
+			return FRotator();
+
+		return { Pitch * Scalar, Yaw * Scalar, Roll * Scalar };
+	})"
+			},
+{ "\tFRotator operator/(decltype(Pitch) Scalar) const;", "\tFRotator FRotator::operator/(decltype(Pitch) Scalar) const", R"(
+	{
+		if (Scalar == 0.0f)
+			return FRotator();
+
+		return { Pitch / Scalar, Yaw / Scalar, Roll / Scalar };
+	})"
+			}
+		}
+	};
+
+	PredefinedFunctions["FQuat"] =
+	{
+		"CoreUObject",
+		{
+{ "\tinline FQuat()", "", R"(
+		: X(0.0), Y(0.0), Z(0.0), W(0.0)
+	{
+	})"
+			},
+{ "\tinline FQuat(decltype(X) Value)", "", R"(
+		: X(Value), Y(Value), Z(Value), W(Value)
+	{
+	})"
+			},
+{ "\tinline FQuat(decltype(X) x, decltype(Y) y, decltype(Z) z, decltype(W) w)", "", R"(
+		: X(x), Y(y), Z(z), W(w)
+	{
+	})"
+			},
+{ "\tinline bool operator==(const FQuat& Other) const", "", R"(
+	{
+		return X == Other.X && Y == Other.Y && Z == Other.Z && W == Other.W;
+	})"
+			},
+{ "\tinline bool operator!=(const FQuat& Other) const", "", R"(
+	{
+		return X != Other.X || Y != Other.Y || Z != Other.Z || W != Other.W;
+	})"
+			},
+{ "\tFQuat operator+(const FQuat& Other) const;", "\tFQuat FQuat::operator+(const FQuat& Other) const", R"(
+	{
+		return { X + Other.X, Y + Other.Y, Z + Other.Z, W + Other.W };
+	})"
+			},
+{ "\tFQuat operator-(const FQuat& Other) const;", "\tFQuat FQuat::operator-(const FQuat& Other) const", R"(
+	{
+		return { X - Other.X, Y - Other.Y, Z - Other.Z, W - Other.W };
+	})"
+			},
+{ "\tFQuat operator*(decltype(X) Scalar) const;", "\tFQuat FQuat::operator*(decltype(X) Scalar) const", R"(
+	{
+		if (Scalar == 0.0f)
+			return FQuat();
+
+		return { X * Scalar, Y * Scalar, Z * Scalar, W * Scalar };
+	})"
+			},
+{ "\tFQuat operator/(decltype(X) Scalar) const;", "\tFQuat FQuat::operator/(decltype(X) Scalar) const", R"(
+	{
+		if (Scalar == 0.0f)
+			return FQuat();
+
+		return { X / Scalar, Y / Scalar, Z / Scalar, W / Scalar };
+	})"
+			}
+		}
+	};
+
+	PredefinedFunctions["UEngine"] =
+	{
+		"Engine",
+		{
+			{
+				"\tstatic class UEngine* GetEngine();",
+				"\tclass UEngine* UEngine::GetEngine()",
+R"(
+	{
+		static UEngine* GEngine = nullptr;
+
+		if (!GEngine)
+		{
+			for (int i = 0; i < UObject::GObjects->Num(); i++)
+			{
+				UObject* Obj = UObject::GObjects->GetByIndex(i);
+
+				if (!Obj)
+					continue;
+
+				if (Obj->IsA(UEngine::StaticClass()) && !Obj->IsDefaultObject())
+				{
+					GEngine = static_cast<UEngine*>(Obj);
+					break;
+				}
+			}
+		}
+
+		return GEngine; 
+	}
+)"
+			}
+		}
+	};
+
+	PredefinedFunctions["UGameEngine"] =
+	{
+		"Engine",
+		{
+			{
+				"\tstatic class UGameEngine* GetGameEngine();",
+				"\tclass UGameEngine* UGameEngine::GetGameEngine()",
+R"(
+	{
+		static UGameEngine* GGameEngine = nullptr;
+
+		if (!GGameEngine)
+		{
+			for (int i = 0; i < UObject::GObjects->Num(); i++)
+			{
+				UObject* Obj = UObject::GObjects->GetByIndex(i);
+
+				if (!Obj)
+					continue;
+
+				if (Obj->IsA(UGameEngine::StaticClass()) && !Obj->IsDefaultObject())
+				{
+					GGameEngine = static_cast<UGameEngine*>(Obj);
+					break;
+				}
+			}
+		}
+
+		return GGameEngine; 
+	}
+)"
+			}
+		}
+	};
+	
 	PredefinedFunctions["UEngine"] =
 	{
 		"Engine",
