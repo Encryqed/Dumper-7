@@ -1022,17 +1022,20 @@ R"(
 { "\tFVector operator+(const FVector& Other) const;", "\tFVector FVector::operator+(const FVector& Other) const", R"(
 	{
 		return { X + Other.X, Y + Other.Y, Z + Other.Z };
-	})"
+	}
+)"
 			},
 { "\tFVector operator-(const FVector& Other) const;", "\tFVector FVector::operator-(const FVector& Other) const", R"(
 	{
 		return { X - Other.X, Y - Other.Y, Z - Other.Z };
-	})"
+	}
+)"
 			},
 { "\tFVector operator*(decltype(X) Scalar) const;", "\tFVector FVector::operator*(decltype(X) Scalar) const", R"(
 	{
 		return { X * Scalar, Y * Scalar, Z * Scalar };
-	})"
+	}
+)"
 			},
 { "\tFVector operator/(decltype(X) Scalar) const;", "\tFVector FVector::operator/(decltype(X) Scalar) const", R"(
 	{
@@ -1040,7 +1043,8 @@ R"(
 			return FVector();
 
 		return { X / Scalar, Y / Scalar, Z / Scalar };
-	})"
+	}
+)"
 			}
 		}
 	};
@@ -1077,17 +1081,20 @@ R"(
 { "\tFVector4 operator+(const FVector4& Other) const;", "\tFVector4 FVector4::operator+(const FVector4& Other) const", R"(
 	{
 		return { X + Other.X, Y + Other.Y, Z + Other.Z, W + Other.W };
-	})"
+	}
+)"
 			},
 { "\tFVector4 operator-(const FVector4& Other) const;", "\tFVector4 FVector4::operator-(const FVector4& Other) const", R"(
 	{
 		return { X - Other.X, Y - Other.Y, Z - Other.Z, W - Other.W };
-	})"
+	}
+)"
 			},
 { "\tFVector4 operator*(decltype(X) Scalar) const;", "\tFVector4 FVector4::operator*(decltype(X) Scalar) const", R"(
 	{
 		return { X * Scalar, Y * Scalar, Z * Scalar, W * Scalar };
-	})"
+	}
+)"
 			},
 { "\tFVector4 operator/(decltype(X) Scalar) const;", "\tFVector4 FVector4::operator/(decltype(X) Scalar) const", R"(
 	{
@@ -1095,7 +1102,8 @@ R"(
 			return FVector4();
 
 		return { X / Scalar, Y / Scalar, Z / Scalar, W / Scalar };
-	})"
+	}
+)"
 			}
 		}
 	};
@@ -1132,17 +1140,20 @@ R"(
 { "\tFVector2D operator+(const FVector2D& Other) const;", "\tFVector2D FVector2D::operator+(const FVector2D& Other) const", R"(
 	{
 		return { X + Other.X, Y + Other.Y };
-	})"
+	}
+)"
 			},
 { "\tFVector2D operator-(const FVector2D& Other) const;", "\tFVector2D FVector2D::operator-(const FVector2D& Other) const", R"(
 	{
 		return { X - Other.X, Y - Other.Y };
-	})"
+	}
+)"
 			},
 { "\tFVector2D operator*(decltype(X) Scalar) const;", "\tFVector2D FVector2D::operator*(decltype(X) Scalar) const", R"(
 	{
 		return { X * Scalar, Y * Scalar };
-	})"
+	}
+)"
 			},
 { "\tFVector2D operator/(decltype(X) Scalar) const;", "\tFVector2D FVector2D::operator/(decltype(X) Scalar) const", R"(
 	{
@@ -1150,7 +1161,8 @@ R"(
 			return FVector2D();
 
 		return { X / Scalar, Y / Scalar };
-	})"
+	}
+)"
 			}
 		}
 	};
@@ -1187,17 +1199,20 @@ R"(
 { "\tFRotator operator+(const FRotator& Other) const;", "\tFRotator FRotator::operator+(const FRotator& Other) const", R"(
 	{
 		return { Pitch + Other.Pitch, Yaw + Other.Yaw, Roll + Other.Roll };
-	})"
+	}
+)"
 			},
 { "\tFRotator operator-(const FRotator& Other) const;", "\tFRotator FRotator::operator-(const FRotator& Other) const", R"(
 	{
 		return { Pitch - Other.Pitch, Yaw - Other.Yaw, Roll - Other.Roll };
-	})"
+	}
+)"
 			},
 { "\tFRotator operator*(decltype(Pitch) Scalar) const;", "\tFRotator FRotator::operator*(decltype(Pitch) Scalar) const", R"(
 	{
 		return { Pitch * Scalar, Yaw * Scalar, Roll * Scalar };
-	})"
+	}
+)"
 			},
 { "\tFRotator operator/(decltype(Pitch) Scalar) const;", "\tFRotator FRotator::operator/(decltype(Pitch) Scalar) const", R"(
 	{
@@ -1205,7 +1220,8 @@ R"(
 			return FRotator();
 
 		return { Pitch / Scalar, Yaw / Scalar, Roll / Scalar };
-	})"
+	}
+)"
 			}
 		}
 	};
@@ -1242,17 +1258,20 @@ R"(
 { "\tFQuat operator+(const FQuat& Other) const;", "\tFQuat FQuat::operator+(const FQuat& Other) const", R"(
 	{
 		return { X + Other.X, Y + Other.Y, Z + Other.Z, W + Other.W };
-	})"
+	}
+)"
 			},
 { "\tFQuat operator-(const FQuat& Other) const;", "\tFQuat FQuat::operator-(const FQuat& Other) const", R"(
 	{
 		return { X - Other.X, Y - Other.Y, Z - Other.Z, W - Other.W };
-	})"
+	}
+)"
 			},
 { "\tFQuat operator*(decltype(X) Scalar) const;", "\tFQuat FQuat::operator*(decltype(X) Scalar) const", R"(
 	{
 		return { X * Scalar, Y * Scalar, Z * Scalar, W * Scalar };
-	})"
+	}
+)"
 			},
 { "\tFQuat operator/(decltype(X) Scalar) const;", "\tFQuat FQuat::operator/(decltype(X) Scalar) const", R"(
 	{
@@ -1260,7 +1279,8 @@ R"(
 			return FQuat();
 
 		return { X / Scalar, Y / Scalar, Z / Scalar, W / Scalar };
-	})"
+	}
+)"
 			}
 		}
 	};
@@ -1309,17 +1329,17 @@ R"(
 				"\tclass UGameEngine* UGameEngine::GetEngine()",
 R"(
 	{
-		static UGameEngine* GGameEngine = nullptr;
+		static class UGameEngine* GameEngine = nullptr;
 
-		if (!GGameEngine)
+		if (!GameEngine)
 		{
-			GameEngine = UEngine::GetEngine();
+			GameEngine = static_cast<class UGameEngine*>(UEngine::GetEngine());
 
-			if (!GGameEngine->IsA(UGameEngine::StaticClass()))
+			if (!GameEngine->IsA(UGameEngine::StaticClass()))
 				GameEngine = nullptr;
 		}
 
-		return GGameEngine; 
+		return GameEngine; 
 	}
 )"
 			}
