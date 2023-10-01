@@ -450,6 +450,7 @@ void Generator::HandlePackageGeneration(const fs::path* const SDKFolder, int32 P
 void Generator::GenerateSDK()
 {
 	std::unordered_map<int32_t, std::vector<int32_t>> ObjectPackages;
+	ObjectPackages.reserve(0x400);
 
 	ObjectArray::GetAllPackages(ObjectPackages);
 

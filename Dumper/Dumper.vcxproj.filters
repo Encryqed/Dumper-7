@@ -138,5 +138,11 @@
     <ClInclude Include="CppGeneratorTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
+    <ClInclude Include="StringTable.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="StringTableTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

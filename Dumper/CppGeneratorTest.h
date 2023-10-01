@@ -14,6 +14,26 @@ else \
 
 class CppGeneratorTest
 {
+private:
+	static inline MemberNode MakeMemberNode(const char* Type, const char* Name, int32 Offset, int32 Size, int32 ArrayDim = 0x1, EClassCastFlags Flags = EClassCastFlags::None, uint8 FieldMask = 0xFF)
+	{
+		MemberNode Member;
+		Member.Type = Type;
+		Member.Name = Name;
+		Member.Offset = Offset;
+		Member.Size = Size;
+		Member.ArrayDim = ArrayDim;
+		Member.ObjFlags = EObjectFlags::NoFlags;
+		Member.PropertyFlags = EPropertyFlags::None;
+		Member.CastFlags = Flags;
+		Member.bIsBitField = FieldMask != 0xFF;
+		Member.BitFieldIndex = [=]() -> uint8 { if (FieldMask == 0xFF) { return 0xFF; } int Idx = 0;  while ((FieldMask >> Idx) != 0x1) { Idx++; } return Idx; }();
+		Member.BitMask = FieldMask;
+		Member.UnrealProperty = nullptr;
+
+		return Member;
+	}
+
 public:
 	static void TestAll()
 	{
@@ -22,6 +42,8 @@ public:
 		TestBitPadding();
 
 		GenerateStructTest();
+
+		std::cout << std::endl;
 	}
 
 	static void TestMakeMember()
@@ -62,33 +84,8 @@ public:
 		SuperNode.UnrealStruct = nullptr;
 		SuperNode.Super = nullptr;
 
-		MemberNode FirstMember;
-		FirstMember.Type = "int32";
-		FirstMember.Name = "OutputIndex";
-		FirstMember.Offset = 0x0;
-		FirstMember.Size = 0x4;
-		FirstMember.ArrayDim = 0x1;
-		FirstMember.ObjFlags = EObjectFlags::NoFlags;
-		FirstMember.PropertyFlags = EPropertyFlags::None;
-		FirstMember.CastFlags = EClassCastFlags::IntProperty;
-		FirstMember.bIsBitField = false;
-		FirstMember.BitFieldIndex = 0x0;
-		FirstMember.BitMask = 0xFF;
-		FirstMember.UnrealProperty = nullptr;
-
-		MemberNode SecondMember;
-		SecondMember.Type = "class FName";
-		SecondMember.Name = "ExpressionName";
-		SecondMember.Offset = 0x4;
-		SecondMember.Size = 0x8;
-		SecondMember.ArrayDim = 0x1;
-		SecondMember.ObjFlags = EObjectFlags::NoFlags;
-		SecondMember.PropertyFlags = EPropertyFlags::None;
-		SecondMember.CastFlags = EClassCastFlags::NameProperty;
-		SecondMember.bIsBitField = false;
-		SecondMember.BitFieldIndex = 0x0;
-		SecondMember.BitMask = 0xFF;
-		SecondMember.UnrealProperty = nullptr;
+		MemberNode FirstMember = MakeMemberNode("int32", "OutputIndex", 0x0, 0x4);
+		MemberNode SecondMember = MakeMemberNode("class FName", "ExpressionName", 0x4, 0x8);
 
 		SuperNode.Members = { std::move(FirstMember), std::move(SecondMember) };
 		std::sort(SuperNode.Members.begin(), SuperNode.Members.end(), [](const MemberNode& L, const MemberNode& R) { return L.Offset < R.Offset; });
@@ -137,5 +134,21 @@ public:
 };
 )";
 		CHECK_RESULT(Result2, Expected2);
+
+		StructNode VectorNode;
+		VectorNode.RawName = "Vector";
+		VectorNode.PrefixedName = "FVector";
+		VectorNode.UniqueNamePrefix = "CoreUObject";
+		VectorNode.FullName = "ScriptStruct CoreUObject.Vector";
+
+		VectorNode.Size = 0xC;
+		VectorNode.SuperSize = 0x0;
+
+		VectorNode.UnrealStruct = nullptr;
+		VectorNode.Super = nullptr;
+		VectorNode.Members = { MakeMemberNode("float", "X", 0x0, 0x4), MakeMemberNode("float", "Y", 0x4, 0x8), MakeMemberNode("float", "Z", 0x8, 0xC) };
+		VectorNode.Functions = {};
+
+		// FUNCTIONS
 	}
 };

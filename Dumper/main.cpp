@@ -5,6 +5,7 @@
 #include "Generator.h"
 
 #include "CppGeneratorTest.h"
+#include "StringTableTest.h"
 
 enum class EFortToastType : uint8
 {
@@ -47,6 +48,8 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
 	CppGeneratorTest::TestAll();
+
+	StringTableTest::TestAll();
 
 	//Generator::GenerateSDK();
 	//Generator::GenerateMappings();

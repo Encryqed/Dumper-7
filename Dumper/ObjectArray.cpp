@@ -359,7 +359,7 @@ void ObjectArray::DumpObjects()
 
 void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t>>& OutPackagesWithMembers/*, std::unordered_map<int32_t, bool>& PackagesToInclude*/)
 {
-	UEStruct::StructSizes.reserve(0x600);
+	UEStruct::StructSizes.reserve(0x200);
 
 	for (UEObject Object : ObjectArray())
 	{
@@ -381,9 +381,7 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 					UEProperty::UnknownProperties.insert({ Property.GetCppType(), Property.GetSize() });
 
 				if (Property.Cast<UEProperty>().GetOffset() < LowestOffset)
-				{
 					LowestOffset = Property.Cast<UEProperty>().GetOffset();
-				}
 
 				if (Property.IsA(EClassCastFlags::EnumProperty))
 				{
@@ -394,28 +392,26 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 				}
 			}
 
-			if (!Super || Object.IsA(EClassCastFlags::Function))
+			if (!Super || Object.IsA(EClassCastFlags::Function) || LowestOffset == 0xFFFFFF)
 				continue;
-
-			if (LowestOffset != 0xFFFFFF)
+			
+			for (UEStruct S = Super; S; S = S.GetSuper())
 			{
-				for (UEStruct S = Super; S; S = S.GetSuper())
+				auto It = UEStruct::StructSizes.find(S.GetIndex());
+
+				if (It != UEStruct::StructSizes.end())
 				{
-					auto It = UEStruct::StructSizes.find(S.GetIndex());
-
-					if (It != UEStruct::StructSizes.end())
-					{
-						if (It->second > LowestOffset)
-							It->second = LowestOffset;
-					}
-					else
-					{
-						UEStruct::StructSizes[S.GetIndex()] = (LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize());
-					}
-
-					if (S.HasMembers())
-						break;
+					if (It->second > LowestOffset)
+						It->second = LowestOffset;
 				}
+				else
+				{
+					if (LowestOffset < S.GetStructSize())
+						UEStruct::StructSizes[S.GetIndex()] = LowestOffset;
+				}
+
+				if (S.HasMembers())
+					break;
 			}
 		}
 		else if (Object.IsA(EClassCastFlags::Enum))

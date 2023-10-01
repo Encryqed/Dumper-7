@@ -167,6 +167,8 @@
     <ClInclude Include="Package.h" />
     <ClInclude Include="ReflectionParser.h" />
     <ClInclude Include="Settings.h" />
+    <ClInclude Include="StringTable.h" />
+    <ClInclude Include="StringTableTest.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="NameArray.h" />
     <ClInclude Include="UnrealObjects.h" />
