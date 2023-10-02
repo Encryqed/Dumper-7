@@ -1,6 +1,28 @@
 #pragma once
+#include <cassert>
+
 #include "Enums.h"
 
+static constexpr uint8_t FiveBitPermutation[32] = {
+    0x20, 0x1D, 0x08, 0x18, 0x06, 0x0F, 0x15, 0x19,
+    0x13, 0x1F, 0x17, 0x10, 0x14, 0x0C, 0x0E, 0x02,
+    0x16, 0x11, 0x12, 0x0A, 0x0B, 0x1E, 0x04, 0x07,
+    0x1B, 0x03, 0x0D, 0x1A, 0x1C, 0x01, 0x09, 0x05,
+};
+
+inline uint8 SmallPearsonHash(const char* StringToHash)
+{
+    uint8 Hash = 0;
+
+    while(*StringToHash != '\0')
+    {
+        const uint8 MaskedDownChar = (*StringToHash - 'A') & 0b11111;
+        Hash = FiveBitPermutation[Hash ^ MaskedDownChar];
+        StringToHash++;
+    }
+
+    return (Hash & 0b11111);
+}
 
 #pragma pack(0x1)
 class StringEntry
@@ -12,6 +34,7 @@ public:
 
 private:
     friend class StringTable;
+    friend class StringTableTest;
 
 private:
     // Length of object name
@@ -23,8 +46,8 @@ private:
     // If this name is unique amongst others --- always true if RawNameLength > 0
     mutable uint16 bIsUnique : 1;
 
-    // May be used for hashing strings in the future
-    uint16 Unused : 5;
+    // PearsonHash reduced to 5 bits --- only computed if string was added when StringTable::CurrentMode == EDuplicationCheckingMode::Check
+    uint16 Hash : 5;
 
     // Length of RawName to be appended to 'Legth' if this is a FullName, zero if this name is edited (eg. "UEditTool3Plus3")
     uint8 RawNameLength;
@@ -56,10 +79,20 @@ public:
 class StringTable
 {
 private:
+    friend class StringTableTest;
+
+private:
     enum class EDuplicationCheckingMode : int32
     {
         Check,
-        DontCheck
+        DontCheck,
+        None
+    };
+
+    struct StringTableAddResult
+    {
+        int32 Index;
+        bool bAddedNew;
     };
 
 private:
@@ -70,6 +103,15 @@ private:
     EDuplicationCheckingMode CurrentMode;
 
 public:
+    StringTable()
+        : Data(nullptr)
+        , UncheckedSize(0)
+        , CheckedSize(0)
+        , AllocationSize(0)
+        , CurrentMode(EDuplicationCheckingMode::None)
+    {
+    }
+
     StringTable(int32 Size)
         : Data(reinterpret_cast<uint8*>(malloc(Size > 0x1000 ? Size : 0x1000)))
         , UncheckedSize(0)
@@ -95,6 +137,7 @@ public:
     StringTable& operator=(StringTable&&) = delete;
     StringTable& operator=(const StringTable&) = delete;
 
+public:
     class StringTableIterator
     {
     private:
@@ -136,6 +179,22 @@ private:
         return (StringEntry::StringEntrySizeWithoutStr + StrLengthBytes + UncheckedSize + CheckedSize) <= AllocationSize;
     }
 
+    inline bool IsValid() const
+    {
+        return Data != nullptr;
+    }
+
+    inline void Allocate(int32 Size)
+    {
+        constexpr int32 MinSize = 0x1000;
+
+        Data = reinterpret_cast<uint8*>(malloc(Size > MinSize ? Size : MinSize));
+        UncheckedSize = 0;
+        CheckedSize = 0;
+        AllocationSize = Size > MinSize ? Size : MinSize;
+        CurrentMode = EDuplicationCheckingMode::DontCheck;
+    }
+
     inline void Resize(int32 NewSize)
     {
         uint8* NewData = reinterpret_cast<uint8*>(realloc(Data, NewSize));
@@ -152,7 +211,7 @@ private:
     }
 
     template<typename CharType>
-    inline bool AddUnchecked(const CharType* Str, int32 Length, int32 RawNameLength)
+    inline StringTableAddResult AddUnchecked(const CharType* Str, int32 Length, int32 RawNameLength, uint8 Hash)
     {
         static_assert(std::is_same_v<CharType, char> || std::is_same_v<CharType, wchar_t>, "Invalid CharType! Type must be 'char' or 'wchar_t'.");
 
@@ -166,6 +225,7 @@ private:
         NewEmpty.Length = Length;
         NewEmpty.RawNameLength = RawNameLength;
         NewEmpty.bIsWide = std::is_same_v<CharType, wchar_t>;
+        NewEmpty.Hash = Hash;
 
         // Initially always true, later marked as false if duplicate is found
         NewEmpty.bIsUnique = true;
@@ -179,7 +239,7 @@ private:
 
         (CurrentMode == EDuplicationCheckingMode::DontCheck ? UncheckedSize : CheckedSize) += LengthOfNewEntry;
 
-        return ReturnIndex;
+        return { ReturnIndex, true };
     }
 
     template<typename CharType>
@@ -214,7 +274,7 @@ public:
     }
 
     template<typename CharType>
-    inline int32 Add(const CharType* Str, int32 Length, int32 RawNameLength = 0)
+    inline StringTableAddResult Add(const CharType* Str, int32 Length, int32 RawNameLength = 0)
     {
         const int CombinedLength = Length + RawNameLength;
         const bool bIsWChar = std::is_same_v<CharType, wchar_t>;
@@ -222,28 +282,33 @@ public:
         if (!Str || CombinedLength <= 0 || CombinedLength > StringEntry::MaxStringLength)
         {
             std::cout << std::format("Error on line {{{:d}}}: {}\n", __LINE__, !Str ? "!Str" : Length <= 0 ? "LengthBytes <= 0" : "LengthBytes > MaxStringLength") << std::endl;
-            return -1;
+            return { -1, false };
         }
 
         if (CurrentMode == EDuplicationCheckingMode::DontCheck)
-            return AddUnchecked(Str, Length, RawNameLength);
+            return AddUnchecked(Str, Length, RawNameLength, 0x0);
+
+        uint8 Hash = 0x0;
+        
+        if constexpr (!bIsWChar)
+            Hash = SmallPearsonHash(Str);
 
         for (auto It = StringTableIterator(*this, UncheckedSize); It != this->end(); ++It)
         {
             const StringEntry& Entry = *It;
 
-            if (Entry.bIsWide == bIsWChar && Entry.Length == Length && Strcmp(Str, Entry) == 0)
+            if (Entry.bIsWide == bIsWChar && Entry.Length == Length && Entry.Hash == Hash && Strcmp(Str, Entry) == 0)
             {
                 Entry.bIsUnique = false;
-                return It.GetPos();
+                return { It.GetPos(), false };
             }
         }
 
         // Only reached if Str wasn't found in StringTable, else entry is marked as not unique
-        return AddUnchecked(Str, Length, RawNameLength);
+        return AddUnchecked(Str, Length, RawNameLength, Hash);
     }
 
-    inline int32 Add(const std::string& String)
+    inline StringTableAddResult Add(const std::string& String)
     {
         size_t LastDotIdx = String.find_last_of('.');
 

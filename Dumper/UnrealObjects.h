@@ -140,6 +140,7 @@ public:
 	std::string GetName() const;
 	std::string GetValidName() const;
 	std::string GetCppName() const;
+	std::string GetFullName(int32& OutNameLength);
 	std::string GetFullName() const;
 
 	explicit operator bool() const;

@@ -4,6 +4,8 @@
 #include "ObjectArray.h"
 #include "DependencyManager.h"
 
+#include "StringTable.h"
+
 namespace fs = std::filesystem;
 
 struct StructInfo {};
@@ -14,6 +16,8 @@ class GeneratorRewrite /* renamed to just 'Generator' once the legacy generator 
 {
 protected:
     static inline DependencyManager Packages;
+
+    static inline StringTable NameTable;
 
     static inline fs::path DumperFolder;
 
@@ -43,7 +47,7 @@ public:
         if (!SetupFolders(GeneratorType::MainFolderName, GeneratorType::MainFolder, GeneratorType::SubfolderName, GeneratorType::Subfolder))
             return;
 
-        GeneratorType::Generate(Packages);
+        GeneratorType::Generate(NameTable, Packages);
     };
 
 protected:

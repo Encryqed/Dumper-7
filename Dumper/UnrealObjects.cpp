@@ -308,6 +308,28 @@ std::string UEObject::GetCppName() const
 	return 'F' + Temp;
 }
 
+std::string UEObject::GetFullName(int32& OutNameLength)
+{
+	if (*this)
+	{
+		std::string Temp;
+
+		for (UEObject Outer = GetOuter(); Outer; Outer = Outer.GetOuter())
+		{
+			Temp = Outer.GetName() + "." + Temp;
+		}
+
+		std::string Name = GetName();
+		OutNameLength = Name.size() + 1;
+
+		Name = GetClass().GetName() + " " + Temp + Name;
+
+		return Name;
+	}
+
+	return "None";
+}
+
 std::string UEObject::GetFullName() const
 {
 	if (*this)
