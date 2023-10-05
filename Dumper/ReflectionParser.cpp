@@ -1,16 +1,15 @@
 #include "ReflectionParser.h"
 
-MemberNode ReflectionParser::ParseMemberNode(UEProperty Property)
+MemberNode ReflectionParser::ParseMemberNode(StringTable& Names, UEProperty Property)
 {
 	return MemberNode();
 }
 
-StructNode ReflectionParser::ParseStructNode(UEStruct Struct)
+StructNode ReflectionParser::ParseStructNode(StringTable& Names, UEStruct Struct)
 {
 	StructNode OutNode;
 
-	OutNode.RawName = Struct.GetName();
-	OutNode.FullName = Struct.GetFullName();
+	//OutNode.FullName = Names.FindOrAdd(Struct.GetFullName());
 	OutNode.Size = Struct.GetStructSize();
 
 	auto It = UEStruct::StructSizes.find(Struct.GetIndex());
@@ -23,17 +22,17 @@ StructNode ReflectionParser::ParseStructNode(UEStruct Struct)
 	return StructNode();
 }
 
-StructNode ReflectionParser::ParseClassNode(UEClass Class)
+StructNode ReflectionParser::ParseClassNode(StringTable& Names, UEClass Class)
 {
 	return StructNode();
 }
 
-EnumNode ReflectionParser::ParseEnumNode(UEEnum Class)
+EnumNode ReflectionParser::ParseEnumNode(StringTable& Names, UEEnum Class)
 {
 	return EnumNode();
 }
 
-FunctionNode ReflectionParser::ParseFunctionNode(UEFunction Function)
+FunctionNode ReflectionParser::ParseFunctionNode(StringTable& Names, UEFunction Function)
 {
 	return FunctionNode();
 }

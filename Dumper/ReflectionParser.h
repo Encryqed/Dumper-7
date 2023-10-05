@@ -2,6 +2,9 @@
 #include "ObjectArray.h"
 #include "Nodes.h"
 
+class StringTable
+{
+};
 
 class ReflectionParser
 {
@@ -9,9 +12,9 @@ private:
 	friend class GeneratorBase;
 
 private:
-	static MemberNode ParseMemberNode(UEProperty Property);
-	static StructNode ParseStructNode(UEStruct Struct);
-	static StructNode ParseClassNode(UEClass Class);
-	static EnumNode ParseEnumNode(UEEnum Class);
-	static FunctionNode ParseFunctionNode(UEFunction Function);
+	static MemberNode ParseMemberNode(StringTable& Names, UEProperty Property);
+	static StructNode ParseStructNode(StringTable& Names, UEStruct Struct);
+	static StructNode ParseClassNode(StringTable& Names, UEClass Class);
+	static EnumNode ParseEnumNode(StringTable& Names, UEEnum Class);
+	static FunctionNode ParseFunctionNode(StringTable& Names, UEFunction Function);
 };

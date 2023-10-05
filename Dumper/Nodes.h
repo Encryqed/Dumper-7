@@ -1,6 +1,7 @@
 #pragma once
 #include "ObjectArray.h"
 
+
 struct MemberNode
 {
 	std::string Type;
@@ -29,6 +30,16 @@ struct ParamNode : public MemberNode
 
 struct UniqueNameBase
 {
+	/* full name --> "Class Engine.PlayerController", can be used to retreive RawName --> "PlayerController" */
+	//StringTableIndex FullName;
+
+	/* prefixed name --> eg. "Some+Class" -> "ASome_Class" */
+	//StringTableIndex PrefixedName;
+
+	/* name of package --> eg. "CoreUObject" */
+	//StringTableIndex PackageName;
+
+
 	/* "unedited" name --> eg. "PlayerController", "Vector", "ENetRole" */
 	std::string RawName;
 

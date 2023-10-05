@@ -144,5 +144,11 @@
     <ClInclude Include="StringTableTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
+    <ClInclude Include="HashStringTable.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="HashStringTableTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

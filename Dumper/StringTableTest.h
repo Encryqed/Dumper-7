@@ -33,7 +33,7 @@ public:
 
 				Names.push_back(Obj.GetName());
 				FullNames.push_back(FullName);
-				Desk.Add(FullName.c_str(), (FullName.size() - RawNameSize), RawNameSize);
+				Desk.FindOrAdd(FullName.c_str(), (FullName.size() - RawNameSize), RawNameSize);
 			}
 		}
 
@@ -74,10 +74,10 @@ public:
 			{
 				std::string UniqueName = Obj.GetCppName();
 
-				if (Desk.Add(UniqueName).bAddedNew)
+				if (Desk.FindOrAdd(UniqueName).bAddedNew)
 					UniqueNames.push_back(UniqueName);
 
-				if (Desk.Add(UniqueName).bAddedNew)
+				if (Desk.FindOrAdd(UniqueName).bAddedNew)
 					std::cout << "Added duplicate: \"" << UniqueName << "\"\n";
 
 				if (rand() % 4 == 0)
@@ -87,7 +87,7 @@ public:
 
 		for (auto& Dupliate : RandomNamesToDuplicate)
 		{
-			if (Desk.Add(Dupliate).bAddedNew)
+			if (Desk.FindOrAdd(Dupliate).bAddedNew)
 				std::cout << "Added duplicate: \"" << Dupliate << "\"\n";
 		}
 

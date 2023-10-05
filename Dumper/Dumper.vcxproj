@@ -160,6 +160,8 @@
     <ClInclude Include="FileWriter.h" />
     <ClInclude Include="Generator.h" />
     <ClInclude Include="GeneratorRewrite.h" />
+    <ClInclude Include="HashStringTable.h" />
+    <ClInclude Include="HashStringTableTest.h" />
     <ClInclude Include="Nodes.h" />
     <ClInclude Include="ObjectArray.h" />
     <ClInclude Include="OffsetFinder.h" />
@@ -167,8 +169,18 @@
     <ClInclude Include="Package.h" />
     <ClInclude Include="ReflectionParser.h" />
     <ClInclude Include="Settings.h" />
-    <ClInclude Include="StringTable.h" />
-    <ClInclude Include="StringTableTest.h" />
+    <ClInclude Include="StringTable.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="StringTableTest.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="Types.h" />
     <ClInclude Include="NameArray.h" />
     <ClInclude Include="UnrealObjects.h" />
