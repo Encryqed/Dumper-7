@@ -2,6 +2,7 @@
 #include <filesystem>
 #include "DependencyManager.h"
 #include "Nodes.h"
+#include "HashStringTable.h"
 
 namespace fs = std::filesystem;
 
@@ -19,11 +20,12 @@ class CppGenerator
 {
 private:
     friend class CppGeneratorTest;
+    friend class Generator;
 
 private:
     using StreamType = std::stringstream /*current config: debug, default: std::ofstream*/;
 
-private:
+public:
     static inline std::string MainFolderName = "CppSDK";
     static inline std::string SubfolderName = "SDK";
 
@@ -42,7 +44,7 @@ private:
     static void GenerateFunction(StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function);
 
 public:
-    static void Generate(const DependencyManager& Dependencies);
+    static void Generate(const HashStringTable& NameTable, const DependencyManager& Dependencies);
 
     static void InitPredefinedMembers();
     static void InitPredefinedFunctions();

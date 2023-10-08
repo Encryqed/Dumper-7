@@ -1,6 +1,6 @@
 #pragma once
-#include "HashStringTable.h"
 #include "ObjectArray.h"
+#include "HashStringTable.h"
 
 #include <iostream>
 
@@ -54,8 +54,18 @@ public:
 
 				if (Desktop.FindOrAdd(UniqueName).second)
 					UniqueNames.push_back(UniqueName);
+			}
 
-				if (Desktop.FindOrAdd(UniqueName).second)
+			if (Obj.IsA(EClassCastFlags::Struct))
+			{
+				std::string UniqueName = Obj.GetCppName();
+
+				auto [Index, bAddedElement] = Desktop.FindOrAdd(UniqueName, true);
+
+				if (bAddedElement)
+					UniqueNames.push_back(UniqueName);
+
+				if (Desktop.FindOrAdd(UniqueName, true).second)
 					std::cout << "Added duplicate: \"" << UniqueName << "\"\n";
 
 				if (rand() % 4 == 0)
@@ -65,21 +75,41 @@ public:
 
 		for (auto& Dupliate : RandomNamesToDuplicate)
 		{
-			if (Desktop.FindOrAdd(Dupliate).second)
+			if (Desktop.FindOrAdd(Dupliate, true).second)
 				std::cout << "Added duplicate: \"" << Dupliate << "\"\n";
 		}
+		double AverageNumStrCompAvoided = 0.0;
+		uint64_t NumAvoidedStingComparisons = 0x0;
+		uint64_t TotalIterations = 0x0;
 
-		for (const StringEntry& Entry : Desktop)
+		for (auto& UniqueName : UniqueNames)
 		{
-			if (Entry.GetUniqueName() == "FSetToggle")
-				std::cout << std::endl; // break;
+			uint8 Hash = SmallPearsonHash(UniqueName.c_str());
+			int32 Length = UniqueName.size();
 
-			if (Entry.GetFullName().length() >= 1024)
-				std::cout << std::endl; // break;
+			int32 CurrNumStrCompAvoided = 0x0;
 
+			const auto& CurrentBucket = Desktop.GetBucket(Hash);
 
-			std::cout << "Hash: " << std::dec << +Entry.GetHash() << "\n";
-			std::cout << "Entry: " << Entry.GetUniqueName() << std::endl;
+			for (auto It = HashStringTable::HashBucketIterator::beginChecked(CurrentBucket); It != HashStringTable::HashBucketIterator::end(CurrentBucket); ++It, TotalIterations++)
+			{
+				const StringEntry& Entry = *It;
+
+				const bool bStringsAreEqual = Entry.GetUniqueName() != UniqueName;
+
+				if (Entry.Length != Length)
+					NumAvoidedStingComparisons++;
+			}
+
+			AverageNumStrCompAvoided = (AverageNumStrCompAvoided + CurrNumStrCompAvoided) / 2.0;
 		}
+
+		std::cout << "\n" << std::endl;
+		std::cout << "Total iterationss: 0x" << TotalIterations << std::endl;
+		std::cout << "Total string-comparisons: 0x" << (TotalIterations - NumAvoidedStingComparisons) << std::endl;
+		std::cout << "Percentage avoided: " << (NumAvoidedStingComparisons / static_cast<double>(TotalIterations)) << std::endl;
+		std::cout << "\n" << std::endl;
+
+		std::cout << __FUNCTION__ << ": Everything is fine!" << std::endl;
 	}
 };

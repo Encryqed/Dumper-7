@@ -4,9 +4,12 @@
 #include <fstream>
 #include "Generator.h"
 
+#include "HashStringTableTest.h"
+
+#include "GeneratorRewrite.h"
+
 #include "CppGeneratorTest.h"
 //#include "StringTableTest.h"
-#include "HashStringTableTest.h"
 
 enum class EFortToastType : uint8
 {
@@ -52,6 +55,8 @@ DWORD MainThread(HMODULE Module)
 
 	//StringTableTest::TestAll();
 	HashStringTableTest::TestAll();
+
+	GeneratorRewrite::Generate<CppGenerator>();
 
 	//Generator::GenerateSDK();
 	//Generator::GenerateMappings();

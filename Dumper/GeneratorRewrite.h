@@ -3,8 +3,7 @@
 
 #include "ObjectArray.h"
 #include "DependencyManager.h"
-
-#include "StringTable.h"
+#include "HashStringTable.h"
 
 namespace fs = std::filesystem;
 
@@ -17,7 +16,7 @@ class GeneratorRewrite /* renamed to just 'Generator' once the legacy generator 
 protected:
     static inline DependencyManager Packages;
 
-    static inline StringTable NameTable;
+    static inline HashStringTable NameTable;
 
     static inline fs::path DumperFolder;
 
@@ -36,7 +35,7 @@ private:
 
 public:
     template<typename GeneratorType>
-    static void GenerateSDK() 
+    static void Generate() 
     { 
         if (DumperFolder.empty())
         {

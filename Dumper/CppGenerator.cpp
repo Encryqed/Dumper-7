@@ -24,6 +24,7 @@ std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 Pad
 std::string CppGenerator::GenerateMembers(const std::vector<MemberNode>& Members, int32 SuperSize)
 {
 	constexpr int EstimatedCharactersPerLine = 0x80;
+	constexpr int NumBitsInBytePlusOne = 0x9;
 
 	if (Members.empty())
 		return "";
@@ -41,15 +42,11 @@ std::string CppGenerator::GenerateMembers(const std::vector<MemberNode>& Members
 	{
 		std::string Comment = std::format("0x{:X}(0x{:X})({})", Member.Offset, Member.Size, StringifyPropertyFlags(Member.PropertyFlags));
 
-		if (Member.Offset >= PrevPropertyEnd && bLastPropertyWasBitField && PrevBoolPropertyBit != 9)
-		{
-			OutMembers += GenerateBitPadding(Member.Offset, 9 - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]");
-		}
+		if (Member.Offset >= PrevPropertyEnd && bLastPropertyWasBitField && PrevBoolPropertyBit != NumBitsInBytePlusOne)
+			OutMembers += GenerateBitPadding(Member.Offset, NumBitsInBytePlusOne - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]");
 
 		if (Member.Offset > PrevPropertyEnd)
-		{
 			OutMembers += GenerateBytePadding(PrevPropertyEnd, Member.Offset - PrevPropertyEnd, "Fixing Size After Last Property  [ Dumper-7 ]");
-		}
 
 		bLastPropertyWasBitField = Member.bIsBitField;
 
@@ -96,17 +93,6 @@ struct {}{}
 		StructFile << "public:\n" + GenerateMembers(Struct.Members, Struct.SuperSize);
 
 	StructFile << "};\n";
-
-//	StructFile << std::format(
-//		R"(
-//// 0x{:X} (0x{:X} - 0x{:X})
-//// {}
-//struct {}{}
-//{{
-//public:
-//{}
-//}};)", Struct.Size - Struct.SuperSize, Struct.Size, Struct.SuperSize, Struct.FullName, 
-//	   UniqueName, (Struct.Super ? ": public " + UniqueSuperName : ""), GenerateMembers(Struct.Members, Struct.SuperSize));
 }
 
 void CppGenerator::GenerateClass(StreamType& ClassFile, const StructNode& Class)
@@ -119,7 +105,7 @@ void CppGenerator::GenerateFunction(StreamType& FunctionFile, std::ofstream& Par
 
 }
 
-void CppGenerator::Generate(const DependencyManager& Dependencies)
+void CppGenerator::Generate(const HashStringTable& NameTable, const DependencyManager& Dependencies)
 {
 
 }
