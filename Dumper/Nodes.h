@@ -1,6 +1,6 @@
 #pragma once
 #include "ObjectArray.h"
-
+#include "HashStringTable.h"
 
 struct MemberNode
 {
@@ -31,26 +31,32 @@ struct ParamNode : public MemberNode
 struct UniqueNameBase
 {
 	/* full name --> "Class Engine.PlayerController", can be used to retreive RawName --> "PlayerController" */
-	//StringTableIndex FullName;
+	HashStringTableIndex FullName;
 
 	/* prefixed name --> eg. "Some+Class" -> "ASome_Class" */
-	//StringTableIndex PrefixedName;
+	HashStringTableIndex PrefixedName;
 
 	/* name of package --> eg. "CoreUObject" */
-	//StringTableIndex PackageName;
+	HashStringTableIndex PackageName;
 
+	inline const StringEntry& GetFullNameEntry(const HashStringTable& Names) const { return Names.GetStringEntry(FullName); }
+	inline const StringEntry& GetRawNameEntry(const HashStringTable& Names) const { return Names.GetStringEntry(FullName); }
+
+	inline const StringEntry& GetPrefixedNameEntry(const HashStringTable& Names) const { return Names.GetStringEntry(PrefixedName); }
+
+	inline const StringEntry& GetPackageNameEntry(const HashStringTable& Names) const { return Names.GetStringEntry(PackageName); }
 
 	/* "unedited" name --> eg. "PlayerController", "Vector", "ENetRole" */
-	std::string RawName;
+	//std::string RawName;
 
 	/* prefixed name --> eg. "Some+Class" -> "ASome_Class" */
-	std::string PrefixedName;
+	//std::string PrefixedName;
 
 	/* unique name --> empty if name is unique, else package name  */
-	std::string UniqueNamePrefix;
+	//std::string UniqueNamePrefix;
 
 	/* full name --> "Class Engine.PlayerController" */
-	std::string FullName;
+	//std::string FullName;
 };
 
 struct EnumNode : public UniqueNameBase

@@ -1,10 +1,7 @@
 #pragma once
 #include "ObjectArray.h"
 #include "Nodes.h"
-
-class StringTable
-{
-};
+#include "HashStringTable.h"
 
 class ReflectionParser
 {
@@ -12,9 +9,9 @@ private:
 	friend class GeneratorBase;
 
 private:
-	static MemberNode ParseMemberNode(StringTable& Names, UEProperty Property);
-	static StructNode ParseStructNode(StringTable& Names, UEStruct Struct);
-	static StructNode ParseClassNode(StringTable& Names, UEClass Class);
-	static EnumNode ParseEnumNode(StringTable& Names, UEEnum Class);
-	static FunctionNode ParseFunctionNode(StringTable& Names, UEFunction Function);
+	static MemberNode ParseMemberNode(HashStringTable& Names, UEProperty Property);
+	static StructNode ParseStructNode(HashStringTable& Names, UEStruct Struct);
+	static StructNode ParseClassNode(HashStringTable& Names, UEClass Class);
+	static EnumNode ParseEnumNode(HashStringTable& Names, UEEnum Class);
+	static FunctionNode ParseFunctionNode(HashStringTable& Names, UEFunction Function);
 };

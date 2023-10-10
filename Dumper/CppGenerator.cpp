@@ -21,7 +21,7 @@ std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 Pad
 	return MakeMemberString("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::move(Reason));
 }
 
-std::string CppGenerator::GenerateMembers(const std::vector<MemberNode>& Members, int32 SuperSize)
+std::string CppGenerator::GenerateMembers(const HashStringTable& NameTable, const std::vector<MemberNode>& Members, int32 SuperSize)
 {
 	constexpr int EstimatedCharactersPerLine = 0x80;
 	constexpr int NumBitsInBytePlusOne = 0x9;
@@ -73,36 +73,42 @@ std::string CppGenerator::GenerateMembers(const std::vector<MemberNode>& Members
 	return OutMembers;
 }
 
-void CppGenerator::GenerateStruct(StreamType& StructFile, const StructNode& Struct)
+void CppGenerator::GenerateStruct(const HashStringTable& NameTable, StreamType& StructFile, const StructNode& Struct)
 {
-	std::string UniqueName = Struct.UniqueNamePrefix.empty() ? Struct.PrefixedName : Struct.UniqueNamePrefix + "::" + Struct.PrefixedName;
+	std::string UniqueName = GetStructPrefixedName(NameTable, Struct);
 	std::string UniqueSuperName;
 
 	if (Struct.Super)
-		UniqueSuperName = Struct.Super->UniqueNamePrefix.empty() ? Struct.Super->PrefixedName : Struct.Super->UniqueNamePrefix + "::" + Struct.Super->PrefixedName;
-
+		UniqueSuperName = GetStructPrefixedName(NameTable, *Struct.Super);
 
 	StructFile << std::format(R"(
 // 0x{:X} (0x{:X} - 0x{:X})
 // {}
 struct {}{}
 {{
-)", Struct.Size - Struct.SuperSize, Struct.Size, Struct.SuperSize, Struct.FullName, UniqueName, Struct.Super ? (" : public " + UniqueSuperName) : "");
+)", Struct.Size - Struct.SuperSize, Struct.Size, Struct.SuperSize, Struct.GetFullNameEntry(NameTable).GetFullName(), UniqueName, Struct.Super ? (" : public " + UniqueSuperName) : "");
 
 	if (!Struct.Members.empty())
-		StructFile << "public:\n" + GenerateMembers(Struct.Members, Struct.SuperSize);
+		StructFile << "public:\n" + GenerateMembers(NameTable, Struct.Members, Struct.SuperSize);
 
 	StructFile << "};\n";
 }
 
-void CppGenerator::GenerateClass(StreamType& ClassFile, const StructNode& Class)
+void CppGenerator::GenerateClass(const HashStringTable& NameTable, StreamType& ClassFile, const StructNode& Class)
 {
 
 }
 
-void CppGenerator::GenerateFunction(StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function)
+void CppGenerator::GenerateFunction(const HashStringTable& NameTable, StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function)
 {
 
+}
+
+std::string CppGenerator::GetStructPrefixedName(const HashStringTable& NameTable, const StructNode& Struct)
+{
+	const StringEntry& UniqueNameEntry = Struct.GetPrefixedNameEntry(NameTable);
+
+	return UniqueNameEntry.IsUnique() ? UniqueNameEntry.GetUniqueName() : Struct.GetPackageNameEntry(NameTable).GetRawName() + "::" + UniqueNameEntry.GetUniqueName();
 }
 
 void CppGenerator::Generate(const HashStringTable& NameTable, const DependencyManager& Dependencies)

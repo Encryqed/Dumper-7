@@ -2,6 +2,7 @@
 #include "Enums.h"
 
 #include <cassert>
+#include <format>
 
 
 static constexpr uint8_t FiveBitPermutation[32] = {
@@ -73,14 +74,20 @@ public:
 
     inline uint8 GetHash() const { return Hash; }
 
-    inline std::string_view GetRawName() const { return Char + Length; }
-    inline std::wstring_view GetWideRawName() const { return WChar + Length; }
+    inline std::string GetRawName() const { return Char + Length; }
+    inline std::wstring GetWideRawName() const { return WChar + Length; }
+    inline std::string_view GetRawNameView() const { return Char + Length; }
+    inline std::wstring_view GetWideRawNameView() const { return WChar + Length; }
 
-    inline std::string_view GetUniqueName() const { return Char; }
-    inline std::wstring_view GetWideUniqueName() const { return WChar; }
+    inline std::string GetUniqueName() const { return Char; }
+    inline std::wstring GetWideUniqueName() const { return WChar; }
+    inline std::string_view GetUniqueNameView() const { return Char; }
+    inline std::wstring_view GetWideUniqueNameView() const { return WChar; }
 
-    inline std::string_view GetFullName() const { return Char; }
-    inline std::wstring_view GetWideFullName() const { return WChar; }
+    inline std::string GetFullName() const { return Char; }
+    inline std::wstring GetWideFullName() const { return WChar; }
+    inline std::string_view GetFullNameView() const { return Char; }
+    inline std::wstring_view GetWideFullNameView() const { return WChar; }
 };
 
 template<typename CharType>
@@ -137,9 +144,7 @@ private:
     StringBucket Buckets[NumBuckets];
 
 public:
-    HashStringTable() = default;
-
-    HashStringTable(uint32 PerBucketPerSectionSize)
+    HashStringTable(uint32 PerBucketPerSectionSize = 0x5000)
     {
         if (PerBucketPerSectionSize < 0x5000)
             PerBucketPerSectionSize = 0x5000;
@@ -387,7 +392,10 @@ public:
 
         const StringBucket& Bucket = Buckets[Index.HashIndex];
 
-        assert(Index.InBucketOffset > 0 && Index.InBucketOffset < (Bucket.UncheckedSizeMax + Bucket.CheckedSize) && "InBucketIndex was out of range!");
+        assert(Index.InBucketOffset >= 0 && Index.InBucketOffset < (Bucket.UncheckedSizeMax + Bucket.CheckedSize) && "InBucketIndex was out of range!");
+
+        if (Index.bIsChecked)
+            return  *reinterpret_cast<StringEntry*>(Bucket.Data + Bucket.UncheckedSizeMax + Index.InBucketOffset);
 
         return *reinterpret_cast<StringEntry*>(Bucket.Data + Index.InBucketOffset);
     }

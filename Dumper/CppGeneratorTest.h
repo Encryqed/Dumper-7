@@ -72,11 +72,12 @@ public:
 
 	static void GenerateStructTest()
 	{
+		HashStringTable NameTable;
+
 		StructNode SuperNode;
-		SuperNode.RawName = "MaterialInput";
-		SuperNode.PrefixedName = "FMaterialInput";
-		SuperNode.UniqueNamePrefix = "";
-		SuperNode.FullName = "ScriptStruct Engine.MaterialInput";
+		SuperNode.FullName = NameTable.FindOrAdd("ScriptStruct Engine.MaterialInput").first;
+		SuperNode.PrefixedName = NameTable.FindOrAdd("FMaterialInput", true).first;
+		SuperNode.PackageName = NameTable.FindOrAdd("Engine").first;
 
 		SuperNode.Size = 0xC;
 		SuperNode.SuperSize = 0x0;
@@ -92,10 +93,9 @@ public:
 		SuperNode.Functions = {};
 
 		StructNode Node;
-		Node.RawName = "ScalarMaterialInput";
-		Node.PrefixedName = "FScalarMaterialInput";
-		Node.UniqueNamePrefix = "";
-		Node.FullName = "ScriptStruct Engine.ScalarMaterialInput";
+		Node.FullName = NameTable.FindOrAdd("ScriptStruct Engine.ScalarMaterialInput").first;
+		Node.PrefixedName = NameTable.FindOrAdd("FScalarMaterialInput", true).first;
+		Node.PackageName = NameTable.FindOrAdd("Engine").first;
 
 		Node.Size = 0xC;
 		Node.SuperSize = 0xC;
@@ -106,7 +106,7 @@ public:
 		Node.Functions = {};
 
 		std::stringstream OutStream;
-		CppGenerator::GenerateStruct(OutStream, Node);
+		CppGenerator::GenerateStruct(NameTable, OutStream, Node);
 		std::string Result = OutStream.str();
 		std::string Expected = 
 R"(
@@ -120,7 +120,7 @@ struct FScalarMaterialInput : public FMaterialInput
 		CHECK_RESULT(Result, Expected);
 
 		std::stringstream OutStream2;
-		CppGenerator::GenerateStruct(OutStream2, SuperNode);
+		CppGenerator::GenerateStruct(NameTable, OutStream2, SuperNode);
 		std::string Result2 = OutStream2.str();
 		std::string Expected2 =
 			R"(
@@ -136,10 +136,9 @@ public:
 		CHECK_RESULT(Result2, Expected2);
 
 		StructNode VectorNode;
-		VectorNode.RawName = "Vector";
-		VectorNode.PrefixedName = "FVector";
-		VectorNode.UniqueNamePrefix = "CoreUObject";
-		VectorNode.FullName = "ScriptStruct CoreUObject.Vector";
+		SuperNode.FullName = NameTable.FindOrAdd("ScriptStruct CoreUObject.Vector").first;
+		SuperNode.PrefixedName = NameTable.FindOrAdd("FVector", true).first;
+		SuperNode.PackageName = NameTable.FindOrAdd("CoreUObject").first;
 
 		VectorNode.Size = 0xC;
 		VectorNode.SuperSize = 0x0;
