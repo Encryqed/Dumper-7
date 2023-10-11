@@ -105,18 +105,35 @@ inline int32 Strcmp(const CharType* String, const StringEntry& Entry)
 
 struct HashStringTableIndex
 {
+public:
+    static inline uint32 InvalidIndex = -1;
+
+public:
     uint32 bIsChecked : 1;
     uint32 HashIndex : 5;
     uint32 InBucketOffset : 26;
+
+public:
+    inline HashStringTableIndex& operator=(uint32 Value)
+    {
+        *reinterpret_cast<uint32*>(this) = Value;
+
+        return *this;
+    }
 
     static inline HashStringTableIndex FromInt(int32 Idx)
     {
         return *reinterpret_cast<HashStringTableIndex*>(Idx);
     }
 
-    inline operator int32()
+    inline operator uint32() const
     {
-        return *reinterpret_cast<int32*>(this);
+        return *reinterpret_cast<const int32*>(this);
+    }
+
+    explicit inline operator bool() const
+    {
+        return *this != InvalidIndex;
     }
 };
 

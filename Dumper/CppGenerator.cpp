@@ -1,6 +1,7 @@
 #include "CppGenerator.h"
 
 
+
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
 {
 	return std::format("\t{:{}}{:{}} // {}\n", Type, 45, Name + ";", 50, std::move(Comment));
@@ -67,10 +68,15 @@ std::string CppGenerator::GenerateMembers(const HashStringTable& NameTable, cons
 		}
 
 		PrevPropertyEnd = Member.Offset + Member.Size;
-		OutMembers += MakeMemberString(Member.Type, Member.Name, std::move(Comment));
+		OutMembers += MakeMemberString(GetMemberTypeString(NameTable, Member), NameTable.GetStringEntry(Member.Name).GetUniqueName(), std::move(Comment));
 	}
 
 	return OutMembers;
+}
+
+std::string CppGenerator::GenerateFunctionInClass(const HashStringTable& NameTable, const std::vector<FunctionNode>& Functions)
+{
+
 }
 
 void CppGenerator::GenerateStruct(const HashStringTable& NameTable, StreamType& StructFile, const StructNode& Struct)
@@ -88,8 +94,22 @@ struct {}{}
 {{
 )", Struct.Size - Struct.SuperSize, Struct.Size, Struct.SuperSize, Struct.GetFullNameEntry(NameTable).GetFullName(), UniqueName, Struct.Super ? (" : public " + UniqueSuperName) : "");
 
-	if (!Struct.Members.empty())
-		StructFile << "public:\n" + GenerateMembers(NameTable, Struct.Members, Struct.SuperSize);
+	const bool bHasMembers = !Struct.Members.empty();
+	const bool bHasFunctions = !Struct.Functions.empty();
+
+	if (bHasMembers || bHasFunctions)
+		StructFile << "public:\n";
+
+	if (bHasMembers)
+	{
+		StructFile << GenerateMembers(NameTable, Struct.Members, Struct.SuperSize);
+
+		if (bHasFunctions)
+			StructFile << "\n\n";
+	}
+
+	if (bHasFunctions)
+		StructFile << "";
 
 	StructFile << "};\n";
 }
@@ -99,7 +119,7 @@ void CppGenerator::GenerateClass(const HashStringTable& NameTable, StreamType& C
 
 }
 
-void CppGenerator::GenerateFunction(const HashStringTable& NameTable, StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function)
+void CppGenerator::GenerateFunctionInCppFile(const HashStringTable& NameTable, StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function)
 {
 
 }
@@ -124,4 +144,130 @@ void CppGenerator::InitPredefinedMembers()
 void CppGenerator::InitPredefinedFunctions()
 {
 
+}
+
+std::string CppGenerator::GetMemberTypeString(const HashStringTable& NameTable, const MemberNode& Node)
+{
+	static constexpr const char* FormatStrings[static_cast<uint8>(EMappingsTypeFlags::FieldPathProperty)] = {
+		/*ByteProperty = */ "uint8"
+		/*BoolProperty = */ "bool"
+		/*IntProperty = */ "int"
+		/*FloatProperty = */ "float"
+	};
+
+	std::string InnerNamespaceName = Node.InnerTypeNameNamespace ? NameTable.GetStringEntry(Node.InnerTypeNameNamespace).GetUniqueName() + "::" : "";
+	std::string InnerTypeName = InnerNamespaceName + (Node.InnerTypeName ? NameTable.GetStringEntry(Node.InnerTypeName).GetUniqueName() : "");
+
+	Node.UnrealProperty.GetCppType();
+
+	return std::format(FormatStrings[static_cast<uint8>(Node.TypeFlags)], InnerTypeName);
+
+	if (TypeFlags & EClassCastFlags::ByteProperty)
+	{
+		return Cast<UEByteProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::UInt16Property)
+	{
+		return "uint16";
+	}
+	else if (TypeFlags & EClassCastFlags::UInt32Property)
+	{
+		return "uint32";
+	}
+	else if (TypeFlags & EClassCastFlags::UInt64Property)
+	{
+		return "uint64";
+	}
+	else if (TypeFlags & EClassCastFlags::Int8Property)
+	{
+		return "int8";
+	}
+	else if (TypeFlags & EClassCastFlags::Int16Property)
+	{
+		return "int16";
+	}
+	else if (TypeFlags & EClassCastFlags::IntProperty)
+	{
+		return "int32";
+	}
+	else if (TypeFlags & EClassCastFlags::Int64Property)
+	{
+		return "int64";
+	}
+	else if (TypeFlags & EClassCastFlags::FloatProperty)
+	{
+		return "float";
+	}
+	else if (TypeFlags & EClassCastFlags::DoubleProperty)
+	{
+		return "double";
+	}
+	else if (TypeFlags & EClassCastFlags::ClassProperty)
+	{
+		return Cast<UEClassProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::NameProperty)
+	{
+		return "class FName";
+	}
+	else if (TypeFlags & EClassCastFlags::StrProperty)
+	{
+		return "class FString";
+	}
+	else if (TypeFlags & EClassCastFlags::TextProperty)
+	{
+		return "class FText";
+	}
+	else if (TypeFlags & EClassCastFlags::BoolProperty)
+	{
+		return Cast<UEBoolProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::StructProperty)
+	{
+		return Cast<UEStructProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::ArrayProperty)
+	{
+		return Cast<UEArrayProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::WeakObjectProperty)
+	{
+		return Cast<UEWeakObjectProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::LazyObjectProperty)
+	{
+		return Cast<UELazyObjectProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::SoftClassProperty)
+	{
+		return Cast<UESoftClassProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::SoftObjectProperty)
+	{
+		return Cast<UESoftObjectProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::ObjectProperty)
+	{
+		return Cast<UEObjectProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::MapProperty)
+	{
+		return Cast<UEMapProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::SetProperty)
+	{
+		return Cast<UESetProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::EnumProperty)
+	{
+		return Cast<UEEnumProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::InterfaceProperty)
+	{
+		return Cast<UEInterfaceProperty>().GetCppType();
+	}
+	else
+	{
+		return (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";;
+	}
 }

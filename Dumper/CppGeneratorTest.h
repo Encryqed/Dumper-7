@@ -1,5 +1,6 @@
 #pragma once
 #include "CppGenerator.h"
+#include "HashStringTable.h"
 #include <cassert>
 
 #define CHECK_RESULT(Result, Expected) \
@@ -15,11 +16,12 @@ else \
 class CppGeneratorTest
 {
 private:
-	static inline MemberNode MakeMemberNode(const char* Type, const char* Name, int32 Offset, int32 Size, int32 ArrayDim = 0x1, EClassCastFlags Flags = EClassCastFlags::None, uint8 FieldMask = 0xFF)
+	static inline MemberNode MakeMemberNode(HashStringTable& NameTable, const char* Type, const char* Name, int32 Offset, int32 Size, int32 ArrayDim = 0x1, EClassCastFlags Flags = EClassCastFlags::None, uint8 FieldMask = 0xFF)
 	{
 		MemberNode Member;
-		Member.Type = Type;
-		Member.Name = Name;
+		Member.InnerTypeName = NameTable.FindOrAdd(Type, true).first;
+		Member.InnerTypeNameNamespace = HashStringTableIndex::InvalidIndex;
+		Member.Name = NameTable.FindOrAdd(Name).first;
 		Member.Offset = Offset;
 		Member.Size = Size;
 		Member.ArrayDim = ArrayDim;
@@ -85,8 +87,8 @@ public:
 		SuperNode.UnrealStruct = nullptr;
 		SuperNode.Super = nullptr;
 
-		MemberNode FirstMember = MakeMemberNode("int32", "OutputIndex", 0x0, 0x4);
-		MemberNode SecondMember = MakeMemberNode("class FName", "ExpressionName", 0x4, 0x8);
+		MemberNode FirstMember = MakeMemberNode(NameTable, "int32", "OutputIndex", 0x0, 0x4);
+		MemberNode SecondMember = MakeMemberNode(NameTable, "class FName", "ExpressionName", 0x4, 0x8);
 
 		SuperNode.Members = { std::move(FirstMember), std::move(SecondMember) };
 		std::sort(SuperNode.Members.begin(), SuperNode.Members.end(), [](const MemberNode& L, const MemberNode& R) { return L.Offset < R.Offset; });
@@ -145,7 +147,7 @@ public:
 
 		VectorNode.UnrealStruct = nullptr;
 		VectorNode.Super = nullptr;
-		VectorNode.Members = { MakeMemberNode("float", "X", 0x0, 0x4), MakeMemberNode("float", "Y", 0x4, 0x8), MakeMemberNode("float", "Z", 0x8, 0xC) };
+		VectorNode.Members = { MakeMemberNode(NameTable, "float", "X", 0x0, 0x4), MakeMemberNode(NameTable, "float", "Y", 0x4, 0x8), MakeMemberNode(NameTable, "float", "Z", 0x8, 0xC) };
 		VectorNode.Functions = {};
 
 		// FUNCTIONS

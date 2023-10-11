@@ -39,11 +39,14 @@ private:
     static std::string GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
 
     static std::string GenerateMembers(const HashStringTable& NameTable, const std::vector<MemberNode>& Members, int32 SuperSize);
+    static std::string GenerateFunctionInClass(const HashStringTable& NameTable, const std::vector<FunctionNode>& Functions);
+
     static void GenerateStruct(const HashStringTable& NameTable, StreamType& StructFile, const StructNode& Struct);
     static void GenerateClass(const HashStringTable& NameTable, StreamType& ClassFile, const StructNode& Class);
-    static void GenerateFunction(const HashStringTable& NameTable, StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function);
+    static void GenerateFunctionInCppFile(const HashStringTable& NameTable, StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function);
 
 private: /* utility functions */
+    static std::string GetMemberTypeString(const HashStringTable& NameTable, const MemberNode& Node);
     static std::string GetStructPrefixedName(const HashStringTable& NameTable, const StructNode& Struct);
 
 public:

@@ -4,21 +4,25 @@
 
 struct MemberNode
 {
-	std::string Type;
-	std::string Name;
+	HashStringTableIndex Name;
+	HashStringTableIndex InnerTypeName;
+	HashStringTableIndex InnerTypeNameNamespace;
 
 	int32 Offset;
 	int32 Size;
 	int32 ArrayDim = 0x1;
+
 	EObjectFlags ObjFlags = EObjectFlags::NoFlags;
 	EPropertyFlags PropertyFlags = EPropertyFlags::None;
 	EClassCastFlags CastFlags = EClassCastFlags::None;
+	EMappingsTypeFlags TypeFlags; // used by the generator for SDK types
+
 	bool bIsBitField = false;
 	uint8 BitFieldIndex = 0x0;
 	uint8 BitMask = 0xFF;
 
 	/* Prefer using other members instead of directly accessing UnrealProperty */
-	UEProperty* UnrealProperty = nullptr;
+	UEProperty UnrealProperty = nullptr;
 };
 
 struct ParamNode : public MemberNode
@@ -62,7 +66,7 @@ struct UniqueNameBase
 struct EnumNode : public UniqueNameBase
 {
 	/* Prefer using other members instead of directly accessing UnrealEnum */
-	UEEnum* UnrealEnum;
+	UEEnum UnrealEnum;
 
 	std::vector<std::pair<std::string, int32>> NameValuePairs;
 	int32 UnderlayingTypeSize;
@@ -77,7 +81,7 @@ struct StructNodeBase : public UniqueNameBase
 struct FunctionNode : public StructNodeBase
 {
 	/* [nullptr for PredefinedFunctions] Prefer using other members instead of directly accessing UnrealFunction */
-	UEFunction* UnrealFunction;
+	UEFunction UnrealFunction;
 
 	std::vector<ParamNode> Params;
 	class ClassNode* OuterClass;
@@ -90,7 +94,7 @@ struct FunctionNode : public StructNodeBase
 struct StructNode : public StructNodeBase
 {
 	/* Prefer using other members instead of directly accessing UnrealStruct */
-	UEStruct* UnrealStruct;
+	UEStruct UnrealStruct;
 	StructNode* Super;
 
 	/* Field for all Properties or PredefinedMembers */
