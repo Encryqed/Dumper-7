@@ -46,7 +46,7 @@ private:
     static void GenerateFunctionInCppFile(const HashStringTable& NameTable, StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function);
 
 private: /* utility functions */
-    static std::string GetMemberTypeString(const HashStringTable& NameTable, const MemberNode& Node);
+    static std::string GetMemberTypeString(const HashStringTable& NameTable, const MemberNode& CurrentNode, const std::vector<MemberNode>& Nodes, int32& InOutNodeIndex);
     static std::string GetStructPrefixedName(const HashStringTable& NameTable, const StructNode& Struct);
 
 public:

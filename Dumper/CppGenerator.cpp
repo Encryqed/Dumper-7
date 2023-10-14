@@ -7,7 +7,6 @@ std::string CppGenerator::MakeMemberString(const std::string& Type, const std::s
 	return std::format("\t{:{}}{:{}} // {}\n", Type, 45, Name + ";", 50, std::move(Comment));
 }
 
-
 std::string CppGenerator::GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
 	static uint32 PadNum = 0;
@@ -39,9 +38,12 @@ std::string CppGenerator::GenerateMembers(const HashStringTable& NameTable, cons
 	int PrevBoolPropertyEnd = 0;
 	int PrevBoolPropertyBit = 1;
 
-	for (const MemberNode& Member : Members)
+	// Iterate using indices becauase i gets modified by GetMemberTypeString to allow skipping "inner" properties. eg. Members[i] == ArrayProperty -> Members[i+1] == ArrayProperty::Inner
+	for (int i = 0; i < Members.size(); i++)
 	{
-		std::string Comment = std::format("0x{:X}(0x{:X})({})", Member.Offset, Member.Size, StringifyPropertyFlags(Member.PropertyFlags));
+		const MemberNode& Member = Members[i];
+
+		std::string Comment = std::format("0x{:04X}(0x{:04X})({})", Member.Offset, Member.Size, StringifyPropertyFlags(Member.PropertyFlags));
 
 		if (Member.Offset >= PrevPropertyEnd && bLastPropertyWasBitField && PrevBoolPropertyBit != NumBitsInBytePlusOne)
 			OutMembers += GenerateBitPadding(Member.Offset, NumBitsInBytePlusOne - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]");
@@ -53,7 +55,7 @@ std::string CppGenerator::GenerateMembers(const HashStringTable& NameTable, cons
 
 		if (Member.bIsBitField)
 		{
-			Comment = std::format("Mask: 0x{:X}, PropSize: 0x{:X} {}", Member.BitMask, Member.Size, Comment);
+			Comment = std::format("Mask: 0x{:02X}, PropSize: 0x{:04X} {}", Member.BitMask, Member.Size, Comment);
 
 			if (PrevBoolPropertyEnd < Member.Offset)
 				PrevBoolPropertyBit = 1;
@@ -68,7 +70,13 @@ std::string CppGenerator::GenerateMembers(const HashStringTable& NameTable, cons
 		}
 
 		PrevPropertyEnd = Member.Offset + Member.Size;
-		OutMembers += MakeMemberString(GetMemberTypeString(NameTable, Member), NameTable.GetStringEntry(Member.Name).GetUniqueName(), std::move(Comment));
+
+		std::string MemberName = NameTable[Member.Name].GetUniqueName();
+		
+		if (Member.ArrayDim > 1)
+			MemberName += std::format("[0x{:X}]", Member.ArrayDim);
+
+		OutMembers += MakeMemberString(GetMemberTypeString(NameTable, Member, Members, i /* gets modified */), MemberName, std::move(Comment));
 	}
 
 	return OutMembers;
@@ -76,7 +84,7 @@ std::string CppGenerator::GenerateMembers(const HashStringTable& NameTable, cons
 
 std::string CppGenerator::GenerateFunctionInClass(const HashStringTable& NameTable, const std::vector<FunctionNode>& Functions)
 {
-
+	return "CppGenerator::GenerateFunctionInClass";
 }
 
 void CppGenerator::GenerateStruct(const HashStringTable& NameTable, StreamType& StructFile, const StructNode& Struct)
@@ -88,7 +96,7 @@ void CppGenerator::GenerateStruct(const HashStringTable& NameTable, StreamType& 
 		UniqueSuperName = GetStructPrefixedName(NameTable, *Struct.Super);
 
 	StructFile << std::format(R"(
-// 0x{:X} (0x{:X} - 0x{:X})
+// 0x{:04X} (0x{:04X} - 0x{:04X})
 // {}
 struct {}{}
 {{
@@ -146,128 +154,133 @@ void CppGenerator::InitPredefinedFunctions()
 
 }
 
-std::string CppGenerator::GetMemberTypeString(const HashStringTable& NameTable, const MemberNode& Node)
+std::string CppGenerator::GetMemberTypeString(const HashStringTable& NameTable, const MemberNode& CurrentNode, const std::vector<MemberNode>& Nodes, int32& InOutNodeIndex)
 {
-	static constexpr const char* FormatStrings[static_cast<uint8>(EMappingsTypeFlags::FieldPathProperty)] = {
-		/*ByteProperty = */ "uint8"
-		/*BoolProperty = */ "bool"
-		/*IntProperty = */ "int"
-		/*FloatProperty = */ "float"
+	static auto GetInnnerPropertyType = [](const HashStringTable& NameTable, const std::vector<MemberNode>& Nodes, int32& InOutNodeIndex)-> std::string
+	{
+		/* Modifies index to retreive inner properties such as UEArrayProperty::InnerProperty*/
+		InOutNodeIndex++;
+		const MemberNode& InnerProperty = Nodes[InOutNodeIndex];
+		return GetMemberTypeString(NameTable, InnerProperty, Nodes, InOutNodeIndex);
 	};
 
-	std::string InnerNamespaceName = Node.InnerTypeNameNamespace ? NameTable.GetStringEntry(Node.InnerTypeNameNamespace).GetUniqueName() + "::" : "";
-	std::string InnerTypeName = InnerNamespaceName + (Node.InnerTypeName ? NameTable.GetStringEntry(Node.InnerTypeName).GetUniqueName() : "");
+	std::string CustomTypeNameNamespace = CurrentNode.CustomTypeNameNamespace ? NameTable[CurrentNode.CustomTypeNameNamespace].GetUniqueName() + "::" : "";
+	std::string CustomTypeName = CustomTypeNameNamespace + (CurrentNode.CustomTypeName ? NameTable[CurrentNode.CustomTypeName].GetUniqueName() : "");
 
-	Node.UnrealProperty.GetCppType();
 
-	return std::format(FormatStrings[static_cast<uint8>(Node.TypeFlags)], InnerTypeName);
-
-	if (TypeFlags & EClassCastFlags::ByteProperty)
+	if (CurrentNode.CastFlags & EClassCastFlags::ByteProperty)
 	{
-		return Cast<UEByteProperty>().GetCppType();
+		return CurrentNode.CustomTypeName ? CustomTypeName : "uint8";
 	}
-	else if (TypeFlags & EClassCastFlags::UInt16Property)
+	else if (CurrentNode.CastFlags & EClassCastFlags::UInt16Property)
 	{
 		return "uint16";
 	}
-	else if (TypeFlags & EClassCastFlags::UInt32Property)
+	else if (CurrentNode.CastFlags & EClassCastFlags::UInt32Property)
 	{
 		return "uint32";
 	}
-	else if (TypeFlags & EClassCastFlags::UInt64Property)
+	else if (CurrentNode.CastFlags & EClassCastFlags::UInt64Property)
 	{
 		return "uint64";
 	}
-	else if (TypeFlags & EClassCastFlags::Int8Property)
+	else if (CurrentNode.CastFlags & EClassCastFlags::Int8Property)
 	{
 		return "int8";
 	}
-	else if (TypeFlags & EClassCastFlags::Int16Property)
+	else if (CurrentNode.CastFlags & EClassCastFlags::Int16Property)
 	{
 		return "int16";
 	}
-	else if (TypeFlags & EClassCastFlags::IntProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::IntProperty)
 	{
 		return "int32";
 	}
-	else if (TypeFlags & EClassCastFlags::Int64Property)
+	else if (CurrentNode.CastFlags & EClassCastFlags::Int64Property)
 	{
 		return "int64";
 	}
-	else if (TypeFlags & EClassCastFlags::FloatProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::FloatProperty)
 	{
 		return "float";
 	}
-	else if (TypeFlags & EClassCastFlags::DoubleProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::DoubleProperty)
 	{
 		return "double";
 	}
-	else if (TypeFlags & EClassCastFlags::ClassProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::ClassProperty)
 	{
-		return Cast<UEClassProperty>().GetCppType();
+		if (CurrentNode.PropertyFlags & EPropertyFlags::UObjectWrapper)
+			return std::format("TSubclassOf<class {}>", CustomTypeName);
+
+		return "class UClass*";
 	}
-	else if (TypeFlags & EClassCastFlags::NameProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::NameProperty)
 	{
 		return "class FName";
 	}
-	else if (TypeFlags & EClassCastFlags::StrProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::StrProperty)
 	{
 		return "class FString";
 	}
-	else if (TypeFlags & EClassCastFlags::TextProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::TextProperty)
 	{
 		return "class FText";
 	}
-	else if (TypeFlags & EClassCastFlags::BoolProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::BoolProperty)
 	{
-		return Cast<UEBoolProperty>().GetCppType();
+		return CurrentNode.bIsBitField ? "uint8" : "bool";
 	}
-	else if (TypeFlags & EClassCastFlags::StructProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::StructProperty)
 	{
-		return Cast<UEStructProperty>().GetCppType();
+		return std::format("struct {}", CustomTypeName);
 	}
-	else if (TypeFlags & EClassCastFlags::ArrayProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::ArrayProperty)
 	{
-		return Cast<UEArrayProperty>().GetCppType();
+		return std::format("TArray<{}>", GetInnnerPropertyType(NameTable, Nodes, InOutNodeIndex));
 	}
-	else if (TypeFlags & EClassCastFlags::WeakObjectProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::WeakObjectProperty)
 	{
-		return Cast<UEWeakObjectProperty>().GetCppType();
+		return std::format("TWeakObjectPtr<class {}>", CustomTypeName);
 	}
-	else if (TypeFlags & EClassCastFlags::LazyObjectProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::LazyObjectProperty)
 	{
-		return Cast<UELazyObjectProperty>().GetCppType();
+		return std::format("TLazyObjectPtr<class {}>", CustomTypeName);
 	}
-	else if (TypeFlags & EClassCastFlags::SoftClassProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::SoftClassProperty)
 	{
-		return Cast<UESoftClassProperty>().GetCppType();
+		return std::format("TSoftClassPtr<class {}>", CustomTypeName);
 	}
-	else if (TypeFlags & EClassCastFlags::SoftObjectProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::SoftObjectProperty)
 	{
-		return Cast<UESoftObjectProperty>().GetCppType();
+		return std::format("TSoftObjectPtr<class {}>", CustomTypeName);
 	}
-	else if (TypeFlags & EClassCastFlags::ObjectProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::ObjectProperty)
 	{
-		return Cast<UEObjectProperty>().GetCppType();
+		return std::format("class {}*", CustomTypeName);
 	}
-	else if (TypeFlags & EClassCastFlags::MapProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::MapProperty)
 	{
-		return Cast<UEMapProperty>().GetCppType();
+		std::string KeyPropertyString = GetInnnerPropertyType(NameTable, Nodes, InOutNodeIndex);
+		std::string ValuePropertyString = GetInnnerPropertyType(NameTable, Nodes, InOutNodeIndex);
+		
+		return std::format("TMap<{}, {}>", KeyPropertyString, ValuePropertyString);
 	}
-	else if (TypeFlags & EClassCastFlags::SetProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::SetProperty)
 	{
-		return Cast<UESetProperty>().GetCppType();
+		std::string KeyPropertyString = GetInnnerPropertyType(NameTable, Nodes, InOutNodeIndex);
+		return std::format("TSet<{}>", KeyPropertyString);
 	}
-	else if (TypeFlags & EClassCastFlags::EnumProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::EnumProperty)
 	{
-		return Cast<UEEnumProperty>().GetCppType();
+		return CurrentNode.bIsEnumClass ? std::format("enum class {}", CustomTypeName) : CustomTypeName;
 	}
-	else if (TypeFlags & EClassCastFlags::InterfaceProperty)
+	else if (CurrentNode.CastFlags & EClassCastFlags::InterfaceProperty)
 	{
-		return Cast<UEInterfaceProperty>().GetCppType();
+		return std::format("TScriptInterface<class {}>", CustomTypeName);
 	}
 	else
 	{
-		return (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";;
+		return NameTable[CurrentNode.PropertyClassName].GetUniqueName() + "_";
 	}
 }

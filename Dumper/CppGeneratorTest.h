@@ -16,12 +16,12 @@ else \
 class CppGeneratorTest
 {
 private:
-	static inline MemberNode MakeMemberNode(HashStringTable& NameTable, const char* Type, const char* Name, int32 Offset, int32 Size, int32 ArrayDim = 0x1, EClassCastFlags Flags = EClassCastFlags::None, uint8 FieldMask = 0xFF)
+	static inline MemberNode MakeMemberNode(HashStringTable& NameTable, EClassCastFlags Flags, const char* Type, const char* Name, int32 Offset, int32 Size, int32 ArrayDim = 0x1, const char* PropertyClassName = nullptr, uint8 FieldMask = 0xFF)
 	{
 		MemberNode Member;
-		Member.InnerTypeName = NameTable.FindOrAdd(Type, true).first;
-		Member.InnerTypeNameNamespace = HashStringTableIndex::InvalidIndex;
-		Member.Name = NameTable.FindOrAdd(Name).first;
+		Member.CustomTypeName = NameTable.FindOrAdd(Type, true).first;
+		Member.CustomTypeNameNamespace = HashStringTableIndex::InvalidIndex;
+		Member.Name = strlen(Name) > 1 ? NameTable.FindOrAdd(Name).first : HashStringTableIndex::InvalidIndex;
 		Member.Offset = Offset;
 		Member.Size = Size;
 		Member.ArrayDim = ArrayDim;
@@ -32,6 +32,7 @@ private:
 		Member.BitFieldIndex = [=]() -> uint8 { if (FieldMask == 0xFF) { return 0xFF; } int Idx = 0;  while ((FieldMask >> Idx) != 0x1) { Idx++; } return Idx; }();
 		Member.BitMask = FieldMask;
 		Member.UnrealProperty = nullptr;
+		Member.PropertyClassName = PropertyClassName ? NameTable.FindOrAdd(PropertyClassName, true).first : HashStringTableIndex::InvalidIndex;
 
 		return Member;
 	}
@@ -87,11 +88,14 @@ public:
 		SuperNode.UnrealStruct = nullptr;
 		SuperNode.Super = nullptr;
 
-		MemberNode FirstMember = MakeMemberNode(NameTable, "int32", "OutputIndex", 0x0, 0x4);
-		MemberNode SecondMember = MakeMemberNode(NameTable, "class FName", "ExpressionName", 0x4, 0x8);
+		MemberNode FirstMember = MakeMemberNode(NameTable, EClassCastFlags::IntProperty, "int32", "OutputIndex", 0x0, 0x4);
+		MemberNode SecondMember = MakeMemberNode(NameTable, EClassCastFlags::NameProperty, "class FName", "ExpressionName", 0x4, 0x8);
+		MemberNode ThirdMember = MakeMemberNode(NameTable, EClassCastFlags::ArrayProperty, "", "MyArray", 0x8, 0x10, 0x2);
+		MemberNode ArrayInnerMember = MakeMemberNode(NameTable, EClassCastFlags::ObjectProperty, "AActor", "Irrelevant", 0x0, 0x0, 0x0);
+		MemberNode DelegateMember = MakeMemberNode(NameTable, EClassCastFlags::MulticastInlineDelegateProperty, "", "UnknonwDelegate", 0x18, 0x1, 0x0, "FMutlicastDelegateProperty");
 
-		SuperNode.Members = { std::move(FirstMember), std::move(SecondMember) };
-		std::sort(SuperNode.Members.begin(), SuperNode.Members.end(), [](const MemberNode& L, const MemberNode& R) { return L.Offset < R.Offset; });
+		SuperNode.Members = { std::move(FirstMember), std::move(SecondMember), std::move(ThirdMember), std::move(ArrayInnerMember), std::move(DelegateMember) };
+		//std::sort(SuperNode.Members.begin(), SuperNode.Members.end(), [](const MemberNode& L, const MemberNode& R) { return L.Offset < R.Offset; });
 		SuperNode.Functions = {};
 
 		StructNode Node;
@@ -112,7 +116,7 @@ public:
 		std::string Result = OutStream.str();
 		std::string Expected = 
 R"(
-// 0x0 (0xC - 0xC)
+// 0x0000 (0x000C - 0x000C)
 // ScriptStruct Engine.ScalarMaterialInput
 struct FScalarMaterialInput : public FMaterialInput
 {
@@ -126,13 +130,15 @@ struct FScalarMaterialInput : public FMaterialInput
 		std::string Result2 = OutStream2.str();
 		std::string Expected2 =
 			R"(
-// 0xC (0xC - 0x0)
+// 0x000C (0x000C - 0x0000)
 // ScriptStruct Engine.MaterialInput
 struct FMaterialInput
 {
 public:
-	int32                                        OutputIndex;                                       // 0x0(0x4)()
-	class FName                                  ExpressionName;                                    // 0x4(0x8)()
+	int32                                        OutputIndex;                                       // 0x0000(0x0004)()
+	class FName                                  ExpressionName;                                    // 0x0004(0x0008)()
+	TArray<class AActor*>                        MyArray[0x2];                                      // 0x0008(0x0010)()
+	FMutlicastDelegateProperty_                  UnknonwDelegate;                                   // 0x0018(0x0001)()
 };
 )";
 		CHECK_RESULT(Result2, Expected2);
@@ -147,7 +153,12 @@ public:
 
 		VectorNode.UnrealStruct = nullptr;
 		VectorNode.Super = nullptr;
-		VectorNode.Members = { MakeMemberNode(NameTable, "float", "X", 0x0, 0x4), MakeMemberNode(NameTable, "float", "Y", 0x4, 0x8), MakeMemberNode(NameTable, "float", "Z", 0x8, 0xC) };
+		VectorNode.Members = 
+		{
+			MakeMemberNode(NameTable, EClassCastFlags::FloatProperty, "float", "X", 0x0, 0x4),
+			MakeMemberNode(NameTable, EClassCastFlags::FloatProperty,"float", "Y", 0x4, 0x8),
+			MakeMemberNode(NameTable,  EClassCastFlags::FloatProperty, "float", "Z", 0x8, 0xC)
+		};
 		VectorNode.Functions = {};
 
 		// FUNCTIONS

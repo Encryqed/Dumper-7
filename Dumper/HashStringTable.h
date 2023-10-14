@@ -4,8 +4,11 @@
 #include <cassert>
 #include <format>
 
+inline constexpr uint32 NumHashBits = 5;
+inline constexpr uint32 MaxHashNumber = 1 << NumHashBits;
+inline constexpr uint32 HashMask = MaxHashNumber - 1;
 
-static constexpr uint8_t FiveBitPermutation[32] = {
+static constexpr uint8_t FiveBitPermutation[MaxHashNumber] = {
     0x20, 0x1D, 0x08, 0x18, 0x06, 0x0F, 0x15, 0x19,
     0x13, 0x1F, 0x17, 0x10, 0x14, 0x0C, 0x0E, 0x02,
     0x16, 0x11, 0x12, 0x0A, 0x0B, 0x1E, 0x04, 0x07,
@@ -18,12 +21,12 @@ inline uint8 SmallPearsonHash(const char* StringToHash)
 
     while (*StringToHash != '\0')
     {
-        const uint8 MaskedDownChar = (*StringToHash - 'A') & 0b11111;
+        const uint8 MaskedDownChar = (*StringToHash - 'A') & HashMask;
         Hash = FiveBitPermutation[Hash ^ MaskedDownChar];
         StringToHash++;
     }
 
-    return (Hash & 0b11111);
+    return (Hash & HashMask);
 }
 
 
@@ -38,29 +41,32 @@ private:
     friend int32 Strcmp(const CharType* String, const StringEntry& Entry);
 
 public:
-    static constexpr int32 MaxStringLength = 512;
+    static constexpr int32 MaxStringLength = 1 << 11;
 
-    static constexpr int32 StringEntrySizeWithoutStr = 0x3;
+    static constexpr int32 StringEntrySizeWithoutStr = 0x4;
 
 private:
     // Length of object name
-    uint16 Length : 9;
-
-    // If this string uses char or wchar_t
-    uint16 bIsWide : 1;
-
-    // If this name is unique amongst others --- always true if RawNameLength > 0
-    mutable uint16 bIsUnique : 1;
-
-    // PearsonHash reduced to 5 bits --- only computed if string was added when StringTable::CurrentMode == EDuplicationCheckingMode::Check
-    uint16 Hash : 5;
+    uint32 Length : 11;
 
     // Length of RawName to be appended to 'Legth' if this is a FullName, zero if this name is edited (eg. "UEditTool3Plus3")
-    uint8 RawNameLength;
+    uint32 RawNameLength : 10;
+
+    // If this string uses char or wchar_t
+    uint32 bIsWide : 1;
+
+    // If this name is unique amongst others --- always true if RawNameLength > 0
+    mutable uint32 bIsUnique : 1;
+
+    // PearsonHash reduced to 5 bits --- only computed if string was added when StringTable::CurrentMode == EDuplicationCheckingMode::Check
+    uint32 Hash : 5;
+
+    // Unused bits
+    uint32 Unused : 4;
 
     union
     {
-        // null-terminated
+        // NOT null-terminated
         char Char[MaxStringLength];
         wchar_t WChar[MaxStringLength];
     };
@@ -68,39 +74,36 @@ private:
 private:
     inline int32 GetLengthBytes() const { return StringEntrySizeWithoutStr + Length + RawNameLength; }
 
+    inline int32 GetStringLength() const { return Length + RawNameLength; }
+
 public:
     inline bool IsUnique() const { return bIsUnique; }
     inline bool IsPrefixedValidName() const { return RawNameLength == 0; }
 
     inline uint8 GetHash() const { return Hash; }
 
-    inline std::string GetRawName() const { return Char + Length; }
-    inline std::wstring GetWideRawName() const { return WChar + Length; }
-    inline std::string_view GetRawNameView() const { return Char + Length; }
-    inline std::wstring_view GetWideRawNameView() const { return WChar + Length; }
+    inline std::string GetRawName() const { return std::string(Char + Length, RawNameLength); }
+    inline std::wstring GetWideRawName() const { return std::wstring(WChar + Length, RawNameLength); }
+    inline std::string_view GetRawNameView() const { return std::string_view(Char + Length, RawNameLength); }
+    inline std::wstring_view GetWideRawNameView() const { return std::wstring_view(WChar + Length, RawNameLength); }
 
-    inline std::string GetUniqueName() const { return Char; }
-    inline std::wstring GetWideUniqueName() const { return WChar; }
-    inline std::string_view GetUniqueNameView() const { return Char; }
-    inline std::wstring_view GetWideUniqueNameView() const { return WChar; }
+    inline std::string GetUniqueName() const { return std::string(Char, GetStringLength()); }
+    inline std::wstring GetWideUniqueName() const { return std::wstring(WChar, GetStringLength()); }
+    inline std::string_view GetUniqueNameView() const { return std::string_view(Char, GetStringLength()); }
+    inline std::wstring_view GetWideUniqueNameView() const { return std::wstring_view(WChar, GetStringLength()); }
 
-    inline std::string GetFullName() const { return Char; }
-    inline std::wstring GetWideFullName() const { return WChar; }
-    inline std::string_view GetFullNameView() const { return Char; }
-    inline std::wstring_view GetWideFullNameView() const { return WChar; }
+    inline std::string GetFullName() const { return std::string(Char, GetStringLength()); }
+    inline std::wstring GetWideFullName() const { return std::wstring(WChar, GetStringLength()); }
+    inline std::string_view GetFullNameView() const { return std::string_view(Char, GetStringLength()); }
+    inline std::wstring_view GetWideFullNameView() const { return std::wstring_view(WChar, GetStringLength()); }
 };
 
 template<typename CharType>
 inline int32 Strcmp(const CharType* String, const StringEntry& Entry)
 {
-    if constexpr (std::is_same_v<CharType, char>)
-    {
-        return strcmp(Entry.Char, String);
-    }
-    else
-    {
-        return wcscmp(Entry.WChar, String);
-    }
+    static_assert(std::is_same_v<CharType, wchar_t> || std::is_same_v<CharType, char>);
+
+    return memcmp(Entry.Char, String, Entry.GetStringLength() * sizeof(CharType));
 }
 
 struct HashStringTableIndex
@@ -396,6 +399,12 @@ private:
     }
 
 public:
+    inline const StringEntry& operator[](HashStringTableIndex Index) const
+    {
+        return GetStringEntry(Index);
+    }
+
+public:
     inline const StringBucket& GetBucket(uint32 Index) const
     {
         assert(Index < NumBuckets && "Index out of range!");
@@ -464,11 +473,13 @@ public:
     {
         size_t LastDotIdx = String.find_last_of('.');
 
-        if (LastDotIdx == -1) {
-            return FindOrAdd(String.c_str(), String.size() + 1, bIsChecked);
+        if (LastDotIdx == -1)
+        {
+            return FindOrAdd(String.c_str(), String.size(), bIsChecked);
         }
-        else {
-            return FindOrAdd(String.c_str(), LastDotIdx + 1, bIsChecked, String.size() - LastDotIdx);
+        else
+        {
+            return FindOrAdd(String.c_str(), LastDotIdx + 1, bIsChecked, String.size() - (LastDotIdx + 1));
         }
     }
 };

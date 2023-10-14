@@ -4,9 +4,17 @@
 
 struct MemberNode
 {
+	/* Name of the class-member*/
 	HashStringTableIndex Name;
-	HashStringTableIndex InnerTypeName;
-	HashStringTableIndex InnerTypeNameNamespace;
+
+	/* CustomTypeName if existing, eg. if type is "class AActor*" this is "AActor" */
+	HashStringTableIndex CustomTypeName;
+
+	/* Namespace of CustomTypeName, eg if type is "class Engine::UDuplicate*" this is "Engine" */
+	HashStringTableIndex CustomTypeNameNamespace;
+
+	/* Name of this property's class. Used for UnknownProperties, eg. FMulticastDelegateProperty */
+	HashStringTableIndex PropertyClassName;
 
 	int32 Offset;
 	int32 Size;
@@ -15,8 +23,8 @@ struct MemberNode
 	EObjectFlags ObjFlags = EObjectFlags::NoFlags;
 	EPropertyFlags PropertyFlags = EPropertyFlags::None;
 	EClassCastFlags CastFlags = EClassCastFlags::None;
-	EMappingsTypeFlags TypeFlags; // used by the generator for SDK types
 
+	bool bIsEnumClass = false;
 	bool bIsBitField = false;
 	uint8 BitFieldIndex = 0x0;
 	uint8 BitMask = 0xFF;
