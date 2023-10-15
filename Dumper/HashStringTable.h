@@ -164,21 +164,20 @@ private:
     StringBucket Buckets[NumBuckets];
 
 public:
-    HashStringTable(uint32 PerBucketPerSectionSize = 0x5000)
+    HashStringTable(uint32 BucketUncheckedSize = 0x5000, uint32 BucketCheckedSize = 0x5000)
     {
-        if (PerBucketPerSectionSize < 0x5000)
-            PerBucketPerSectionSize = 0x5000;
+        assert((BucketUncheckedSize + BucketCheckedSize) >= 0x0 && "HashStringTable(0x0, 0x0) is invalid!");
 
         for (int i = 0; i < NumBuckets; i++)
         {
             StringBucket& CurrentBucket = Buckets[i];
-            CurrentBucket.Data = static_cast<uint8*>(malloc(PerBucketPerSectionSize * NumSectionsPerBucket));
+            CurrentBucket.Data = static_cast<uint8*>(malloc(BucketUncheckedSize + BucketCheckedSize));
 
             CurrentBucket.UncheckedSize = 0x0;
             CurrentBucket.CheckedSize = 0x0;
 
-            CurrentBucket.UncheckedSizeMax = PerBucketPerSectionSize;
-            CurrentBucket.CheckedSizeMax = PerBucketPerSectionSize;
+            CurrentBucket.UncheckedSizeMax = BucketUncheckedSize;
+            CurrentBucket.CheckedSizeMax = BucketCheckedSize;
         }
     }
 

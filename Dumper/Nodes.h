@@ -45,7 +45,7 @@ struct UniqueNameBase
 	/* full name --> "Class Engine.PlayerController", can be used to retreive RawName --> "PlayerController" */
 	HashStringTableIndex FullName;
 
-	/* prefixed name --> eg. "Some+Class" -> "ASome_Class" */
+	/* prefixed name --> eg. "Some#Class" -> "USome_Class" */
 	HashStringTableIndex PrefixedName;
 
 	/* name of package --> eg. "CoreUObject" */
@@ -57,18 +57,6 @@ struct UniqueNameBase
 	inline const StringEntry& GetPrefixedNameEntry(const HashStringTable& Names) const { return Names.GetStringEntry(PrefixedName); }
 
 	inline const StringEntry& GetPackageNameEntry(const HashStringTable& Names) const { return Names.GetStringEntry(PackageName); }
-
-	/* "unedited" name --> eg. "PlayerController", "Vector", "ENetRole" */
-	//std::string RawName;
-
-	/* prefixed name --> eg. "Some+Class" -> "ASome_Class" */
-	//std::string PrefixedName;
-
-	/* unique name --> empty if name is unique, else package name  */
-	//std::string UniqueNamePrefix;
-
-	/* full name --> "Class Engine.PlayerController" */
-	//std::string FullName;
 };
 
 struct EnumNode : public UniqueNameBase
@@ -103,6 +91,7 @@ struct StructNode : public StructNodeBase
 {
 	/* Prefer using other members instead of directly accessing UnrealStruct */
 	UEStruct UnrealStruct;
+
 	StructNode* Super;
 
 	/* Field for all Properties or PredefinedMembers */

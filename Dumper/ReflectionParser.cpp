@@ -26,10 +26,11 @@ StructNode ReflectionParser::ParseStructNode(HashStringTable& Names, UEStruct St
 
 	//MemberLookupInfo Lookups[Properties.size()];
 
-	uint16 Lengths[32][256];
+	std::vector<UEProperty> Properties = Struct.GetProperties();
+	OutNode.Members.reserve(Properties.size());
 
-	for (UEProperty Property : Struct.GetProperties())
-		std::cout << "Property";
+	for (UEProperty Property : Properties)
+		OutNode.Members.push_back(ParseMemberNode(Names, Property));
 
 	return StructNode();
 }
