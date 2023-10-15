@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <format>
+#include <iostream>
 
 inline constexpr uint32 NumHashBits = 5;
 inline constexpr uint32 MaxHashNumber = 1 << NumHashBits;
@@ -30,7 +31,6 @@ inline uint8 SmallPearsonHash(const char* StringToHash)
 }
 
 
-#pragma pack(0x1)
 class StringEntry
 {
 private:

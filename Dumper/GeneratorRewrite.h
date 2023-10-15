@@ -16,8 +16,6 @@ class GeneratorRewrite /* renamed to just 'Generator' once the legacy generator 
 protected:
     static inline DependencyManager Packages;
 
-    static inline HashStringTable NameTable;
-
     static inline fs::path DumperFolder;
 
 public:
@@ -46,7 +44,7 @@ public:
         if (!SetupFolders(GeneratorType::MainFolderName, GeneratorType::MainFolder, GeneratorType::SubfolderName, GeneratorType::Subfolder))
             return;
 
-        GeneratorType::Generate(NameTable, Packages);
+        GeneratorType::Generate(Packages);
     };
 
 protected:

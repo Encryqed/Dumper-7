@@ -1,7 +1,7 @@
 #pragma once
 #include <filesystem>
 #include "DependencyManager.h"
-#include "Nodes.h"
+#include "StructManager.h"
 #include "HashStringTable.h"
 
 namespace fs = std::filesystem;
@@ -38,19 +38,19 @@ private:
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
     static std::string GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
 
-    static std::string GenerateMembers(const HashStringTable& NameTable, const std::vector<MemberNode>& Members, int32 SuperSize);
-    static std::string GenerateFunctionInClass(const HashStringTable& NameTable, const std::vector<FunctionNode>& Functions);
+    static std::string GenerateMembers(UEStruct Struct, const std::vector<UEProperty>& Members, int32 SuperSize);
+    static std::string GenerateFunctionInClass(const std::vector<UEFunction>& Functions);
 
-    static void GenerateStruct(const HashStringTable& NameTable, StreamType& StructFile, const StructNode& Struct);
-    static void GenerateClass(const HashStringTable& NameTable, StreamType& ClassFile, const StructNode& Class);
-    static void GenerateFunctionInCppFile(const HashStringTable& NameTable, StreamType& FunctionFile, std::ofstream& ParamFile, const FunctionNode& Function);
+    static void GenerateStruct(StreamType& StructFile, UEStruct Struct);
+    static void GenerateClass(StreamType& ClassFile, UEClass Class);
+    static void GenerateFunctionInCppFile(StreamType& FunctionFile, std::ofstream& ParamFile, const UEFunction& Function);
 
 private: /* utility functions */
-    static std::string GetMemberTypeString(const HashStringTable& NameTable, const MemberNode& CurrentNode, const std::vector<MemberNode>& Nodes, int32& InOutNodeIndex);
-    static std::string GetStructPrefixedName(const HashStringTable& NameTable, const StructNode& Struct);
+    static std::string GetMemberTypeString(UEProperty CurrentNode);
+    static std::string GetStructPrefixedName(UEStruct Struct);
 
 public:
-    static void Generate(const HashStringTable& NameTable, const DependencyManager& Dependencies);
+    static void Generate(const DependencyManager& Dependencies);
 
     static void InitPredefinedMembers();
     static void InitPredefinedFunctions();

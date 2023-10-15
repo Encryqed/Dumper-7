@@ -3,12 +3,13 @@
 #include <chrono>
 #include <fstream>
 #include "Generator.h"
+#include "CppGenerator.h"
 
 #include "HashStringTableTest.h"
 
 #include "GeneratorRewrite.h"
 
-#include "CppGeneratorTest.h"
+//#include "CppGeneratorTest.h"
 //#include "StringTableTest.h"
 
 enum class EFortToastType : uint8
@@ -51,7 +52,7 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
-	CppGeneratorTest::TestAll();
+	//CppGeneratorTest::TestAll();
 
 	//StringTableTest::TestAll();
 	HashStringTableTest::TestAll();

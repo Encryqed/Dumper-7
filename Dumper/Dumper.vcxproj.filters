@@ -32,16 +32,13 @@
     <ClCompile Include="GeneratorRewrite.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
-    <ClCompile Include="Nodes.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="ReflectionParser.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
-    </ClCompile>
     <ClCompile Include="CppGenerator.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
     <ClCompile Include="DependencyManager.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="StructManager.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
   </ItemGroup>
@@ -123,12 +120,6 @@
     <ClInclude Include="GeneratorRewrite.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
-    <ClInclude Include="Nodes.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="ReflectionParser.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
     <ClInclude Include="CppGenerator.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
@@ -138,17 +129,14 @@
     <ClInclude Include="CppGeneratorTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
-    <ClInclude Include="StringTable.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="StringTableTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
     <ClInclude Include="HashStringTable.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
     <ClInclude Include="HashStringTableTest.h">
       <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="StructManager.h">
+      <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

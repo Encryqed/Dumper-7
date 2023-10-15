@@ -1082,6 +1082,10 @@ void TemplateTypeCreationForUnrealObjects(void)
 	PDummy.Cast<UESetProperty>();
 	PDummy.Cast<UEEnumProperty>();
 	PDummy.Cast<UEInterfaceProperty>();
+	PDummy.Cast<UELazyObjectProperty>();
+	PDummy.Cast<UESoftObjectProperty>();
+	PDummy.Cast<UESoftClassProperty>();
+	PDummy.Cast<UEWeakObjectProperty>();
 
 	PDummy.Cast<UEFField&>();
 	PDummy.Cast<UEProperty&>();
