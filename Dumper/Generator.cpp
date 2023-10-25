@@ -758,14 +758,13 @@ void Generator::InitPredefinedMembers()
 	if (!Settings::Internal::bUseFProperty)
 		return;
 
-	int FNameSize = (Settings::Internal::bUseCasePreservingName ? 0x10 : 0x8);
 	int FFieldVariantSize = (!Settings::Internal::bUseMaskForFieldOwner ? 0x10 : 0x8);
 	std::string UObjectIdentifierType = (Settings::Internal::bUseMaskForFieldOwner ? "static constexpr uint64" : "bool");
 	std::string UObjectIdentifierName = (Settings::Internal::bUseMaskForFieldOwner ? "UObjectMask = 0x1" : "bIsUObject");
 
 	PredefinedMembers["FFieldClass"] =
 	{
-		{ "FName", "Name", Off::FFieldClass::Name, FNameSize },
+		{ "FName", "Name", Off::FFieldClass::Name, Off::InSDK::FNameSize },
 		{ "uint64", "Id", Off::FFieldClass::Id, 0x8 },
 		{ "uint64", "CastFlags", Off::FFieldClass::CastFlags, 0x8 },
 		{ "EClassFlags", "ClassFlags", Off::FFieldClass::ClassFlags, 0x4 },
@@ -788,7 +787,7 @@ void Generator::InitPredefinedMembers()
 		{ "FFieldClass*", "Class", Off::FField::Class, 0x8 },
 		{ "FFieldVariant", "Owner", Off::FField::Owner, FFieldVariantSize },
 		{ "FField*", "Next", Off::FField::Next, 0x8 },
-		{ "FName", "Name", Off::FField::Name, FNameSize },
+		{ "FName", "Name", Off::FField::Name, Off::InSDK::FNameSize },
 		{ "int32", "Flags", Off::FField::Flags, 0x4 }
 	};
 }
