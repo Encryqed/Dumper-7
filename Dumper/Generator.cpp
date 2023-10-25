@@ -1855,7 +1855,6 @@ public:
 
 	FNameMemberStr += Off::FName::Number == 4 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
 	FNameMemberStr += Off::FName::Number == 8 ? Number : Settings::Internal::bUseCasePreservingName ? DisplayIdx : "";
-	FNameMemberStr += !Settings::Internal::bUseUoutlineNumberName && Settings::Internal::bUseCasePreservingName ? Pad : "";
 	
 
 	std::string GetDisplayIndexString = std::format(R"(inline int32 GetDisplayIndex() const
