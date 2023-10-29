@@ -2189,22 +2189,26 @@ public:
 	}
 };
 )");
-	BasicHeader.Write("namespace SoftObjPathWrapper\n{\n");
-
+	
 	UEStruct SoftObjectPath = ObjectArray::FindObjectFast<UEStruct>("SoftObjectPath", EClassCastFlags::Struct);
-	if (UEStructProperty AssetPath = SoftObjectPath.FindMember("AssetPath", EClassCastFlags::StructProperty).Cast<UEStructProperty>())
+
+	if (SoftObjectPath)
 	{
-		Types::Struct AssetPathStruct = Package::StaticGenerateStruct(AssetPath.GetUnderlayingStruct());
-		BasicHeader.WriteStruct(AssetPathStruct);
-	}
+		BasicHeader.Write("namespace SoftObjPathWrapper\n{\n");
 
-	Types::Struct SoftObjectPathStruct = Package::StaticGenerateStruct(SoftObjectPath);
-	BasicHeader.WriteStruct(SoftObjectPathStruct);
+		if (UEStructProperty AssetPath = SoftObjectPath.FindMember("AssetPath", EClassCastFlags::StructProperty).Cast<UEStructProperty>())
+		{
+			Types::Struct AssetPathStruct = Package::StaticGenerateStruct(AssetPath.GetUnderlayingStruct());
+			BasicHeader.WriteStruct(AssetPathStruct);
+		}
 
-	BasicHeader.Write("}\n");
+		Types::Struct SoftObjectPathStruct = Package::StaticGenerateStruct(SoftObjectPath);
+		BasicHeader.WriteStruct(SoftObjectPathStruct);
 
-	BasicHeader.Write(
-		R"(
+		BasicHeader.Write("}\n");
+
+		BasicHeader.Write(
+			R"(
 class FSoftObjectPtr : public TPersistentObjectPtr<SoftObjPathWrapper::FSoftObjectPath>
 {
 public:
@@ -2217,8 +2221,8 @@ public:
 )");
 
 
-	BasicHeader.Write(
-		R"(
+		BasicHeader.Write(
+			R"(
 template<typename UEType>
 class TSoftObjectPtr : public FSoftObjectPtr
 {
@@ -2236,8 +2240,8 @@ public:
 };
 )");
 
-	BasicHeader.Write(
-		R"(
+		BasicHeader.Write(
+			R"(
 template<typename UEType>
 class TSoftClassPtr : public FSoftObjectPtr
 {
@@ -2255,8 +2259,8 @@ public:
 };
 )");
 
-	BasicSource.Write(
-		R"(
+		BasicSource.Write(
+			R"(
 FString FSoftObjectPtr::GetSubPathString()
 {
 	return ObjectID.SubPathString;
@@ -2278,6 +2282,7 @@ SoftObjectPath& FSoftObjectPtr::GetObjectPath()
 void Dummy() { FSoftObjectPtr().GetObjectPath(); }
 
 )");
+	}
 
 
 	BasicSource.Write(
