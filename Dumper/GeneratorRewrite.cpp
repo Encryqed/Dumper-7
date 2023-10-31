@@ -45,13 +45,9 @@ bool GeneratorRewrite::SetupFolders(const std::string& FolderName, fs::path& Out
 {
 	try
 	{
-		fs::path BaseGenerationFolder = Settings::SDKGenerationPath;
-		OutFolder = BaseGenerationFolder / FolderName;
+		OutFolder = DumperFolder / FolderName;
 		OutSubFolder = OutFolder / SubfolderName;
-
-		if (!fs::exists(BaseGenerationFolder))
-			fs::create_directories(BaseGenerationFolder);
-		
+				
 		if (fs::exists(OutFolder))
 		{
 			fs::path Old = OutFolder.generic_string() + "_OLD";
@@ -64,7 +60,7 @@ bool GeneratorRewrite::SetupFolders(const std::string& FolderName, fs::path& Out
 		fs::create_directory(OutFolder);
 
 		if (!SubfolderName.empty())
-			fs::create_directory(SubfolderName);
+			fs::create_directory(OutSubFolder);
 	}
 	catch (const std::filesystem::filesystem_error& fe)
 	{

@@ -183,6 +183,7 @@ public:
 	UEStruct GetSuper() const;
 	UEField GetChild() const;
 	UEFField GetChildProperties() const;
+	int32 GetMinAlignment() const;
 	int32 GetStructSize() const;
 
 	std::vector<UEProperty> GetProperties() const;
@@ -264,9 +265,6 @@ public:
 	EPropertyFlags GetPropertyFlags() const;
 	EMappingsTypeFlags GetMappingType() const;
 	bool HasPropertyFlags(EPropertyFlags PropertyFlag) const;
-
-	/* return value is not guaranteed to be a U/FProperty */
-	UEProperty UnsafeGetNext() const;
 
 	UEObject GetOutermost() const;
 

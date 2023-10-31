@@ -319,6 +319,16 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
+	inline int32_t FindMinAlignment()
+	{
+		std::vector<std::pair<void*, int32_t>> Infos;
+
+		Infos.push_back({ ObjectArray::FindObjectFast("Transform").GetAddress(), 0x10 });
+		Infos.push_back({ ObjectArray::FindObjectFast("PlayerController").GetAddress(), 0x8 });
+
+		return FindOffset(Infos);
+	}
+
 	/* UFunction */
 	inline int32_t FindFunctionFlagsOffset()
 	{

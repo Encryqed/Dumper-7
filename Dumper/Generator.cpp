@@ -388,32 +388,31 @@ void Generator::HandlePackageGeneration(const fs::path* const SDKFolder, int32 P
 		if (fs::exists(*SDKFolder / (FileName + "_classes.hpp")))
 			FileName += "_1";
 
-		if (!Pack.AllClasses.empty())
-		{
+		//if (!Pack.AllClasses.empty())
+		//{
 			FileWriter ClassFile(*SDKFolder, FileName, FileWriter::FileType::Class);
 			ClassFile.WriteClasses(Pack.AllClasses);
 			ClassFile.Close();
-		}
-
-		if (!Pack.AllEnums.empty() || !Pack.AllStructs.empty())
-		{
+		//}
+		//
+		//if (!Pack.AllEnums.empty() || !Pack.AllStructs.empty())
+		//{
 			FileWriter StructsFile(*SDKFolder, FileName, FileWriter::FileType::Struct);
 			StructsFile.WriteEnums(Pack.AllEnums);
 			StructsFile.WriteStructs(Pack.AllStructs);
 			StructsFile.Close();
-		}
+		//}
 
-		FileWriter FunctionFile; (*SDKFolder, FileName, FileWriter::FileType::Function);
-		FileWriter ParameterFile; (*SDKFolder, FileName, FileWriter::FileType::Parameter);
+		FileWriter FunctionFile(*SDKFolder, FileName, FileWriter::FileType::Function);
+		FileWriter ParameterFile(*SDKFolder, FileName, FileWriter::FileType::Parameter);
 
-		if (!Pack.AllFunctions.empty() || Generator::PredefinedFunctions.find(PackageName) != Generator::PredefinedFunctions.end())
+		//if (!Pack.AllFunctions.empty() || Generator::PredefinedFunctions.find(PackageName) != Generator::PredefinedFunctions.end())
 		{
 			FunctionFile = FileWriter(*SDKFolder, FileName, FileWriter::FileType::Function);
 			ParameterFile = FileWriter(*SDKFolder, FileName, FileWriter::FileType::Parameter);
 
 			if (PackageName == "CoreUObject")
 				FunctionFile.Write("\t//Initialize GObjects using InitGObjects()\n\tTUObjectArray* UObject::GObjects = nullptr;\n\n");
-
 
 			for (auto& [PackageName, ClassFunctionsPairs] : Generator::PredefinedFunctions)
 			{
@@ -695,6 +694,7 @@ void Generator::InitPredefinedMembers()
 	{
 		{ "class UStruct*", "Super", Off::UStruct::SuperStruct, 0x08 },
 		{ "class UField*", "Children", Off::UStruct::Children, 0x08 },
+		{ "int32", "MinAlignemnt", Off::UStruct::MinAlignemnt, 0x04 },
 		{ "int32", "Size", Off::UStruct::Size, 0x04 }
 	};
 
@@ -717,6 +717,7 @@ void Generator::InitPredefinedMembers()
 
 	PredefinedMembers[PrefixPropertyName("Property")] =
 	{
+		{ "int32", "ArrayDim", Off::UProperty::ArrayDim, 0x04 },
 		{ "int32", "ElementSize", Off::UProperty::ElementSize, 0x04 },
 		{ "uint64", "PropertyFlags", Off::UProperty::PropertyFlags, 0x08 },
 		{ "int32", "Offset", Off::UProperty::Offset_Internal, 0x04 }
@@ -777,14 +778,13 @@ void Generator::InitPredefinedMembers()
 	if (!Settings::Internal::bUseFProperty)
 		return;
 
-	int FNameSize = (Settings::Internal::bUseCasePreservingName ? 0x10 : 0x8);
 	int FFieldVariantSize = (!Settings::Internal::bUseMaskForFieldOwner ? 0x10 : 0x8);
 	std::string UObjectIdentifierType = (Settings::Internal::bUseMaskForFieldOwner ? "static constexpr uint64" : "bool");
 	std::string UObjectIdentifierName = (Settings::Internal::bUseMaskForFieldOwner ? "UObjectMask = 0x1" : "bIsUObject");
 
 	PredefinedMembers["FFieldClass"] =
 	{
-		{ "FName", "Name", Off::FFieldClass::Name, FNameSize },
+		{ "FName", "Name", Off::FFieldClass::Name, Off::InSDK::FNameSize },
 		{ "uint64", "Id", Off::FFieldClass::Id, 0x8 },
 		{ "uint64", "CastFlags", Off::FFieldClass::CastFlags, 0x8 },
 		{ "EClassFlags", "ClassFlags", Off::FFieldClass::ClassFlags, 0x4 },
@@ -807,7 +807,7 @@ void Generator::InitPredefinedMembers()
 		{ "FFieldClass*", "Class", Off::FField::Class, 0x8 },
 		{ "FFieldVariant", "Owner", Off::FField::Owner, FFieldVariantSize },
 		{ "FField*", "Next", Off::FField::Next, 0x8 },
-		{ "FName", "Name", Off::FField::Name, FNameSize },
+		{ "FName", "Name", Off::FField::Name, Off::InSDK::FNameSize },
 		{ "int32", "Flags", Off::FField::Flags, 0x4 }
 	};
 }

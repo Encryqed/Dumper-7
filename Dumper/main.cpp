@@ -55,10 +55,13 @@ DWORD MainThread(HMODULE Module)
 	//CppGeneratorTest::TestAll();
 
 	//StringTableTest::TestAll();
-	HashStringTableTest::TestAll();
+	//HashStringTableTest::TestAll();
+	HashStringTableTest::TestUniqueMemberNames();
+	HashStringTableTest::TestUniqueStructNames();
 
 	GeneratorRewrite::Generate<CppGenerator>();
 
+	//std::cout << "FTransform::MinAlignment: " << *reinterpret_cast<int32*>(static_cast<uint8*>(ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct)) + Off::UStruct::Size + 0x4) << std::endl;
 	//Generator::GenerateSDK();
 	//Generator::GenerateMappings();
 	//Generator::GenerateIDAMappings();

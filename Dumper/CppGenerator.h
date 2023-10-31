@@ -38,7 +38,7 @@ private:
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
     static std::string GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
 
-    static std::string GenerateMembers(UEStruct Struct, const std::vector<UEProperty>& Members, int32 SuperSize);
+    static std::string GenerateMembers(UEStruct Struct, const StructInfo& OverrideInfo, const std::vector<UEProperty>& Members, int32 SuperSize);
     static std::string GenerateFunctionInClass(const std::vector<UEFunction>& Functions);
 
     static void GenerateStruct(StreamType& StructFile, UEStruct Struct);
@@ -46,8 +46,8 @@ private:
     static void GenerateFunctionInCppFile(StreamType& FunctionFile, std::ofstream& ParamFile, const UEFunction& Function);
 
 private: /* utility functions */
-    static std::string GetMemberTypeString(UEProperty CurrentNode);
-    static std::string GetStructPrefixedName(UEStruct Struct);
+    static std::string GetMemberTypeString(UEProperty CurrentNode, const StructInfo& OverrideInfo);
+    static std::string GetStructPrefixedName(UEStruct Struct, const StructInfo& OverrideInfo);
 
 public:
     static void Generate(const DependencyManager& Dependencies);

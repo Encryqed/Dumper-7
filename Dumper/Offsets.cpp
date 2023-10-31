@@ -93,6 +93,9 @@ void Off::Init()
 	Off::UStruct::Size = OffsetFinder::FindStructSizeOffset();
 	std::cout << "Off::UStruct::Size: " << Off::UStruct::Size << "\n";
 
+	Off::UStruct::MinAlignemnt = OffsetFinder::FindMinAlignment();
+	std::cout << "Off::UStruct::MinAlignemnts: " << Off::UStruct::MinAlignemnt << "\n\n";
+
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
 	std::cout << "Off::UClass::CastFlags: " << Off::UClass::CastFlags << "\n";
 

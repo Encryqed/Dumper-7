@@ -11,6 +11,8 @@ public:
 	{
 		TestReallocation();
 		TestUniqueNames();
+		TestUniqueMemberNames();
+		TestUniqueStructNames();
 		std::cout << std::endl;
 	}
 
@@ -111,5 +113,46 @@ public:
 		std::cout << "\n" << std::endl;
 
 		std::cout << __FUNCTION__ << ": Everything is fine!" << std::endl;
+	}
+
+	static inline void TestUniqueMemberNames()
+	{
+		HashStringTable Desktop(0x0, 0x5000);
+
+		bool bIsEverythingFine = true;
+
+		for (auto Obj : ObjectArray())
+		{
+			if (!Obj.IsA(EClassCastFlags::Struct))
+				continue;
+
+			for (auto Property : Obj.Cast<UEStruct>().GetProperties())
+			{
+				Desktop.FindOrAdd(Property.GetValidName(), true);
+			}
+		}
+
+		Desktop.DebugPrintStats();
+
+		std::cout << __FUNCTION__ << ": " << (bIsEverythingFine ? "Everything is fine!" : "Nothing is fine!") << std::endl;
+	}
+
+	static inline void TestUniqueStructNames()
+	{
+		HashStringTable Desktop(0x0, 0x5000);
+
+		bool bIsEverythingFine = true;
+
+		for (auto Obj : ObjectArray())
+		{
+			if (!Obj.IsA(EClassCastFlags::Struct))
+				continue;
+
+			Desktop.FindOrAdd(Obj.GetCppName(), true);
+		}
+
+		Desktop.DebugPrintStats();
+
+		std::cout << __FUNCTION__ << ": " << (bIsEverythingFine ? "Everything is fine!" : "Nothing is fine!") << std::endl;
 	}
 };

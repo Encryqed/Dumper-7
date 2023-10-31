@@ -72,7 +72,7 @@ std::string Types::Struct::GetGeneratedBody()
 	std::string PackingStart = "";
 	std::string PackingEnd = "";
 
-	if (CustomAlignSize > 0)
+	if (CustomAlignSize > 70700) /* was zero */
 	{
 		PackingStart = std::format(R"(
 #ifdef _MSC_VER

@@ -7,7 +7,7 @@
 
 namespace fs = std::filesystem;
 
-struct StructInfo {};
+struct StructInfo2 {};
 struct ClassInfo {};
 struct FunctionInfo {};
 
@@ -27,7 +27,7 @@ private:
     static bool SetupFolders(const std::string& FolderName, fs::path& OutFolder);
     static bool SetupFolders(const std::string& FolderName, fs::path& OutFolder, const std::string& SubfolderName, fs::path& OutSubFolder);
 
-    static void GenerateStruct(const StructInfo& Struct) { };
+    static void GenerateStruct(const StructInfo2& Struct) { };
     static void GenerateClass(const ClassInfo& Class) { };
     static void GenerateFunction(const FunctionInfo& Function) { };
 

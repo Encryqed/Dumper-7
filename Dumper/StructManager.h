@@ -3,32 +3,27 @@
 #include "HashStringTable.h"
 #include "UnrealObjects.h"
 
+struct StructInfo
+{
+	int32 Size;
+	HashStringTableIndex Name;
+};
+
 class StructManager
 {
 private:
 	static inline HashStringTable UniqueNameTable;
-	static inline std::unordered_map<int32 /*StructIdx*/, uint32 /*RealSize*/> StructSizes;
-	static inline std::unordered_map<int32 /*StructIdx*/, HashStringTableIndex /* UniqueName */> StructIdxToNameTranslations;
+
+	static inline std::unordered_map<int32 /*StructIdx*/, StructInfo> StructInfoOverrides;
 
 public:
-	static inline int32 GetSize(UEStruct Struct)
+	static inline StructInfo GetInfo(UEStruct Struct)
 	{
-		int32 RetSize = Struct.GetStructSize();
-
-		auto It = StructSizes.find(Struct.GetIndex());
-		if (It != StructSizes.end())
-			RetSize = It->second;
-
-		return RetSize;
+		return StructInfoOverrides[Struct.GetIndex()];
 	}
 
-	static inline const StringEntry& GetUniqueName(UEStruct Struct)
+	static inline const StringEntry& GetName(const StructInfo& Info)
 	{
-		return UniqueNameTable.GetStringEntry(StructIdxToNameTranslations[Struct.GetIndex()]);
-	}
-
-	static inline std::string GetMemberUniqueName(UEStruct Struct, UEProperty Member)
-	{
-		return "GetMemberUniqueName isn't implemented yet!";
+		return UniqueNameTable[Info.Name];
 	}
 };

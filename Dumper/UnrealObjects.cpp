@@ -474,6 +474,11 @@ UEFField UEStruct::GetChildProperties() const
 	return UEFField(*reinterpret_cast<void**>(Object + Off::UStruct::ChildProperties));
 }
 
+int32 UEStruct::GetMinAlignment() const
+{
+	return *reinterpret_cast<int32*>(Object + Off::UStruct::MinAlignemnt);
+}
+
 int32 UEStruct::GetStructSize() const
 {
 	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
@@ -707,17 +712,6 @@ int32 UEProperty::GetSize() const
 int32 UEProperty::GetOffset() const
 {
 	return *reinterpret_cast<int32*>(Base + Off::UProperty::Offset_Internal);
-}
-
-/* return value is not guaranteed to be a U/FProperty */
-UEProperty UEProperty::UnsafeGetNext() const
-{
-	if (Settings::Internal::bUseFProperty)
-	{
-		return UEFField(Base).GetNext().Cast<UEProperty>();
-	}
-
-	return UEField(Base).GetNext().Cast<UEProperty>();
 }
 
 EPropertyFlags UEProperty::GetPropertyFlags() const

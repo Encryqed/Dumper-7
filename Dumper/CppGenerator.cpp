@@ -1,5 +1,5 @@
 #include "CppGenerator.h"
-
+#include "ObjectArray.h"
 
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
@@ -11,23 +11,143 @@ std::string CppGenerator::GenerateBytePadding(const int32 Offset, const int32 Pa
 {
 	static uint32 PadNum = 0;
 
-	return MakeMemberString("uint8", std::format("Pad_{:X}[0x{:X}]", PadNum++, PadSize), std::move(Reason));
+	return MakeMemberString("uint8", std::format("Pad_{:X}[0x{:X}]", PadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason)));
 }
 
 std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
 	static uint32 BitPadNum = 0;
 
-	return MakeMemberString("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::move(Reason));
+	return MakeMemberString("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason)));
 }
 
-std::string CppGenerator::GenerateMembers(UEStruct Struct, const std::vector<UEProperty>& Members, int32 SuperSize)
+/*
+Struct 1:
+	int a, b, c;
+	uint8 Pad[0x10];
+	int d, e, f;
+
+Struct1_PredefinedMembers: { 
+	"void*", "Something", 0x10, 0x8
+}
+
+Result:
+struct Struct1
 {
+public:
+	int32                 a;                              // 0x0000(0x0004)
+	int32                 b;                              // 0x0004(0x0004)
+	int32                 c;                              // 0x0008(0x0004)
+	uint8                 Pad_0[0x4];                     // 0x000C(0x0004)
+	void*                 Something;                      // 0x0010(0x0008)
+	uint8                 Pad_1[0x4];                     // 0x0018(0x0004)
+	int32                 e;                              // 0x001C(0x0004)
+	int32                 f;                              // 0x0020(0x0004)
+};
+*/
+
+struct TestPredefMember
+{
+	std::string Type;
+	std::string Name;
+	int32 Offset;
+	int32 Size;
+	int32 ArrayDim;
+	bool bIsUnqiue = true;
+};
+
+class MemberManager
+{
+private:
+	using MemberNameInfo = std::pair<HashStringTableIndex, bool /* bIsUnqiueInClassAndSuper */>;
+
+public:
+	static inline HashStringTable PropertyNames;
+	static inline std::unordered_map<void*, std::vector<TestPredefMember>> Predefs;
+
+	static inline std::unordered_map<void*, std::vector<MemberNameInfo>> StructMembers;
+
+public:
+	const std::vector<UEProperty>* Properties = nullptr;
+	const std::vector<TestPredefMember>* PredefinedMembers = nullptr;
+	int32 PropertiesIdx = 0;
+	int32 PredefMemberIdx = 0;
+
+	MemberManager(UEStruct Struct, const std::vector<UEProperty>& Members)
+		: Properties(&Members)
+	{
+		//auto It = Predefs.find(Struct.GetAddress());
+		//if (It != Predefs.end())
+		//	PredefinedMembers = &It->second;
+		//
+		//for (auto Property : Struct.GetProperties())
+		//{
+		//	auto [Index, bIsUnique] = PropertyNames.FindOrAdd(Property.GetValidName(), true);
+		//
+		//	if (!bIsUnique)
+		//	{
+		//		for (UEStruct S = Struct; S; S = S.GetSuper())
+		//		{
+		//			if (StructMembers[S.GetAddress()].)
+		//		}
+		//	}
+		//
+		//	StructMembers[Struct.GetAddress()].push_back(Index);
+		//}
+	}
+
+
+	static void AddStruct(UEStruct Struct)
+	{
+		//for (auto Property : Struct.GetProperties())
+		//{
+		//	StructMembers[Struct.GetAddress()].push_back(PropertyNames.FindOrAdd(Property.GetValidName(), true).first);
+		//}
+	}
+
+	inline std::string GetPropertyUniqueName()
+	{
+		//return 
+	}
+
+public:
+	static inline HashStringTable& GetStringTable()
+	{
+		return PropertyNames;
+	}
+
+	inline UEProperty GetNextProperty() const
+	{
+		//if (PredefinedMembers && PredefinedMembers->at(PredefMemberIdx).Offset)
+	}
+};
+
+std::string CppGenerator::GenerateMembers(UEStruct Struct, const StructInfo& OverrideInfo, const std::vector<UEProperty>& Members, int32 SuperSize)
+{
+	static bool bDidThingOnce = false;
+
+	if (!bDidThingOnce)
+	{
+		//bDidThingOnce = true;
+		//void* UObject = ObjectArray::FindClassFast("Object").GetAddress();
+		//std::vector<TestPredefMember>& PredefsVector = MemberManager::Predefs[UObject];
+		//HashStringTable& PropertyNames = MemberManager::GetStringTable();
+		//PredefsVector.emplace_back("void*", PropertyNames.FindOrAdd("Vft", true).first, Off::UObject::Vft, 0x8, 0x1);
+		//PredefsVector.emplace_back("int32", PropertyNames.FindOrAdd("Flags", true).first, Off::UObject::Flags, 0x4, 0x1);
+		//PredefsVector.emplace_back("int32", PropertyNames.FindOrAdd("Index",true).first, Off::UObject::Index, 0x4, 0x1);
+		//PredefsVector.emplace_back("class UClass*", PropertyNames.FindOrAdd("Class", true).first, Off::UObject::Class, 0x8, 0x1);
+		//PredefsVector.emplace_back("class FName", PropertyNames.FindOrAdd("Name", true).first, Off::UObject::Name, Off::InSDK::FNameSize, 0x1);
+		//PredefsVector.emplace_back("class UObject*", PropertyNames.FindOrAdd("Outer", true).first, Off::UObject::Outer, 0x8, 0x1);
+	}
+
+	const std::vector<TestPredefMember>* PredefsVector = nullptr;
+
+
+	if (Members.empty() && PredefsVector && PredefsVector->empty())
+		return "";
+
 	constexpr int EstimatedCharactersPerLine = 0x80;
 	constexpr int NumBitsInBytePlusOne = 0x9;
-
-	if (Members.empty())
-		return "";
 
 	std::string OutMembers;
 	OutMembers.reserve(Members.size() * EstimatedCharactersPerLine);
@@ -46,10 +166,10 @@ std::string CppGenerator::GenerateMembers(UEStruct Struct, const std::vector<UEP
 		std::string Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, StringifyPropertyFlags(Member.GetPropertyFlags()));
 
 		if (MemberOffset >= PrevPropertyEnd && bLastPropertyWasBitField && PrevBoolPropertyBit != NumBitsInBytePlusOne)
-			OutMembers += GenerateBitPadding(MemberOffset, NumBitsInBytePlusOne - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]");
+			OutMembers += GenerateBitPadding(MemberOffset, NumBitsInBytePlusOne - PrevBoolPropertyBit, "Fixing Bit-Field Size [ Dumper-7 ]");
 
 		if (MemberOffset > PrevPropertyEnd)
-			OutMembers += GenerateBytePadding(PrevPropertyEnd, MemberOffset - PrevPropertyEnd, "Fixing Size After Last Property  [ Dumper-7 ]");
+			OutMembers += GenerateBytePadding(PrevPropertyEnd, MemberOffset - PrevPropertyEnd, "Fixing Size After Last Property [ Dumper-7 ]");
 
 		const bool bIsBitField = Member.IsA(EClassCastFlags::BoolProperty) && !Member.Cast<UEBoolProperty>().IsNativeBool();
 
@@ -73,12 +193,12 @@ std::string CppGenerator::GenerateMembers(UEStruct Struct, const std::vector<UEP
 
 		PrevPropertyEnd = MemberOffset + MemberSize;
 
-		std::string MemberName = StructManager::GetMemberUniqueName(Struct, Member);
+		std::string MemberName = "hardcoded, lol";// StructManager::GetMemberUniqueName(Struct, Member);
 
 		if (Member.GetArrayDim() > 1)
 			MemberName += std::format("[0x{:X}]", Member.GetArrayDim());
 
-		OutMembers += MakeMemberString(GetMemberTypeString(Member), MemberName, std::move(Comment));
+		OutMembers += MakeMemberString(GetMemberTypeString(Member, OverrideInfo), MemberName, std::move(Comment));
 	}
 
 	return OutMembers;
@@ -91,26 +211,37 @@ std::string CppGenerator::GenerateFunctionInClass(const std::vector<UEFunction>&
 
 void CppGenerator::GenerateStruct(StreamType& StructFile, UEStruct Struct)
 {
-	std::string UniqueName = GetStructPrefixedName(Struct);
+	const StructInfo& Info = StructManager::GetInfo(Struct);
+
+	std::string UniqueName = GetStructPrefixedName(Struct, Info);
 	std::string UniqueSuperName;
 
-	int32 StructSize = StructManager::GetSize(Struct);
+	int32 StructSize = Info.Size;
 	int32 SuperSize = 0x0;
 
 	UEStruct Super = Struct.GetSuper();
 
 	if (Super)
 	{
-		UniqueSuperName = GetStructPrefixedName(Super);
-		SuperSize = StructManager::GetSize(Super);
+		const StructInfo& SuperInfo = StructManager::GetInfo(Super);
+
+		UniqueSuperName = GetStructPrefixedName(Super, SuperInfo);
+		SuperSize = SuperInfo.Size;
 	}
 
 	StructFile << std::format(R"(
-// 0x{:04X} (0x{:04X} - 0x{:04X})
 // {}
-struct {}{}
+// 0x{:04X} (0x{:04X} - 0x{:04X})
+struct {}{}{}{}
 {{
-)", StructSize - SuperSize, StructSize, SuperSize, Struct.GetFullName(), UniqueName, Super ? (" : public " + UniqueSuperName) : "");
+)", Struct.GetFullName()
+  , StructSize - SuperSize
+  , StructSize
+  , SuperSize
+  , Struct.GetMinAlignment() > 0x8 ? std::format("alignas({:02X}) ", Struct.GetMinAlignment()) : ""
+  , UniqueName
+  , false ? " final " : ""
+  , Super ? (" : public " + UniqueSuperName) : "");
 
 	std::vector<UEProperty> Members = Struct.GetProperties();
 
@@ -122,7 +253,7 @@ struct {}{}
 
 	if (bHasMembers)
 	{
-		StructFile << GenerateMembers(Struct, Members, SuperSize);
+		StructFile << GenerateMembers(Struct, Info, Members, SuperSize);
 
 		if (bHasFunctions)
 			StructFile << "\n\n";
@@ -144,11 +275,11 @@ void CppGenerator::GenerateFunctionInCppFile(StreamType& FunctionFile, std::ofst
 
 }
 
-std::string CppGenerator::GetStructPrefixedName(UEStruct Struct)
+std::string CppGenerator::GetStructPrefixedName(UEStruct Struct, const StructInfo& OverrideInfo)
 {
-	const StringEntry& UniqueNameEntry = StructManager::GetUniqueName(Struct);
+	const StringEntry& UniqueNameEntry = StructManager::GetName(OverrideInfo);
 
-	return UniqueNameEntry.IsUnique() ? UniqueNameEntry.GetUniqueName() : Struct.GetOutermost().GetValidName() + "::" + UniqueNameEntry.GetUniqueName();
+	return (UniqueNameEntry.IsUnique() ? "" : (Struct.GetOutermost().GetValidName() + "::")) + UniqueNameEntry.GetUniqueName();
 }
 
 void CppGenerator::Generate(const DependencyManager& Dependencies)
@@ -166,7 +297,7 @@ void CppGenerator::InitPredefinedFunctions()
 
 }
 
-std::string CppGenerator::GetMemberTypeString(UEProperty Member)
+std::string CppGenerator::GetMemberTypeString(UEProperty Member, const StructInfo& OverrideInfo)
 {
 	auto [Class, FieldClass] = Member.GetClass();
 	EClassCastFlags Flags = Class ? Class.GetCastFlags() : FieldClass.GetCastFlags();
@@ -217,7 +348,7 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 	else if (Flags & EClassCastFlags::ClassProperty)
 	{
 		if (Member.GetPropertyFlags() & EPropertyFlags::UObjectWrapper)
-			return std::format("TSubclassOf<class {}>", GetStructPrefixedName(Member.Cast<UEClassProperty>().GetMetaClass()));
+			return std::format("TSubclassOf<class {}>", GetStructPrefixedName(Member.Cast<UEClassProperty>().GetMetaClass(), OverrideInfo));
 
 		return "class UClass*";
 	}
@@ -239,44 +370,44 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 	}
 	else if (Flags & EClassCastFlags::StructProperty)
 	{
-		return std::format("struct {}", GetStructPrefixedName(Member.Cast<UEStructProperty>().GetUnderlayingStruct()));
+		return std::format("struct {}", GetStructPrefixedName(Member.Cast<UEStructProperty>().GetUnderlayingStruct(), OverrideInfo));
 	}
 	else if (Flags & EClassCastFlags::ArrayProperty)
 	{
-		return std::format("TArray<{}>", GetMemberTypeString(Member.Cast<UEArrayProperty>().GetInnerProperty()));
+		return std::format("TArray<{}>", GetMemberTypeString(Member.Cast<UEArrayProperty>().GetInnerProperty(), OverrideInfo));
 	}
 	else if (Flags & EClassCastFlags::WeakObjectProperty)
 	{
 		if (UEClass PropertyClass = Member.Cast<UEWeakObjectProperty>().GetPropertyClass())
-			return std::format("TWeakObjectPtr<class {}>", GetStructPrefixedName(PropertyClass));
+			return std::format("TWeakObjectPtr<class {}>", GetStructPrefixedName(PropertyClass, OverrideInfo));
 
 		return "TWeakObjectPtr<class UObject>";
 	}
 	else if (Flags & EClassCastFlags::LazyObjectProperty)
 	{
 		if (UEClass PropertyClass = Member.Cast<UELazyObjectProperty>().GetPropertyClass())
-			return std::format("TLazyObjectPtr<class {}>", GetStructPrefixedName(PropertyClass));
+			return std::format("TLazyObjectPtr<class {}>", GetStructPrefixedName(PropertyClass, OverrideInfo));
 
 		return "TLazyObjectPtr<class UObject>";
 	}
 	else if (Flags & EClassCastFlags::SoftClassProperty)
 	{
 		if (UEClass PropertyClass = Member.Cast<UESoftClassProperty>().GetPropertyClass())
-			return std::format("TSoftClassPtr<class {}>", GetStructPrefixedName(PropertyClass));
+			return std::format("TSoftClassPtr<class {}>", GetStructPrefixedName(PropertyClass, OverrideInfo));
 
 		return "TSoftClassPtr<class UObject>";
 	}
 	else if (Flags & EClassCastFlags::SoftObjectProperty)
 	{
 		if (UEClass PropertyClass = Member.Cast<UESoftObjectProperty>().GetPropertyClass())
-			return std::format("TSoftObjectPtr<class {}>", GetStructPrefixedName(PropertyClass));
+			return std::format("TSoftObjectPtr<class {}>", GetStructPrefixedName(PropertyClass, OverrideInfo));
 
 		return "TSoftObjectPtr<class UObject>";
 	}
 	else if (Flags & EClassCastFlags::ObjectProperty)
 	{
 		if (UEClass PropertyClass = Member.Cast<UEObjectProperty>().GetPropertyClass())
-			return std::format("class {}*", GetStructPrefixedName(PropertyClass));
+			return std::format("class {}*", GetStructPrefixedName(PropertyClass, OverrideInfo));
 
 		return "class UObject*";
 	}
@@ -284,23 +415,23 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 	{
 		UEMapProperty MemberAsMapProperty = Member.Cast<UEMapProperty>();
 
-		return std::format("TMap<{}, {}>", GetMemberTypeString(MemberAsMapProperty.GetKeyProperty()), GetMemberTypeString(MemberAsMapProperty.GetValueProperty()));
+		return std::format("TMap<{}, {}>", GetMemberTypeString(MemberAsMapProperty.GetKeyProperty(), OverrideInfo), GetMemberTypeString(MemberAsMapProperty.GetValueProperty(), OverrideInfo));
 	}
 	else if (Flags & EClassCastFlags::SetProperty)
 	{
-		return std::format("TSet<{}>", GetMemberTypeString(Member.Cast<UESetProperty>().GetElementProperty()));
+		return std::format("TSet<{}>", GetMemberTypeString(Member.Cast<UESetProperty>().GetElementProperty(), OverrideInfo));
 	}
 	else if (Flags & EClassCastFlags::EnumProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEEnumProperty>().GetEnum())
 			return std::format("enum class {}", Enum.GetEnumTypeAsStr());
 
-		return GetMemberTypeString(Member.Cast<UEEnumProperty>().GetUnderlayingProperty());
+		return GetMemberTypeString(Member.Cast<UEEnumProperty>().GetUnderlayingProperty(), OverrideInfo);
 	}
 	else if (Flags & EClassCastFlags::InterfaceProperty)
 	{
 		if (UEClass PropertyClass = Member.Cast<UEInterfaceProperty>().GetPropertyClass())
-			return std::format("TScriptInterface<class {}>", GetStructPrefixedName(PropertyClass));
+			return std::format("TScriptInterface<class {}>", GetStructPrefixedName(PropertyClass, OverrideInfo));
 
 		return "TScriptInterface<class IInterface>";
 	}

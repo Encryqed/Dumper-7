@@ -124,9 +124,9 @@ public:
         return *this;
     }
 
-    static inline HashStringTableIndex FromInt(int32 Idx)
+    static inline HashStringTableIndex FromInt(uint32 Idx)
     {
-        return *reinterpret_cast<HashStringTableIndex*>(Idx);
+        return static_cast<HashStringTableIndex>(Idx);
     }
 
     inline operator uint32() const
@@ -332,7 +332,7 @@ private:
         {
             /* Only extend the checked part of the bucket */
             const uint32 OldCheckedSizeMax = Bucket.CheckedSizeMax;
-            const uint64 NewCheckedSizeMax = Bucket.CheckedSizeMax * 2;
+            const uint64 NewCheckedSizeMax = Bucket.CheckedSizeMax * 1.5;
 
             uint8_t* NewData = static_cast<uint8_t*>(realloc(Bucket.Data, Bucket.UncheckedSizeMax + NewCheckedSizeMax));
 
@@ -346,7 +346,7 @@ private:
         {
             /* Only extend the unchecked part of the bucket */
             const uint32 OldBucketUncheckedSizeMax = Bucket.UncheckedSizeMax;
-            const uint64 NewBucketUncheckedSizeMax = Bucket.UncheckedSizeMax * 2;
+            const uint64 NewBucketUncheckedSizeMax = Bucket.UncheckedSizeMax * 1.5;
 
             uint8_t* NewData = static_cast<uint8_t*>(realloc(Bucket.Data, Bucket.CheckedSizeMax + NewBucketUncheckedSizeMax));
 
@@ -468,6 +468,7 @@ public:
         return AddUnchecked(Str, Length, RawNameLength, Hash, bIsChecked);
     }
 
+    /* returns pair<Index, bWasAdded> */
     inline std::pair<HashStringTableIndex, bool> FindOrAdd(const std::string& String, bool bIsChecked = false)
     {
         size_t LastDotIdx = String.find_last_of('.');
@@ -480,5 +481,32 @@ public:
         {
             return FindOrAdd(String.c_str(), LastDotIdx + 1, bIsChecked, String.size() - (LastDotIdx + 1));
         }
+    }
+
+public:
+    inline void DebugPrintStats() const
+    {
+        uint64 TotalMemoryUsed = 0x0;
+        uint64 TotalMemoryAllocated = 0x0;
+
+        for (int i = 0; i < NumBuckets; i++)
+        {
+            TotalMemoryUsed += Buckets[i].UncheckedSize;
+            TotalMemoryUsed += Buckets[i].CheckedSize;
+
+            TotalMemoryAllocated += Buckets[i].UncheckedSizeMax;
+            TotalMemoryAllocated += Buckets[i].CheckedSizeMax;
+
+            std::cout << std::format("Bucket[{:d}] = {{ Unchecked = {:05X}, UncheckedMax = {:05X}, Checked = {:05X}, CheckedMax = {:05X} }}\n",
+                i, Buckets[i].UncheckedSize, Buckets[i].UncheckedSizeMax, Buckets[i].CheckedSize, Buckets[i].CheckedSizeMax);
+        }
+
+        std::cout << std::endl;
+
+        std::cout << std::format("TotalMemoryUsed: {:X}\n", TotalMemoryUsed);
+        std::cout << std::format("TotalMemoryAllocated: {:X}\n", TotalMemoryAllocated);
+        std::cout << std::format("Percentage of allocation in use: {:.3f}\n", static_cast<double>(TotalMemoryUsed) / TotalMemoryAllocated);
+
+        std::cout << "\n" << std::endl;
     }
 };

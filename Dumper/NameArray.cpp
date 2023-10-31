@@ -76,7 +76,7 @@ void FNameEntry::Init(uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 
 		for (int i = 0; i < 0x20; i++)
 		{
-			if (*reinterpret_cast<uint32*>(FNameEntryNone + i) == 0x656e6f4e /*"None" in little-endian*/)
+			if (*reinterpret_cast<uint32*>(FNameEntryNone + i) == 'enoN') // None
 			{
 				Off::FNameEntry::NameArray::StringOffset = i;
 				break;
