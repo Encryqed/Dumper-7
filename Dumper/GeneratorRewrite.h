@@ -7,9 +7,13 @@
 
 namespace fs = std::filesystem;
 
-struct StructInfo2 {};
-struct ClassInfo {};
-struct FunctionInfo {};
+struct PackageMembers
+{
+    DependencyManager Structs;
+    DependencyManager Classes;
+    std::vector<int32> Enums;
+    std::vector<int32> Functions;
+};
 
 class GeneratorRewrite /* renamed to just 'Generator' once the legacy generator is removed */
 {
@@ -19,6 +23,7 @@ protected:
     static inline fs::path DumperFolder;
 
 public:
+    static void InitCore();
     static void Init();
 
 private:
@@ -27,9 +32,7 @@ private:
     static bool SetupFolders(const std::string& FolderName, fs::path& OutFolder);
     static bool SetupFolders(const std::string& FolderName, fs::path& OutFolder, const std::string& SubfolderName, fs::path& OutSubFolder);
 
-    static void GenerateStruct(const StructInfo2& Struct) { };
-    static void GenerateClass(const ClassInfo& Class) { };
-    static void GenerateFunction(const FunctionInfo& Function) { };
+    static std::unordered_map<int32, PackageMembers> GatherPackages();
 
 public:
     template<typename GeneratorType>
@@ -39,15 +42,11 @@ public:
         {
             if (!SetupDumperFolder())
                 return;
-        }            
+        }
 
         if (!SetupFolders(GeneratorType::MainFolderName, GeneratorType::MainFolder, GeneratorType::SubfolderName, GeneratorType::Subfolder))
             return;
 
         GeneratorType::Generate(Packages);
     };
-
-protected:
-    static void InitPredefinedMembers() { };
-    static void InitPredefinedFunctions() { };
 };

@@ -203,6 +203,8 @@ public:
 
 	void* GetExecFunction() const;
 
+	UEProperty GetReturnProperty() const;
+
 	std::string StringifyFlags() const;
 	std::string GetParamStructName() const;
 };

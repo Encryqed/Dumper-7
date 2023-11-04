@@ -21,107 +21,6 @@ std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 Pad
 	return MakeMemberString("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason)));
 }
 
-/*
-Struct 1:
-	int a, b, c;
-	uint8 Pad[0x10];
-	int d, e, f;
-
-Struct1_PredefinedMembers: { 
-	"void*", "Something", 0x10, 0x8
-}
-
-Result:
-struct Struct1
-{
-public:
-	int32                 a;                              // 0x0000(0x0004)
-	int32                 b;                              // 0x0004(0x0004)
-	int32                 c;                              // 0x0008(0x0004)
-	uint8                 Pad_0[0x4];                     // 0x000C(0x0004)
-	void*                 Something;                      // 0x0010(0x0008)
-	uint8                 Pad_1[0x4];                     // 0x0018(0x0004)
-	int32                 e;                              // 0x001C(0x0004)
-	int32                 f;                              // 0x0020(0x0004)
-};
-*/
-
-struct TestPredefMember
-{
-	std::string Type;
-	std::string Name;
-	int32 Offset;
-	int32 Size;
-	int32 ArrayDim;
-	bool bIsUnqiue = true;
-};
-
-class MemberManager
-{
-private:
-	using MemberNameInfo = std::pair<HashStringTableIndex, bool /* bIsUnqiueInClassAndSuper */>;
-
-public:
-	static inline HashStringTable PropertyNames;
-	static inline std::unordered_map<void*, std::vector<TestPredefMember>> Predefs;
-
-	static inline std::unordered_map<void*, std::vector<MemberNameInfo>> StructMembers;
-
-public:
-	const std::vector<UEProperty>* Properties = nullptr;
-	const std::vector<TestPredefMember>* PredefinedMembers = nullptr;
-	int32 PropertiesIdx = 0;
-	int32 PredefMemberIdx = 0;
-
-	MemberManager(UEStruct Struct, const std::vector<UEProperty>& Members)
-		: Properties(&Members)
-	{
-		//auto It = Predefs.find(Struct.GetAddress());
-		//if (It != Predefs.end())
-		//	PredefinedMembers = &It->second;
-		//
-		//for (auto Property : Struct.GetProperties())
-		//{
-		//	auto [Index, bIsUnique] = PropertyNames.FindOrAdd(Property.GetValidName(), true);
-		//
-		//	if (!bIsUnique)
-		//	{
-		//		for (UEStruct S = Struct; S; S = S.GetSuper())
-		//		{
-		//			if (StructMembers[S.GetAddress()].)
-		//		}
-		//	}
-		//
-		//	StructMembers[Struct.GetAddress()].push_back(Index);
-		//}
-	}
-
-
-	static void AddStruct(UEStruct Struct)
-	{
-		//for (auto Property : Struct.GetProperties())
-		//{
-		//	StructMembers[Struct.GetAddress()].push_back(PropertyNames.FindOrAdd(Property.GetValidName(), true).first);
-		//}
-	}
-
-	inline std::string GetPropertyUniqueName()
-	{
-		//return 
-	}
-
-public:
-	static inline HashStringTable& GetStringTable()
-	{
-		return PropertyNames;
-	}
-
-	inline UEProperty GetNextProperty() const
-	{
-		//if (PredefinedMembers && PredefinedMembers->at(PredefMemberIdx).Offset)
-	}
-};
-
 std::string CppGenerator::GenerateMembers(UEStruct Struct, const StructInfo& OverrideInfo, const std::vector<UEProperty>& Members, int32 SuperSize)
 {
 	static bool bDidThingOnce = false;
@@ -284,6 +183,17 @@ std::string CppGenerator::GetStructPrefixedName(UEStruct Struct, const StructInf
 
 void CppGenerator::Generate(const DependencyManager& Dependencies)
 {
+	struct PacakgeMembers
+	{
+		std::vector<UEEnum> AllEnums;
+		std::vector<UEStruct> AllStructs;
+		std::vector<UEClass> AllClasses;
+		std::vector<UEFunction> AllFunctions;
+	};
+
+	// Gather all packages --- 
+	std::vector<std::pair<int32, PacakgeMembers>> PackagesWithMembers /* = GetAllPackagesWithMembers()*/;
+
 
 }
 

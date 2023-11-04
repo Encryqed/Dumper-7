@@ -138,6 +138,9 @@ public:
     {
         return *this != InvalidIndex;
     }
+
+    inline bool operator==(HashStringTableIndex Other) const { return static_cast<uint32>(*this) == static_cast<uint32>(Other); }
+    inline bool operator!=(HashStringTableIndex Other) const { return static_cast<uint32>(*this) != static_cast<uint32>(Other); }
 };
 
 class HashStringTable
@@ -426,6 +429,32 @@ public:
     }
 
     template<typename CharType>
+    inline HashStringTableIndex Find(const CharType* Str, int32 Length, uint8 Hash, bool bIsChecked, int32 RawNameLength = 0)
+    {
+        constexpr bool bIsWchar = std::is_same_v<CharType, wchar_t>;
+
+        StringBucket& Bucket = Buckets[Hash];
+
+        /* Try to find duplications withing 'checked' regions */
+        for (auto It = HashBucketIterator::beginChecked(Bucket); It != HashBucketIterator::end(Bucket); ++It)
+        {
+            const StringEntry& Entry = *It;
+
+            if (Entry.Length == Length && Entry.bIsWide == bIsWchar && Strcmp(Str, Entry) == 0)
+            {
+                HashStringTableIndex Idx;
+                Idx.bIsChecked = true;
+                Idx.HashIndex = Hash;
+                Idx.InBucketOffset = It.GetInBucketIndex();
+
+                return Idx;
+            }
+        }
+
+        return HashStringTableIndex::FromInt(-1);
+    }
+
+    template<typename CharType>
     inline std::pair<HashStringTableIndex, bool> FindOrAdd(const CharType* Str, int32 Length, bool bIsChecked, int32 RawNameLength = 0)
     {
         const int CombinedLength = Length + RawNameLength;
@@ -444,24 +473,13 @@ public:
         if (!bIsChecked)
             return AddUnchecked(Str, Length, RawNameLength, Hash, bIsChecked);
 
-        StringBucket& Bucket = Buckets[Hash];
+        HashStringTableIndex ExistingIndex = Find(Str, Length, Hash, bIsChecked, RawNameLength);
 
-        /* Try to find duplications withing 'checked' regions */
-        for (auto It = HashBucketIterator::beginChecked(Bucket); It != HashBucketIterator::end(Bucket); ++It)
+        if (ExistingIndex != -1)
         {
-            const StringEntry& Entry = *It;
+            GetStringEntry(ExistingIndex).bIsUnique = false;
 
-            if (Entry.Length == Length && Entry.bIsWide == bIsWChar && Strcmp(Str, Entry) == 0)
-            {
-                Entry.bIsUnique = false;
-
-                HashStringTableIndex Idx;
-                Idx.bIsChecked = true;
-                Idx.HashIndex = Hash;
-                Idx.InBucketOffset = It.GetInBucketIndex();
-
-                return { Idx, false };
-            }
+            return { ExistingIndex, false };
         }
 
         // Only reached if Str wasn't found in StringTable, else entry is marked as not unique

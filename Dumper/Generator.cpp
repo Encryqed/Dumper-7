@@ -704,7 +704,7 @@ void Generator::InitPredefinedMembers()
 	PredefinedMembers["UFunction"] =
 	{
 		{ "using FNativeFuncPtr = void (*)(void* Context, void* TheStack, void* Result)", "", 0x0, 0x0 },
-		{ "uint32", "FunctionFlags", Off::UFunction::FunctionFlags, 0x08 },
+		{ "uint32", "FunctionFlags", Off::UFunction::FunctionFlags, 0x04 },
 		{ "FNativeFuncPtr", "ExecFunction", Off::UFunction::ExecFunction, 0x08 }
 	};
 

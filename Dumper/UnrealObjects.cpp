@@ -602,16 +602,17 @@ UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string&
 {
 	for (UEStruct Struct = *this; Struct; Struct = Struct.GetSuper())
 	{
-		if (Struct.GetName() == ClassName)
+		if (Struct.GetName() != ClassName)
+			continue;
+
+		for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
 		{
-			for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
+			if (Field.IsA(EClassCastFlags::Function) && Field.GetName() == FuncName)
 			{
-				if (Field.IsA(EClassCastFlags::Function) && Field.GetName() == FuncName)
-				{
-					return Field.Cast<UEFunction>();
-				}	
-			}
+				return Field.Cast<UEFunction>();
+			}	
 		}
+
 	}
 
 	return nullptr;
@@ -631,6 +632,18 @@ void* UEFunction::GetExecFunction() const
 {
 	return *reinterpret_cast<void**>(Object + Off::UFunction::ExecFunction);
 }
+
+UEProperty UEFunction::GetReturnProperty() const
+{
+	for (auto Prop : GetProperties())
+	{
+		if (Prop.HasPropertyFlags(EPropertyFlags::ReturnParm))
+			return Prop;
+	}
+
+	return nullptr;
+}
+
 
 std::string UEFunction::StringifyFlags()  const
 {

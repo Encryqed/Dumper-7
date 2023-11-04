@@ -215,7 +215,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 
 	for (int i = 0; i < 0x1000; i++)
 	{
-		if (*reinterpret_cast<uint32*>(*ChunkPtr + i) == NoneAsUint32)
+		if (*reinterpret_cast<uint32*>(*ChunkPtr + i) == NoneAsUint32 && FNameEntryHeaderSize == 0)
 		{
 			FNameEntryHeaderSize = i;
 		}
