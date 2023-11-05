@@ -7,8 +7,10 @@
 
 namespace fs = std::filesystem;
 
-struct PackageMembers
+struct PackageInfo
 {
+    std::unordered_set<int32> PackageDependencies;
+
     DependencyManager Structs;
     DependencyManager Classes;
     std::vector<int32> Enums;
@@ -17,8 +19,11 @@ struct PackageMembers
 
 class GeneratorRewrite /* renamed to just 'Generator' once the legacy generator is removed */
 {
+private:
+    friend class GeneratorRewriteTest;
+
 protected:
-    static inline DependencyManager Packages;
+    static inline std::unordered_map<int32, PackageInfo> Packages;
 
     static inline fs::path DumperFolder;
 
@@ -32,7 +37,7 @@ private:
     static bool SetupFolders(const std::string& FolderName, fs::path& OutFolder);
     static bool SetupFolders(const std::string& FolderName, fs::path& OutFolder, const std::string& SubfolderName, fs::path& OutSubFolder);
 
-    static std::unordered_map<int32, PackageMembers> GatherPackages();
+    static std::unordered_map<int32, PackageInfo> GatherPackages();
 
 public:
     template<typename GeneratorType>

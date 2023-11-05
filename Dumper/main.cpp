@@ -6,6 +6,7 @@
 #include "CppGenerator.h"
 
 #include "HashStringTableTest.h"
+#include "GeneratorRewriteTest.h"
 
 #include "GeneratorRewrite.h"
 
@@ -60,7 +61,9 @@ DWORD MainThread(HMODULE Module)
 	HashStringTableTest::TestUniqueMemberNames();
 	HashStringTableTest::TestUniqueStructNames();
 
-	GeneratorRewrite::Generate<CppGenerator>();
+	GeneratorRewriteTest::TestAll();
+
+	//GeneratorRewrite::Generate<CppGenerator>();
 
 	//std::cout << "FTransform::MinAlignment: " << *reinterpret_cast<int32*>(static_cast<uint8*>(ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct)) + Off::UStruct::Size + 0x4) << std::endl;
 	//Generator::GenerateSDK();

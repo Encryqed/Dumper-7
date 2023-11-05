@@ -1,6 +1,11 @@
 #pragma once
 #include <unordered_set>
 #include <unordered_map>
+#include <iostream>
+#include <format>
+
+#include "Enums.h"
+
 
 struct DependencyInfo
 {
@@ -25,9 +30,19 @@ public:
 	}
 
 public:
-	inline void AddDependency(const int32 DepandantIdx, const int32 DependencyIndex)
+	inline void AddDependency(const int32 DepedantIdx, const int32 DependencyIndex)
 	{
-		AllDependencies[DepandantIdx].DependencyIndices.insert(DependencyIndex);
+		AllDependencies[DepedantIdx].DependencyIndices.insert(DependencyIndex);
+	}
+
+	inline void SetDependencies(const int32 DepedantIdx, std::unordered_set<int32>&& Dependencies)
+	{
+		AllDependencies[DepedantIdx].DependencyIndices = std::move(Dependencies);
+	}
+
+	inline size_t GetNumEntries() const
+	{
+		return AllDependencies.size();
 	}
 
 	static void FindCyclicDependencies(DependencyManager& Nodes, int32 NodeIdx, int PrevNodeIdx, std::vector<int>& Visited)

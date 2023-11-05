@@ -138,5 +138,8 @@
     <ClInclude Include="StructManager.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
+    <ClInclude Include="GeneratorRewriteTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -8,21 +8,21 @@ void GeneratorRewrite::InitCore()
 	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
 }
 
-void GetPropertyDependency(UEProperty Prop, std::unordered_set<void*>& Store)
+void GetPropertyDependency(UEProperty Prop, std::unordered_set<int32>& Store)
 {
 	if (Prop.IsA(EClassCastFlags::StructProperty))
 	{
-		Store.insert(Prop.Cast<UEStructProperty>().GetUnderlayingStruct().GetAddress());
+		Store.insert(Prop.Cast<UEStructProperty>().GetUnderlayingStruct().GetIndex());
 	}
 	else if (Prop.IsA(EClassCastFlags::EnumProperty))
 	{
 		if (auto Enum = Prop.Cast<UEEnumProperty>().GetEnum())
-			Store.insert(Enum.GetAddress());
+			Store.insert(Enum.GetIndex());
 	}
 	else if (Prop.IsA(EClassCastFlags::ByteProperty))
 	{
 		if (UEObject Enum = Prop.Cast<UEByteProperty>().GetEnum())
-			Store.insert(Enum.GetAddress());
+			Store.insert(Enum.GetIndex());
 	}
 	else if (Prop.IsA(EClassCastFlags::ArrayProperty))
 	{
@@ -39,9 +39,9 @@ void GetPropertyDependency(UEProperty Prop, std::unordered_set<void*>& Store)
 	}
 }
 
-std::unordered_map<int32, PackageMembers> GeneratorRewrite::GatherPackages()
+std::unordered_map<int32, PackageInfo> GeneratorRewrite::GatherPackages()
 {
-	std::unordered_map<int32, PackageMembers> OutPackages;
+	std::unordered_map<int32, PackageInfo> OutPackages;
 
 	for (auto Obj : ObjectArray())
 	{
@@ -50,16 +50,26 @@ std::unordered_map<int32, PackageMembers> GeneratorRewrite::GatherPackages()
 		const bool bIsClass = Obj.IsA(EClassCastFlags::Class);
 		const bool bIsEnum = Obj.IsA(EClassCastFlags::Enum);
 
-		PackageMembers& Members = OutPackages[Obj.GetOutermost().GetIndex()];
+		int32 PackageIdx = Obj.GetOutermost().GetIndex();
+
+		PackageInfo& CurrentPackageInfo = OutPackages[PackageIdx];
+
+		std::unordered_set<int32> Dependencies;
 
 		if (bIsFunction)
 		{
 			UEProperty RetProperty = Obj.Cast<UEFunction>().GetReturnProperty();
 
 			if (RetProperty)
-				GetPropertyDependency(RetProperty, /* std::unrodered_set<void*> DepIdx */);
+				GetPropertyDependency(RetProperty, Dependencies);
 
-			Members.Functions.push_back(Obj.GetIndex());
+			// Dont move this loop, 'Dependencies' is moved from later
+			for (int32 Dependency : Dependencies)
+			{
+				CurrentPackageInfo.PackageDependencies.insert(ObjectArray::GetByIndex(Dependency).GetOutermost().GetIndex());
+			}
+
+			CurrentPackageInfo.Functions.push_back(Obj.GetIndex());
 		}
 		else if (bIsStruct)
 		{
@@ -67,26 +77,34 @@ std::unordered_map<int32, PackageMembers> GeneratorRewrite::GatherPackages()
 
 			for (UEProperty Property : Struct.GetProperties())
 			{
-				GetPropertyDependency(Property, /* std::unrodered_set<void*> DepIdx */);
+				GetPropertyDependency(Property, Dependencies);
 			}
 
-			bIsClass ? Members.Classes.AddDependency(Obj.GetIndex(), /* DepIdx */) : Members.Structs.AddDependency(Obj.GetIndex(), /* DepIdx */);
+			// Dont move this loop, 'Dependencies' is moved from later
+			for (int32 Dependency : Dependencies)
+			{
+				CurrentPackageInfo.PackageDependencies.insert(ObjectArray::GetByIndex(Dependency).GetOutermost().GetIndex());
+			}
+
+			bIsClass ? CurrentPackageInfo.Classes.SetDependencies(Obj.GetIndex(), std::move(Dependencies)) : CurrentPackageInfo.Structs.SetDependencies(Obj.GetIndex(), std::move(Dependencies));
 		}
 		else if (bIsEnum)
 		{
-			Members.Enums.push_back(Obj.GetIndex());
+			CurrentPackageInfo.Enums.push_back(Obj.GetIndex());
 		}
 	}
+
+	return OutPackages;
 }
 
 
 void GeneratorRewrite::Init()
 {
 	// Get all packages and their members
-	std::unordered_map<int32, PackageMembers> PackagesWithMembers /* = PropertyManager::GetPackageMembers()*/;
+	std::unordered_map<int32, PackageInfo> PackagesWithMembers /* = PropertyManager::GetPackageMembers()*/;
 
 	// Create DependencyManager, containing all packages and packages they depend on, for SDK.hpp generation
-	Packages /* = */;
+	Packages  = GatherPackages();
 
 	// Create StructManager with all structs and their names
 	

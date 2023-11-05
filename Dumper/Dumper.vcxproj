@@ -164,6 +164,7 @@
     <ClInclude Include="FileWriter.h" />
     <ClInclude Include="Generator.h" />
     <ClInclude Include="GeneratorRewrite.h" />
+    <ClInclude Include="GeneratorRewriteTest.h" />
     <ClInclude Include="HashStringTable.h" />
     <ClInclude Include="HashStringTableTest.h" />
     <ClInclude Include="ObjectArray.h" />

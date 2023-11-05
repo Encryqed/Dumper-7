@@ -126,7 +126,7 @@ public:
 
     static inline HashStringTableIndex FromInt(uint32 Idx)
     {
-        return static_cast<HashStringTableIndex>(Idx);
+        return *reinterpret_cast<HashStringTableIndex*>(&Idx);
     }
 
     inline operator uint32() const
