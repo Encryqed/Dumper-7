@@ -1,6 +1,6 @@
 #include "GeneratorRewrite.h"
 
-void GeneratorRewrite::InitCore()
+void GeneratorRewrite::InitEngineCore()
 {
 	ObjectArray::Init();
 	FName::Init();
@@ -98,16 +98,14 @@ std::unordered_map<int32, PackageInfo> GeneratorRewrite::GatherPackages()
 }
 
 
-void GeneratorRewrite::Init()
+void GeneratorRewrite::InitInternal()
 {
-	// Get all packages and their members
-	std::unordered_map<int32, PackageInfo> PackagesWithMembers /* = PropertyManager::GetPackageMembers()*/;
-
 	// Create DependencyManager, containing all packages and packages they depend on, for SDK.hpp generation
-	Packages  = GatherPackages();
+	Packages = GatherPackages();
 
 	// Create StructManager with all structs and their names
-	
+	StructOverrideInfos.Init();
+
 	// 
 }
 

@@ -4,6 +4,8 @@
 #include "StructManager.h"
 #include "HashStringTable.h"
 
+#include "GeneratorRewrite.h"
+
 namespace fs = std::filesystem;
 
 struct PackageRewrite
@@ -38,19 +40,19 @@ private:
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
     static std::string GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
 
-    static std::string GenerateMembers(UEStruct Struct, const StructInfo& OverrideInfo, const std::vector<UEProperty>& Members, int32 SuperSize);
+    static std::string GenerateMembers(UEStruct Struct, const StructInfoHandle& OverrideInfo, const std::vector<UEProperty>& Members, int32 SuperSize);
     static std::string GenerateFunctionInClass(const std::vector<UEFunction>& Functions);
 
-    static void GenerateStruct(StreamType& StructFile, UEStruct Struct);
-    static void GenerateClass(StreamType& ClassFile, UEClass Class);
+    static void GenerateStruct(StreamType& StructFile, const StructManager& Manager, UEStruct Struct);
+    static void GenerateClass(StreamType& ClassFile, const StructManager& Manager, UEClass Class);
     static void GenerateFunctionInCppFile(StreamType& FunctionFile, std::ofstream& ParamFile, const UEFunction& Function);
 
 private: /* utility functions */
-    static std::string GetMemberTypeString(UEProperty CurrentNode, const StructInfo& OverrideInfo);
-    static std::string GetStructPrefixedName(UEStruct Struct, const StructInfo& OverrideInfo);
+    static std::string GetMemberTypeString(UEProperty CurrentNode, const StructInfoHandle& OverrideInfo);
+    static std::string GetStructPrefixedName(UEStruct Struct, const StructInfoHandle& OverrideInfo);
 
 public:
-    static void Generate(const DependencyManager& Dependencies);
+    static void Generate(const std::unordered_map<int32, PackageInfo>& Dependencies);
 
     static void InitPredefinedMembers();
     static void InitPredefinedFunctions();

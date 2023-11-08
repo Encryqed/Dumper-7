@@ -141,5 +141,8 @@
     <ClInclude Include="GeneratorRewriteTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
+    <ClInclude Include="StructManagerTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

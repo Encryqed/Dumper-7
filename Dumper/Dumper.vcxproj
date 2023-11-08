@@ -173,6 +173,7 @@
     <ClInclude Include="Package.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="StructManager.h" />
+    <ClInclude Include="StructManagerTest.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="NameArray.h" />
     <ClInclude Include="UnrealObjects.h" />

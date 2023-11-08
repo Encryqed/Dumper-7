@@ -5,10 +5,16 @@
 
 
 /*
-Struct 1:
-	int a, b, c;
+struct Struct1
+{
+	int a;
+	int b;
+	int c;
 	uint8 Pad[0x10];
-	int d, e, f;
+	int d;
+	int e;
+	int f;
+};
 
 Struct1_PredefinedMembers: {
 	"void*", "Something", 0x10, 0x8
@@ -118,26 +124,58 @@ public:
 
 struct StructInfo
 {
-	int32 Size;
+	int32 Size = INT_MAX;
 	HashStringTableIndex Name;
+	bool bIsFinal = true; // wheter this class is ever inherited from. set to false when this struct is found to be another structs super
+};
+
+class StructManager;
+
+class StructInfoHandle
+{
+private:
+	const StructManager* Manager;
+	StructInfo Info;
+
+public:
+	StructInfoHandle(const StructManager* InManager, StructInfo InInfo);
+
+public:
+	StructInfoHandle() = delete;
+	StructInfoHandle(StructInfoHandle&&) = delete;
+	StructInfoHandle(const StructInfoHandle&) = delete;
+
+public:
+	int32 GetSize() const;
+	const StringEntry& GetName() const;
+	bool IsFinal() const;
 };
 
 class StructManager
 {
 private:
-	static inline HashStringTable UniqueNameTable;
+	friend StructInfoHandle;
+	friend class StructManagerTest;
 
-	static inline std::unordered_map<int32 /*StructIdx*/, StructInfo> StructInfoOverrides;
+private:
+	HashStringTable UniqueNameTable;
+	std::unordered_map<int32 /*StructIdx*/, StructInfo> StructInfoOverrides;
+
+	bool bIsInitialized = false;
 
 public:
-	static inline StructInfo GetInfo(UEStruct Struct)
-	{
-		return StructInfoOverrides[Struct.GetIndex()];
-	}
+	void Init();
 
-	static inline const StringEntry& GetName(const StructInfo& Info)
+private:
+	inline const StringEntry& GetName(const StructInfo& Info) const
 	{
 		return UniqueNameTable[Info.Name];
+	}
+
+public:
+	inline StructInfoHandle GetInfo(UEStruct Struct) const
+	{
+		return { this, StructInfoOverrides.at(Struct.GetIndex()) };
 	}
 };
 

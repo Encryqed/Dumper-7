@@ -4,6 +4,7 @@
 #include "ObjectArray.h"
 #include "DependencyManager.h"
 #include "HashStringTable.h"
+#include "StructManager.h"
 
 namespace fs = std::filesystem;
 
@@ -24,14 +25,16 @@ private:
 
 protected:
     static inline std::unordered_map<int32, PackageInfo> Packages;
+    static inline StructManager StructOverrideInfos;
 
     static inline fs::path DumperFolder;
 
 public:
-    static void InitCore();
-    static void Init();
+    static void InitEngineCore();
 
 private:
+    static void InitInternal();
+
     static bool SetupDumperFolder();
 
     static bool SetupFolders(const std::string& FolderName, fs::path& OutFolder);

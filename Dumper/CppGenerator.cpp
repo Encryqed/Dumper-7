@@ -21,7 +21,7 @@ std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 Pad
 	return MakeMemberString("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason)));
 }
 
-std::string CppGenerator::GenerateMembers(UEStruct Struct, const StructInfo& OverrideInfo, const std::vector<UEProperty>& Members, int32 SuperSize)
+std::string CppGenerator::GenerateMembers(UEStruct Struct, const StructInfoHandle& OverrideInfo, const std::vector<UEProperty>& Members, int32 SuperSize)
 {
 	static bool bDidThingOnce = false;
 
@@ -108,24 +108,24 @@ std::string CppGenerator::GenerateFunctionInClass(const std::vector<UEFunction>&
 	return "CppGenerator::GenerateFunctionInClass";
 }
 
-void CppGenerator::GenerateStruct(StreamType& StructFile, UEStruct Struct)
+void CppGenerator::GenerateStruct(StreamType& StructFile, const StructManager& Manager, UEStruct Struct)
 {
-	const StructInfo& Info = StructManager::GetInfo(Struct);
+	StructInfoHandle Info = Manager.GetInfo(Struct);
 
 	std::string UniqueName = GetStructPrefixedName(Struct, Info);
 	std::string UniqueSuperName;
 
-	int32 StructSize = Info.Size;
+	int32 StructSize = Info.GetSize();
 	int32 SuperSize = 0x0;
 
 	UEStruct Super = Struct.GetSuper();
 
 	if (Super)
 	{
-		const StructInfo& SuperInfo = StructManager::GetInfo(Super);
+		StructInfoHandle SuperInfo = Manager.GetInfo(Super);
 
 		UniqueSuperName = GetStructPrefixedName(Super, SuperInfo);
-		SuperSize = SuperInfo.Size;
+		SuperSize = SuperInfo.GetSize();
 	}
 
 	StructFile << std::format(R"(
@@ -164,7 +164,7 @@ struct {}{}{}{}
 	StructFile << "};\n";
 }
 
-void CppGenerator::GenerateClass(StreamType& ClassFile, UEClass Class)
+void CppGenerator::GenerateClass(StreamType& ClassFile, const StructManager& Manager, UEClass Class)
 {
 
 }
@@ -174,14 +174,14 @@ void CppGenerator::GenerateFunctionInCppFile(StreamType& FunctionFile, std::ofst
 
 }
 
-std::string CppGenerator::GetStructPrefixedName(UEStruct Struct, const StructInfo& OverrideInfo)
+std::string CppGenerator::GetStructPrefixedName(UEStruct Struct, const StructInfoHandle& OverrideInfo)
 {
-	const StringEntry& UniqueNameEntry = StructManager::GetName(OverrideInfo);
+	const StringEntry& UniqueNameEntry = OverrideInfo.GetName();
 
 	return (UniqueNameEntry.IsUnique() ? "" : (Struct.GetOutermost().GetValidName() + "::")) + UniqueNameEntry.GetUniqueName();
 }
 
-void CppGenerator::Generate(const DependencyManager& Dependencies)
+void CppGenerator::Generate(const std::unordered_map<int32, PackageInfo>& Dependencies)
 {
 	struct PacakgeMembers
 	{
@@ -207,7 +207,7 @@ void CppGenerator::InitPredefinedFunctions()
 
 }
 
-std::string CppGenerator::GetMemberTypeString(UEProperty Member, const StructInfo& OverrideInfo)
+std::string CppGenerator::GetMemberTypeString(UEProperty Member, const StructInfoHandle& OverrideInfo)
 {
 	auto [Class, FieldClass] = Member.GetClass();
 	EClassCastFlags Flags = Class ? Class.GetCastFlags() : FieldClass.GetCastFlags();

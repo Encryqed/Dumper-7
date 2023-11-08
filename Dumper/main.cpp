@@ -7,6 +7,7 @@
 
 #include "HashStringTableTest.h"
 #include "GeneratorRewriteTest.h"
+#include "StructManagerTest.h"
 
 #include "GeneratorRewrite.h"
 
@@ -33,7 +34,7 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "Started Generation [Dumper-7]!\n";
   
 	Generator::Init();
-	//GeneratorRewrite::InitCore();
+	//GeneratorRewrite::InitEngineCore();
 
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())
 	{
@@ -58,10 +59,12 @@ DWORD MainThread(HMODULE Module)
 
 	//StringTableTest::TestAll();
 	//HashStringTableTest::TestAll();
-	HashStringTableTest::TestUniqueMemberNames();
-	HashStringTableTest::TestUniqueStructNames();
+	//HashStringTableTest::TestUniqueMemberNames();
+	//HashStringTableTest::TestUniqueStructNames();
+	//
+	//GeneratorRewriteTest::TestAll();
 
-	GeneratorRewriteTest::TestAll();
+	StructManagerTest::TestAll();
 
 	//GeneratorRewrite::Generate<CppGenerator>();
 
