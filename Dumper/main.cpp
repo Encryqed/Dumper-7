@@ -66,6 +66,27 @@ DWORD MainThread(HMODULE Module)
 
 	StructManagerTest::TestAll();
 
+	UEClass Engine = ObjectArray::FindClassFast("Engine");
+	UEClass GameEngine = ObjectArray::FindClassFast("GameEngine");
+
+	UEClass LevelStreaming = ObjectArray::FindClassFast("LevelStreaming");
+
+	std::cout << std::format("sizeof(UEngine) = 0x{:X};\n\n", Engine.GetStructSize());
+	std::cout << std::format("alignof(UEngine) = 0x{:X};\n\n", Engine.GetMinAlignment());
+	std::cout << std::format("alignof(UObject) = 0x{:X};\n\n", ObjectArray::FindClassFast("Object").GetMinAlignment());
+	std::cout << std::format("alignof(FTransform) = 0x{:X};\n\n", ObjectArray::FindObjectFast<UEStruct>("Transform").GetMinAlignment());
+	std::cout << std::format("alignof(FVector) = 0x{:X};\n\n", ObjectArray::FindObjectFast<UEStruct>("Vector").GetMinAlignment());
+	std::cout << std::format("alignof(ULevelStreaming) = 0x{:X};\n\n", LevelStreaming.GetMinAlignment());
+	std::cout << std::format("alignof(ULevelStreaming::LevelTransform) = 0x{:X};\n\n", LevelStreaming.FindMember("LevelTransform").Cast<UEStructProperty>().GetUnderlayingStruct().GetMinAlignment());
+
+	std::cout << std::format("UEngine = {};\n\n", Engine.GetAddress());
+	std::cout << std::format("UGameEngine = {};\n\n", GameEngine.GetAddress()); 
+
+	for (UEProperty Prop : GameEngine.GetProperties())
+	{
+		std::cout << std::format("offsetof({}) = 0x{:X};\n", Prop.GetName(), Prop.GetOffset());
+	}
+
 	//GeneratorRewrite::Generate<CppGenerator>();
 
 	//std::cout << "FTransform::MinAlignment: " << *reinterpret_cast<int32*>(static_cast<uint8*>(ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct)) + Off::UStruct::Size + 0x4) << std::endl;

@@ -37,27 +37,47 @@ public:
 	static inline void TestInfo()
 	{
 		StructManager StructInfos;
-		StructInfos.Init();
+		StructInfos.Init(); 
 
 		UEStruct AActor = ObjectArray::FindClassFast("Actor");
-		UEStruct APlayerController = ObjectArray::FindClassFast("PlayerController");
+		UEStruct UObject = ObjectArray::FindClassFast("Object");
 		UEStruct UEngine = ObjectArray::FindClassFast("Engine");
 		UEStruct FVector = ObjectArray::FindObjectFast<UEStruct>("Vector");
+		UEStruct FTransform = ObjectArray::FindObjectFast<UEStruct>("Transform");
 		UEStruct UKismetSystemLibrary = ObjectArray::FindClassFast("KismetSystemLibrary");
+		UEStruct ULevelStreaming = ObjectArray::FindClassFast("LevelStreaming");
+		//UEStruct FPrimitiveComponentInstanceData = ObjectArray::FindObjectFast<UEStruct>("PrimitiveComponentInstanceData");
+		//UEStruct FStaticMeshComponentInstanceData = ObjectArray::FindObjectFast<UEStruct>("StaticMeshComponentInstanceData");
+		UEStruct UFortAIHotSpotSlot = ObjectArray::FindClassFast("FortAIHotSpotSlot");
+		UEStruct UAIHotSpotSlot = ObjectArray::FindClassFast("AIHotSpotSlot");
 
 		StructInfoHandle ActorInfo = StructInfos.GetInfo(AActor);
-		StructInfoHandle PlayerControllerInfo = StructInfos.GetInfo(APlayerController);
+		StructInfoHandle ObjectInfo = StructInfos.GetInfo(UObject);
 		StructInfoHandle EngineInfo = StructInfos.GetInfo(UEngine);
 		StructInfoHandle VectorInfo = StructInfos.GetInfo(FVector);
-		StructInfoHandle KismetSystemLibrary = StructInfos.GetInfo(UKismetSystemLibrary);
+		StructInfoHandle TransformInfo = StructInfos.GetInfo(FTransform);
+		StructInfoHandle KismetSystemLibraryInfo = StructInfos.GetInfo(UKismetSystemLibrary);
+		StructInfoHandle LevelStreamingInfo = StructInfos.GetInfo(ULevelStreaming);
+		//StructInfoHandle PrimitiveComponentInstanceData = StructInfos.GetInfo(FPrimitiveComponentInstanceData);
+		//StructInfoHandle StaticMeshComponentInstanceData = StructInfos.GetInfo(FStaticMeshComponentInstanceData);
+		//StructInfoHandle FortAIHotSpotSlot = StructInfos.GetInfo(UFortAIHotSpotSlot);
+		//StructInfoHandle AIHotSpotSlot = StructInfos.GetInfo(UAIHotSpotSlot);
 
-#define StructInfoHandleToDebugInfo(InfoHandle) InfoHandle.GetName().GetUniqueName(), InfoHandle.GetName().IsUnique(), InfoHandle.GetSize(), InfoHandle.IsFinal()
+#define StructInfoHandleToDebugInfo(InfoHandle) \
+	InfoHandle.GetName().GetUniqueName(), InfoHandle.GetName().IsUnique(), InfoHandle.GetSize(), InfoHandle.GetAlignment(), InfoHandle.ShouldUseExplicitAlignment(), InfoHandle.IsFinal()
 
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(ActorInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(PlayerControllerInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(EngineInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(VectorInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(KismetSystemLibrary)) << std::endl;
+		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(ActorInfo));
+		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(ObjectInfo));
+		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(EngineInfo));
+		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(VectorInfo));
+		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(TransformInfo));
+		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(KismetSystemLibraryInfo));
+		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(LevelStreamingInfo));
+		//std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(PrimitiveComponentInstanceData));
+		//std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(StaticMeshComponentInstanceData));
+		//std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(FortAIHotSpotSlot));
+		//std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(AIHotSpotSlot));
+		std::cout << std::endl;
 	}
 
 	static inline void TestIsFinal()

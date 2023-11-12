@@ -7,65 +7,67 @@
 #include "Enums.h"
 
 
-struct DependencyInfo
-{
-	bool bIsIncluded;
-	bool bIsCyclic;
-
-	/* 7 free bytes */
-
-	std::unordered_set<int32> DependencyIndices;
-};
-
 class DependencyManager
 {
-	std::unordered_map<int32, DependencyInfo> AllDependencies;
+private:
+	struct IndexDependencyInfo
+	{
+		bool bIsIncluded;
+		std::unordered_set<int32> DependencyIndices;
+	};
+
+private:
+	std::unordered_map<int32, IndexDependencyInfo> AllDependencies;
 
 public:
 	DependencyManager() = default;
 
-	DependencyManager(int32 ObjectToTrack)
-	{
-		AllDependencies.try_emplace(ObjectToTrack, DependencyInfo{ false, false, std::unordered_set<int32>{ } });
-	}
+	DependencyManager(int32 ObjectToTrack);
 
 public:
-	inline void AddDependency(const int32 DepedantIdx, const int32 DependencyIndex)
-	{
-		AllDependencies[DepedantIdx].DependencyIndices.insert(DependencyIndex);
-	}
+	void AddDependency(const int32 DepedantIdx, int32 DependencyIndex);
 
-	inline void SetDependencies(const int32 DepedantIdx, std::unordered_set<int32>&& Dependencies)
-	{
-		AllDependencies[DepedantIdx].DependencyIndices = std::move(Dependencies);
-	}
+	void SetDependencies(const int32 DepedantIdx, std::unordered_set<int32> Dependencies);
 
-	inline size_t GetNumEntries() const
-	{
-		return AllDependencies.size();
-	}
+	size_t GetNumEntries() const;
+};
 
-	static void FindCyclicDependencies(DependencyManager& Nodes, int32 NodeIdx, int PrevNodeIdx, std::vector<int>& Visited)
-	{
-		auto& [bVisited, bIsCyclic, Dependencies] = Nodes.AllDependencies[NodeIdx];
-	
-		if (!bVisited)
-		{
-			bVisited = true;
-	
-			Visited.push_back(NodeIdx);
-	
-			for (int Dep : Dependencies)
-				FindCyclicDependencies(Nodes, Dep, NodeIdx, Visited);
-		}
-		else
-		{
-			/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
-			if (std::find(std::begin(Visited), std::end(Visited), NodeIdx) != std::end(Visited))
-			{
-				bIsCyclic = true;
-				std::cout << std::format("Cycle between: {:d} and {:d}\n", PrevNodeIdx, NodeIdx);
-			}
-		}
-	}
+
+struct PackageDependencyInfo
+{
+	int32 DependencyPackageIdx;
+
+	uint8 bRequiresStructs : 1;
+	uint8 bRequiresClasses : 1;
+
+	uint8 bAreStructsCyclic : 1;
+	uint8 bAreClassesCyclic : 1;
+
+	uint8 bAreStructsIncluded : 1;
+	uint8 bAreClassesIncluded : 1;
+
+	inline operator int32() const { return DependencyPackageIdx; }
+};
+
+class PackageDependencyManager2
+{
+private:
+	using DependencyInfoSet = std::unordered_set<PackageDependencyInfo, std::hash<int32>>;
+
+private:
+	std::unordered_map<int32, DependencyInfoSet> AllDependencies;
+
+public:
+	PackageDependencyManager2() = default;
+
+	PackageDependencyManager2(int32 ObjectToTrack);
+
+public:
+	inline void AddDependency(const int32 DepedantIdx, PackageDependencyInfo DependencyIndex);
+
+	inline void SetDependencies(const int32 DepedantIdx, DependencyInfoSet&& Dependencies);
+
+	inline size_t GetNumEntries() const;
+
+	void FindCyclicDependencies(PackageDependencyInfo Node, PackageDependencyInfo PrevNode, bool bIsVisitingStructsOnly, std::vector<int32>& Visited);
 };

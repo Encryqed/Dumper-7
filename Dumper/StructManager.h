@@ -124,8 +124,10 @@ public:
 
 struct StructInfo
 {
-	int32 Size = INT_MAX;
 	HashStringTableIndex Name;
+	int32 Size = INT_MAX;
+	int32 Alignment;
+	bool bUseExplicitAlignment; // whether alignment should be specified with 'alignas(Alignment)'
 	bool bIsFinal = true; // wheter this class is ever inherited from. set to false when this struct is found to be another structs super
 };
 
@@ -147,6 +149,8 @@ public:
 
 public:
 	int32 GetSize() const;
+	int32 GetAlignment() const;
+	bool ShouldUseExplicitAlignment() const;
 	const StringEntry& GetName() const;
 	bool IsFinal() const;
 };
@@ -162,6 +166,10 @@ private:
 	std::unordered_map<int32 /*StructIdx*/, StructInfo> StructInfoOverrides;
 
 	bool bIsInitialized = false;
+
+private:
+	void InitAlignmentsAndNames();
+	void InitSizesAndIsFinal();
 
 public:
 	void Init();

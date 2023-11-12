@@ -70,7 +70,7 @@ void PackageDependencyManager::GetIncludesForPackage(
 
 		switch (FileType)
 		{
-		case EIncludeFileType::Struct:	
+		case EIncludeFileType::Struct:
 			OutRef += std::format("\n{}#include \"SDK/{}{}_structs.hpp\"", (bCommentOut ? "//" : ""), (Settings::FilePrefix ? Settings::FilePrefix : ""), PackageName);
 			break;
 		case EIncludeFileType::Class:
