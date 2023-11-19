@@ -5,6 +5,8 @@
 #include <format>
 #include <iostream>
 
+#define WINDOWS_IGNORE_PACKING_MISMATCH
+
 inline constexpr uint32 NumHashBits = 5;
 inline constexpr uint32 MaxHashNumber = 1 << NumHashBits;
 inline constexpr uint32 HashMask = MaxHashNumber - 1;
@@ -30,7 +32,7 @@ inline uint8 SmallPearsonHash(const char* StringToHash)
     return (Hash & HashMask);
 }
 
-
+#pragma pack(push, 0x1)
 class StringEntry
 {
 private:
@@ -43,26 +45,26 @@ private:
 public:
     static constexpr int32 MaxStringLength = 1 << 11;
 
-    static constexpr int32 StringEntrySizeWithoutStr = 0x4;
+    static constexpr int32 StringEntrySizeWithoutStr = 0x3;
 
 private:
     // Length of object name
-    uint32 Length : 11;
-
-    // Length of RawName to be appended to 'Legth' if this is a FullName, zero if this name is edited (eg. "UEditTool3Plus3")
-    uint32 RawNameLength : 10;
-
-    // If this string uses char or wchar_t
-    uint32 bIsWide : 1;
-
-    // If this name is unique amongst others --- always true if RawNameLength > 0
-    mutable uint32 bIsUnique : 1;
+    uint16 Length : 11;
 
     // PearsonHash reduced to 5 bits --- only computed if string was added when StringTable::CurrentMode == EDuplicationCheckingMode::Check
-    uint32 Hash : 5;
+    uint16 Hash : 5;
+
+    // If this string uses char or wchar_t
+    uint8 bIsWide : 1;
+
+    // If this name is unique amongst others
+    mutable uint8 bIsUnique : 1;
+
+    // Allows for checking if this name is unique without adding it to the table
+    mutable uint8 bIsUniqueTemp : 1;
 
     // Unused bits
-    uint32 Unused : 4;
+    uint8 Unused : 5;
 
     union
     {
@@ -72,31 +74,22 @@ private:
     };
 
 private:
-    inline int32 GetLengthBytes() const { return StringEntrySizeWithoutStr + Length + RawNameLength; }
+    inline int32 GetLengthBytes() const { return StringEntrySizeWithoutStr + Length; }
 
-    inline int32 GetStringLength() const { return Length + RawNameLength; }
+    inline int32 GetStringLength() const { return Length; }
 
 public:
-    inline bool IsUnique() const { return bIsUnique; }
-    inline bool IsPrefixedValidName() const { return RawNameLength == 0; }
+    inline bool IsUniqueInTable() const { return bIsUnique; }
+    inline bool IsUnique() const { return bIsUnique && bIsUniqueTemp; }
 
     inline uint8 GetHash() const { return Hash; }
 
-    inline std::string GetRawName() const { return std::string(Char + Length, RawNameLength); }
-    inline std::wstring GetWideRawName() const { return std::wstring(WChar + Length, RawNameLength); }
-    inline std::string_view GetRawNameView() const { return std::string_view(Char + Length, RawNameLength); }
-    inline std::wstring_view GetWideRawNameView() const { return std::wstring_view(WChar + Length, RawNameLength); }
-
-    inline std::string GetUniqueName() const { return std::string(Char, GetStringLength()); }
-    inline std::wstring GetWideUniqueName() const { return std::wstring(WChar, GetStringLength()); }
-    inline std::string_view GetUniqueNameView() const { return std::string_view(Char, GetStringLength()); }
-    inline std::wstring_view GetWideUniqueNameView() const { return std::wstring_view(WChar, GetStringLength()); }
-
-    inline std::string GetFullName() const { return std::string(Char, GetStringLength()); }
-    inline std::wstring GetWideFullName() const { return std::wstring(WChar, GetStringLength()); }
-    inline std::string_view GetFullNameView() const { return std::string_view(Char, GetStringLength()); }
-    inline std::wstring_view GetWideFullNameView() const { return std::wstring_view(WChar, GetStringLength()); }
+    inline std::string GetName() const { return std::string(Char, GetStringLength()); }
+    inline std::wstring GetWideName() const { return std::wstring(WChar, GetStringLength()); }
+    inline std::string_view GetNameView() const { return std::string_view(Char, GetStringLength()); }
+    inline std::wstring_view GetWideNameView() const { return std::wstring_view(WChar, GetStringLength()); }
 };
+#pragma pack(pop, 0x1)
 
 template<typename CharType>
 inline int32 Strcmp(const CharType* String, const StringEntry& Entry)
@@ -112,7 +105,7 @@ public:
     static inline uint32 InvalidIndex = -1;
 
 public:
-    uint32 bIsChecked : 1;
+    uint32 Unused : 1;
     uint32 HashIndex : 5;
     uint32 InBucketOffset : 26;
 
@@ -157,30 +150,25 @@ private:
     {
         // One allocated block, split in two sections, checked and unchecked
         uint8* Data;
-        uint32 UncheckedSize;
-        uint32 CheckedSize;
-        uint32 UncheckedSizeMax;
-        uint32 CheckedSizeMax;
+        uint32 Size;
+        uint32 SizeMax;
     };
 
 private:
     StringBucket Buckets[NumBuckets];
 
 public:
-    HashStringTable(uint32 BucketUncheckedSize = 0x5000, uint32 BucketCheckedSize = 0x5000)
+    HashStringTable(uint32 InitialBucketSize = 0x5000)
     {
-        assert((BucketUncheckedSize + BucketCheckedSize) >= 0x0 && "HashStringTable(0x0, 0x0) is invalid!");
+        assert((InitialBucketSize) >= 0x0 && "HashStringTable(0x0, 0x0) is invalid!");
 
         for (int i = 0; i < NumBuckets; i++)
         {
             StringBucket& CurrentBucket = Buckets[i];
-            CurrentBucket.Data = static_cast<uint8*>(malloc(BucketUncheckedSize + BucketCheckedSize));
+            CurrentBucket.Data = static_cast<uint8*>(malloc(InitialBucketSize));
 
-            CurrentBucket.UncheckedSize = 0x0;
-            CurrentBucket.CheckedSize = 0x0;
-
-            CurrentBucket.UncheckedSizeMax = BucketUncheckedSize;
-            CurrentBucket.CheckedSizeMax = BucketCheckedSize;
+            CurrentBucket.Size = 0x0;
+            CurrentBucket.SizeMax = InitialBucketSize;
         }
     }
 
@@ -210,14 +198,11 @@ public:
             : IteratedBucket(&Bucket)
             , InBucketIndex(InBucketStartPos)
         {
-            if (InBucketIndex >= Bucket.UncheckedSize && InBucketIndex < Bucket.UncheckedSizeMax)
-                InBucketIndex = Bucket.UncheckedSizeMax;
         }
 
     public:
         static inline HashBucketIterator begin(const StringBucket& Bucket) { return HashBucketIterator(Bucket, 0); }
-        static inline HashBucketIterator beginChecked(const StringBucket& Bucket) { return HashBucketIterator(Bucket, Bucket.UncheckedSizeMax); }
-        static inline HashBucketIterator end(const StringBucket& Bucket) { return HashBucketIterator(Bucket, Bucket.CheckedSize != 0 ? Bucket.UncheckedSizeMax + Bucket.CheckedSize : Bucket.UncheckedSize); }
+        static inline HashBucketIterator end(const StringBucket& Bucket) { return HashBucketIterator(Bucket, Bucket.Size); }
 
     public:
         inline uint32 GetInBucketIndex() const { return InBucketIndex; }
@@ -232,11 +217,6 @@ public:
         inline HashBucketIterator& operator++()
         {
             InBucketIndex += GetStringEntry().GetLengthBytes();
-
-            const bool bIsBetweenUncheckedAndCheckedRegion = InBucketIndex >= IteratedBucket->UncheckedSize && InBucketIndex < IteratedBucket->UncheckedSizeMax;
-
-            if (bIsBetweenUncheckedAndCheckedRegion)
-                InBucketIndex = IteratedBucket->UncheckedSizeMax; // continue to next valid memory
 
             return *this;
         }
@@ -293,22 +273,16 @@ public:
     inline HashStringTableIterator end()   const { return HashStringTableIterator(*this, HashBucketIterator::end(Buckets[NumBuckets - 1])); }
 
 private:
-    inline bool CanFit(const StringBucket& Bucket, int32 StrLengthBytes, bool bIsChecked) const
+    inline bool CanFit(const StringBucket& Bucket, int32 StrLengthBytes) const
     {
         const int32 EntryLength = StringEntry::StringEntrySizeWithoutStr + StrLengthBytes;
 
-        if (bIsChecked)
-            return (Bucket.CheckedSize + EntryLength) <= Bucket.CheckedSizeMax;
-
-        return (Bucket.UncheckedSize + EntryLength) <= Bucket.UncheckedSizeMax;
+        return (Bucket.Size + EntryLength) <= Bucket.SizeMax;
     }
 
-    inline StringEntry& GetRefToEmpty(const StringBucket& Bucket, bool bIsChecked)
+    inline StringEntry& GetRefToEmpty(const StringBucket& Bucket)
     {
-        if (bIsChecked)
-            return *reinterpret_cast<StringEntry*>(Bucket.Data + Bucket.UncheckedSizeMax + Bucket.CheckedSize);
-
-        return *reinterpret_cast<StringEntry*>(Bucket.Data + Bucket.UncheckedSize);
+        return *reinterpret_cast<StringEntry*>(Bucket.Data + Bucket.Size);
     }
 
     inline const StringEntry& GetStringEntry(const StringBucket& Bucket, int32 InBucketIndex) const
@@ -322,80 +296,57 @@ private:
 
         const StringBucket& Bucket = Buckets[BucketIndex];
 
-        assert(InBucketIndex > 0 && InBucketIndex < (Bucket.UncheckedSize + Bucket.CheckedSize) && "InBucketIndex was out of range!");
+        assert((InBucketIndex > 0 && InBucketIndex < Bucket.Size) && "InBucketIndex was out of range!");
 
         return *reinterpret_cast<StringEntry*>(Bucket.Data + InBucketIndex);
     }
 
-    inline void ResizeBucket(StringBucket& Bucket, bool bIsChecked)
+    inline void ResizeBucket(StringBucket& Bucket)
     {
         int32 BucketIdx = &Bucket - Buckets;
 
-        if (bIsChecked)
-        {
-            /* Only extend the checked part of the bucket */
-            const uint32 OldCheckedSizeMax = Bucket.CheckedSizeMax;
-            const uint64 NewCheckedSizeMax = Bucket.CheckedSizeMax * 1.5;
+        const uint32 OldBucketSize = Bucket.Size;
+        const uint64 NewBucketSizeMax = Bucket.SizeMax * 1.5;
 
-            uint8_t* NewData = static_cast<uint8_t*>(realloc(Bucket.Data, Bucket.UncheckedSizeMax + NewCheckedSizeMax));
+        uint8_t* NewData = static_cast<uint8_t*>(realloc(Bucket.Data, NewBucketSizeMax));
 
-            if (NewData)
-            {
-                Bucket.CheckedSizeMax = NewCheckedSizeMax;
-                Bucket.Data = NewData;
-            }
-        }
-        else
-        {
-            /* Only extend the unchecked part of the bucket */
-            const uint32 OldBucketUncheckedSizeMax = Bucket.UncheckedSizeMax;
-            const uint64 NewBucketUncheckedSizeMax = Bucket.UncheckedSizeMax * 1.5;
-
-            uint8_t* NewData = static_cast<uint8_t*>(realloc(Bucket.Data, Bucket.CheckedSizeMax + NewBucketUncheckedSizeMax));
-
-            if (NewData)
-            {
-                /* Move checked part of the bucket to the back so we don't write over it when adding new unchecked elements */
-                Bucket.Data = NewData;
-                Bucket.UncheckedSizeMax = NewBucketUncheckedSizeMax;
-
-                if (Bucket.CheckedSize > 0)
-                    memmove(Bucket.Data + NewBucketUncheckedSizeMax, Bucket.Data + OldBucketUncheckedSizeMax, Bucket.CheckedSize);
-            }
-        }
+        assert(NewData != nullptr && "Realloc failed in function 'ResizeBucket()'.");
+        
+        Bucket.Data = NewData;
+        Bucket.SizeMax = NewBucketSizeMax;
     }
 
     template<typename CharType>
-    inline std::pair<HashStringTableIndex, bool> AddUnchecked(const CharType* Str, int32 Length, int32 RawNameLength, uint8 Hash, bool bIsChecked)
+    inline std::pair<HashStringTableIndex, bool> AddUnchecked(const CharType* Str, int32 Length, uint8 Hash)
     {
         static_assert(std::is_same_v<CharType, char> || std::is_same_v<CharType, wchar_t>, "Invalid CharType! Type must be 'char' or 'wchar_t'.");
 
-        const int32 LengthBytes = (Length + RawNameLength) * sizeof(CharType);
+        const int32 LengthBytes = Length * sizeof(CharType);
 
         StringBucket& Bucket = Buckets[Hash];
 
-        if (!CanFit(Bucket, LengthBytes, bIsChecked))
-            ResizeBucket(Bucket, bIsChecked);
+        if (!CanFit(Bucket, LengthBytes))
+            ResizeBucket(Bucket);
 
-        StringEntry& NewEmptyEntry = GetRefToEmpty(Bucket, bIsChecked);
+        StringEntry& NewEmptyEntry = GetRefToEmpty(Bucket);
 
         NewEmptyEntry.Length = Length;
-        NewEmptyEntry.RawNameLength = RawNameLength;
         NewEmptyEntry.bIsWide = std::is_same_v<CharType, wchar_t>;
         NewEmptyEntry.Hash = Hash;
 
         // Initially always true, later marked as false if duplicate is found
         NewEmptyEntry.bIsUnique = true;
+        NewEmptyEntry.bIsUniqueTemp = true;
 
         // Always copy to the WChar, memcyp only copies bytes anways
         memcpy(NewEmptyEntry.WChar, Str, LengthBytes);
 
         HashStringTableIndex ReturnIndex;
-        ReturnIndex.bIsChecked = bIsChecked;
+        ReturnIndex.Unused = 0x0;
         ReturnIndex.HashIndex = Hash;
-        ReturnIndex.InBucketOffset = bIsChecked ? Bucket.CheckedSize : Bucket.UncheckedSize;
+        ReturnIndex.InBucketOffset = Bucket.Size;
 
-        (bIsChecked ? Bucket.CheckedSize : Bucket.UncheckedSize) += NewEmptyEntry.GetLengthBytes();
+        Bucket.Size += NewEmptyEntry.GetLengthBytes();
 
         return { ReturnIndex, true };
     }
@@ -420,30 +371,27 @@ public:
 
         const StringBucket& Bucket = Buckets[Index.HashIndex];
 
-        assert(Index.InBucketOffset >= 0 && Index.InBucketOffset < (Bucket.UncheckedSizeMax + Bucket.CheckedSize) && "InBucketIndex was out of range!");
-
-        if (Index.bIsChecked)
-            return  *reinterpret_cast<StringEntry*>(Bucket.Data + Bucket.UncheckedSizeMax + Index.InBucketOffset);
+        assert((Index.InBucketOffset >= 0 && Index.InBucketOffset < (Bucket.Size)) && "InBucketIndex was out of range!");
 
         return *reinterpret_cast<StringEntry*>(Bucket.Data + Index.InBucketOffset);
     }
 
     template<typename CharType>
-    inline HashStringTableIndex Find(const CharType* Str, int32 Length, uint8 Hash, bool bIsChecked, int32 RawNameLength = 0)
+    inline HashStringTableIndex Find(const CharType* Str, int32 Length, uint8 Hash)
     {
         constexpr bool bIsWchar = std::is_same_v<CharType, wchar_t>;
 
         StringBucket& Bucket = Buckets[Hash];
 
         /* Try to find duplications withing 'checked' regions */
-        for (auto It = HashBucketIterator::beginChecked(Bucket); It != HashBucketIterator::end(Bucket); ++It)
+        for (auto It = HashBucketIterator::begin(Bucket); It != HashBucketIterator::end(Bucket); ++It)
         {
             const StringEntry& Entry = *It;
 
             if (Entry.Length == Length && Entry.bIsWide == bIsWchar && Strcmp(Str, Entry) == 0)
             {
                 HashStringTableIndex Idx;
-                Idx.bIsChecked = true;
+                Idx.Unused = 0x0;
                 Idx.HashIndex = Hash;
                 Idx.InBucketOffset = It.GetInBucketIndex();
 
@@ -455,25 +403,21 @@ public:
     }
 
     template<typename CharType>
-    inline std::pair<HashStringTableIndex, bool> FindOrAdd(const CharType* Str, int32 Length, bool bIsChecked, int32 RawNameLength = 0)
+    inline std::pair<HashStringTableIndex, bool> FindOrAdd(const CharType* Str, int32 Length)
     {
-        const int CombinedLength = Length + RawNameLength;
         constexpr bool bIsWChar = std::is_same_v<CharType, wchar_t>;
-
+        
         static_assert(!bIsWChar, "'wchar_t' is not supported by the hashing function yet!");
 
-        if (!Str || CombinedLength <= 0 || CombinedLength > StringEntry::MaxStringLength)
+        if (!Str || Length <= 0 || Length > StringEntry::MaxStringLength)
         {
-            std::cout << std::format("Error on line {{{:d}}}: {}\n", __LINE__, !Str ? "!Str" : Length <= 0 ? "LengthBytes <= 0" : "LengthBytes > MaxStringLength") << std::endl;
+            std::cout << std::format("Error on line {{{:d}}}: {}\n", __LINE__, !Str ? "!Str" : Length <= 0 ? "Length <= 0" : "Length > MaxStringLength") << std::endl;
             return { HashStringTableIndex(-1), false };
         }
 
         uint8 Hash = SmallPearsonHash(Str);
 
-        if (!bIsChecked)
-            return AddUnchecked(Str, Length, RawNameLength, Hash, bIsChecked);
-
-        HashStringTableIndex ExistingIndex = Find(Str, Length, Hash, bIsChecked, RawNameLength);
+        HashStringTableIndex ExistingIndex = Find(Str, Length, Hash);
 
         if (ExistingIndex != -1)
         {
@@ -483,22 +427,13 @@ public:
         }
 
         // Only reached if Str wasn't found in StringTable, else entry is marked as not unique
-        return AddUnchecked(Str, Length, RawNameLength, Hash, bIsChecked);
+        return AddUnchecked(Str, Length, Hash);
     }
 
     /* returns pair<Index, bWasAdded> */
-    inline std::pair<HashStringTableIndex, bool> FindOrAdd(const std::string& String, bool bIsChecked = false)
+    inline std::pair<HashStringTableIndex, bool> FindOrAdd(const std::string& String)
     {
-        size_t LastDotIdx = String.find_last_of('.');
-
-        if (LastDotIdx == -1)
-        {
-            return FindOrAdd(String.c_str(), String.size(), bIsChecked);
-        }
-        else
-        {
-            return FindOrAdd(String.c_str(), LastDotIdx + 1, bIsChecked, String.size() - (LastDotIdx + 1));
-        }
+        return FindOrAdd(String.c_str(), String.size());
     }
 
 public:
@@ -509,14 +444,12 @@ public:
 
         for (int i = 0; i < NumBuckets; i++)
         {
-            TotalMemoryUsed += Buckets[i].UncheckedSize;
-            TotalMemoryUsed += Buckets[i].CheckedSize;
+            const StringBucket& Bucket = Buckets[i];
 
-            TotalMemoryAllocated += Buckets[i].UncheckedSizeMax;
-            TotalMemoryAllocated += Buckets[i].CheckedSizeMax;
+            TotalMemoryUsed += Bucket.Size;
+            TotalMemoryAllocated += Bucket.SizeMax;
 
-            std::cout << std::format("Bucket[{:d}] = {{ Unchecked = {:05X}, UncheckedMax = {:05X}, Checked = {:05X}, CheckedMax = {:05X} }}\n",
-                i, Buckets[i].UncheckedSize, Buckets[i].UncheckedSizeMax, Buckets[i].CheckedSize, Buckets[i].CheckedSizeMax);
+            std::cout << std::format("Bucket[{:02d}] = {{ Data = {:p}, Size = {:05X}, SizeMax = {:05X} }}\n", i, static_cast<void*>(Bucket.Data), Bucket.Size, Bucket.SizeMax);
         }
 
         std::cout << std::endl;

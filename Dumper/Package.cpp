@@ -424,7 +424,7 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 
 		bool bIsRef = false;
 		bool bIsOut = false;
-		bool bIsMoveType = Param.IsA(EClassCastFlags::StructProperty) || Param.IsA(EClassCastFlags::ArrayProperty) || Param.IsA(EClassCastFlags::StrProperty) || Param.IsA(EClassCastFlags::MapProperty) ||Param.IsA(EClassCastFlags::SetProperty);
+		bool bIsMoveType = Param.IsA(EClassCastFlags::StructProperty) || Param.IsA(EClassCastFlags::ArrayProperty) || Param.IsA(EClassCastFlags::StrProperty) || Param.IsA(EClassCastFlags::MapProperty) || Param.IsA(EClassCastFlags::SetProperty);
 		bool bIsRet = Param.HasPropertyFlags(EPropertyFlags::ReturnParm);
 
 		std::string Type = Param.GetCppType();

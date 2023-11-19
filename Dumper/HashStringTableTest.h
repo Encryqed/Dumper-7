@@ -18,7 +18,7 @@ public:
 
 	static inline void TestReallocation()
 	{
-		HashStringTable Desktop(0x5000);
+		HashStringTable Desktop;
 
 		bool bIsEverythingFine = true;
 
@@ -26,7 +26,6 @@ public:
 		{
 			if (Obj.IsA(EClassCastFlags::Struct))
 			{
-				//int32 RawNameSize = 0x0;
 				std::string FullName = Obj.GetFullName();
 				
 				if (FullName.find("IceDeimos") != -1)
@@ -43,7 +42,7 @@ public:
 
 	static inline void TestUniqueNames()
 	{
-		HashStringTable Desktop(0x5000);
+		HashStringTable Desktop;
 
 		std::vector<std::string> UniqueNames;
 		std::vector<std::string> RandomNamesToDuplicate;
@@ -62,12 +61,15 @@ public:
 			{
 				std::string UniqueName = Obj.GetCppName();
 
-				auto [Index, bAddedElement] = Desktop.FindOrAdd(UniqueName, true);
+				if (UniqueName == "UPlayer")
+					RandomNamesToDuplicate.push_back(UniqueName);
+
+				auto [Index, bAddedElement] = Desktop.FindOrAdd(UniqueName);
 
 				if (bAddedElement)
 					UniqueNames.push_back(UniqueName);
 
-				if (Desktop.FindOrAdd(UniqueName, true).second)
+				if (Desktop.FindOrAdd(UniqueName).second)
 					std::cout << "Added duplicate: \"" << UniqueName << "\"\n";
 
 				if (rand() % 4 == 0)
@@ -77,7 +79,10 @@ public:
 
 		for (auto& Dupliate : RandomNamesToDuplicate)
 		{
-			if (Desktop.FindOrAdd(Dupliate, true).second)
+			if (Dupliate == "UPlayer")
+				std::cout << std::endl;
+
+			if (Desktop.FindOrAdd(Dupliate).second)
 				std::cout << "Added duplicate: \"" << Dupliate << "\"\n";
 		}
 		double AverageNumStrCompAvoided = 0.0;
@@ -93,11 +98,11 @@ public:
 
 			const auto& CurrentBucket = Desktop.GetBucket(Hash);
 
-			for (auto It = HashStringTable::HashBucketIterator::beginChecked(CurrentBucket); It != HashStringTable::HashBucketIterator::end(CurrentBucket); ++It, TotalIterations++)
+			for (auto It = HashStringTable::HashBucketIterator::begin(CurrentBucket); It != HashStringTable::HashBucketIterator::end(CurrentBucket); ++It, TotalIterations++)
 			{
 				const StringEntry& Entry = *It;
 
-				const bool bStringsAreEqual = Entry.GetUniqueName() != UniqueName;
+				const bool bStringsAreEqual = Entry.GetName() != UniqueName;
 
 				if (Entry.Length != Length)
 					NumAvoidedStingComparisons++;
@@ -117,7 +122,7 @@ public:
 
 	static inline void TestUniqueMemberNames()
 	{
-		HashStringTable Desktop(0x0, 0x5000);
+		HashStringTable Desktop;
 
 		bool bIsEverythingFine = true;
 
@@ -128,7 +133,7 @@ public:
 
 			for (auto Property : Obj.Cast<UEStruct>().GetProperties())
 			{
-				Desktop.FindOrAdd(Property.GetValidName(), true);
+				Desktop.FindOrAdd(Property.GetValidName());
 			}
 		}
 
@@ -139,7 +144,7 @@ public:
 
 	static inline void TestUniqueStructNames()
 	{
-		HashStringTable Desktop(0x0, 0x5000);
+		HashStringTable Desktop;
 
 		bool bIsEverythingFine = true;
 
@@ -148,7 +153,7 @@ public:
 			if (!Obj.IsA(EClassCastFlags::Struct))
 				continue;
 
-			Desktop.FindOrAdd(Obj.GetCppName(), true);
+			Desktop.FindOrAdd(Obj.GetCppName());
 		}
 
 		Desktop.DebugPrintStats();

@@ -72,7 +72,7 @@ public:
 		
 		for (auto Property : Struct.GetProperties())
 		{
-			auto [Index, bIsUnique] = PropertyNames.FindOrAdd(Property.GetValidName(), true);
+			auto [Index, bIsUnique] = PropertyNames.FindOrAdd(Property.GetValidName());
 		
 			std::vector<MemberNameInfo>& Members = StructMembers[Struct.GetAddress()];
 
@@ -101,7 +101,7 @@ public:
 
 		for (auto Property : Struct.GetProperties())
 		{
-			Members.push_back(PropertyNames.FindOrAdd(Property.GetValidName(), true));
+			Members.push_back(PropertyNames.FindOrAdd(Property.GetValidName()));
 		}
 	}
 
@@ -136,11 +136,10 @@ class StructManager;
 class StructInfoHandle
 {
 private:
-	const StructManager* Manager;
-	StructInfo Info;
+	const StructInfo& Info;
 
 public:
-	StructInfoHandle(const StructManager* InManager, StructInfo InInfo);
+	StructInfoHandle(const StructInfo& InInfo);
 
 public:
 	StructInfoHandle() = delete;
@@ -162,28 +161,28 @@ private:
 	friend class StructManagerTest;
 
 private:
-	HashStringTable UniqueNameTable;
-	std::unordered_map<int32 /*StructIdx*/, StructInfo> StructInfoOverrides;
+	static inline HashStringTable UniqueNameTable;
+	static inline std::unordered_map<int32 /*StructIdx*/, StructInfo> StructInfoOverrides;
 
-	bool bIsInitialized = false;
+	static inline bool bIsInitialized = false;
 
 private:
-	void InitAlignmentsAndNames();
-	void InitSizesAndIsFinal();
+	static void InitAlignmentsAndNames();
+	static void InitSizesAndIsFinal();
 
 public:
-	void Init();
+	static void Init();
 
 private:
-	inline const StringEntry& GetName(const StructInfo& Info) const
+	static inline const StringEntry& GetName(const StructInfo& Info)
 	{
 		return UniqueNameTable[Info.Name];
 	}
 
 public:
-	inline StructInfoHandle GetInfo(UEStruct Struct) const
+	static inline StructInfoHandle GetInfo(UEStruct Struct)
 	{
-		return { this, StructInfoOverrides.at(Struct.GetIndex()) };
+		return StructInfoOverrides.at(Struct.GetIndex());
 	}
 };
 

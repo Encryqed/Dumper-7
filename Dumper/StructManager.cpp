@@ -9,8 +9,8 @@ constexpr T Align(T Size, T Alignment)
 	return Size + (Alignment - (Size % Alignment));
 }
 
-StructInfoHandle::StructInfoHandle(const StructManager* InManager, StructInfo InInfo)
-	: Manager(InManager), Info(InInfo)
+StructInfoHandle::StructInfoHandle(const StructInfo& InInfo)
+	: Info(InInfo)
 {
 }
 
@@ -31,7 +31,7 @@ bool StructInfoHandle::ShouldUseExplicitAlignment() const
 
 const StringEntry& StructInfoHandle::GetName() const
 {
-	return Manager->GetName(Info);
+	return StructManager::GetName(Info);
 }
 
 bool StructInfoHandle::IsFinal() const
@@ -52,7 +52,7 @@ void StructManager::InitAlignmentsAndNames()
 
 		// Add name to override info
 		StructInfo& NewOrExistingInfo = StructInfoOverrides[Obj.GetIndex()];
-		NewOrExistingInfo.Name = UniqueNameTable.FindOrAdd(Obj.GetCppName(), true).first;
+		NewOrExistingInfo.Name = UniqueNameTable.FindOrAdd(Obj.GetCppName()).first;
 
 		UEStruct Super = ObjAsStruct.GetSuper();
 
