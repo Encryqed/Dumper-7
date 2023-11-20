@@ -59,12 +59,11 @@ DWORD MainThread(HMODULE Module)
 
 	//StringTableTest::TestAll();
 	//HashStringTableTest::TestAll();
-	//HashStringTableTest::TestUniqueMemberNames();
-	//HashStringTableTest::TestUniqueStructNames();
-	//
-	//GeneratorRewriteTest::TestAll();
+	HashStringTableTest::TestUniqueMemberNames();
+	HashStringTableTest::TestUniqueStructNames();
+	
+	GeneratorRewriteTest::TestAll();
 
-	HashStringTableTest::TestAll();
 	StructManagerTest::TestAll();
 
 	UEClass Engine = ObjectArray::FindClassFast("Engine");

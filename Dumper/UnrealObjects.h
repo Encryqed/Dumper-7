@@ -109,10 +109,7 @@ public:
 	{
 	}
 
-	UEObject(const UEObject& OldObject)
-		: Object(reinterpret_cast<uint8*>(OldObject.Object))
-	{
-	}
+	UEObject(const UEObject&) = default;
 
 	void* GetAddress();
 
@@ -187,6 +184,8 @@ public:
 	int32 GetStructSize() const;
 
 	std::vector<UEProperty> GetProperties() const;
+	std::vector<UEFunction> GetFunctions() const;
+
 
 	UEProperty FindMember(const std::string& MemberName, EClassCastFlags TypeFlags = EClassCastFlags::None) const;
 

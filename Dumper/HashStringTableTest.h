@@ -61,9 +61,6 @@ public:
 			{
 				std::string UniqueName = Obj.GetCppName();
 
-				if (UniqueName == "UPlayer")
-					RandomNamesToDuplicate.push_back(UniqueName);
-
 				auto [Index, bAddedElement] = Desktop.FindOrAdd(UniqueName);
 
 				if (bAddedElement)
@@ -72,19 +69,17 @@ public:
 				if (Desktop.FindOrAdd(UniqueName).second)
 					std::cout << "Added duplicate: \"" << UniqueName << "\"\n";
 
-				if (rand() % 4 == 0)
+				if (rand() % 8 == 0)
 					RandomNamesToDuplicate.push_back(UniqueName);
 			}
 		}
 
 		for (auto& Dupliate : RandomNamesToDuplicate)
 		{
-			if (Dupliate == "UPlayer")
-				std::cout << std::endl;
-
 			if (Desktop.FindOrAdd(Dupliate).second)
 				std::cout << "Added duplicate: \"" << Dupliate << "\"\n";
 		}
+
 		double AverageNumStrCompAvoided = 0.0;
 		uint64_t NumAvoidedStingComparisons = 0x0;
 		uint64_t TotalIterations = 0x0;

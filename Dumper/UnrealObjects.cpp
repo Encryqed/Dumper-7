@@ -508,6 +508,19 @@ std::vector<UEProperty> UEStruct::GetProperties() const
 	return Properties;
 }
 
+std::vector<UEFunction> UEStruct::GetFunctions() const
+{
+	std::vector<UEFunction> Functions;
+
+	for (UEField Field = GetChild(); Field; Field = Field.GetNext())
+	{
+		if (Field.IsA(EClassCastFlags::Function))
+			Functions.push_back(Field.Cast<UEFunction>());
+	}
+
+	return Functions;
+}
+
 UEProperty UEStruct::FindMember(const std::string& MemberName, EClassCastFlags TypeFlags) const
 {
 	if (!Object)

@@ -145,11 +145,13 @@
     <ClCompile Include="ObjectArray.cpp" />
     <ClCompile Include="Offsets.cpp" />
     <ClCompile Include="Package.cpp" />
+    <ClCompile Include="MemberManager.cpp" />
     <ClCompile Include="StructManager.cpp" />
     <ClCompile Include="Types.cpp" />
     <ClCompile Include="NameArray.cpp" />
     <ClCompile Include="UnrealObjects.cpp" />
     <ClCompile Include="UnrealTypes.cpp" />
+    <ClCompile Include="Wrappers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CppGenerator.h" />
@@ -171,6 +173,7 @@
     <ClInclude Include="OffsetFinder.h" />
     <ClInclude Include="Offsets.h" />
     <ClInclude Include="Package.h" />
+    <ClInclude Include="MemberManager.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="StructManager.h" />
     <ClInclude Include="StructManagerTest.h" />
@@ -179,6 +182,7 @@
     <ClInclude Include="UnrealObjects.h" />
     <ClInclude Include="UnrealTypes.h" />
     <ClInclude Include="Utils.h" />
+    <ClInclude Include="Wrappers.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

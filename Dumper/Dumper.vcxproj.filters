@@ -41,6 +41,12 @@
     <ClCompile Include="StructManager.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
+    <ClCompile Include="Wrappers.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="MemberManager.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -143,6 +149,12 @@
     </ClInclude>
     <ClInclude Include="StructManagerTest.h">
       <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="Wrappers.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="MemberManager.h">
+      <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

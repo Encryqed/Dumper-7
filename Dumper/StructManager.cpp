@@ -10,33 +10,33 @@ constexpr T Align(T Size, T Alignment)
 }
 
 StructInfoHandle::StructInfoHandle(const StructInfo& InInfo)
-	: Info(InInfo)
+	: Info(&InInfo)
 {
 }
 
 int32 StructInfoHandle::GetSize() const
 {
-	return Align(Info.Size, Info.Alignment);
+	return Align(Info->Size, Info->Alignment);
 }
 
 int32 StructInfoHandle::GetAlignment() const
 {
-	return Info.Alignment;
+	return Info->Alignment;
 }
 
 bool StructInfoHandle::ShouldUseExplicitAlignment() const
 {
-	return Info.bUseExplicitAlignment;
+	return Info->bUseExplicitAlignment;
 }
 
 const StringEntry& StructInfoHandle::GetName() const
 {
-	return StructManager::GetName(Info);
+	return StructManager::GetName(*Info);
 }
 
 bool StructInfoHandle::IsFinal() const
 {
-	return Info.bIsFinal;
+	return Info->bIsFinal;
 }
 
 void StructManager::InitAlignmentsAndNames()

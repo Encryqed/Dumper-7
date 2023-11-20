@@ -21,7 +21,7 @@ std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 Pad
 	return MakeMemberString("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason)));
 }
 
-std::string CppGenerator::GenerateMembers(UEStruct Struct, const StructInfoHandle& OverrideInfo, const std::vector<UEProperty>& Members, int32 SuperSize)
+std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const std::vector<UEProperty>& Members, int32 SuperSize)
 {
 	static bool bDidThingOnce = false;
 
@@ -133,24 +133,20 @@ std::string CppGenerator::GenerateFunctionInHeader(const std::vector<UEFunction>
 	return "CppGenerator::GenerateFunctionInClass";
 }
 
-void CppGenerator::GenerateStruct(StreamType& StructFile, const StructManager& Manager, UEStruct Struct)
+void CppGenerator::GenerateStruct(StreamType& StructFile, const StructManager& Manager, const StructWrapper& Struct)
 {
-	StructInfoHandle Info = Manager.GetInfo(Struct);
-
-	std::string UniqueName = GetStructPrefixedName(Struct, Info);
+	std::string UniqueName = GetStructPrefixedName(Struct);
 	std::string UniqueSuperName;
 
-	int32 StructSize = Info.GetSize();
+	int32 StructSize = Struct.GetSize();
 	int32 SuperSize = 0x0;
 
-	UEStruct Super = Struct.GetSuper();
+	StructWrapper Super = Struct.GetSuper();
 
-	if (Super)
+	if (Super.IsValid())
 	{
-		StructInfoHandle SuperInfo = Manager.GetInfo(Super);
-
-		UniqueSuperName = GetStructPrefixedName(Super, SuperInfo);
-		SuperSize = SuperInfo.GetSize();
+		UniqueSuperName = GetStructPrefixedName(Super);
+		SuperSize = Super.GetSize();
 	}
 
 	StructFile << std::format(R"(
@@ -162,12 +158,13 @@ struct {}{}{}{}
   , StructSize - SuperSize
   , StructSize
   , SuperSize
-  , Info.ShouldUseExplicitAlignment() ? std::format("alignas({:02X}) ", Info.GetAlignment()) : ""
+  , Struct.ShouldUseExplicitAlignment() ? std::format("alignas({:02X}) ", Struct.GetAlignment()) : ""
   , UniqueName
-  , Info.IsFinal() ? " final " : ""
-  , Super ? (" : public " + UniqueSuperName) : "");
+  , Struct.IsFinal() ? " final " : ""
+  , Super.IsValid() ? (" : public " + UniqueSuperName) : "");
 
-	std::vector<UEProperty> Members = Struct.GetProperties();
+	// replace with 'PropertyManager' or similar class
+	std::vector<UEProperty> Members = Struct.GetStruct().GetProperties();
 
 	const bool bHasMembers = !Members.empty();
 	const bool bHasFunctions = !Members.empty();
@@ -177,7 +174,7 @@ struct {}{}{}{}
 
 	if (bHasMembers)
 	{
-		StructFile << GenerateMembers(Struct, Info, Members, SuperSize);
+		StructFile << GenerateMembers(Struct, Members, SuperSize);
 
 		if (bHasFunctions)
 			StructFile << "\n\n";
@@ -199,16 +196,13 @@ void CppGenerator::GenerateFunctionInCppFile(StreamType& FunctionFile, std::ofst
 
 }
 
-std::string CppGenerator::GetStructPrefixedName(UEStruct Struct)
-{
-	return GetStructPrefixedName(Struct, StructManager::GetInfo(Struct));
-}
 
-std::string CppGenerator::GetStructPrefixedName(UEStruct Struct, const StructInfoHandle& OverrideInfo)
+std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 {
-	const StringEntry& UniqueNameEntry = OverrideInfo.GetName();
+	auto [ValidName, bIsUnique] = Struct.GetUniqueName();
 
-	return (UniqueNameEntry.IsUnique() ? "" : (Struct.GetOutermost().GetValidName() + "::")) + UniqueNameEntry.GetName();
+	// 'GetStruct()' is just a temporary "fix"
+	return (bIsUnique ? "" : (Struct.GetStruct().GetOutermost().GetValidName() + "::")) + Struct.GetName();
 }
 
 void CppGenerator::Generate(const std::unordered_map<int32, PackageInfo>& Dependencies)
@@ -367,7 +361,7 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 	else if (Flags & EClassCastFlags::InterfaceProperty)
 	{
 		if (UEClass PropertyClass = Member.Cast<UEInterfaceProperty>().GetPropertyClass())
-			return std::format("TScriptInterface<class {}>", GetStructPrefixedName(PropertyClass, StructManager::GetInfo(PropertyClass)));
+			return std::format("TScriptInterface<class {}>", GetStructPrefixedName(PropertyClass));
 
 		return "TScriptInterface<class IInterface>";
 	}
