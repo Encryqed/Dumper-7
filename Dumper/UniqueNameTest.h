@@ -156,6 +156,69 @@ inline void AddStructToNameContainer(std::unordered_map<int32, NameContainer>& N
 	}
 };
 
+inline void PrintCollidingNames(std::unordered_map<int32, NameContainer>& Names, HashStringTable& MemberNames)
+{
+	for (auto [StructIdx, NameContainer] : Names)
+	{
+		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(StructIdx);
+
+		for (auto NameInfo : NameContainer)
+		{
+			if (!NameInfo.HasCollisions())
+				continue;
+
+			ECollisionType OwnCollisionType = static_cast<ECollisionType>(NameInfo.OwnType);
+
+			std::string Name = MemberNames.GetStringEntry(NameInfo.Name).GetName();
+
+			//std::cout << "Nm: " << Name << "\n";
+
+			// Order of sub-if-statements matters
+			if (OwnCollisionType == ECollisionType::MemberName)
+			{
+				if (NameInfo.SuperMemberNameCollisionCount > 0x0)
+				{
+					Name += ("_" + Struct.GetValidName());
+					std::cout << "SMCnt-";
+				}
+				if (NameInfo.MemberNameCollisionCount > 0x0)
+				{
+					Name += ("_" + std::to_string(NameInfo.MemberNameCollisionCount - 1));
+					std::cout << "MbmCnt-";
+				}
+			}
+			else if (OwnCollisionType == ECollisionType::FunctionName)
+			{
+				if (NameInfo.MemberNameCollisionCount > 0x0 || NameInfo.SuperMemberNameCollisionCount > 0x0)
+				{
+					Name = ("Func_" + Name);
+					std::cout << "Fnc-";
+				}
+				if (NameInfo.FunctionNameCollisionCount > 0x0)
+				{
+					Name += ("_" + std::to_string(NameInfo.FunctionNameCollisionCount - 1));
+					std::cout << "FncCnt-";
+				}
+			}
+			else if (OwnCollisionType == ECollisionType::ParameterName)
+			{
+				if (NameInfo.MemberNameCollisionCount > 0x0 || NameInfo.SuperMemberNameCollisionCount > 0x0 || NameInfo.FunctionNameCollisionCount > 0x0 || NameInfo.SuperFuncNameCollisionCount > 0x0)
+				{
+					Name = ("Param_" + Name);
+					std::cout << "Prm-";
+				}
+				if (NameInfo.ParamNameCollisionCount > 0x0)
+				{
+					Name += ("_" + std::to_string(NameInfo.ParamNameCollisionCount - 1));
+					std::cout << "PrmCnt-";
+				}
+			}
+
+			std::cout << "Name: " << Name << "\n";
+		}
+	}
+}
+
 class UniqueNameTest
 {
 public:
@@ -186,6 +249,8 @@ public:
 					NumCollidingNames++;
 			}
 		}
+
+		PrintCollidingNames(Names, MemberNames);
 
 		std::cout << "GlobalNumNames: " << TempGlobalNameCounter << "\n" << std::endl;
 
