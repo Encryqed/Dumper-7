@@ -39,10 +39,8 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const std
 		//PredefsVector.emplace_back("class UObject*", PropertyNames.FindOrAdd("Outer", true).first, Off::UObject::Outer, 0x8, 0x1);
 	}
 
-	const std::vector<TestPredefMember>* PredefsVector = nullptr;
 
-
-	if (Members.empty() && PredefsVector && PredefsVector->empty())
+	if (Members.empty())
 		return "";
 
 	constexpr int EstimatedCharactersPerLine = 0x80;

@@ -156,5 +156,8 @@
     <ClInclude Include="MemberManager.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
+    <ClInclude Include="UniqueNameTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

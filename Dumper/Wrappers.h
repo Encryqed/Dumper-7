@@ -29,6 +29,7 @@ private:
         const UEStruct Struct;
         const PredefinedStruct* PredefStruct;
     };
+
     StructInfoHandle InfoHandle;
 
     bool bIsUnrealStruct = false;
@@ -37,8 +38,6 @@ public:
     StructWrapper(const PredefinedStruct* Predef);
 
     StructWrapper(UEStruct Str);
-
-    //StructWrapper(const StructWrapper&) = default;
 
 public:
     UEStruct GetStruct() const;

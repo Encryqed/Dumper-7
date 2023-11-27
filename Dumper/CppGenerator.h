@@ -3,7 +3,7 @@
 #include "DependencyManager.h"
 #include "StructManager.h"
 #include "HashStringTable.h"
-i#include "Wrappers.h"
+#include "Wrappers.h"
 
 #include "GeneratorRewrite.h"
 

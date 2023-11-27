@@ -67,7 +67,7 @@ public:
 			{
 				std::vector<MemberNameInfo>& SuperMembers = StructMembers[S.GetIndex()];
 				
-				if (std::find(SuperMembers.begin(), SuperMembers.end(), Index) != SuperMembers.end())
+				if (std::find_if(SuperMembers.begin(), SuperMembers.end(), [Index](const std::pair<HashStringTableIndex, bool>& Pair) { return Pair.first == Index;}) != SuperMembers.end())
 				{
 					Members.push_back({ Index, false });
 					break;
@@ -78,7 +78,7 @@ public:
 
 	static void AddStruct(UEStruct Struct)
 	{
-		std::vector<MemberNameInfo>& Members = StructMembers[Struct.GetAddress()];
+		std::vector<MemberNameInfo>& Members = StructMembers[Struct.GetIndex()];
 
 		for (auto Property : Struct.GetProperties())
 		{

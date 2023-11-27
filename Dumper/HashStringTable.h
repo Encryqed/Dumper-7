@@ -102,7 +102,7 @@ inline int32 Strcmp(const CharType* String, const StringEntry& Entry)
 struct HashStringTableIndex
 {
 public:
-    static inline uint32 InvalidIndex = -1;
+    static constexpr int32 InvalidIndex = -1;
 
 public:
     uint32 Unused : 1;
@@ -122,7 +122,7 @@ public:
         return *reinterpret_cast<HashStringTableIndex*>(&Idx);
     }
 
-    inline operator uint32() const
+    inline operator int32() const
     {
         return *reinterpret_cast<const int32*>(this);
     }
@@ -134,6 +134,9 @@ public:
 
     inline bool operator==(HashStringTableIndex Other) const { return static_cast<uint32>(*this) == static_cast<uint32>(Other); }
     inline bool operator!=(HashStringTableIndex Other) const { return static_cast<uint32>(*this) != static_cast<uint32>(Other); }
+
+    inline bool operator==(int32 Other) const { return static_cast<int32>(*this) == Other; }
+    inline bool operator!=(int32 Other) const { return static_cast<int32>(*this) != Other; }
 };
 
 class HashStringTable
