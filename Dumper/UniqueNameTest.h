@@ -52,13 +52,13 @@ public:
 	}
 
 public:
-	inline void InitCollisionData(NameInfo& Existing, ECollisionType CurrentType, bool bIsSuper)
+	inline void InitCollisionData(const NameInfo& Existing, ECollisionType CurrentType, bool bIsSuper)
 	{
 		CollisionData = Existing.CollisionData;
 		OwnType = static_cast<uint8>(CurrentType);
 
 		// Increments the CollisionCount, for the CollisionType specified, by 1
-		const int32 ShiftCount = OwnTypeBitCount + ((static_cast<uint8>(OwnType) + bIsSuper) * PerCountBitCount);
+		const int32 ShiftCount = OwnTypeBitCount + ((Existing.OwnType + bIsSuper) * PerCountBitCount);
 		const int32 IncrementForCollisionCount = 1 << ShiftCount;
 		CollisionData += IncrementForCollisionCount;
 	}
@@ -80,18 +80,20 @@ inline uint64 TempGlobalNameCounter = 0x0;
 
 void AddNameToContainer(std::unordered_map<int32, NameContainer>& Names, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr)
 {
-	static auto AddCollidingName = [](NameContainer& Container, HashStringTableIndex NameIdx, ECollisionType CurrentType, bool bIsSuper) -> bool
+	static auto AddCollidingName = [](const NameContainer& SearchNames, NameContainer* OutTargetNames, HashStringTableIndex NameIdx, ECollisionType CurrentType, bool bIsSuper) -> bool
 	{
+		assert(OutTargetNames && "Target container was nullptr!");
+
 		NameInfo NewInfo(NameIdx, CurrentType);
 		NewInfo.OwnType = static_cast<uint8>(CurrentType);
 
-		for (NameInfo& ExistingName : Container)
+		for (const NameInfo& ExistingName : SearchNames)
 		{
 			if (ExistingName.Name != NameIdx)
 				continue;
 
 			NewInfo.InitCollisionData(ExistingName, CurrentType, bIsSuper);
-			Container.push_back(NewInfo);
+			OutTargetNames->push_back(NewInfo);
 
 			return true;
 		}
@@ -101,38 +103,58 @@ void AddNameToContainer(std::unordered_map<int32, NameContainer>& Names, UEStruc
 
 	TempGlobalNameCounter++;
 
-	NameContainer& Container = Names[Struct.GetIndex()];
+	NameContainer& StructNames = Names[Struct.GetIndex()];
+
+	const bool bIsParameter = CurrentType == ECollisionType::ParameterName;
 
 	auto [NameIdx, bWasInserted] = NamePair;
 
-	if (bWasInserted)
+	if (bWasInserted && !bIsParameter)
 	{
 		// Create new empty NameInfo
-		Container.emplace_back(NameIdx, CurrentType);
+		StructNames.emplace_back(NameIdx, CurrentType);
 		return;
 	}
 
+	NameContainer* FuncParamNames = nullptr;
+
 	if (Func)
 	{
-		NameContainer& Container = Names[Func.GetIndex()];
+		FuncParamNames = &Names[Func.GetIndex()];
 
-		if (AddCollidingName(Container, NameIdx, CurrentType, false))
+		if (bWasInserted)
+		{
+			// Create new empty NameInfo
+			FuncParamNames->emplace_back(NameIdx, CurrentType);
+			return;
+		}
+
+		if (AddCollidingName(*FuncParamNames, FuncParamNames, NameIdx, CurrentType, false))
 			return;
 	}
 
-	if (AddCollidingName(Container, NameIdx, CurrentType, false))
+	NameContainer* TargetNameContainer = bIsParameter ? FuncParamNames : &StructNames;
+
+	if (AddCollidingName(StructNames, TargetNameContainer, NameIdx, CurrentType, false))
 		return;
 
 	for (UEStruct Current = Struct.GetSuper(); Current; Current = Current.GetSuper())
 	{
-		NameContainer& SuperContainer = Names[Current.GetIndex()];
+		NameContainer& SuperNames = Names[Current.GetIndex()];
 
-		if (AddCollidingName(SuperContainer, NameIdx, CurrentType, true))
+		if (AddCollidingName(SuperNames, TargetNameContainer, NameIdx, CurrentType, true))
 			return;
 	}
 
 	// Create new empty NameInfo
-	Container.emplace_back(NameIdx, CurrentType);
+	if (bIsParameter && FuncParamNames)
+	{
+		FuncParamNames->emplace_back(NameIdx, CurrentType);
+	}
+	else
+	{
+		StructNames.emplace_back(NameIdx, CurrentType);
+	}
 }
 
 inline void AddStructToNameContainer(std::unordered_map<int32, NameContainer>& Names, HashStringTable& MemberNames, UEStruct ObjAsStruct)
@@ -217,6 +239,8 @@ inline void PrintCollidingNames(std::unordered_map<int32, NameContainer>& Names,
 			std::cout << "Name: " << Name << "\n";
 		}
 	}
+
+	std::cout << std::endl;
 }
 
 class UniqueNameTest
@@ -239,12 +263,18 @@ public:
 		uint64 NumNames = 0x0;
 		uint64 NumCollidingNames = 0x0;
 
-		for (auto [_, NameContainer] : Names)
+		for (auto [StructIdx, NameContainer] : Names)
 		{
+			const UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(StructIdx);
+			const bool bIsFunction = Struct.IsA(EClassCastFlags::Function);
+
 			NumNames += NameContainer.size();
 
 			for (auto NameInfo : NameContainer)
 			{
+				if (!bIsFunction && static_cast<ECollisionType>(NameInfo.OwnType) == ECollisionType::ParameterName)
+					std::cout << std::format("Invalid: Param in '{}'\n", Struct.GetName());
+
 				if (NameInfo.HasCollisions())
 					NumCollidingNames++;
 			}
@@ -257,6 +287,6 @@ public:
 		std::cout << "NumNames: " << NumNames << std::endl;
 		std::cout << "NumCollidingNames: " << NumCollidingNames << std::endl;
 
-		std::cout << std::format("Collisions in '%': {:.03f}%\n", static_cast<double>(NumCollidingNames) / NumNames) << std::endl;
+		std::cout << std::format("Collisions in '%': {:.04f}%\n", static_cast<double>(NumCollidingNames) / NumNames) << std::endl;
 	}
 };
