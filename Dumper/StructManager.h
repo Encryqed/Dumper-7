@@ -38,8 +38,10 @@ public:
 struct StructInfo
 {
 	HashStringTableIndex Name;
+
 	int32 Size = INT_MAX;
 	int32 Alignment;
+
 	bool bUseExplicitAlignment; // whether alignment should be specified with 'alignas(Alignment)'
 	bool bIsFinal = true; // wheter this class is ever inherited from. set to false when this struct is found to be another structs super
 };

@@ -19,7 +19,7 @@ struct CollisionPair
 };
 
 constexpr int32 OwnTypeBitCount = 0x7;
-constexpr int PerCountBitCount = 0x5;
+constexpr int32 PerCountBitCount = 0x5;
 
 struct NameInfo
 {
@@ -70,7 +70,20 @@ public:
 
 	inline bool HasCollisions() const
 	{
-		return (CollisionData >> OwnTypeBitCount) > 0x0;
+		ECollisionType OwnCollisionType = static_cast<ECollisionType>(OwnType);
+
+		if (OwnCollisionType == ECollisionType::MemberName)
+		{
+			return SuperMemberNameCollisionCount > 0x0 || MemberNameCollisionCount > 0x0;
+		}
+		else if (OwnCollisionType == ECollisionType::FunctionName)
+		{
+			return MemberNameCollisionCount > 0x0 || SuperMemberNameCollisionCount > 0x0 || FunctionNameCollisionCount > 0x0;
+		}
+		else if (OwnCollisionType == ECollisionType::ParameterName)
+		{
+			return MemberNameCollisionCount > 0x0 || SuperMemberNameCollisionCount > 0x0 || FunctionNameCollisionCount > 0x0 || SuperFuncNameCollisionCount > 0x0 || ParamNameCollisionCount > 0x0;
+		}
 	}
 };
 

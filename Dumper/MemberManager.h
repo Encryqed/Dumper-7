@@ -6,23 +6,30 @@ struct PredefMember
 {
 	std::string Type;
 	std::string Name;
+
 	int32 Offset;
 	int32 Size;
 	int32 ArrayDim;
 	int32 Alignment;
 
-	// Set by external code
-	bool bHasUniqueName = true;
+	bool bIsStatic;
 };
 
 struct PredefinedFunction
 {
 	std::string RetType;
 	std::string FuncName;
+
 	std::vector<std::string> Params;
 
-	// Set by external code
-	bool bHasUniqueName = true;
+	bool bIsStatic;
+};
+
+// todo: change name
+struct PredefinedElements
+{
+	std::vector<PredefMember> Members;
+	std::vector<PredefinedFunction> Functions;
 };
 
 class MemberManager
@@ -32,63 +39,89 @@ private:
 
 public:
 	static inline HashStringTable PropertyNames;
-	static inline std::unordered_map<int32, std::vector<PredefMember>> Predefs;
+	static inline std::unordered_map<int32, PredefinedElements> Predefs;
 
 	static inline std::unordered_map<int32, std::vector<MemberNameInfo>> StructMembers;
 
-public:
-	const std::vector<UEFunction> Functions; // No ptr
-	const std::vector<PredefMember>* PredefinedFunctions = nullptr;
-	const std::vector<UEProperty>* Properties = nullptr;
-	const std::vector<PredefMember>* PredefinedMembers = nullptr;
-	int32 PropertiesIdx = 0;
-	int32 PredefMemberIdx = 0;
+	// NEW
+private:
+	static inline std::unordered_map<int32 /* StructIndex*/, std::vector<uint64> /* NameInfos */> NameInfos;
 
+private:
+	std::vector<UEFunction> Functions;
+	std::vector<UEProperty> Members;
+
+	PredefinedElements* PredefElements;
+
+	int32 CurrentFuncIdx = 0x0;
+	int32 CurrentMemberIdx = 0x0;
+
+	int32 CurrentPredefFuncIdx = 0x0;
+	int32 CurrentPredefMemberIdx = 0x0;
+
+	int32 NumStaticPredefMembers = 0x0;
+	int32 NumStaticPredefFunctions = 0x0;
+
+public:
 	MemberManager(UEStruct Struct, const std::vector<UEProperty>& Members)
-		: Functions(Struct.GetFunctions()), Properties(&Members)
+		: Functions(Struct.GetFunctions())
+		, Members(Struct.GetProperties())
 	{
 		auto It = Predefs.find(Struct.GetIndex());
 		if (It != Predefs.end())
-			PredefinedMembers = &It->second;
-
-		for (auto Property : Struct.GetProperties())
 		{
-			auto [Index, bIsUnique] = PropertyNames.FindOrAdd(Property.GetValidName());
+			PredefElements = &It->second;
 
-			std::vector<MemberNameInfo>& Members = StructMembers[Struct.GetIndex()];
+			CurrentPredefFuncIdx = 0x0;
+			CurrentPredefMemberIdx = 0x0;
 
-			if (bIsUnique)
+			auto FindFirstStaticMember = [](auto& ElementVector) -> int32
 			{
-				Members.push_back({ Index, true });
-				continue;
-			}
-
-			for (UEStruct S = Struct; S; S = S.GetSuper())
-			{
-				std::vector<MemberNameInfo>& SuperMembers = StructMembers[S.GetIndex()];
-				
-				if (std::find_if(SuperMembers.begin(), SuperMembers.end(), [Index](const std::pair<HashStringTableIndex, bool>& Pair) { return Pair.first == Index;}) != SuperMembers.end())
+				for (int i = 0; i < ElementVector.size(); i++)
 				{
-					Members.push_back({ Index, false });
-					break;
+					if (ElementVector[i].bIsStatic)
+						return i + 1;
 				}
-			}
+
+				return 0x0;
+			};
+
+			NumStaticPredefMembers = FindFirstStaticMember(PredefElements->Members);
+			NumStaticPredefFunctions = FindFirstStaticMember(PredefElements->Functions);
 		}
+	}
+
+	inline int32 GetNumFunctions() const
+	{
+		return Functions.size();
+	}
+
+	inline int32 GetNumPredefFunctions() const
+	{
+		return PredefElements ? PredefElements->Functions.size() : 0x0;
+	}
+
+	inline int32 GetNumMembers() const
+	{
+		return Members.size();
+	}
+
+	inline int32 GetNumPredefMembers() const
+	{
+		return PredefElements ? PredefElements->Members.size() : 0x0;
+	}
+
+	inline bool HasNextMember() const
+	{
+		return GetNumFunctions() < CurrentFuncIdx || GetNumPredefFunctions() < CurrentPredefFuncIdx;
 	}
 
 	static void AddStruct(UEStruct Struct)
 	{
-		std::vector<MemberNameInfo>& Members = StructMembers[Struct.GetIndex()];
-
-		for (auto Property : Struct.GetProperties())
-		{
-			Members.push_back(PropertyNames.FindOrAdd(Property.GetValidName()));
-		}
 	}
 
 	inline std::string GetPropertyUniqueName()
 	{
-		//return 
 	}
 
 public:
