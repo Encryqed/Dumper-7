@@ -231,14 +231,10 @@ public:
 	static std::unordered_map<std::string /* Property Name */, uint32 /* Property Size */> UnknownProperties;
 
 	UEProperty() = default;
+	UEProperty(const UEProperty&) = default;
 
 	UEProperty(void* NewProperty)
 		: Base(reinterpret_cast<uint8*>(NewProperty))
-	{
-	}
-
-	UEProperty(const UEProperty& OldProperty)
-		: Base(reinterpret_cast<uint8*>(OldProperty.Base))
 	{
 	}
 

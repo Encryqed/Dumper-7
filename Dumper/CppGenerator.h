@@ -2,8 +2,10 @@
 #include <filesystem>
 #include "DependencyManager.h"
 #include "StructManager.h"
+#include "MemberManager.h"
 #include "HashStringTable.h"
-#include "Wrappers.h"
+#include "StructWrapper.h"
+#include "MemberWrappers.h"
 
 #include "GeneratorRewrite.h"
 
@@ -29,6 +31,8 @@ private:
     using StreamType = std::stringstream /*current config: debug, default: std::ofstream*/;
 
 public:
+    static inline std::unordered_map<int32, PredefinedElements> Predefs;
+
     static inline std::string MainFolderName = "CppSDK";
     static inline std::string SubfolderName = "SDK";
 

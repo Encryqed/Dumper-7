@@ -41,13 +41,16 @@
     <ClCompile Include="StructManager.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
-    <ClCompile Include="Wrappers.cpp">
+    <ClCompile Include="StructWrapper.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
     <ClCompile Include="MemberManager.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
     <ClCompile Include="NameCollisionHandler.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="MemberWrappers.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
   </ItemGroup>
@@ -153,7 +156,7 @@
     <ClInclude Include="StructManagerTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
-    <ClInclude Include="Wrappers.h">
+    <ClInclude Include="StructWrapper.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
     <ClInclude Include="MemberManager.h">
@@ -163,6 +166,12 @@
       <Filter>Tests</Filter>
     </ClInclude>
     <ClInclude Include="NameCollisionHandler.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="MemberWrappers.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="PredefinedMembers.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
   </ItemGroup>

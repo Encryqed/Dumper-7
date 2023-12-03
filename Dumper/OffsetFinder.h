@@ -27,7 +27,8 @@ namespace OffsetFinder
 				}
 			}
 		}
-		return HighestFoundOffset;
+
+		return HighestFoundOffset != MinOffset ? HighestFoundOffset : -1;
 	}
 
 	template<bool bCheckForVft = true>
@@ -227,6 +228,8 @@ namespace OffsetFinder
 			if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
 				return Off::FField::Name;
 		}
+
+		return -1;
 	}
 
 	/* UEnum */

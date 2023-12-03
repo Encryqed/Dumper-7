@@ -1,7 +1,9 @@
 #pragma once
+#include <unordered_map>
 #include "ObjectArray.h"
 #include "HashStringTable.h"
-#include "Wrappers.h"
+#include "NameCollisionHandler.h"
+#include "PredefinedMembers.h"
 
 template<typename T, bool bSkipStatics>
 class MemberIterator
@@ -13,7 +15,6 @@ private:
 	static_assert(bIsProperty || bIsFunction, "Invalid type for 'T', only 'UEProperty' and 'UEFunction' are allowed!");
 
 private:
-	using DereferenceType = std::conditional_t<bIsProperty, PropertyWrapper, FunctionWrapper>;
 	using PredefType = std::conditional_t<bIsProperty, PredefinedMember, PredefinedFunction>;
 
 private:
@@ -42,10 +43,7 @@ private:
 	inline int32 GetNextPredefMemberOffset() const { return HasMorePredefMembers() ? PredefElements->at(CurrentIdx + 1) : 0xFFFFFFFF; }
 
 public:
-	inline DereferenceType operator*() const
-	{
-		return bIsCurrentlyPredefined ? DereferenceType(Struct, PredefElements->at(CurrentPredefIdx)) : DereferenceType(Struct, Members.at(CurrentIdx));
-	}
+	inline auto operator*() const;
 
 	inline MemberIterator& operator++() const
 	{
@@ -83,17 +81,11 @@ public:
 	inline MemberIterator end() const { return MemberIterator(Struct, Members, PredefElements, (Members.size() - 1), PredefElements ? (PredefElements->size() - 1) : 0x0);  }
 };
 
-/* Temp fixup */
-struct [[deprecated("Tempoary, remove!")]] PredefinedElements
-{
-	std::vector<PredefinedMember> Members;
-	std::vector<PredefinedFunction> Functions;
-};
 
 class MemberManager
 {
-public: /* OLD */
-	static inline std::unordered_map<int32, PredefinedElements> Predefs;
+private:
+	friend class StructWrapper;
 
 private: /* NEW*/
 	static inline HashStringTable PropertyNames;
@@ -112,8 +104,8 @@ private:
 	int32 NumStaticPredefMembers = 0x0;
 	int32 NumStaticPredefFunctions = 0x0;
 
-public:
-	MemberManager(UEStruct Str)
+private:
+	MemberManager(UEStruct Str, const std::unordered_map<int32, PredefinedElements>& Predefs)
 		: Struct(Str)
 		, Functions(Struct.GetFunctions())
 		, Members(Struct.GetProperties())
@@ -140,6 +132,7 @@ public:
 		}
 	}
 
+public:
 	inline int32 GetNumFunctions() const
 	{
 		return Functions.size();
@@ -160,14 +153,16 @@ public:
 		return PredefMembers ? PredefMembers->size() : 0x0;
 	}
 
-	inline MemberIterator<UEProperty, false> IterateMembers() const
+	template<bool bSkipStatics = false>
+	inline MemberIterator<UEProperty, bSkipStatics> IterateMembers() const
 	{
-		return MemberIterator<UEProperty, false>(Struct, Members, PredefMembers);
+		return MemberIterator<UEProperty, bSkipStatics>(Struct, Members, PredefMembers);
 	}
 
-	inline MemberIterator<UEFunction, false> IterateFunctions() const
+	template<bool bSkipStatics = false>
+	inline MemberIterator<UEFunction, bSkipStatics> IterateFunctions() const
 	{
-		return MemberIterator<UEFunction, false>(Struct, Functions, PredefFunctions);
+		return MemberIterator<UEFunction, bSkipStatics>(Struct, Functions, PredefFunctions);
 	}
 
 public:

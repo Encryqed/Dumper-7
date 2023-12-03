@@ -142,6 +142,7 @@
     <ClCompile Include="Generator.cpp" />
     <ClCompile Include="GeneratorRewrite.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="MemberWrappers.cpp" />
     <ClCompile Include="NameCollisionHandler.cpp" />
     <ClCompile Include="ObjectArray.cpp" />
     <ClCompile Include="Offsets.cpp" />
@@ -152,7 +153,7 @@
     <ClCompile Include="NameArray.cpp" />
     <ClCompile Include="UnrealObjects.cpp" />
     <ClCompile Include="UnrealTypes.cpp" />
-    <ClCompile Include="Wrappers.cpp" />
+    <ClCompile Include="StructWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CppGenerator.h" />
@@ -170,12 +171,14 @@
     <ClInclude Include="GeneratorRewriteTest.h" />
     <ClInclude Include="HashStringTable.h" />
     <ClInclude Include="HashStringTableTest.h" />
+    <ClInclude Include="MemberWrappers.h" />
     <ClInclude Include="NameCollisionHandler.h" />
     <ClInclude Include="ObjectArray.h" />
     <ClInclude Include="OffsetFinder.h" />
     <ClInclude Include="Offsets.h" />
     <ClInclude Include="Package.h" />
     <ClInclude Include="MemberManager.h" />
+    <ClInclude Include="PredefinedMembers.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="StructManager.h" />
     <ClInclude Include="StructManagerTest.h" />
@@ -185,7 +188,7 @@
     <ClInclude Include="UnrealObjects.h" />
     <ClInclude Include="UnrealTypes.h" />
     <ClInclude Include="Utils.h" />
-    <ClInclude Include="Wrappers.h" />
+    <ClInclude Include="StructWrapper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
