@@ -2,6 +2,7 @@
 #include "ObjectArray.h"
 #include "HashStringTable.h"
 
+/*
 enum class ECollisionType : uint8
 {
 	MemberName,
@@ -10,12 +11,6 @@ enum class ECollisionType : uint8
 	SuperFunctionName,
 	ParameterName,
 	None,
-};
-
-struct CollisionPair
-{
-	ECollisionType NameType;
-	ECollisionType TargetType;
 };
 
 constexpr int32 OwnTypeBitCount = 0x7;
@@ -88,7 +83,7 @@ public:
 };
 
 using NameContainer = std::vector<NameInfo>;
-
+*/
 inline uint64 TempGlobalNameCounter = 0x0;
 
 void AddNameToContainer(std::unordered_map<int32, NameContainer>& Names, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr)

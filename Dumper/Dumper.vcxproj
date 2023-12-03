@@ -142,6 +142,7 @@
     <ClCompile Include="Generator.cpp" />
     <ClCompile Include="GeneratorRewrite.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="NameCollisionHandler.cpp" />
     <ClCompile Include="ObjectArray.cpp" />
     <ClCompile Include="Offsets.cpp" />
     <ClCompile Include="Package.cpp" />
@@ -169,6 +170,7 @@
     <ClInclude Include="GeneratorRewriteTest.h" />
     <ClInclude Include="HashStringTable.h" />
     <ClInclude Include="HashStringTableTest.h" />
+    <ClInclude Include="NameCollisionHandler.h" />
     <ClInclude Include="ObjectArray.h" />
     <ClInclude Include="OffsetFinder.h" />
     <ClInclude Include="Offsets.h" />

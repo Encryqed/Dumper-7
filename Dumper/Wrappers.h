@@ -1,8 +1,22 @@
 #pragma once
 #include "ObjectArray.h"
+#include "NameCollisionHandler.h"
 #include "StructManager.h"
 
-struct PredefinedStruct
+struct PredefinedMember
+{
+    std::string Type;
+    std::string Name;
+
+    int32 Offset;
+    int32 Size;
+    int32 ArrayDim;
+    int32 Alignment;
+
+    bool bIsStatic;
+};
+
+struct PredefinedStructBase
 {
     std::string UniqueName;
     int32 Size;
@@ -10,7 +24,23 @@ struct PredefinedStruct
     bool bUseExplictAlignment;
     bool bIsFinal;
 
-    const PredefinedStruct* Super;
+    const PredefinedStructBase* Super;
+
+    std::vector<PredefinedMember> Properties;
+};
+
+struct PredefinedFunction : public PredefinedStructBase
+{
+    std::string RetType;
+
+    std::vector<std::pair<std::string, std::string>> Params;
+
+    bool bIsStatic;
+};
+
+struct PredefinedStruct : public PredefinedStructBase
+{
+    std::vector<PredefinedFunction> Functions;
 };
 
 inline PredefinedStruct Test = {
@@ -24,10 +54,14 @@ inline PredefinedStruct Test = {
 class StructWrapper
 {
 private:
+    friend class PropertyWrapper;
+    friend class FunctionWrapper;
+
+private:
     union
     {
         const UEStruct Struct;
-        const PredefinedStruct* PredefStruct;
+        const PredefinedStructBase* PredefStruct;
     };
 
     StructInfoHandle InfoHandle;
@@ -35,13 +69,14 @@ private:
     bool bIsUnrealStruct = false;
 
 public:
-    StructWrapper(const PredefinedStruct* Predef);
+    StructWrapper(const PredefinedStructBase* const Predef);
 
-    StructWrapper(UEStruct Str);
+    StructWrapper(const UEStruct Str);
+
+private:
+    UEStruct GetUnrealStruct() const;
 
 public:
-    UEStruct GetStruct() const;
-
     std::string GetName() const;
     std::string GetFullName() const;
     StructWrapper GetSuper() const;
@@ -55,3 +90,73 @@ public:
 
     bool IsValid() const;
 };
+
+class PropertyWrapper
+{
+private:
+    union
+    {
+        const UEProperty Property;
+        const PredefinedMember* PredefProperty;
+    };
+
+    const StructWrapper* Struct;
+
+    NameInfo Name;
+
+    bool bIsUnrealProperty = false;
+
+public:
+    PropertyWrapper(const StructWrapper& Str, const PredefinedMember* Predef);
+
+    PropertyWrapper(const StructWrapper& Str, UEProperty Prop);
+
+public:
+    std::string GetName() const;
+
+    NameInfo GetNameCollisionInfo() const;
+
+    int32 GetArrayDim() const;
+    int32 GetSize() const;
+    int32 GetOffset() const;
+    EPropertyFlags GetPropertyFlags() const;
+
+    bool IsReturnParam() const;
+
+    std::string StringifyFlags() const;
+};
+
+class FunctionWrapper
+{
+private:
+    union
+    {
+        const UEFunction Function;
+        const PredefinedFunction* PredefFunction;
+    };
+
+    const StructWrapper* Struct;
+
+    NameInfo Name;
+
+    bool bIsUnrealFunction = false;
+
+public:
+    FunctionWrapper(const StructWrapper& Str, const PredefinedFunction* Predef);
+
+    FunctionWrapper(const StructWrapper& Str, UEFunction Func);
+
+public:
+    StructWrapper AsStruct() const;
+
+    std::string GetName() const;
+
+    NameInfo GetNameCollisionInfo() const;
+
+    PropertyWrapper GetReturnProperty() const;
+    EFunctionFlags GetFunctionFlags() const;
+
+    std::string StringifyFlags() const;
+    std::string GetParamStructName() const;
+};
+

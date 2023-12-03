@@ -1,79 +1,128 @@
 #pragma once
 #include "ObjectArray.h"
 #include "HashStringTable.h"
+#include "Wrappers.h"
 
-struct PredefMember
+template<typename T, bool bSkipStatics>
+class MemberIterator
 {
-	std::string Type;
-	std::string Name;
+private:
+	static constexpr bool bIsProperty = std::is_same_v<T, UEProperty>;
+	static constexpr bool bIsFunction = std::is_same_v<T, UEFunction>;
 
-	int32 Offset;
-	int32 Size;
-	int32 ArrayDim;
-	int32 Alignment;
+	static_assert(bIsProperty || bIsFunction, "Invalid type for 'T', only 'UEProperty' and 'UEFunction' are allowed!");
 
-	bool bIsStatic;
+private:
+	using DereferenceType = std::conditional_t<bIsProperty, PropertyWrapper, FunctionWrapper>;
+	using PredefType = std::conditional_t<bIsProperty, PredefinedMember, PredefinedFunction>;
+
+private:
+	const UEStruct Struct;
+
+	const std::vector<T>& Members;
+	const std::vector<PredefType>* PredefElements;
+
+	int32 CurrentIdx = 0x0;
+	int32 CurrentPredefIdx = 0x0;
+
+	int32 CurrentOffset = 0x0;
+	bool bIsCurrentlyPredefined = false;
+
+public:
+	inline MemberIterator(const UEStruct Str, const std::vector<T>& Mbr, const std::vector<PredefType>* const Predefs = nullptr, int32 StartIdx = 0x0, int32 PredefStart = 0x0)
+		: Struct(Str), Members(Mbr), PredefElements(Predefs), CurrentIdx(StartIdx), CurrentPredefIdx(PredefStart)
+	{
+	}
+
+private:
+	inline void HasMoreUnrealMembers() const { return (CurrentIdx + 1) < Members.size(); }
+	inline void HasMorePredefMembers() const { return PredefElements ? (CurrentPredefIdx + 1) < PredefElements->size() : false; }
+
+	inline int32 GetNextUnrealMemberOffset() const { return HasMoreUnrealMembers() ? Members[CurrentIdx + 1] : 0xFFFFFFFF; }
+	inline int32 GetNextPredefMemberOffset() const { return HasMorePredefMembers() ? PredefElements->at(CurrentIdx + 1) : 0xFFFFFFFF; }
+
+public:
+	inline DereferenceType operator*() const
+	{
+		return bIsCurrentlyPredefined ? DereferenceType(Struct, PredefElements->at(CurrentPredefIdx)) : DereferenceType(Struct, Members.at(CurrentIdx));
+	}
+
+	inline MemberIterator& operator++() const
+	{
+		if constexpr (bIsProperty)
+		{
+			const int32 NextUnrealOffset = GetNextUnrealMemberOffset();
+			const int32 NextPredefOffset = GetNextPredefMemberOffset();
+
+			if (NextUnrealOffset < NextPredefOffset)
+			{
+				bIsCurrentlyPredefined = false;
+				CurrentIdx++;
+			}
+			else
+			{
+				bIsCurrentlyPredefined = true;
+				CurrentPredefIdx++;
+			}
+		}
+		else
+		{
+			HasMorePredefMembers() ? CurrentPredefIdx++ : CurrentIdx++;
+		}
+		
+		return *this;
+	}
+
+public:
+	inline bool operator==(const MemberIterator& Other) const { return CurrentIdx == Other.CurrentIdx && CurrentPredefIdx == Other.CurrentPredefIdx; }
+	inline bool operator!=(const MemberIterator& Other) const { return CurrentIdx != Other.CurrentIdx || CurrentPredefIdx != Other.CurrentPredefIdx; }
+
+public:
+	inline MemberIterator begin() const { return *this; }
+
+	inline MemberIterator end() const { return MemberIterator(Struct, Members, PredefElements, (Members.size() - 1), PredefElements ? (PredefElements->size() - 1) : 0x0);  }
 };
 
-struct PredefinedFunction
+/* Temp fixup */
+struct [[deprecated("Tempoary, remove!")]] PredefinedElements
 {
-	std::string RetType;
-	std::string FuncName;
-
-	std::vector<std::string> Params;
-
-	bool bIsStatic;
-};
-
-// todo: change name
-struct PredefinedElements
-{
-	std::vector<PredefMember> Members;
+	std::vector<PredefinedMember> Members;
 	std::vector<PredefinedFunction> Functions;
 };
 
 class MemberManager
 {
-private:
-	using MemberNameInfo = std::pair<HashStringTableIndex, bool /* bIsUnqiueInClassAndSuper */>;
-
-public:
-	static inline HashStringTable PropertyNames;
+public: /* OLD */
 	static inline std::unordered_map<int32, PredefinedElements> Predefs;
 
-	static inline std::unordered_map<int32, std::vector<MemberNameInfo>> StructMembers;
+private: /* NEW*/
+	static inline HashStringTable PropertyNames;
 
-	// NEW
-private:
-	static inline std::unordered_map<int32 /* StructIndex*/, std::vector<uint64> /* NameInfos */> NameInfos;
+	static inline std::unordered_map<int32 /* UniqueId/Index */, std::vector<uint64> /* NameInfos */> NameInfos;
 
 private:
-	std::vector<UEFunction> Functions;
+	UEStruct Struct;
+
 	std::vector<UEProperty> Members;
+	std::vector<UEFunction> Functions;
 
-	PredefinedElements* PredefElements;
-
-	int32 CurrentFuncIdx = 0x0;
-	int32 CurrentMemberIdx = 0x0;
-
-	int32 CurrentPredefFuncIdx = 0x0;
-	int32 CurrentPredefMemberIdx = 0x0;
+	const std::vector<PredefinedMember>* PredefMembers = nullptr;
+	const std::vector<PredefinedFunction>* PredefFunctions = nullptr;
 
 	int32 NumStaticPredefMembers = 0x0;
 	int32 NumStaticPredefFunctions = 0x0;
 
 public:
-	MemberManager(UEStruct Struct, const std::vector<UEProperty>& Members)
-		: Functions(Struct.GetFunctions())
+	MemberManager(UEStruct Str)
+		: Struct(Str)
+		, Functions(Struct.GetFunctions())
 		, Members(Struct.GetProperties())
 	{
 		auto It = Predefs.find(Struct.GetIndex());
 		if (It != Predefs.end())
 		{
-			PredefElements = &It->second;
-
-			CurrentPredefFuncIdx = 0x0;
-			CurrentPredefMemberIdx = 0x0;
+			PredefMembers = &It->second.Members;
+			PredefFunctions = &It->second.Functions;
 
 			auto FindFirstStaticMember = [](auto& ElementVector) -> int32
 			{
@@ -86,8 +135,8 @@ public:
 				return 0x0;
 			};
 
-			NumStaticPredefMembers = FindFirstStaticMember(PredefElements->Members);
-			NumStaticPredefFunctions = FindFirstStaticMember(PredefElements->Functions);
+			NumStaticPredefMembers = FindFirstStaticMember(*PredefMembers);
+			NumStaticPredefFunctions = FindFirstStaticMember(*PredefFunctions);
 		}
 	}
 
@@ -98,7 +147,7 @@ public:
 
 	inline int32 GetNumPredefFunctions() const
 	{
-		return PredefElements ? PredefElements->Functions.size() : 0x0;
+		return PredefFunctions ? PredefFunctions->size() : 0x0;
 	}
 
 	inline int32 GetNumMembers() const
@@ -108,14 +157,20 @@ public:
 
 	inline int32 GetNumPredefMembers() const
 	{
-		return PredefElements ? PredefElements->Members.size() : 0x0;
+		return PredefMembers ? PredefMembers->size() : 0x0;
 	}
 
-	inline bool HasNextMember() const
+	inline MemberIterator<UEProperty, false> IterateMembers() const
 	{
-		return GetNumFunctions() < CurrentFuncIdx || GetNumPredefFunctions() < CurrentPredefFuncIdx;
+		return MemberIterator<UEProperty, false>(Struct, Members, PredefMembers);
 	}
 
+	inline MemberIterator<UEFunction, false> IterateFunctions() const
+	{
+		return MemberIterator<UEFunction, false>(Struct, Functions, PredefFunctions);
+	}
+
+public:
 	static void AddStruct(UEStruct Struct)
 	{
 	}
@@ -133,5 +188,10 @@ public:
 	inline UEProperty GetNextProperty() const
 	{
 		//if (PredefinedMembers && PredefinedMembers->at(PredefMemberIdx).Offset)
+	}
+
+	static inline std::string StringifyName(UEStruct Struct, NameInfo Name)
+	{
+		return CollisionManager::StringifyName(PropertyNames, Struct, Name);
 	}
 };

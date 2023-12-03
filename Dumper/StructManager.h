@@ -91,7 +91,7 @@ private:
 	}
 
 public:
-	static inline StructInfoHandle GetInfo(UEStruct Struct)
+	static inline StructInfoHandle GetInfo(const UEStruct Struct)
 	{
 		if (!Struct)
 			return {};

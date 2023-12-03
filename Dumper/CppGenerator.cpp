@@ -23,23 +23,6 @@ std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 Pad
 
 std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const std::vector<UEProperty>& Members, int32 SuperSize)
 {
-	static bool bDidThingOnce = false;
-
-	if (!bDidThingOnce)
-	{
-		//bDidThingOnce = true;
-		//void* UObject = ObjectArray::FindClassFast("Object").GetAddress();
-		//std::vector<TestPredefMember>& PredefsVector = MemberManager::Predefs[UObject];
-		//HashStringTable& PropertyNames = MemberManager::GetStringTable();
-		//PredefsVector.emplace_back("void*", PropertyNames.FindOrAdd("Vft", true).first, Off::UObject::Vft, 0x8, 0x1);
-		//PredefsVector.emplace_back("int32", PropertyNames.FindOrAdd("Flags", true).first, Off::UObject::Flags, 0x4, 0x1);
-		//PredefsVector.emplace_back("int32", PropertyNames.FindOrAdd("Index",true).first, Off::UObject::Index, 0x4, 0x1);
-		//PredefsVector.emplace_back("class UClass*", PropertyNames.FindOrAdd("Class", true).first, Off::UObject::Class, 0x8, 0x1);
-		//PredefsVector.emplace_back("class FName", PropertyNames.FindOrAdd("Name", true).first, Off::UObject::Name, Off::InSDK::FNameSize, 0x1);
-		//PredefsVector.emplace_back("class UObject*", PropertyNames.FindOrAdd("Outer", true).first, Off::UObject::Outer, 0x8, 0x1);
-	}
-
-
 	if (Members.empty())
 		return "";
 
@@ -101,13 +84,6 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const std
 	return OutMembers;
 }
 
-struct FuncInfo
-{
-	std::string RetValue;
-	std::string Declaration;
-
-};
-
 std::string CppGenerator::GenerateFunctionInHeader(const std::vector<UEFunction>& Functions, const StructManager& Manager)
 {
 	constexpr int32 AverageNumCharactersPerFunction = 0x50;
@@ -162,7 +138,7 @@ struct {}{}{}{}
   , Super.IsValid() ? (" : public " + UniqueSuperName) : "");
 
 	// replace with 'PropertyManager' or similar class
-	std::vector<UEProperty> Members = Struct.GetStruct().GetProperties();
+	std::vector<UEProperty> Members = { }; // Struct.GetStruct().GetProperties();
 
 	const bool bHasMembers = !Members.empty();
 	const bool bHasFunctions = !Members.empty();
@@ -200,7 +176,8 @@ std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 	auto [ValidName, bIsUnique] = Struct.GetUniqueName();
 
 	// 'GetStruct()' is just a temporary "fix"
-	return (bIsUnique ? "" : (Struct.GetStruct().GetOutermost().GetValidName() + "::")) + Struct.GetName();
+	//return (bIsUnique ? "" : (Struct.GetStruct().GetOutermost().GetValidName() + "::")) + Struct.GetName();
+	return "GetStructPrefixedName is not implemented!";
 }
 
 void CppGenerator::Generate(const std::unordered_map<int32, PackageInfo>& Dependencies)

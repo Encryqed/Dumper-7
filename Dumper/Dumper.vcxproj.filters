@@ -47,6 +47,9 @@
     <ClCompile Include="MemberManager.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
+    <ClCompile Include="NameCollisionHandler.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -158,6 +161,9 @@
     </ClInclude>
     <ClInclude Include="UniqueNameTest.h">
       <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="NameCollisionHandler.h">
+      <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
