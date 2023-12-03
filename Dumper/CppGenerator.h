@@ -45,15 +45,16 @@ private:
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
     static std::string GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
 
-    static std::string GenerateMembers(const StructWrapper& Struct, const std::vector<UEProperty>& Members, int32 SuperSize);
-    static std::string GenerateFunctionInHeader(const std::vector<UEFunction>& Functions, const StructManager& Manager);
+    static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize);
+    static std::string GenerateFunctionInHeader(const MemberManager& Members);
 
-    static void GenerateStruct(StreamType& StructFile, const StructManager& Manager, const StructWrapper& Struct);
-    static void GenerateClass(StreamType& ClassFile, const StructManager& Manager, UEClass Class);
+    static void GenerateStruct(StreamType& StructFile, const StructWrapper& Struct);
+    static void GenerateClass(StreamType& ClassFile, const StructWrapper& Class);
     static void GenerateFunctionInCppFile(StreamType& FunctionFile, std::ofstream& ParamFile, const UEFunction& Function);
 
 private: /* utility functions */
-    static std::string GetMemberTypeString(UEProperty CurrentNode);
+    static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper);
+    static std::string GetMemberTypeString(UEProperty Member);
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
 
 public:

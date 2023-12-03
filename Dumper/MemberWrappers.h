@@ -1,3 +1,4 @@
+#pragma once
 #include "ObjectArray.h"
 #include "NameCollisionHandler.h"
 #include "StructWrapper.h"
@@ -26,15 +27,24 @@ public:
 
 public:
     std::string GetName() const;
+    std::string GetType() const;
 
     NameInfo GetNameCollisionInfo() const;
+
+    bool IsReturnParam() const;
+    bool IsUnrealProperty() const;
+
+    bool IsBitField() const;
+
+    uint8 GetBitIndex() const;
+    uint8 GetFieldMask() const;
 
     int32 GetArrayDim() const;
     int32 GetSize() const;
     int32 GetOffset() const;
     EPropertyFlags GetPropertyFlags() const;
 
-    bool IsReturnParam() const;
+    UEProperty GetUnrealProperty() const;
 
     std::string StringifyFlags() const;
 };

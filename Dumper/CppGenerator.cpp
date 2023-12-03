@@ -1,5 +1,7 @@
 #include "CppGenerator.h"
 #include "ObjectArray.h"
+#include "MemberWrappers.h"
+#include "MemberManager.h"
 
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
@@ -21,16 +23,13 @@ std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 Pad
 	return MakeMemberString("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason)));
 }
 
-std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const std::vector<UEProperty>& Members, int32 SuperSize)
+std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize)
 {
-	if (Members.empty())
-		return "";
-
 	constexpr int EstimatedCharactersPerLine = 0x80;
 	constexpr int NumBitsInBytePlusOne = 0x9;
 
 	std::string OutMembers;
-	OutMembers.reserve(Members.size() * EstimatedCharactersPerLine);
+	OutMembers.reserve(Members.GetNumMembers() * EstimatedCharactersPerLine);
 
 	bool bLastPropertyWasBitField = false;
 
@@ -38,7 +37,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const std
 	int PrevBoolPropertyEnd = 0;
 	int PrevBoolPropertyBit = 1;
 
-	for (auto Member : Members)
+	for (PropertyWrapper Member : Members.IterateMembers())
 	{
 		int32 MemberOffset = Member.GetOffset();
 		int32 MemberSize = Member.GetSize();
@@ -51,13 +50,11 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const std
 		if (MemberOffset > PrevPropertyEnd)
 			OutMembers += GenerateBytePadding(PrevPropertyEnd, MemberOffset - PrevPropertyEnd, "Fixing Size After Last Property [ Dumper-7 ]");
 
-		const bool bIsBitField = Member.IsA(EClassCastFlags::BoolProperty) && !Member.Cast<UEBoolProperty>().IsNativeBool();
-
-		if (bIsBitField)
+		if (Member.IsBitField())
 		{
-			uint8 BitFieldIndex = Member.Cast<UEBoolProperty>().GetBitIndex();
+			uint8 BitFieldIndex = Member.GetBitIndex();
 
-			Comment = std::format("Mask: 0x{:02X}, PropSize: 0x{:04X} {}", Member.Cast<UEBoolProperty>().GetFieldMask(), MemberSize, Comment);
+			Comment = std::format("Mask: 0x{:02X}, PropSize: 0x{:04X} {}", Member.GetFieldMask(), MemberSize, Comment);
 
 			if (PrevBoolPropertyEnd < MemberOffset)
 				PrevBoolPropertyBit = 1;
@@ -73,7 +70,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const std
 
 		PrevPropertyEnd = MemberOffset + MemberSize;
 
-		std::string MemberName = "hardcoded, lol";// StructManager::GetMemberUniqueName(Struct, Member);
+		std::string MemberName = Member.GetName();// StructManager::GetMemberUniqueName(Struct, Member);
 
 		if (Member.GetArrayDim() > 1)
 			MemberName += std::format("[0x{:X}]", Member.GetArrayDim());
@@ -84,15 +81,15 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const std
 	return OutMembers;
 }
 
-std::string CppGenerator::GenerateFunctionInHeader(const std::vector<UEFunction>& Functions, const StructManager& Manager)
+std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 {
 	constexpr int32 AverageNumCharactersPerFunction = 0x50;
 
 	std::string StaticFunctions;
 	std::string NonStaticFunctions;
-	NonStaticFunctions.reserve(Functions.size() * AverageNumCharactersPerFunction);
+	NonStaticFunctions.reserve(Members.GetNumFunctions() * AverageNumCharactersPerFunction);
 
-	for (UEFunction Func : Functions)
+	for (FunctionWrapper Func : Members.IterateFunctions())
 	{
 		std::string FuncText;
 
@@ -100,14 +97,14 @@ std::string CppGenerator::GenerateFunctionInHeader(const std::vector<UEFunction>
 
 
 
-		std::string& StrToAppendto = Func.HasFlags(EFunctionFlags::Static) ? StaticFunctions : NonStaticFunctions;
+		std::string StrToAppendto;// = Func.HasFlags(EFunctionFlags::Static) ? StaticFunctions : NonStaticFunctions;
 		StrToAppendto += FuncText;
 	}
 
 	return "CppGenerator::GenerateFunctionInClass";
 }
 
-void CppGenerator::GenerateStruct(StreamType& StructFile, const StructManager& Manager, const StructWrapper& Struct)
+void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& Struct)
 {
 	std::string UniqueName = GetStructPrefixedName(Struct);
 	std::string UniqueSuperName;
@@ -137,11 +134,10 @@ struct {}{}{}{}
   , Struct.IsFinal() ? " final " : ""
   , Super.IsValid() ? (" : public " + UniqueSuperName) : "");
 
-	// replace with 'PropertyManager' or similar class
-	std::vector<UEProperty> Members = { }; // Struct.GetStruct().GetProperties();
+	MemberManager Members = Struct.GetMembers();
 
-	const bool bHasMembers = !Members.empty();
-	const bool bHasFunctions = !Members.empty();
+	const bool bHasMembers = Members.HasMembers();
+	const bool bHasFunctions = Members.HasFunctions();
 
 	if (bHasMembers || bHasFunctions)
 		StructFile << "public:\n";
@@ -155,12 +151,12 @@ struct {}{}{}{}
 	}
 
 	if (bHasFunctions)
-		StructFile << GenerateFunctionInHeader(*reinterpret_cast<const std::vector<UEFunction>*>(0), Manager);
+		StructFile << GenerateFunctionInHeader(Members);
 
 	StructFile << "};\n";
 }
 
-void CppGenerator::GenerateClass(StreamType& ClassFile, const StructManager& Manager, UEClass Class)
+void CppGenerator::GenerateClass(StreamType& ClassFile, const StructWrapper& Class)
 {
 
 }
@@ -200,6 +196,13 @@ void CppGenerator::InitPredefinedMembers()
 void CppGenerator::InitPredefinedFunctions()
 {
 
+}
+std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapper)
+{
+	if (!MemberWrapper.IsUnrealProperty()) [[unlikely]]
+		return MemberWrapper.GetType();
+
+	return GetMemberTypeString(MemberWrapper.GetUnrealProperty());
 }
 
 std::string CppGenerator::GetMemberTypeString(UEProperty Member)

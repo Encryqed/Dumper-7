@@ -16,11 +16,51 @@ std::string PropertyWrapper::GetName() const
     return bIsUnrealProperty ? MemberManager::StringifyName(Struct->GetUnrealStruct(), Name) : PredefProperty->Name;
 }
 
+std::string PropertyWrapper::GetType() const
+{
+    assert(!bIsUnrealProperty && "PropertyWrapper doesn't contian UnrealProperty. Illegal call to 'GetNameCollisionInfo()'.");
+
+    return PredefProperty->Type;
+}
+
 NameInfo PropertyWrapper::GetNameCollisionInfo() const
 {
     assert(bIsUnrealProperty && "PropertyWrapper doesn't contian UnrealProperty. Illegal call to 'GetNameCollisionInfo()'.");
 
     return Name;
+}
+
+bool PropertyWrapper::IsReturnParam() const
+{
+    return bIsUnrealProperty && Property.HasPropertyFlags(EPropertyFlags::ReturnParm);
+}
+
+UEProperty PropertyWrapper::GetUnrealProperty() const
+{
+    return Property;
+}
+
+bool PropertyWrapper::IsBitField() const
+{
+    if (bIsUnrealProperty)
+        return Property.IsA(EClassCastFlags::BoolProperty) && !Property.Cast<UEBoolProperty>().IsNativeBool();
+
+    return PredefProperty->bIsBitField;
+}
+
+
+uint8 PropertyWrapper::GetBitIndex() const
+{
+    assert(IsBitField() && "'GetBitIndex' was called on non-bitfield member!");
+
+    return bIsUnrealProperty ? Property.Cast<UEBoolProperty>().GetBitIndex() : PredefProperty->BitIndex;
+}
+
+uint8 PropertyWrapper::GetFieldMask() const
+{
+    assert(IsBitField() && "'GetFieldMask' was called on non-bitfield member!");
+
+    return bIsUnrealProperty ? Property.Cast<UEBoolProperty>().GetFieldMask() : (1 << PredefProperty->BitIndex);
 }
 
 int32 PropertyWrapper::GetArrayDim() const
@@ -43,14 +83,16 @@ EPropertyFlags PropertyWrapper::GetPropertyFlags() const
     return bIsUnrealProperty ? Property.GetPropertyFlags() : EPropertyFlags::None;
 }
 
-bool PropertyWrapper::IsReturnParam() const
-{
-    return bIsUnrealProperty && Property.HasPropertyFlags(EPropertyFlags::ReturnParm);
-}
-
 std::string PropertyWrapper::StringifyFlags() const
 {
     return bIsUnrealProperty ? Property.StringifyFlags() : "NoFlags";
+}
+
+
+
+bool PropertyWrapper::IsUnrealProperty() const
+{
+    return bIsUnrealProperty;
 }
 
 FunctionWrapper::FunctionWrapper(const StructWrapper& Str, const PredefinedFunction* Predef)

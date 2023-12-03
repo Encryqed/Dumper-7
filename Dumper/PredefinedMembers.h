@@ -15,6 +15,9 @@ struct PredefinedMember
     int32 Alignment;
 
     bool bIsStatic;
+
+    bool bIsBitField;
+    uint8 BitIndex;
 };
 
 struct PredefinedFunction

@@ -16,6 +16,7 @@ private:
 
 private:
 	using PredefType = std::conditional_t<bIsProperty, PredefinedMember, PredefinedFunction>;
+	using DereferenceType = std::conditional_t<bIsProperty, class PropertyWrapper, class FunctionWrapper>;
 
 private:
 	const UEStruct Struct;
@@ -36,16 +37,16 @@ public:
 	}
 
 private:
-	inline void HasMoreUnrealMembers() const { return (CurrentIdx + 1) < Members.size(); }
-	inline void HasMorePredefMembers() const { return PredefElements ? (CurrentPredefIdx + 1) < PredefElements->size() : false; }
+	inline bool HasMoreUnrealMembers() const { return (CurrentIdx + 1) < Members.size(); }
+	inline bool HasMorePredefMembers() const { return PredefElements ? (CurrentPredefIdx + 1) < PredefElements->size() : false; }
 
-	inline int32 GetNextUnrealMemberOffset() const { return HasMoreUnrealMembers() ? Members[CurrentIdx + 1] : 0xFFFFFFFF; }
-	inline int32 GetNextPredefMemberOffset() const { return HasMorePredefMembers() ? PredefElements->at(CurrentIdx + 1) : 0xFFFFFFFF; }
+	int32 GetNextUnrealMemberOffset() const;
+	int32 GetNextPredefMemberOffset() const;
 
 public:
-	inline auto operator*() const;
+	inline DereferenceType operator*() const;
 
-	inline MemberIterator& operator++() const
+	inline MemberIterator& operator++()
 	{
 		if constexpr (bIsProperty)
 		{
@@ -151,6 +152,16 @@ public:
 	inline int32 GetNumPredefMembers() const
 	{
 		return PredefMembers ? PredefMembers->size() : 0x0;
+	}
+
+	inline bool HasFunctions() const
+	{
+		return GetNumFunctions() > 0x0 && GetNumPredefMembers() > 0x0;
+	}
+
+	inline bool HasMembers() const
+	{
+		return GetNumMembers() > 0x0 && GetNumPredefMembers() > 0x0;
 	}
 
 	template<bool bSkipStatics = false>
