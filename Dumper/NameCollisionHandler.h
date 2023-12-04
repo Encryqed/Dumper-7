@@ -63,9 +63,17 @@ using NameContainer = std::vector<NameInfo>;
 
 namespace CollisionManager
 {
-	void AddNameToContainer(std::unordered_map<int32, NameContainer>& Names, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr);
+	namespace KeyFunctions
+	{
+		/* Make a unique key from UEProperty/UEFunction for NameTranslation */
+		uint64 GetKeyForCollisionInfo(UEProperty Member);
+		uint64 GetKeyForCollisionInfo(UEFunction Function);
+	}
 
-	void AddStructToNameContainer(std::unordered_map<int32, NameContainer>& Names, HashStringTable& MemberNames, UEStruct ObjAsStruct);
+	/* Returns index of NameInfo inside of the NameContainer it was added to */
+	int32 AddNameToContainer(std::unordered_map<int32, NameContainer>& Names, NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr);
+
+	void AddStructToNameContainer(std::unordered_map<int32, NameContainer>& Names, std::unordered_map<uint64, uint64>& TranslationMap, HashStringTable& MemberNames, UEStruct ObjAsStruct);
 
 	std::string StringifyName(HashStringTable& MemberNames, UEStruct Struct, NameInfo Info);
 };

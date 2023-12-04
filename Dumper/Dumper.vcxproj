@@ -171,6 +171,7 @@
     <ClInclude Include="GeneratorRewriteTest.h" />
     <ClInclude Include="HashStringTable.h" />
     <ClInclude Include="HashStringTableTest.h" />
+    <ClInclude Include="MemberManagerTest.h" />
     <ClInclude Include="MemberWrappers.h" />
     <ClInclude Include="NameCollisionHandler.h" />
     <ClInclude Include="ObjectArray.h" />

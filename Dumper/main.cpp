@@ -9,6 +9,7 @@
 #include "GeneratorRewriteTest.h"
 #include "StructManagerTest.h"
 #include "UniqueNameTest.h"
+#include "MemberManagerTest.h"
 
 #include "GeneratorRewrite.h"
 
@@ -67,7 +68,9 @@ DWORD MainThread(HMODULE Module)
 	//
 	//StructManagerTest::TestAll();
 
-	UniqueNameTest::TestMakeNamesUnique();
+	//UniqueNameTest::TestMakeNamesUnique();
+
+	MemberManagerTest::TestAll();
 
 	//GeneratorRewrite::Generate<CppGenerator>();
 

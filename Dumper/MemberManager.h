@@ -34,9 +34,11 @@ private:
 	bool bIsCurrentlyPredefined = false;
 
 private:
+#pragma warning(disable: 26495)
 	inline MemberIterator(const std::vector<T>& M)
 		: Members(M)
 	{
+		assert(false && "Do not use this constructor!");
 	}
 
 public:
@@ -62,12 +64,12 @@ public:
 			const int32 NextUnrealOffset = GetNextUnrealMemberOffset();
 			const int32 NextPredefOffset = GetNextPredefMemberOffset();
 
-			if (NextUnrealOffset < NextPredefOffset)
+			if (NextUnrealOffset < NextPredefOffset) [[likely]]
 			{
 				bIsCurrentlyPredefined = false;
 				CurrentIdx++;
 			}
-			else
+			else [[unlikely]]
 			{
 				bIsCurrentlyPredefined = true;
 				CurrentPredefIdx++;
@@ -96,12 +98,13 @@ class MemberManager
 {
 private:
 	friend class StructWrapper;
+	friend class MemberManagerTest;
 
 private:
 	using NameInfoMapType = std::unordered_map<int32 /* UniqueId/Index */, NameContainer /* NameInfos */>;
 	using NameInfoTranslationMapType = std::unordered_map<uint64 /* UniquePropertyId */, uint64 /* Index into NameInfos */>;
 
-private: /* NEW*/
+private:
 	/* Nametable used for storing the string-names of member-/function-names contained by NameInfos */
 	static inline HashStringTable MemberNames;
 
@@ -127,66 +130,17 @@ private:
 	int32 NumStaticPredefFunctions = 0x0;
 
 private:
-	MemberManager(UEStruct Str)
-		: Struct(Str)
-		, Functions(Struct.GetFunctions())
-		, Members(Struct.GetProperties())
-	{
-		if (!PredefinedMemberLookup)
-			return;
-
-		auto It = PredefinedMemberLookup->find(Struct.GetIndex());
-		if (It != PredefinedMemberLookup->end())
-		{
-			PredefMembers = &It->second.Members;
-			PredefFunctions = &It->second.Functions;
-
-			auto FindFirstStaticMember = [](auto& ElementVector) -> int32
-			{
-				for (int i = 0; i < ElementVector.size(); i++)
-				{
-					if (ElementVector[i].bIsStatic)
-						return i + 1;
-				}
-
-				return 0x0;
-			};
-
-			NumStaticPredefMembers = FindFirstStaticMember(*PredefMembers);
-			NumStaticPredefFunctions = FindFirstStaticMember(*PredefFunctions);
-		}
-	}
+	MemberManager(UEStruct Str);
 
 public:
-	inline int32 GetNumFunctions() const
-	{
-		return Functions.size();
-	}
+	int32 GetNumFunctions() const;
+	int32 GetNumMembers() const;
 
-	inline int32 GetNumPredefFunctions() const
-	{
-		return PredefFunctions ? PredefFunctions->size() : 0x0;
-	}
+	int32 GetNumPredefFunctions() const;
+	int32 GetNumPredefMembers() const;
 
-	inline int32 GetNumMembers() const
-	{
-		return Members.size();
-	}
-
-	inline int32 GetNumPredefMembers() const
-	{
-		return PredefMembers ? PredefMembers->size() : 0x0;
-	}
-
-	inline bool HasFunctions() const
-	{
-		return GetNumFunctions() > 0x0 && GetNumPredefMembers() > 0x0;
-	}
-
-	inline bool HasMembers() const
-	{
-		return GetNumMembers() > 0x0 && GetNumPredefMembers() > 0x0;
-	}
+	bool HasFunctions() const;
+	bool HasMembers() const;
 
 	template<bool bSkipStatics = false>
 	inline MemberIterator<UEProperty, bSkipStatics> IterateMembers() const
@@ -201,45 +155,12 @@ public:
 	}
 
 public:
-
-private: /* For internal translation between property and unique name */
-	static inline uint64 GetKeyForCollisionInfo(UEProperty Member)
-	{
-		uint64 Key = 0x0;
-
-		FName Name = Member.GetFName();
-		Key += Name.GetCompIdx();
-		Key += Name.GetNumber();
-
-		Key <<= 32;
-		Key |= Member.GetOffset();
-
-		Key ^= static_cast<uint64>(Member.GetPropertyFlags());
-
-		return Key;
-	}
-
-	static inline uint64 GetKeyForCollisionInfo(UEFunction Member)
-	{
-		uint64 Key = 0x0;
-
-		FName Name = Member.GetFName();
-		Key += Name.GetCompIdx();
-		Key += Name.GetNumber();
-
-		Key <<= 32;
-		Key |= Member.GetIndex();
-
-		return Key;
-	}
-
-public:
-	static void SetPredefinedMemberLookup(const PredefinedMemberLookupMapType* Lookup)
+	static inline void SetPredefinedMemberLookup(const PredefinedMemberLookupMapType* Lookup)
 	{
 		PredefinedMemberLookup = Lookup;
 	}
 
-	static void InitMemberNameCollisions()
+	static inline void InitMemberNameCollisions()
 	{
 		static bool bInitialized = false;
 
@@ -257,14 +178,9 @@ public:
 		}
 	}
 
-	static void AddStructToNameContainer(UEStruct Struct)
+	static inline void AddStructToNameContainer(UEStruct Struct)
 	{
-		CollisionManager::AddStructToNameContainer(NameInfos, MemberNames, Struct);
-	}
-
-	static inline HashStringTable& GetStringTable()
-	{
-		return MemberNames;
+		CollisionManager::AddStructToNameContainer(NameInfos, TranslationMap, MemberNames, Struct);
 	}
 
 	template<typename UEType>
@@ -276,7 +192,7 @@ public:
 		assert(Member && "'GetNameCollisionInfo()' called with 'Member' == nullptr");
 
 		NameContainer& InfosForStruct = NameInfos[Struct.GetIndex()];
-		uint64 NameInfoIndex = TranslationMap[GetKeyForCollisionInfo(Member)];
+		uint64 NameInfoIndex = TranslationMap[CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Member)];
 
 		return InfosForStruct[NameInfoIndex];
 	}

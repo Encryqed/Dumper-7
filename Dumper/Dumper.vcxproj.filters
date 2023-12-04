@@ -174,5 +174,8 @@
     <ClInclude Include="PredefinedMembers.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
+    <ClInclude Include="MemberManagerTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
