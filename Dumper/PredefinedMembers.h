@@ -49,3 +49,6 @@ struct PredefinedStruct
     std::vector<PredefinedMember> Properties;
     std::vector<PredefinedFunction> Functions;
 };
+
+/* unordered_map<StructIndex, Members/Functions> */
+using PredefinedMemberLookupMapType = std::unordered_map<int32 /* StructIndex */, PredefinedElements /* Members/Functions */>;

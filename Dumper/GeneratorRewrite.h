@@ -5,6 +5,7 @@
 #include "DependencyManager.h"
 #include "HashStringTable.h"
 #include "StructManager.h"
+#include "MemberManager.h"
 
 namespace fs = std::filesystem;
 
@@ -25,7 +26,6 @@ private:
 
 protected:
     static inline std::unordered_map<int32, PackageInfo> Packages;
-    static inline StructManager StructOverrideInfos;
 
     static inline fs::path DumperFolder;
 
@@ -54,6 +54,8 @@ public:
 
         if (!SetupFolders(GeneratorType::MainFolderName, GeneratorType::MainFolder, GeneratorType::SubfolderName, GeneratorType::Subfolder))
             return;
+
+        MemberManager::SetPredefinedMemberLookup(&GeneratorType::PredefinedMembers);
 
         GeneratorType::Generate(Packages);
     };

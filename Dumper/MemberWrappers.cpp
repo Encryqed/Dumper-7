@@ -7,7 +7,7 @@ PropertyWrapper::PropertyWrapper(const StructWrapper& Str, const PredefinedMembe
 }
 
 PropertyWrapper::PropertyWrapper(const StructWrapper& Str, UEProperty Prop)
-    : Property(Prop), Name(/* to do*/), Struct(&Str), bIsUnrealProperty(true)
+    : Property(Prop), Name(MemberManager::GetNameCollisionInfo(Str.GetUnrealStruct(), Prop)), Struct(&Str), bIsUnrealProperty(true)
 {
 }
 
@@ -101,7 +101,7 @@ FunctionWrapper::FunctionWrapper(const StructWrapper& Str, const PredefinedFunct
 }
 
 FunctionWrapper::FunctionWrapper(const StructWrapper& Str, UEFunction Func)
-    : Function(Func), Name(/* to do*/), Struct(&Str), bIsUnrealFunction(true)
+    : Function(Func), Name(MemberManager::GetNameCollisionInfo(Str.GetUnrealStruct(), Func)), Struct(&Str), bIsUnrealFunction(true)
 {
 }
 

@@ -116,24 +116,24 @@ void CollisionManager::AddNameToContainer(std::unordered_map<int32, NameContaine
 	}
 }
 
-void CollisionManager::AddStructToNameContainer(std::unordered_map<int32, NameContainer>& Names, HashStringTable& MemberNames, UEStruct ObjAsStruct)
+void CollisionManager::AddStructToNameContainer(std::unordered_map<int32, NameContainer>& Names, HashStringTable& MemberNames, UEStruct Struct)
 {
-	if (UEStruct Super = ObjAsStruct.GetSuper())
+	if (UEStruct Super = Struct.GetSuper())
 	{
 		if (Names.find(Super.GetIndex()) == Names.end())
 			AddStructToNameContainer(Names, MemberNames, Super);
 	}
 
 	//const NameContainer& Infos = Names[ObjAsStruct.GetIndex()];
-	for (UEProperty Prop : ObjAsStruct.GetProperties())
-		AddNameToContainer(Names, ObjAsStruct, MemberNames.FindOrAdd(Prop.GetValidName()), ECollisionType::MemberName);
+	for (UEProperty Prop : Struct.GetProperties())
+		AddNameToContainer(Names, Struct, MemberNames.FindOrAdd(Prop.GetValidName()), ECollisionType::MemberName);
 
-	for (UEFunction Func : ObjAsStruct.GetFunctions())
+	for (UEFunction Func : Struct.GetFunctions())
 	{
-		AddNameToContainer(Names, ObjAsStruct, MemberNames.FindOrAdd(Func.GetValidName()), ECollisionType::FunctionName);
+		AddNameToContainer(Names, Struct, MemberNames.FindOrAdd(Func.GetValidName()), ECollisionType::FunctionName);
 
 		for (UEProperty Prop : Func.GetProperties())
-			AddNameToContainer(Names, ObjAsStruct, MemberNames.FindOrAdd(Prop.GetValidName()), ECollisionType::ParameterName, Func);
+			AddNameToContainer(Names, Struct, MemberNames.FindOrAdd(Prop.GetValidName()), ECollisionType::ParameterName, Func);
 	}
 };
 

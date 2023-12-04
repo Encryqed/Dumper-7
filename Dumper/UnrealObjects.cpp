@@ -1054,7 +1054,7 @@ std::string UEEnumProperty::GetCppType() const
 *
 * See https://stackoverflow.com/questions/456713/why-do-i-get-unresolved-external-symbol-errors-when-using-templates
 */
-void TemplateTypeCreationForUnrealObjects(void)
+[[maybe_unused]] void TemplateTypeCreationForUnrealObjects(void)
 {
 	UEObject Dummy(nullptr);
 	UEFField FDummy(nullptr);

@@ -193,9 +193,10 @@ int32 FName::GetCompIdx()
 {
 	return *reinterpret_cast<int32*>(Address + Off::FName::CompIdx);
 }
+
 int32 FName::GetNumber()
 {
-	return *reinterpret_cast<int32*>(Address + Off::FName::Number);
+	return !Settings::Internal::bUseUoutlineNumberName ? *reinterpret_cast<int32*>(Address + Off::FName::Number) : 0x0;
 }
 
 bool FName::operator==(FName Other)

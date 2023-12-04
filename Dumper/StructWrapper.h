@@ -52,6 +52,5 @@ public:
 
     bool IsValid() const;
 
-    [[deprecated("Temporary, pass real 'std::unordered_map<int32, PredefinedElements>'.")]]
     MemberManager GetMembers() const;
 };

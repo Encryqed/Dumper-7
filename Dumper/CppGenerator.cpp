@@ -25,8 +25,8 @@ std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 Pad
 
 std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize)
 {
-	constexpr int EstimatedCharactersPerLine = 0x80;
-	constexpr int NumBitsInBytePlusOne = 0x9;
+	constexpr uint64 EstimatedCharactersPerLine = 0x80;
+	constexpr uint64 NumBitsInBytePlusOne = 0x9;
 
 	std::string OutMembers;
 	OutMembers.reserve(Members.GetNumMembers() * EstimatedCharactersPerLine);
@@ -37,7 +37,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 	int PrevBoolPropertyEnd = 0;
 	int PrevBoolPropertyBit = 1;
 
-	for (PropertyWrapper Member : Members.IterateMembers())
+	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
 		int32 MemberOffset = Member.GetOffset();
 		int32 MemberSize = Member.GetSize();

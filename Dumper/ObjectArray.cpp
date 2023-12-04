@@ -536,7 +536,7 @@ int32 ObjectArray::ObjectsIterator::GetIndex() const
 *
 * See https://stackoverflow.com/questions/456713/why-do-i-get-unresolved-external-symbol-errors-when-using-templates
 */
-void TemplateTypeCreationForObjectArray(void)
+[[maybe_unused]] void TemplateTypeCreationForObjectArray(void)
 {
 	ObjectArray::FindObject<UEObject>("");
 	ObjectArray::FindObject<UEField>("");

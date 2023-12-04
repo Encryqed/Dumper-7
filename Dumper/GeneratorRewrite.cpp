@@ -103,10 +103,11 @@ void GeneratorRewrite::InitInternal()
 	// Create DependencyManager, containing all packages and packages they depend on, for SDK.hpp generation
 	Packages = GatherPackages();
 
-	// Create StructManager with all structs and their names
-	StructOverrideInfos.Init();
+	// Initialize StructManager with all structs and their names
+	StructManager::Init();
 
-	// 
+	// Initialized all Member-Name collisions
+	MemberManager::InitMemberNameCollisions();
 }
 
 bool GeneratorRewrite::SetupDumperFolder()
