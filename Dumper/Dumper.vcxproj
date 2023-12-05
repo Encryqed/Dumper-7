@@ -185,7 +185,7 @@
     <ClInclude Include="StructManagerTest.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="NameArray.h" />
-    <ClInclude Include="UniqueNameTest.h" />
+    <ClInclude Include="CollisionManagerTest.h" />
     <ClInclude Include="UnrealObjects.h" />
     <ClInclude Include="UnrealTypes.h" />
     <ClInclude Include="Utils.h" />

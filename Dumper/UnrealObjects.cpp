@@ -558,9 +558,7 @@ bool UEStruct::HasMembers() const
 		for (UEFField Field = GetChildProperties(); Field; Field = Field.GetNext())
 		{
 			if (Field.IsA(EClassCastFlags::Property))
-			{
 				return true;
-			}
 		}
 	}
 	else
@@ -568,9 +566,7 @@ bool UEStruct::HasMembers() const
 		for (UEField F = GetChild(); F; F = F.GetNext())
 		{
 			if (F.IsA(EClassCastFlags::Property))
-			{
 				return true;
-			}
 		}
 	}
 
@@ -768,7 +764,7 @@ std::string UEProperty::GetName() const
 }
 
 std::string UEProperty::GetValidName() const
-{
+ {
 	return Base ? GetFName().ToValidString() : "None";
 }
 

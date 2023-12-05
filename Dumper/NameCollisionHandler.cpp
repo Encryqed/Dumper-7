@@ -39,7 +39,7 @@ bool NameInfo::HasCollisions() const
 	return false;
 }
 
-uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo(UEProperty Member)
+uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo(UEStruct Super, UEProperty Member)
 {
 	uint64 Key = 0x0;
 
@@ -48,20 +48,14 @@ uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo(UEProperty Member)
 	Key += Name.GetNumber();
 
 	Key <<= 32;
-	Key |= Member.GetOffset();
+	Key |= (static_cast<uint64>(Member.GetOffset()) << 24);
+	Key |= (static_cast<uint64>(Member.GetSize()) << 16);
+	Key |= Super.GetIndex();
 
-	Key |= (static_cast<uint64>(Member.GetOffset()) << 16);
-	Key |= Member.GetSize();
-
-	static_assert(false, "Continue here!");
-	Key ^= static_cast<uint64>(Member.GetPropertyFlags());
-	//Key ^= static_cast<uint64>(Member.GetPropertyFlags());
-
-	//return reinterpret_cast<uint64>(Member.GetAddress());
-	return Key;
+	return reinterpret_cast<uint64>(Member.GetAddress());
 }
 
-uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo(UEFunction Member)
+uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo([[maybe_unused]] UEStruct Super, UEFunction Member)
 {
 	uint64 Key = 0x0;
 
@@ -75,7 +69,7 @@ uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo(UEFunction Member)
 	return Key;
 }
 
-int32 CollisionManager::AddNameToContainer(std::unordered_map<int32, NameContainer>& Names, NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func)
+uint64 CollisionManager::AddNameToContainer(NameInfoMapType& Names, NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func)
 {
 	static auto AddCollidingName = [](const NameContainer& SearchNames, NameContainer* OutTargetNames, HashStringTableIndex NameIdx, ECollisionType CurrentType, bool bIsSuper) -> bool
 	{
@@ -115,7 +109,7 @@ int32 CollisionManager::AddNameToContainer(std::unordered_map<int32, NameContain
 	{
 		FuncParamNames = &Names[Func.GetIndex()];
 
-		if (bWasInserted)
+		if (bWasInserted && bIsParameter)
 		{
 			// Create new empty NameInfo
 			FuncParamNames->emplace_back(NameIdx, CurrentType);
@@ -129,7 +123,7 @@ int32 CollisionManager::AddNameToContainer(std::unordered_map<int32, NameContain
 	NameContainer* TargetNameContainer = bIsParameter ? FuncParamNames : &StructNames;
 
 	if (AddCollidingName(StructNames, TargetNameContainer, NameIdx, CurrentType, false))
-		return TargetNameContainer->size() - 1;;
+		return TargetNameContainer->size() - 1;
 
 	for (UEStruct Current = Struct.GetSuper(); Current; Current = Current.GetSuper())
 	{
@@ -152,7 +146,7 @@ int32 CollisionManager::AddNameToContainer(std::unordered_map<int32, NameContain
 	}
 }
 
-void CollisionManager::AddStructToNameContainer(std::unordered_map<int32, NameContainer>& Names, std::unordered_map<uint64, uint64>& TranslationMap,  HashStringTable& MemberNames, UEStruct Struct)
+void CollisionManager::AddStructToNameContainer(NameInfoMapType& Names, TranslationMapType& TranslationMap,  HashStringTable& MemberNames, UEStruct Struct)
 {
 	if (UEStruct Super = Struct.GetSuper())
 	{
@@ -162,15 +156,25 @@ void CollisionManager::AddStructToNameContainer(std::unordered_map<int32, NameCo
 
 	NameContainer& StructNames = Names[Struct.GetIndex()];
 
+	auto AddToContainerAndTranslationMap = [&](auto Member, ECollisionType CollisionType, UEFunction Func = nullptr) -> void
+	{
+		const uint64 Index = AddNameToContainer(Names, StructNames, Struct, MemberNames.FindOrAdd(Member.GetValidName()), CollisionType, Func);
+
+		const bool bInserted = TranslationMap.emplace(KeyFunctions::GetKeyForCollisionInfo(Struct, Member), Index).second;
+		
+		if (!bInserted)
+			std::cout << "Error, no insertion took place, key duplicated!" << std::endl;
+	};
+
 	for (UEProperty Prop : Struct.GetProperties())
-		TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Prop)] = AddNameToContainer(Names, StructNames, Struct, MemberNames.FindOrAdd(Prop.GetValidName()), ECollisionType::MemberName);
+		AddToContainerAndTranslationMap(Prop, ECollisionType::MemberName);
 
 	for (UEFunction Func : Struct.GetFunctions())
 	{
-		TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Func)] = AddNameToContainer(Names, StructNames, Struct, MemberNames.FindOrAdd(Func.GetValidName()), ECollisionType::FunctionName);
+		AddToContainerAndTranslationMap(Func, ECollisionType::FunctionName);
 
 		for (UEProperty Prop : Func.GetProperties())
-			TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Prop)] = AddNameToContainer(Names, StructNames, Struct, MemberNames.FindOrAdd(Prop.GetValidName()), ECollisionType::ParameterName, Func);
+			AddToContainerAndTranslationMap(Prop, ECollisionType::ParameterName, Func);
 	}
 };
 

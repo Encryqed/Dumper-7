@@ -8,7 +8,6 @@ public:
 	static inline void TestAll()
 	{
 		TestInit();
-		TestNameTranslationCollisions();
 		TestNameTranslation();
 
 		std::cout << std::endl;
@@ -27,62 +26,11 @@ public:
 		std::cout << __FUNCTION__ << " --> NameInfos.size(): 0x" << Size << " -> 0x" << std::hex << MemberManager::NameInfos.size() << "\n" << std::endl;
 	}
 
-	static inline void TestNameTranslationCollisions()
-	{
-		std::unordered_set<uint64> Idx;
-		Idx.reserve(0x5000);
-
-		uint64 Counter = 0x0;
-
-		for (UEObject Obj : ObjectArray())
-		{
-			if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function))
-				continue;
-
-			UEStruct Struct = Obj.Cast<UEStruct>();
-
-			for (UEProperty Property : Struct.GetProperties())
-			{
-				uint64 Key = CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Property);
-
-				Counter++;
-				if (!Idx.insert(Key).second)
-				{
-					std::cout << "Property-Duplication, Count = " << Counter << ", Key = " << Key << std::endl;
-				}
-			}
-
-			for (UEFunction Function : Struct.GetFunctions())
-			{
-				uint64 Key = CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Function);
-
-				Counter++;
-				if (!Idx.insert(Key).second)
-				{
-					std::cout << "Function-Duplication, Count = " << Counter++ << ", Key = " << Key << std::endl;
-				}
-
-				for (UEProperty Property : Function.GetProperties())
-				{
-					uint64 Key2 = CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Property);
-
-					Counter++;
-					if (!Idx.insert(Key2).second)
-					{
-						std::cout << "Property-Duplication, Count = " << Counter++ << ", Key = " << Key2 << std::endl;
-					}
-				}
-			}
-		}
-
-		std::cout << __FUNCTION__ << " --> NO FAILURE!\n" << std::endl;
-	}
-
 	static inline void TestNameTranslation()
 	{
 		MemberManager::InitMemberNameCollisions();
 
-		auto TestName = [](NameContainer& Container, auto Member) -> bool
+		auto TestName = [](CollisionManager::NameContainer& Container, UEStruct Struct, auto Member) -> bool
 		{
 			auto [Index, bWasAdded] = MemberManager::MemberNames.FindOrAdd(Member.GetValidName());
 
@@ -99,8 +47,8 @@ public:
 				return false;
 			}
 
-			int32 InContainerIndex = It - Container.begin();
-			int32 TranslatedIndex = MemberManager::TranslationMap.at(CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Member));
+			uint64 InContainerIndex = It - Container.begin();
+			uint64 TranslatedIndex = MemberManager::TranslationMap.at(CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Member));
 
 			if (InContainerIndex != TranslatedIndex)
 			{
@@ -111,13 +59,13 @@ public:
 			return true;
 		};
 
-		auto TestEvenHarder = [](NameContainer& Container, auto Member) -> bool
+		auto TestEvenHarder = [](CollisionManager::NameContainer& Container, UEStruct Struct, auto Member) -> bool
 		{
-			int32 TranslatedIndex = MemberManager::TranslationMap.at(CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Member));
+			uint64 TranslatedIndex = MemberManager::TranslationMap.at(CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Member));
 
 			if (MemberManager::MemberNames.GetStringEntry(Container[TranslatedIndex].Name).GetName() != Member.GetValidName())
 			{
-				std::cout << "Error on name '" << Member.GetValidName() << "'. Index doesn't equal name!" << std::endl;
+				std::cout << "Error: '" << MemberManager::MemberNames.GetStringEntry(Container[TranslatedIndex].Name).GetName() << "' != '" << Member.GetValidName() << "'" << std::endl;
 				return false;
 			}
 
@@ -130,21 +78,24 @@ public:
 
 			for (UEProperty Property : Struct.GetProperties())
 			{
-				TestName(Container, Property);
-				TestEvenHarder(Container, Property);
+				TestName(Container, Struct, Property);
+				TestEvenHarder(Container, Struct, Property);
 			}
 
 			for (UEFunction Function : Struct.GetFunctions())
 			{
-				TestName(Container, Function);
-				TestEvenHarder(Container, Function);
+				TestName(Container, Struct, Function);
+				TestEvenHarder(Container, Struct, Function);
+			
+				if (!Function.HasMembers())
+					continue;
 
-				NameContainer& FuncContainer = MemberManager::NameInfos[Function.GetIndex()];
+				CollisionManager::NameContainer& FuncContainer = MemberManager::NameInfos[Function.GetIndex()];
 
-				for (UEProperty Property : Struct.GetProperties())
+				for (UEProperty Property : Function.GetProperties())
 				{
-					TestName(FuncContainer, Property);
-					TestEvenHarder(FuncContainer, Property);
+					TestName(FuncContainer, Function, Property);
+					TestEvenHarder(FuncContainer, Function, Property);
 				}
 			}
 		}

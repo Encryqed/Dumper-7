@@ -8,7 +8,7 @@
 #include "HashStringTableTest.h"
 #include "GeneratorRewriteTest.h"
 #include "StructManagerTest.h"
-#include "UniqueNameTest.h"
+#include "CollisionManagerTest.h"
 #include "MemberManagerTest.h"
 
 #include "GeneratorRewrite.h"
@@ -68,8 +68,9 @@ DWORD MainThread(HMODULE Module)
 	//
 	//StructManagerTest::TestAll();
 
-	//UniqueNameTest::TestMakeNamesUnique();
+	//CollisionManagerTest::TestMakeNamesUnique();
 
+	CollisionManagerTest::TestKeyCreationFunctions();
 	MemberManagerTest::TestAll();
 
 	//GeneratorRewrite::Generate<CppGenerator>();

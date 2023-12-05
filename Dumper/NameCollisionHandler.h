@@ -59,21 +59,24 @@ public:
 	}
 };
 
-using NameContainer = std::vector<NameInfo>;
-
 namespace CollisionManager
 {
+	using NameContainer = std::vector<NameInfo>;
+
+	using NameInfoMapType = std::unordered_map<uint64, NameContainer>;
+	using TranslationMapType = std::unordered_map<uint64, uint64>;
+
 	namespace KeyFunctions
 	{
 		/* Make a unique key from UEProperty/UEFunction for NameTranslation */
-		uint64 GetKeyForCollisionInfo(UEProperty Member);
-		uint64 GetKeyForCollisionInfo(UEFunction Function);
+		uint64 GetKeyForCollisionInfo(UEStruct Super, UEProperty Member);
+		uint64 GetKeyForCollisionInfo(UEStruct Super, UEFunction Function);
 	}
 
 	/* Returns index of NameInfo inside of the NameContainer it was added to */
-	int32 AddNameToContainer(std::unordered_map<int32, NameContainer>& Names, NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr);
+	uint64 AddNameToContainer(NameInfoMapType& Names, NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr);
 
-	void AddStructToNameContainer(std::unordered_map<int32, NameContainer>& Names, std::unordered_map<uint64, uint64>& TranslationMap, HashStringTable& MemberNames, UEStruct ObjAsStruct);
+	void AddStructToNameContainer(NameInfoMapType& Names, TranslationMapType& TranslationMap, HashStringTable& MemberNames, UEStruct ObjAsStruct);
 
 	std::string StringifyName(HashStringTable& MemberNames, UEStruct Struct, NameInfo Info);
 };
