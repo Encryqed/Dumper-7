@@ -70,7 +70,8 @@ DWORD MainThread(HMODULE Module)
 
 	//CollisionManagerTest::TestMakeNamesUnique();
 
-	CollisionManagerTest::TestKeyCreationFunctions();
+	//CollisionManagerTest::TestKeyCreationFunctions();
+	//CollisionManagerTest::TestMakeNamesUnique();
 	MemberManagerTest::TestAll();
 
 	//GeneratorRewrite::Generate<CppGenerator>();

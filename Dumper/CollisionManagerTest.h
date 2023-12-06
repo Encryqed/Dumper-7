@@ -84,7 +84,7 @@ public:
 	static inline void TestKeyCreationFunctions()
 	{
 		std::unordered_set<uint64> Idx;
-		Idx.reserve(0x5000);
+		Idx.reserve(0x1000);
 
 		uint64 Counter = 0x0;
 

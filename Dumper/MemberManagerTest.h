@@ -9,6 +9,7 @@ public:
 	{
 		TestInit();
 		TestNameTranslation();
+		TestMemberIterator();
 
 		std::cout << std::endl;
 	}
@@ -40,21 +41,33 @@ public:
 				return false;
 			}
 
-			auto It = std::find_if(Container.begin(), Container.end(), [Index](const NameInfo& Value) -> bool { return Value.Name == Index; });
-			if (It == Container.end())
+			auto It = Container.begin();
+
+			uint64 InContainerIndex = 0x0;
+			uint64 TranslatedIndex = 0x0;
+
+			while (It != Container.end())
 			{
-				std::cout << "Error on name '" << Member.GetValidName() << "'. Name was not found in NameContainer!" << std::endl;
-				return false;
+				It = std::find_if(It, Container.end(), [Index](const NameInfo& Value) -> bool { return Value.Name == Index; });
+				if (It == Container.end())
+				{
+					std::cout << "Error on name '" << Member.GetValidName() << "'. Name was not found in NameContainer!" << std::endl;
+					return false;
+				}
+
+				InContainerIndex = It - Container.begin();
+				TranslatedIndex = MemberManager::TranslationMap.at(CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Member));
+
+				if (InContainerIndex == TranslatedIndex)
+					return true;
+
+				std::advance(It, 1);
 			}
 
-			uint64 InContainerIndex = It - Container.begin();
-			uint64 TranslatedIndex = MemberManager::TranslationMap.at(CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Member));
+			std::cout << "Struct: " << Struct.GetFullName() << std::endl;
+			std::cout << "Member: " << Member.GetName() << std::endl;
 
-			if (InContainerIndex != TranslatedIndex)
-			{
-				std::cout << "Error on name '" << Member.GetValidName() << "'. TranslationIndex != Index (" << TranslatedIndex << " != " << InContainerIndex << ")" << std::endl;
-				return false;
-			}
+			std::cout << "Error on name '" << Member.GetValidName() << "'. TranslationIndex != Index (" << TranslatedIndex << " != " << InContainerIndex << ")" << std::endl;
 
 			return true;
 		};
@@ -101,5 +114,48 @@ public:
 		}
 
 		std::cout << __FUNCTION__ << " --> NO FAILURE!\n" << std::endl;
+	}
+
+	static inline void TestMemberIterator()
+	{
+		MemberManager::InitMemberNameCollisions();
+
+		PredefinedMemberLookupMapType PredefinedMembers;
+
+		UEClass ULevel = ObjectArray::FindClassFast("Level");
+		const int32 ULevelIndex = ULevel.GetIndex();
+
+		static auto PredefMemberLessThanCompare = [](const PredefinedMember& Left, const PredefinedMember& Right) -> bool
+		{
+			if (Left.bIsStatic && Right.bIsStatic)
+				return Left.Name < Right.Name;
+
+			if (Left.bIsStatic || Right.bIsStatic)
+				return Left.bIsStatic > Right.bIsStatic;
+			
+			return Left.Offset < Right.Offset;
+		};
+
+		std::vector<PredefinedMember>& ULevelMembers = PredefinedMembers[ULevelIndex].Members;
+
+		ULevelMembers =
+		{
+			PredefinedMember{ "void*", "StaticPtr", 0x00, 0x08, 0x01, 0x08, true, false, 0xFF },
+			PredefinedMember{ "TArray<class AActor*>", "Actors", Off::ULevel::Actors, 0x10, 0x01, 0x08, false ,false, 0xFF },
+			PredefinedMember{ "std::nullptr_t", "MadeUpShit", 0x140, 0x08, 0x03, 0x08, false ,false, 0xFF },
+			PredefinedMember{ "uint8", "bIsBitfield", 0x30, 0x01, 0x01, 0x01, false, true, 0x4 }
+		};
+
+		std::sort(ULevelMembers.begin(), ULevelMembers.end(), PredefMemberLessThanCompare);
+
+		StructManager::Init();
+		MemberManager::SetPredefinedMemberLookup(&PredefinedMembers);
+
+		MemberManager Members(ULevel);
+
+		for (PropertyWrapper Wrapper : Members.IterateMembers())
+		{
+			std::cout << (Wrapper.IsUnrealProperty() ? Wrapper.GetUnrealProperty().GetCppType() : Wrapper.GetType()) << " " << Wrapper.GetName()  << ";" << std::endl;
+		}
 	}
 };

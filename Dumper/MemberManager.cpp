@@ -2,21 +2,20 @@
 #include "MemberWrappers.h"
 
 template<typename T, bool bSkip>
-int32 MemberIterator<T, bSkip>::GetNextUnrealMemberOffset() const
+int32 MemberIterator<T, bSkip>::GetUnrealMemberOffset() const
 {
-	return HasMoreUnrealMembers() ? Members[CurrentIdx + 1].GetOffset() : 0xFFFFFFFF;
+	return IsValidUnrealMemberIndex() ? Members.at(CurrentIdx).GetOffset() : 0xFFFFFFF;
 }
 
 template<typename T, bool bSkip>
-int32 MemberIterator<T, bSkip>::GetNextPredefMemberOffset() const
+int32 MemberIterator<T, bSkip>::GetPredefMemberOffset() const
 {
-	return HasMorePredefMembers() ? PredefElements->at(CurrentIdx + 1).Offset : 0xFFFFFFFF;
+	return IsValidPredefMemberIndex() ? PredefElements->at(CurrentPredefIdx).Offset : 0xFFFFFFF;
 }
 
 template<typename T, bool bSkip>
 MemberIterator<T, bSkip>::DereferenceType MemberIterator<T, bSkip>::operator*() const
 {
-
 	return bIsCurrentlyPredefined ? DereferenceType(Struct, &PredefElements->at(CurrentPredefIdx)) : DereferenceType(Struct, Members.at(CurrentIdx));
 }
 
@@ -93,14 +92,14 @@ bool MemberManager::HasMembers() const
 	std::vector<UEFunction> EmptyFunc;
 
 	MemberIterator<UEProperty, true> PropTrue(EmptyProp);
-	PropTrue.GetNextUnrealMemberOffset();
-	PropTrue.GetNextPredefMemberOffset();
+	PropTrue.GetUnrealMemberOffset();
+	PropTrue.GetPredefMemberOffset();
 	*PropTrue;
 
 
 	MemberIterator<UEProperty, false> PropFalse(EmptyProp);
-	PropFalse.GetNextUnrealMemberOffset();
-	PropFalse.GetNextPredefMemberOffset();
+	PropFalse.GetUnrealMemberOffset();
+	PropFalse.GetPredefMemberOffset();
 	*PropFalse;
 
 	MemberIterator<UEFunction, true> FuncTrue(EmptyFunc);

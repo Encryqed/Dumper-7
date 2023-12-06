@@ -31,7 +31,7 @@ private:
 	int32 CurrentPredefIdx = 0x0;
 
 	int32 CurrentOffset = 0x0;
-	bool bIsCurrentlyPredefined = false;
+	bool bIsCurrentlyPredefined = true;
 
 private:
 #pragma warning(disable: 26495)
@@ -45,14 +45,35 @@ public:
 	inline MemberIterator(const UEStruct Str, const std::vector<T>& Mbr, const std::vector<PredefType>* const Predefs = nullptr, int32 StartIdx = 0x0, int32 PredefStart = 0x0)
 		: Struct(Str), Members(Mbr), PredefElements(Predefs), CurrentIdx(StartIdx), CurrentPredefIdx(PredefStart)
 	{
+		if constexpr (bIsProperty)
+		{
+			const int32 NextUnrealOffset = GetUnrealMemberOffset();
+			const int32 NextPredefOffset = GetPredefMemberOffset();
+
+			if (NextUnrealOffset < NextPredefOffset) [[likely]]
+			{
+				bIsCurrentlyPredefined = false;
+			}
+			else [[unlikely]]
+			{
+				bIsCurrentlyPredefined = true;
+			}
+		}
+		else
+		{
+			if (!Predefs)
+				bIsCurrentlyPredefined = false;
+		}
 	}
 
 private:
-	inline bool HasMoreUnrealMembers() const { return (CurrentIdx + 1) < Members.size(); }
-	inline bool HasMorePredefMembers() const { return PredefElements ? (CurrentPredefIdx + 1) < PredefElements->size() : false; }
+	inline bool IsValidUnrealMemberIndex() const { return CurrentIdx < Members.size(); }
+	inline bool IsValidPredefMemberIndex() const { return PredefElements ? CurrentPredefIdx < PredefElements->size() : false; }
 
-	int32 GetNextUnrealMemberOffset() const;
-	int32 GetNextPredefMemberOffset() const;
+	inline bool HasMorePredefMembers() const { return PredefElements ? CurrentPredefIdx < (PredefElements->size() - 1) : false; }
+
+	int32 GetUnrealMemberOffset() const;
+	int32 GetPredefMemberOffset() const;
 
 public:
 	inline DereferenceType operator*() const;
@@ -61,19 +82,12 @@ public:
 	{
 		if constexpr (bIsProperty)
 		{
-			const int32 NextUnrealOffset = GetNextUnrealMemberOffset();
-			const int32 NextPredefOffset = GetNextPredefMemberOffset();
+			bIsCurrentlyPredefined ? CurrentPredefIdx++ : CurrentIdx++;
 
-			if (NextUnrealOffset < NextPredefOffset) [[likely]]
-			{
-				bIsCurrentlyPredefined = false;
-				CurrentIdx++;
-			}
-			else [[unlikely]]
-			{
-				bIsCurrentlyPredefined = true;
-				CurrentPredefIdx++;
-			}
+			const int32 NextUnrealOffset = GetUnrealMemberOffset();
+			const int32 NextPredefOffset = GetPredefMemberOffset();
+
+			bIsCurrentlyPredefined = NextPredefOffset < NextUnrealOffset;
 		}
 		else
 		{
@@ -90,7 +104,7 @@ public:
 public:
 	inline MemberIterator begin() const { return *this; }
 
-	inline MemberIterator end() const { return MemberIterator(Struct, Members, PredefElements, (Members.size() - 1), PredefElements ? (PredefElements->size() - 1) : 0x0);  }
+	inline MemberIterator end() const { return MemberIterator(Struct, Members, PredefElements, (Members.size()/* - 1*/), PredefElements ? (PredefElements->size() /* - 1*/) : 0x0); }
 };
 
 
