@@ -33,6 +33,7 @@ public:
 
     bool IsReturnParam() const;
     bool IsUnrealProperty() const;
+    bool IsStatic() const;
 
     bool IsBitField() const;
 
@@ -81,4 +82,10 @@ public:
 
     std::string StringifyFlags() const;
     std::string GetParamStructName() const;
+
+    std::string GetPredefFunctionBody() const;
+
+    bool IsPredefined() const;
+    bool IsStatic() const;
+    bool HasInlineBody() const;
 };

@@ -5,7 +5,7 @@
 #include "NameCollisionHandler.h"
 #include "PredefinedMembers.h"
 
-template<typename T, bool bSkipStatics>
+template<typename T>
 class MemberIterator
 {
 private:
@@ -70,7 +70,7 @@ private:
 	inline bool IsValidUnrealMemberIndex() const { return CurrentIdx < Members.size(); }
 	inline bool IsValidPredefMemberIndex() const { return PredefElements ? CurrentPredefIdx < PredefElements->size() : false; }
 
-	inline bool HasMorePredefMembers() const { return PredefElements ? CurrentPredefIdx < (PredefElements->size() - 1) : false; }
+	inline bool HasMorePredefMembers() const { return PredefElements ? CurrentPredefIdx < PredefElements->size() : false; }
 
 	int32 GetUnrealMemberOffset() const;
 	int32 GetPredefMemberOffset() const;
@@ -91,7 +91,9 @@ public:
 		}
 		else
 		{
-			HasMorePredefMembers() ? CurrentPredefIdx++ : CurrentIdx++;
+			bIsCurrentlyPredefined ? CurrentPredefIdx++ : CurrentIdx++;
+
+			bIsCurrentlyPredefined = HasMorePredefMembers();
 		}
 		
 		return *this;
@@ -104,7 +106,7 @@ public:
 public:
 	inline MemberIterator begin() const { return *this; }
 
-	inline MemberIterator end() const { return MemberIterator(Struct, Members, PredefElements, (Members.size()/* - 1*/), PredefElements ? (PredefElements->size() /* - 1*/) : 0x0); }
+	inline MemberIterator end() const { return MemberIterator(Struct, Members, PredefElements, Members.size(), PredefElements ? PredefElements->size() : 0x0); }
 };
 
 
@@ -152,20 +154,18 @@ public:
 	bool HasFunctions() const;
 	bool HasMembers() const;
 
-	template<bool bSkipStatics = false>
-	inline MemberIterator<UEProperty, bSkipStatics> IterateMembers() const
+	inline MemberIterator<UEProperty> IterateMembers() const
 	{
-		return MemberIterator<UEProperty, bSkipStatics>(Struct, Members, PredefMembers);
+		return MemberIterator<UEProperty>(Struct, Members, PredefMembers);
 	}
 
-	template<bool bSkipStatics = false>
-	inline MemberIterator<UEFunction, bSkipStatics> IterateFunctions() const
+	inline MemberIterator<UEFunction> IterateFunctions() const
 	{
-		return MemberIterator<UEFunction, bSkipStatics>(Struct, Functions, PredefFunctions);
+		return MemberIterator<UEFunction>(Struct, Functions, PredefFunctions);
 	}
 
 public:
-	static inline void SetPredefinedMemberLookup(const PredefinedMemberLookupMapType* Lookup)
+	static inline void SetPredefinedMemberLookupPtr(const PredefinedMemberLookupMapType* Lookup)
 	{
 		PredefinedMemberLookup = Lookup;
 	}

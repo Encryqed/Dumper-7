@@ -1,20 +1,22 @@
 #include "MemberManager.h"
 #include "MemberWrappers.h"
 
-template<typename T, bool bSkip>
-int32 MemberIterator<T, bSkip>::GetUnrealMemberOffset() const
+#include <algorithm>
+
+template<typename T>
+int32 MemberIterator<T>::GetUnrealMemberOffset() const
 {
 	return IsValidUnrealMemberIndex() ? Members.at(CurrentIdx).GetOffset() : 0xFFFFFFF;
 }
 
-template<typename T, bool bSkip>
-int32 MemberIterator<T, bSkip>::GetPredefMemberOffset() const
+template<typename T>
+int32 MemberIterator<T>::GetPredefMemberOffset() const
 {
 	return IsValidPredefMemberIndex() ? PredefElements->at(CurrentPredefIdx).Offset : 0xFFFFFFF;
 }
 
-template<typename T, bool bSkip>
-MemberIterator<T, bSkip>::DereferenceType MemberIterator<T, bSkip>::operator*() const
+template<typename T>
+MemberIterator<T>::DereferenceType MemberIterator<T>::operator*() const
 {
 	return bIsCurrentlyPredefined ? DereferenceType(Struct, &PredefElements->at(CurrentPredefIdx)) : DereferenceType(Struct, Members.at(CurrentIdx));
 }
@@ -25,6 +27,10 @@ MemberManager::MemberManager(UEStruct Str)
 	, Functions(Struct.GetFunctions())
 	, Members(Struct.GetProperties())
 {
+	// sorts functions/members in O(n * log(n)), can be sorted via radix, O(n), but the overhead might not be worth it
+	std::sort(Functions.begin(), Functions.end(), CompareUnrealFunctions);
+	std::sort(Members.begin(), Members.end(), CompareUnrealProperties);
+
 	if (!PredefinedMemberLookup)
 		return;
 
@@ -91,20 +97,14 @@ bool MemberManager::HasMembers() const
 	std::vector<UEProperty> EmptyProp;
 	std::vector<UEFunction> EmptyFunc;
 
-	MemberIterator<UEProperty, true> PropTrue(EmptyProp);
-	PropTrue.GetUnrealMemberOffset();
-	PropTrue.GetPredefMemberOffset();
-	*PropTrue;
+	MemberIterator<UEProperty> Prop(EmptyProp);
+	Prop.GetUnrealMemberOffset();
+	Prop.GetPredefMemberOffset();
+	*Prop;
 
+	MemberIterator<UEFunction> Func(EmptyFunc);
+	*Func;
 
-	MemberIterator<UEProperty, false> PropFalse(EmptyProp);
-	PropFalse.GetUnrealMemberOffset();
-	PropFalse.GetPredefMemberOffset();
-	*PropFalse;
-
-	MemberIterator<UEFunction, true> FuncTrue(EmptyFunc);
-	*FuncTrue;
-
-	MemberIterator<UEFunction, false> FuncFalse(EmptyFunc);
-	*FuncFalse;
+	MemberIterator<UEFunction> FuncFalse(EmptyFunc);
+	*Func;
 }

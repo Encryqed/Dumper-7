@@ -88,12 +88,16 @@ std::string PropertyWrapper::StringifyFlags() const
     return bIsUnrealProperty ? Property.StringifyFlags() : "NoFlags";
 }
 
-
-
 bool PropertyWrapper::IsUnrealProperty() const
 {
     return bIsUnrealProperty;
 }
+
+bool PropertyWrapper::IsStatic() const
+{
+    return bIsUnrealProperty ? false : PredefProperty->bIsStatic;
+}
+
 
 FunctionWrapper::FunctionWrapper(const StructWrapper& Str, const PredefinedFunction* Predef)
     : PredefFunction(Predef), Struct(&Str), Name()
@@ -148,4 +152,26 @@ std::string FunctionWrapper::GetParamStructName() const
     assert(bIsUnrealFunction && "FunctionWrapper doesn't contian UnrealFunction. Illegal call to 'GetParamStructName()'.");
 
     return Function.GetOuter().GetName() + "_" + Function.GetName();
+}
+
+std::string FunctionWrapper::GetPredefFunctionBody() const
+{
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionBody()'.");
+
+    return PredefFunction->Body;
+}
+
+bool FunctionWrapper::IsPredefined() const
+{
+    return !bIsUnrealFunction;
+}
+
+bool FunctionWrapper::IsStatic() const
+{
+    return bIsUnrealFunction ? Function.HasFlags(EFunctionFlags::Static) : PredefFunction->bIsStatic;
+}
+
+bool FunctionWrapper::HasInlineBody() const
+{
+    return bIsUnrealFunction ? false : PredefFunction->bIsBodyInline;
 }

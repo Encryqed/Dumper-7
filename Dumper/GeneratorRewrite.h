@@ -55,7 +55,7 @@ public:
         if (!SetupFolders(GeneratorType::MainFolderName, GeneratorType::MainFolder, GeneratorType::SubfolderName, GeneratorType::Subfolder))
             return;
 
-        MemberManager::SetPredefinedMemberLookup(&GeneratorType::PredefinedMembers);
+        MemberManager::SetPredefinedMemberLookupPtr(&GeneratorType::PredefinedMembers);
 
         GeneratorType::Generate(Packages);
     };
