@@ -89,7 +89,7 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 	std::string NonStaticFunctions;
 	NonStaticFunctions.reserve(Members.GetNumFunctions() * AverageNumCharactersPerFunction);
 
-	for (FunctionWrapper Func : Members.IterateFunctions())
+	for (const FunctionWrapper& Func : Members.IterateFunctions())
 	{
 		std::string FuncText;
 

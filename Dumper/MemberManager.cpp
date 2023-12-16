@@ -3,24 +3,6 @@
 
 #include <algorithm>
 
-template<typename T>
-int32 MemberIterator<T>::GetUnrealMemberOffset() const
-{
-	return IsValidUnrealMemberIndex() ? Members.at(CurrentIdx).GetOffset() : 0xFFFFFFF;
-}
-
-template<typename T>
-int32 MemberIterator<T>::GetPredefMemberOffset() const
-{
-	return IsValidPredefMemberIndex() ? PredefElements->at(CurrentPredefIdx).Offset : 0xFFFFFFF;
-}
-
-template<typename T>
-MemberIterator<T>::DereferenceType MemberIterator<T>::operator*() const
-{
-	return bIsCurrentlyPredefined ? DereferenceType(Struct, &PredefElements->at(CurrentPredefIdx)) : DereferenceType(Struct, Members.at(CurrentIdx));
-}
-
 
 MemberManager::MemberManager(UEStruct Str)
 	: Struct(Str)
@@ -86,25 +68,3 @@ bool MemberManager::HasMembers() const
 	return GetNumMembers() > 0x0 && GetNumPredefMembers() > 0x0;
 }
 
-/*
-* The compiler won't generate functions for a specific template type unless it's used in the .cpp file corresponding to the
-* header it was declatred in.
-*
-* See https://stackoverflow.com/questions/456713/why-do-i-get-unresolved-external-symbol-errors-when-using-templates
-*/
-[[maybe_unused]] void TemplateTypeCreationForMemberIterator(void)
-{
-	std::vector<UEProperty> EmptyProp;
-	std::vector<UEFunction> EmptyFunc;
-
-	MemberIterator<UEProperty> Prop(EmptyProp);
-	Prop.GetUnrealMemberOffset();
-	Prop.GetPredefMemberOffset();
-	*Prop;
-
-	MemberIterator<UEFunction> Func(EmptyFunc);
-	*Func;
-
-	MemberIterator<UEFunction> FuncFalse(EmptyFunc);
-	*Func;
-}

@@ -1,6 +1,7 @@
 #pragma once
 #include <unordered_set>
 #include "MemberManager.h"
+#include "MemberWrappers.h"
 
 class MemberManagerTest
 {
@@ -146,7 +147,7 @@ public:
 		int32 PrevOffset = -1;
 		bool bEncounteredNonStaticMembersBefore = false;
 
-		for (PropertyWrapper Wrapper : Members.IterateMembers())
+		for (const PropertyWrapper& Wrapper : Members.IterateMembers())
 		{
 			bEncounteredNonStaticMembersBefore = !Wrapper.IsStatic() && !bEncounteredNonStaticMembersBefore;
 
@@ -193,7 +194,7 @@ public:
 		bool bEncounteredStaticInlineFunctionBefore = false;
 		bool bEncounteredNonStaticInlineFunctionBefore = false;
 
-		for (FunctionWrapper Wrapper : Members.IterateFunctions())
+		for (const FunctionWrapper& Wrapper : Members.IterateFunctions())
 		{
 			const bool bIsNonStaticNonInline = !Wrapper.IsStatic() && !Wrapper.HasInlineBody();
 			const bool bIsStaticNonInline = Wrapper.IsStatic() && !Wrapper.HasInlineBody();

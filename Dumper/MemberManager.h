@@ -5,96 +5,64 @@
 #include "NameCollisionHandler.h"
 #include "PredefinedMembers.h"
 
-template<typename T>
+
+template<bool bIsDeferredTemplateCreation = true>
 class MemberIterator
 {
 private:
-	friend [[maybe_unused]] void TemplateTypeCreationForMemberIterator(void);
-
-private:
-	static constexpr bool bIsProperty = std::is_same_v<T, UEProperty>;
-	static constexpr bool bIsFunction = std::is_same_v<T, UEFunction>;
-
-	static_assert(bIsProperty || bIsFunction, "Invalid type for 'T', only 'UEProperty' and 'UEFunction' are allowed!");
-
-private:
-	using PredefType = std::conditional_t<bIsProperty, PredefinedMember, PredefinedFunction>;
-	using DereferenceType = std::conditional_t<bIsProperty, class PropertyWrapper, class FunctionWrapper>;
+	using PredefType = std::conditional_t<bIsDeferredTemplateCreation, PredefinedMember, void>;
+	using DereferenceType = std::conditional_t<bIsDeferredTemplateCreation, class PropertyWrapper, void>;
 
 private:
 	const UEStruct Struct;
 
-	const std::vector<T>& Members;
+	const std::vector<UEProperty>& Members;
 	const std::vector<PredefType>* PredefElements;
 
 	int32 CurrentIdx = 0x0;
 	int32 CurrentPredefIdx = 0x0;
 
-	int32 CurrentOffset = 0x0;
 	bool bIsCurrentlyPredefined = true;
 
-private:
-#pragma warning(disable: 26495)
-	inline MemberIterator(const std::vector<T>& M)
-		: Members(M)
-	{
-		assert(false && "Do not use this constructor!");
-	}
-
 public:
-	inline MemberIterator(const UEStruct Str, const std::vector<T>& Mbr, const std::vector<PredefType>* const Predefs = nullptr, int32 StartIdx = 0x0, int32 PredefStart = 0x0)
+	inline MemberIterator(const UEStruct Str, const std::vector<UEProperty>& Mbr, const std::vector<PredefType>* const Predefs = nullptr, int32 StartIdx = 0x0, int32 PredefStart = 0x0)
 		: Struct(Str), Members(Mbr), PredefElements(Predefs), CurrentIdx(StartIdx), CurrentPredefIdx(PredefStart)
 	{
-		if constexpr (bIsProperty)
-		{
-			const int32 NextUnrealOffset = GetUnrealMemberOffset();
-			const int32 NextPredefOffset = GetPredefMemberOffset();
+		const int32 NextUnrealOffset = GetUnrealMemberOffset();
+		const int32 NextPredefOffset = GetPredefMemberOffset();
 
-			if (NextUnrealOffset < NextPredefOffset) [[likely]]
-			{
-				bIsCurrentlyPredefined = false;
-			}
-			else [[unlikely]]
-			{
-				bIsCurrentlyPredefined = true;
-			}
-		}
-		else
+		if (NextUnrealOffset < NextPredefOffset) [[likely]]
 		{
-			if (!Predefs)
-				bIsCurrentlyPredefined = false;
+			bIsCurrentlyPredefined = false;
+		}
+		else [[unlikely]]
+		{
+			bIsCurrentlyPredefined = true;
 		}
 	}
 
 private:
+	/* bIsProperty */
 	inline bool IsValidUnrealMemberIndex() const { return CurrentIdx < Members.size(); }
 	inline bool IsValidPredefMemberIndex() const { return PredefElements ? CurrentPredefIdx < PredefElements->size() : false; }
 
-	inline bool HasMorePredefMembers() const { return PredefElements ? CurrentPredefIdx < PredefElements->size() : false; }
-
-	int32 GetUnrealMemberOffset() const;
-	int32 GetPredefMemberOffset() const;
+	int32 GetUnrealMemberOffset() const { return IsValidUnrealMemberIndex() ? Members.at(CurrentIdx).GetOffset() : 0xFFFFFFF; }
+	int32 GetPredefMemberOffset() const { return IsValidPredefMemberIndex() ? PredefElements->at(CurrentPredefIdx).Offset : 0xFFFFFFF; }
 
 public:
-	inline DereferenceType operator*() const;
+	DereferenceType operator*() const
+	{
+		return bIsCurrentlyPredefined ? DereferenceType(Struct, &PredefElements->at(CurrentPredefIdx)) : DereferenceType(Struct, Members.at(CurrentIdx));
+	}
 
 	inline MemberIterator& operator++()
 	{
-		if constexpr (bIsProperty)
-		{
-			bIsCurrentlyPredefined ? CurrentPredefIdx++ : CurrentIdx++;
+		bIsCurrentlyPredefined ? CurrentPredefIdx++ : CurrentIdx++;
 
-			const int32 NextUnrealOffset = GetUnrealMemberOffset();
-			const int32 NextPredefOffset = GetPredefMemberOffset();
+		const int32 NextUnrealOffset = GetUnrealMemberOffset();
+		const int32 NextPredefOffset = GetPredefMemberOffset();
 
-			bIsCurrentlyPredefined = NextPredefOffset < NextUnrealOffset;
-		}
-		else
-		{
-			bIsCurrentlyPredefined ? CurrentPredefIdx++ : CurrentIdx++;
-
-			bIsCurrentlyPredefined = HasMorePredefMembers();
-		}
+		bIsCurrentlyPredefined = NextPredefOffset < NextUnrealOffset;
 		
 		return *this;
 	}
@@ -107,6 +75,94 @@ public:
 	inline MemberIterator begin() const { return *this; }
 
 	inline MemberIterator end() const { return MemberIterator(Struct, Members, PredefElements, Members.size(), PredefElements ? PredefElements->size() : 0x0); }
+};
+
+template<bool bIsDeferredTemplateCreation = true>
+class FunctionIterator
+{
+private:
+	using PredefType = std::conditional_t<bIsDeferredTemplateCreation, PredefinedFunction, void>;
+	using DereferenceType = std::conditional_t<bIsDeferredTemplateCreation, class FunctionWrapper, void> ;
+
+private:
+	const UEStruct Struct;
+
+	const std::vector<UEFunction>& Members;
+	const std::vector<PredefType>* PredefElements;
+
+	int32 CurrentIdx = 0x0;
+	int32 CurrentPredefIdx = 0x0;
+
+	bool bIsCurrentlyPredefined = true;
+
+public:
+	inline FunctionIterator(const UEStruct Str, const std::vector<UEFunction>& Mbr, const std::vector<PredefType>* const Predefs = nullptr, int32 StartIdx = 0x0, int32 PredefStart = 0x0)
+		: Struct(Str), Members(Mbr), PredefElements(Predefs), CurrentIdx(StartIdx), CurrentPredefIdx(PredefStart)
+	{
+		bIsCurrentlyPredefined = bShouldNextMemberBePredefined();
+	}
+
+private:
+	/* bIsFunction */
+	inline bool IsNextPredefFunctionInline() const { return PredefElements ? PredefElements->at(CurrentPredefIdx).bIsBodyInline : false; }
+	inline bool IsNextPredefFunctionStatic() const { return PredefElements ? PredefElements->at(CurrentPredefIdx).bIsStatic : false; }
+	inline bool IsNextUnrealFunctionInline() const { return HasMoreUnrealMembers() ? Members.at(CurrentIdx).HasFlags(EFunctionFlags::Static) : false; }
+
+	inline bool HasMorePredefMembers() const { return PredefElements ? CurrentPredefIdx < PredefElements->size() : false; }
+	inline bool HasMoreUnrealMembers() const { return CurrentIdx < Members.size(); }
+
+private:
+	inline bool bShouldNextMemberBePredefined() const
+	{
+		const bool bHasMorePredefMembers = HasMorePredefMembers();
+		const bool bHasMoreUnrealMembers = HasMoreUnrealMembers();
+
+		if (!bHasMorePredefMembers)
+			return false;
+
+		if (PredefElements)
+		{
+			const PredefType& PredefFunc = PredefElements->at(CurrentPredefIdx);
+
+			// Inline-body predefs are always last
+			if (PredefFunc.bIsBodyInline && bHasMoreUnrealMembers)
+				return false;
+
+			// Non-inline static predefs are always first
+			if (PredefFunc.bIsStatic)
+				return true;
+
+			// Switch from static predefs to static unreal functions
+			if (bHasMoreUnrealMembers && Members.at(CurrentIdx).HasFlags(EFunctionFlags::Static))
+				return true;
+		}
+
+		return !bHasMoreUnrealMembers;
+	}
+
+public:
+	inline DereferenceType operator*() const
+	{
+		return bIsCurrentlyPredefined ? DereferenceType(Struct, &PredefElements->at(CurrentPredefIdx)) : DereferenceType(Struct, Members.at(CurrentIdx));
+	}
+
+	inline FunctionIterator& operator++()
+	{
+		bIsCurrentlyPredefined ? CurrentPredefIdx++ : CurrentIdx++;
+
+		bIsCurrentlyPredefined = bShouldNextMemberBePredefined();
+		
+		return *this;
+	}
+
+public:
+	inline bool operator==(const FunctionIterator& Other) const { return CurrentIdx == Other.CurrentIdx && CurrentPredefIdx == Other.CurrentPredefIdx; }
+	inline bool operator!=(const FunctionIterator& Other) const { return CurrentIdx != Other.CurrentIdx || CurrentPredefIdx != Other.CurrentPredefIdx; }
+
+public:
+	inline FunctionIterator begin() const { return *this; }
+
+	inline FunctionIterator end() const { return FunctionIterator(Struct, Members, PredefElements, Members.size(), PredefElements ? PredefElements->size() : 0x0); }
 };
 
 
@@ -154,14 +210,14 @@ public:
 	bool HasFunctions() const;
 	bool HasMembers() const;
 
-	inline MemberIterator<UEProperty> IterateMembers() const
+	inline MemberIterator<true> IterateMembers() const
 	{
-		return MemberIterator<UEProperty>(Struct, Members, PredefMembers);
+		return MemberIterator<true>(Struct, Members, PredefMembers);
 	}
 
-	inline MemberIterator<UEFunction> IterateFunctions() const
+	inline FunctionIterator<true> IterateFunctions() const
 	{
-		return MemberIterator<UEFunction>(Struct, Functions, PredefFunctions);
+		return FunctionIterator<true>(Struct, Functions, PredefFunctions);
 	}
 
 public:
