@@ -177,5 +177,8 @@
     <ClInclude Include="MemberManagerTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
+    <ClInclude Include="TestBase.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

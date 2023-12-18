@@ -161,9 +161,10 @@ private:
     StringBucket Buckets[NumBuckets];
 
 public:
+#pragma warning(suppress: 26495)
     HashStringTable(uint32 InitialBucketSize = 0x5000)
     {
-        assert((InitialBucketSize) >= 0x0 && "HashStringTable(0x0, 0x0) is invalid!");
+        assert((InitialBucketSize) >= 0x0 && "HashStringTable(0x0) is invalid!");
 
         for (int i = 0; i < NumBuckets; i++)
         {
@@ -437,6 +438,20 @@ public:
     inline std::pair<HashStringTableIndex, bool> FindOrAdd(const std::string& String)
     {
         return FindOrAdd(String.c_str(), String.size());
+    }
+
+    inline int32 GetTotalUsedSize() const
+    {
+        uint64 TotalMemoryUsed = 0x0;
+
+        for (int i = 0; i < NumBuckets; i++)
+        {
+            const StringBucket& Bucket = Buckets[i];
+
+            TotalMemoryUsed += Bucket.Size;
+        }
+
+        return TotalMemoryUsed;
     }
 
 public:

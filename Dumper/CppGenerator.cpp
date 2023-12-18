@@ -70,7 +70,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 		PrevPropertyEnd = MemberOffset + MemberSize;
 
-		std::string MemberName = Member.GetName();// StructManager::GetMemberUniqueName(Struct, Member);
+		std::string MemberName = Member.GetName();
 
 		if (Member.GetArrayDim() > 1)
 			MemberName += std::format("[0x{:X}]", Member.GetArrayDim());

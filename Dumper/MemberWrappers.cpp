@@ -70,7 +70,17 @@ int32 PropertyWrapper::GetArrayDim() const
 
 int32 PropertyWrapper::GetSize() const
 {
-    return bIsUnrealProperty ? Property.GetSize() : PredefProperty->Size;
+    if (bIsUnrealProperty)
+    {
+        UEStruct UnderlayingStruct = nullptr;
+
+        if (Property.IsA(EClassCastFlags::StructProperty) && (UnderlayingStruct = Property.Cast<UEStructProperty>().GetUnderlayingStruct()))
+            return StructManager::GetInfo(UnderlayingStruct).GetSize();
+
+        return Property.GetSize();
+    }
+
+    return PredefProperty->Size;
 }
 
 int32 PropertyWrapper::GetOffset() const

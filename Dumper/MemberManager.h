@@ -134,7 +134,9 @@ private:
 
 			// Switch from static predefs to static unreal functions
 			if (bHasMoreUnrealMembers && Members.at(CurrentIdx).HasFlags(EFunctionFlags::Static))
-				return true;
+				return false;
+
+			return !PredefFunc.bIsBodyInline || !bHasMoreUnrealMembers;
 		}
 
 		return !bHasMoreUnrealMembers;

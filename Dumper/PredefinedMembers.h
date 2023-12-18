@@ -76,6 +76,14 @@ inline bool ComparePredefinedMembers(const PredefinedMember& Left, const Predefi
     return Left.Offset < Right.Offset;
 };
 
+/*
+Order:
+    static non-inline
+    non-inline
+    static inline
+    inline
+*/
+
 // requires strict weak ordering
 inline bool CompareUnrealFunctions(UEFunction Left, UEFunction Right)
 {

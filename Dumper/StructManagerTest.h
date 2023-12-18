@@ -1,39 +1,41 @@
 #pragma once
 #include "HashStringTable.h"
 #include "StructManager.h"
+#include "TestBase.h"
+
 #include <cassert>
 
-#define CHECK_RESULT(Result, Expected) \
-if (Result != Expected) \
-{ \
-	std::cout << __FUNCTION__ << ":\nResult: \n" << Result << "\nExpected: \n" << Expected << std::endl; \
-} \
-else \
-{ \
-	std::cout << __FUNCTION__ << ": Everything is fine!" << std::endl; \
-}
 
-class StructManagerTest
+class StructManagerTest : protected TestBase
 {
 public:
+	template<bool bDoDebugPrinting = false>
 	static inline void TestAll()
 	{
-		TestInit();
-		TestInfo();
-		TestIsFinal();
+		TestInit<bDoDebugPrinting>();
+		TestInfo<bDoDebugPrinting>();
+		TestIsFinal<bDoDebugPrinting>();
 		std::cout << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestInit()
 	{
 		StructManager::Init();
+
+		int32 FirstInitSize = StructManager::StructInfoOverrides.size();
+
 		StructManager::Init();
 		StructManager::Init();
 		StructManager::Init();
 
-		std::cout << __FUNCTION__ << " --> NumStructInfos: 0x" << std::hex << StructManager::StructInfoOverrides.size() << "\n" << std::endl;
+		bool bSuccededTestWithoutError = StructManager::StructInfoOverrides.size() == FirstInitSize;
+
+		PrintDbgMessage<bDoDebugPrinting>("{} --> NameInfos.size(): 0x{:X} -> 0x{:X}", __FUNCTION__, FirstInitSize, StructManager::StructInfoOverrides.size());
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestInfo()
 	{
 		StructManager::Init();
@@ -47,8 +49,8 @@ public:
 		UEStruct ULevelStreaming = ObjectArray::FindClassFast("LevelStreaming");
 		//UEStruct FPrimitiveComponentInstanceData = ObjectArray::FindObjectFast<UEStruct>("PrimitiveComponentInstanceData");
 		//UEStruct FStaticMeshComponentInstanceData = ObjectArray::FindObjectFast<UEStruct>("StaticMeshComponentInstanceData");
-		UEStruct UFortAIHotSpotSlot = ObjectArray::FindClassFast("FortAIHotSpotSlot");
-		UEStruct UAIHotSpotSlot = ObjectArray::FindClassFast("AIHotSpotSlot");
+		//UEStruct UFortAIHotSpotSlot = ObjectArray::FindClassFast("FortAIHotSpotSlot");
+		//UEStruct UAIHotSpotSlot = ObjectArray::FindClassFast("AIHotSpotSlot");
 
 		StructInfoHandle ActorInfo = StructManager::GetInfo(AActor);
 		StructInfoHandle ObjectInfo = StructManager::GetInfo(UObject);
@@ -65,25 +67,30 @@ public:
 #define StructInfoHandleToDebugInfo(InfoHandle) \
 	InfoHandle.GetName().GetName(), InfoHandle.GetName().IsUnique(), InfoHandle.GetSize(), InfoHandle.GetAlignment(), InfoHandle.ShouldUseExplicitAlignment(), InfoHandle.IsFinal()
 
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(ActorInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(ObjectInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(EngineInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(VectorInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(TransformInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(KismetSystemLibraryInfo));
-		std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(LevelStreamingInfo));
-		//std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(PrimitiveComponentInstanceData));
-		//std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(StaticMeshComponentInstanceData));
-		//std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(FortAIHotSpotSlot));
-		//std::cout << std::format("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(AIHotSpotSlot));
-		std::cout << std::endl;
+		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(ActorInfo));
+		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(ObjectInfo));
+		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(EngineInfo));
+		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(VectorInfo));
+		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(TransformInfo));
+		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(KismetSystemLibraryInfo));
+		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(LevelStreamingInfo));
+		//PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(PrimitiveComponentInstanceData));
+		//PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(StaticMeshComponentInstanceData));
+		//PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(FortAIHotSpotSlot));
+		//PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(AIHotSpotSlot));
+		PrintDbgMessage<bDoDebugPrinting>("");
+
+		bool bSuccededTestWithoutError = true;
+
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestIsFinal()
 	{
 		StructManager::Init();
 
-		bool bIsEverythingFine = true;
+		bool bSuccededTestWithoutError = true;
 		
 		std::unordered_set<int32> AllSupers;
 
@@ -105,12 +112,12 @@ public:
 
 			if (AllSupers.find(StructIdx) != SupersEnd)
 			{
-				std::cout << std::format("Struct '{}' was incorrectly marked as 'final'.", ObjectArray::GetByIndex(StructIdx).GetCppName()) << std::endl;
-				bIsEverythingFine = false;
+				PrintDbgMessage<bDoDebugPrinting>("Struct '{}' was incorrectly marked as 'final'.", ObjectArray::GetByIndex(StructIdx).GetCppName());
+				SetBoolIfFailed(bSuccededTestWithoutError, false);
 				break;
 			}
 		}
 
-		std::cout << __FUNCTION__ << ": " << (bIsEverythingFine ? "Everything is fine!" : "Nothing is fine!") << std::endl;
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 };

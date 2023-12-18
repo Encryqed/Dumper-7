@@ -2,33 +2,46 @@
 #include <unordered_set>
 #include "MemberManager.h"
 #include "MemberWrappers.h"
+#include "TestBase.h"
 
-class MemberManagerTest
+class MemberManagerTest : protected TestBase
 {
+private:
+	static inline void SetBoolIfFailed(bool& BoolToSet, bool bSucceded)
+	{
+		BoolToSet = BoolToSet && bSucceded;
+	}
+
 public:
+	template<bool bDoDebugPrinting = false>
 	static inline void TestAll()
 	{
-		TestInit();
-		TestNameTranslation();
-		TestMemberIterator();
-		TestFunctionIterator();
+		TestInit<bDoDebugPrinting>();
+		TestNameTranslation<bDoDebugPrinting>();
+		TestMemberIterator<bDoDebugPrinting>();
+		TestFunctionIterator<bDoDebugPrinting>();
 
 		std::cout << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestInit()
 	{
 		MemberManager::InitMemberNameCollisions();
 
-		size_t Size = MemberManager::NameInfos.size();
+		size_t FirstInitSize = MemberManager::NameInfos.size();
 
 		MemberManager::InitMemberNameCollisions();
 		MemberManager::InitMemberNameCollisions();
 		MemberManager::InitMemberNameCollisions();
 
-		std::cout << __FUNCTION__ << " --> NameInfos.size(): 0x" << Size << " -> 0x" << std::hex << MemberManager::NameInfos.size() << "\n" << std::endl;
+		bool bSuccededTestWithoutError = MemberManager::NameInfos.size() == FirstInitSize;
+
+		PrintDbgMessage<bDoDebugPrinting>("{} --> NameInfos.size(): 0x{:X} -> 0x{:X}", __FUNCTION__, FirstInitSize, MemberManager::NameInfos.size());
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestNameTranslation()
 	{
 		MemberManager::InitMemberNameCollisions();
@@ -39,7 +52,7 @@ public:
 
 			if (bWasAdded)
 			{
-				std::cout << "Error on name '" << Member.GetValidName() << "'. Name was not found in MemberNameTable!" << std::endl;
+				PrintDbgMessage<bDoDebugPrinting>("Error on name '{}'. Name was not found in MemberNameTable!", Member.GetValidName());
 				return false;
 			}
 
@@ -53,7 +66,7 @@ public:
 				It = std::find_if(It, Container.end(), [Index](const NameInfo& Value) -> bool { return Value.Name == Index; });
 				if (It == Container.end())
 				{
-					std::cout << "Error on name '" << Member.GetValidName() << "'. Name was not found in NameContainer!" << std::endl;
+					PrintDbgMessage<bDoDebugPrinting>("Error on name '{}'. Name was not found in NameContainer!", Member.GetValidName());
 					return false;
 				}
 
@@ -66,10 +79,8 @@ public:
 				std::advance(It, 1);
 			}
 
-			std::cout << "Struct: " << Struct.GetFullName() << std::endl;
-			std::cout << "Member: " << Member.GetName() << std::endl;
-
-			std::cout << "Error on name '" << Member.GetValidName() << "'. TranslationIndex != Index (" << TranslatedIndex << " != " << InContainerIndex << ")" << std::endl;
+			PrintDbgMessage<bDoDebugPrinting>("Struct: {}\nMember: {}", Struct.GetFullName(), Member.GetName());
+			PrintDbgMessage<bDoDebugPrinting>("Error on name '{}'. TranslationIndex != Index (0x{:X} <<  != 0x{:X})", Member.GetValidName(), TranslatedIndex, InContainerIndex);
 
 			return true;
 		};
@@ -80,12 +91,14 @@ public:
 
 			if (MemberManager::MemberNames.GetStringEntry(Container[TranslatedIndex].Name).GetName() != Member.GetValidName())
 			{
-				std::cout << "Error: '" << MemberManager::MemberNames.GetStringEntry(Container[TranslatedIndex].Name).GetName() << "' != '" << Member.GetValidName() << "'" << std::endl;
+				PrintDbgMessage<bDoDebugPrinting>("Error '{}' != '{}'", MemberManager::MemberNames.GetStringEntry(Container[TranslatedIndex].Name).GetName(), Member.GetValidName());
 				return false;
 			}
 
 			return true;
 		};
+
+		bool bSuccededTestWithoutError = true;
 
 		for (auto& [StructIdx, Container] : MemberManager::NameInfos)
 		{
@@ -93,14 +106,14 @@ public:
 
 			for (UEProperty Property : Struct.GetProperties())
 			{
-				TestName(Container, Struct, Property);
-				TestEvenHarder(Container, Struct, Property);
+				SetBoolIfFailed(bSuccededTestWithoutError, TestName(Container, Struct, Property));
+				SetBoolIfFailed(bSuccededTestWithoutError, TestEvenHarder(Container, Struct, Property));
 			}
 
 			for (UEFunction Function : Struct.GetFunctions())
 			{
-				TestName(Container, Struct, Function);
-				TestEvenHarder(Container, Struct, Function);
+				SetBoolIfFailed(bSuccededTestWithoutError, TestName(Container, Struct, Function));
+				SetBoolIfFailed(bSuccededTestWithoutError, TestEvenHarder(Container, Struct, Function));
 			
 				if (!Function.HasMembers())
 					continue;
@@ -109,15 +122,16 @@ public:
 
 				for (UEProperty Property : Function.GetProperties())
 				{
-					TestName(FuncContainer, Function, Property);
-					TestEvenHarder(FuncContainer, Function, Property);
+					SetBoolIfFailed(bSuccededTestWithoutError, TestName(FuncContainer, Function, Property));
+					SetBoolIfFailed(bSuccededTestWithoutError, TestEvenHarder(FuncContainer, Function, Property));
 				}
 			}
 		}
 
-		std::cout << __FUNCTION__ << " --> NO FAILURE!\n" << std::endl;
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestMemberIterator()
 	{
 		MemberManager::InitMemberNameCollisions();
@@ -144,25 +158,41 @@ public:
 
 		MemberManager Members(ULevel);
 
-		int32 PrevOffset = -1;
+		int32 PrevMemberEnd = -1;
 		bool bEncounteredNonStaticMembersBefore = false;
+		const PropertyWrapper* Prev = nullptr;
+
+		int32 PrevBoolPropertyEnd = 0x0;
+		int32 PrevBoolPropertyBit = 1;
+		bool bIsPrevMemberBitField = false;
+
+		bool bSuccededTestWithoutError = true;
 
 		for (const PropertyWrapper& Wrapper : Members.IterateMembers())
 		{
 			bEncounteredNonStaticMembersBefore = !Wrapper.IsStatic() && !bEncounteredNonStaticMembersBefore;
 
-			if (PrevOffset >= Wrapper.GetOffset() && !Wrapper.IsStatic())
-				std::cout << std::format("Error on member '{}' [bIsUnrealProperty = {}; ArrayDim = 0x{:X}]. Offset 0x{:X} was lower than last member [0x{:X}]\n", Wrapper.GetName(), Wrapper.GetOffset(), Wrapper.IsUnrealProperty(), Wrapper.GetArrayDim(), PrevOffset);
+			if (PrevMemberEnd > Wrapper.GetOffset() && !Wrapper.IsStatic())
+			{
+				PrintDbgMessage<bDoDebugPrinting>("Error on member '{}' [bIsUnrealProperty = {}; ArrayDim = 0x{:X}]. Offset 0x{:X} was lower than last member [0x{:X}]\n", Wrapper.GetName(), Wrapper.IsUnrealProperty(), Wrapper.GetArrayDim(), Wrapper.GetOffset(), PrevMemberEnd);
+				SetBoolIfFailed(bSuccededTestWithoutError, false);
+			}
 
 			if (bEncounteredNonStaticMembersBefore && Wrapper.IsStatic())
-				std::cout << std::format("Error on member '{}' [bIsUnrealProperty = {}; ArrayDim = 0x{:X}]. Static member was encountered after non-static member. Check sorting functions!\n", Wrapper.GetName(), Wrapper.GetOffset(), Wrapper.IsUnrealProperty(), Wrapper.GetArrayDim(), PrevOffset);
+			{
+				PrintDbgMessage<bDoDebugPrinting>("Error on member '{}' [bIsUnrealProperty = {}; ArrayDim = 0x{:X}]. Static member was encountered after non-static member. Check sorting functions!\n", Wrapper.GetName(), Wrapper.IsUnrealProperty(), Wrapper.GetArrayDim());
+				SetBoolIfFailed(bSuccededTestWithoutError, false);
+			}
 
-			PrevOffset = Wrapper.GetOffset() * Wrapper.GetArrayDim();
+			PrevMemberEnd = Wrapper.GetOffset() + (!Wrapper.IsBitField() ? (Wrapper.GetSize() * Wrapper.GetArrayDim()) : 0x0);
 
-			//std::cout << (Wrapper.IsUnrealProperty() ? Wrapper.GetUnrealProperty().GetCppType() : Wrapper.GetType()) << " " << Wrapper.GetName()  << ";" << std::endl;
+			//PrintDbgMessage<bDoDebugPrinting>("{} {}; // 0x{:04X}, 0x:{04X}", Wrapper.IsUnrealProperty() ? Wrapper.GetUnrealProperty().GetCppType() : Wrapper.GetType(), Wrapper.GetName(), Wrapper.GetOffset(), Wrapper.GetSize());
 		}
+
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestFunctionIterator()
 	{
 		MemberManager::InitMemberNameCollisions();
@@ -174,6 +204,13 @@ public:
 
 		std::vector<PredefinedFunction>& APawnFunctions = PredefinedMembers[APawnIndex].Functions;
 
+		/*
+		Real Order:
+			- GetActors
+			- IsReelPawn
+			- StaticTestFunc
+			- GetNullPtr
+		*/
 		APawnFunctions =
 		{
 			PredefinedFunction{ "bool", "IsReelPawn", { { "bool", "bIsGuaranteedToBePawn" } }, "\n\treturn bIsGuaranteedToBePawn + 4;\n", false, false },
@@ -189,41 +226,62 @@ public:
 
 		MemberManager Members(APawn);
 
-		bool bEncounteredNonStaticNonInlineFunctionBefore = false;
+		/*
+		Order:
+			static non-inline
+			non-inline
+			static inline
+			inline
+		*/
+
 		bool bEncounteredStaticNonInlineFunctionBefore = false;
+		bool bEncounteredNonStaticNonInlineFunctionBefore = false;
 		bool bEncounteredStaticInlineFunctionBefore = false;
 		bool bEncounteredNonStaticInlineFunctionBefore = false;
 
+		bool bSuccededTestWithoutError = true;
+
 		for (const FunctionWrapper& Wrapper : Members.IterateFunctions())
 		{
-			const bool bIsNonStaticNonInline = !Wrapper.IsStatic() && !Wrapper.HasInlineBody();
 			const bool bIsStaticNonInline = Wrapper.IsStatic() && !Wrapper.HasInlineBody();
-			const bool bIsNonStaticInline = Wrapper.IsStatic() && Wrapper.HasInlineBody();
-			const bool bIsStaticInline = !Wrapper.IsStatic() && Wrapper.HasInlineBody();
-
-			if (!bEncounteredNonStaticNonInlineFunctionBefore && bIsNonStaticNonInline)
-				bEncounteredNonStaticNonInlineFunctionBefore = true;
+			const bool bIsNonStaticNonInline = !Wrapper.IsStatic() && !Wrapper.HasInlineBody();
+			const bool bIsStaticInline = Wrapper.IsStatic() && Wrapper.HasInlineBody();
+			const bool bIsNonStaticInline = !Wrapper.IsStatic() && Wrapper.HasInlineBody();
 
 			if (!bEncounteredStaticNonInlineFunctionBefore && bIsStaticNonInline)
 				bEncounteredStaticNonInlineFunctionBefore = true;
 
-			if (!bEncounteredStaticInlineFunctionBefore && bIsNonStaticInline)
+			if (!bEncounteredNonStaticNonInlineFunctionBefore && bIsNonStaticNonInline)
+				bEncounteredNonStaticNonInlineFunctionBefore = true;
+
+			if (!bEncounteredStaticInlineFunctionBefore && bIsStaticInline)
 				bEncounteredStaticInlineFunctionBefore = true;
 
-			if (!bEncounteredNonStaticInlineFunctionBefore && bIsStaticInline)
+			if (!bEncounteredNonStaticInlineFunctionBefore && bIsNonStaticInline)
 				bEncounteredNonStaticInlineFunctionBefore = true;
 
 
-			//if (bEncounteredNonStaticNonInlineFunctionBefore && (bEncounteredStaticNonInlineFunctionBefore || bEncounteredStaticInlineFunctionBefore || bEncounteredNonStaticInlineFunctionBefore))
-			//	std::cout << std::format("Error on function '{}' [bIsUnrealFunction = {}]. bEncounteredNonStaticNonInlineFunctionBefore error. Check sorting functions\n", Wrapper.GetName(), !Wrapper.IsPredefined());
-			//
-			//if (bEncounteredStaticNonInlineFunctionBefore && (bEncounteredStaticInlineFunctionBefore || bEncounteredNonStaticInlineFunctionBefore))
-			//	std::cout << std::format("Error on function '{}' [bIsUnrealFunction = {}]. bEncounteredNonStaticNonInlineFunctionBefore error. Check sorting functions\n", Wrapper.GetName(), !Wrapper.IsPredefined());
-			//
-			//if (bEncounteredStaticInlineFunctionBefore && (bEncounteredNonStaticInlineFunctionBefore))
-			//	std::cout << std::format("Error on function '{}' [bIsUnrealFunction = {}]. bEncounteredNonStaticNonInlineFunctionBefore error. Check sorting functions\n", Wrapper.GetName(), !Wrapper.IsPredefined());
+			if (bIsStaticNonInline && (bEncounteredNonStaticNonInlineFunctionBefore || bEncounteredStaticInlineFunctionBefore || bEncounteredNonStaticInlineFunctionBefore))
+			{
+				PrintDbgMessage<bDoDebugPrinting>("Error on function '{}' [bIsUnrealFunction = {}]. bIsStaticNonInline error. Check sorting functions", Wrapper.GetName(), !Wrapper.IsPredefined());
+				SetBoolIfFailed(bSuccededTestWithoutError, false);
+			}
+			
+			if (bIsNonStaticNonInline && (bEncounteredStaticInlineFunctionBefore || bEncounteredNonStaticInlineFunctionBefore))
+			{
+				PrintDbgMessage<bDoDebugPrinting>("Error on function '{}' [bIsUnrealFunction = {}]. bIsNonStaticNonInline error. Check sorting functions", Wrapper.GetName(), !Wrapper.IsPredefined());
+				SetBoolIfFailed(bSuccededTestWithoutError, false);
+			}
+			
+			if (bIsStaticInline && (bEncounteredNonStaticInlineFunctionBefore))
+			{
+				PrintDbgMessage<bDoDebugPrinting>("Error on function '{}' [bIsUnrealFunction = {}]. bIsStaticInline error. Check sorting functions", Wrapper.GetName(), !Wrapper.IsPredefined());
+				SetBoolIfFailed(bSuccededTestWithoutError, false);
+			}
 
-			std::cout << "Func: " << Wrapper.GetName()  << ";" << std::endl;
+			PrintDbgMessage<bDoDebugPrinting>("Func: {};", Wrapper.GetName());
 		}
+
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 };

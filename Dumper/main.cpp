@@ -59,20 +59,13 @@ DWORD MainThread(HMODULE Module)
 
 	//CppGeneratorTest::TestAll();
 
-	//StringTableTest::TestAll();
 	//HashStringTableTest::TestAll();
-	//HashStringTableTest::TestUniqueMemberNames();
-	//HashStringTableTest::TestUniqueStructNames();
-	//
 	//GeneratorRewriteTest::TestAll();
-	//
 	//StructManagerTest::TestAll();
+	//CollisionManagerTest::TestAll();
+	//MemberManagerTest::TestAll();
 
-	//CollisionManagerTest::TestMakeNamesUnique();
-
-	//CollisionManagerTest::TestKeyCreationFunctions();
-	//CollisionManagerTest::TestMakeNamesUnique();
-	MemberManagerTest::TestAll();
+	MemberManagerTest::TestFunctionIterator<true>();
 
 	//GeneratorRewrite::Generate<CppGenerator>();
 

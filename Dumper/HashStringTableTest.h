@@ -1,26 +1,30 @@
 #pragma once
 #include "ObjectArray.h"
 #include "HashStringTable.h"
+#include "TestBase.h"
 
 #include <iostream>
 
-class HashStringTableTest
+class HashStringTableTest : protected TestBase
 {
 public:
+	template<bool bDoDebugPrinting = false>
 	static inline void TestAll()
 	{
-		TestReallocation();
-		TestUniqueNames();
-		TestUniqueMemberNames();
-		TestUniqueStructNames();
+		TestReallocation<bDoDebugPrinting>();
+		TestUniqueNames<bDoDebugPrinting>();
+		TestUniqueMemberNames<bDoDebugPrinting>();
+		TestUniqueStructNames<bDoDebugPrinting>();
 		std::cout << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestReallocation()
 	{
 		HashStringTable Desktop;
 
-		bool bIsEverythingFine = true;
+		uint64 SizeCounter = 0x0;
+		uint64 NameCounter = 0x0;
 
 		for (auto Obj : ObjectArray())
 		{
@@ -28,24 +32,31 @@ public:
 			{
 				std::string FullName = Obj.GetFullName();
 				
-				if (FullName.find("IceDeimos") != -1)
+				if (Desktop.FindOrAdd(FullName).second)
 				{
-					std::cout << "FFullname: " << FullName << std::endl;
+					SizeCounter += FullName.size();
+					NameCounter++;
 				}
-
-				Desktop.FindOrAdd(FullName);
 			}
 		}
 
-		std::cout << __FUNCTION__ << ": " << (bIsEverythingFine ? "Everything is fine!" : "Nothing is fine!") << std::endl;
+		bool bSuccededTestWithoutError = (SizeCounter + (NameCounter * StringEntry::StringEntrySizeWithoutStr)) == Desktop.GetTotalUsedSize();
+
+		if (!bSuccededTestWithoutError)
+			PrintDbgMessage<bDoDebugPrinting>("Size 0x{:X} != 0x{:X}", SizeCounter, Desktop.GetTotalUsedSize());
+
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestUniqueNames()
 	{
 		HashStringTable Desktop;
 
 		std::vector<std::string> UniqueNames;
 		std::vector<std::string> RandomNamesToDuplicate;
+
+		bool bSuccededTestWithoutError = true;
 
 		for (auto Obj : ObjectArray())
 		{
@@ -67,7 +78,11 @@ public:
 					UniqueNames.push_back(UniqueName);
 
 				if (Desktop.FindOrAdd(UniqueName).second)
-					std::cout << "Added duplicate: \"" << UniqueName << "\"\n";
+				{
+					PrintDbgMessage<bDoDebugPrinting>("Added duplicate: '{}'", UniqueName);
+					SetBoolIfFailed(bSuccededTestWithoutError, false);
+
+				}
 
 				if (rand() % 8 == 0)
 					RandomNamesToDuplicate.push_back(UniqueName);
@@ -77,7 +92,10 @@ public:
 		for (auto& Dupliate : RandomNamesToDuplicate)
 		{
 			if (Desktop.FindOrAdd(Dupliate).second)
-				std::cout << "Added duplicate: \"" << Dupliate << "\"\n";
+			{
+				PrintDbgMessage<bDoDebugPrinting>("Added duplicate2: '{}'", Dupliate);
+				SetBoolIfFailed(bSuccededTestWithoutError, false);
+			}
 		}
 
 		double AverageNumStrCompAvoided = 0.0;
@@ -106,20 +124,19 @@ public:
 			AverageNumStrCompAvoided = (AverageNumStrCompAvoided + CurrNumStrCompAvoided) / 2.0;
 		}
 
-		std::cout << "\n" << std::endl;
-		std::cout << "Total iterationss: 0x" << TotalIterations << std::endl;
-		std::cout << "Total string-comparisons: 0x" << (TotalIterations - NumAvoidedStingComparisons) << std::endl;
-		std::cout << "Percentage avoided: " << (NumAvoidedStingComparisons / static_cast<double>(TotalIterations)) << std::endl;
-		std::cout << "\n" << std::endl;
+		PrintDbgMessage<bDoDebugPrinting>("\nTotal iterationss: 0x{}", TotalIterations);
+		PrintDbgMessage<bDoDebugPrinting>("Total string-comparisons: 0x{}", (TotalIterations - NumAvoidedStingComparisons));
+		PrintDbgMessage<bDoDebugPrinting>("Percentage avoided: {:2.03f}", (NumAvoidedStingComparisons / static_cast<double>(TotalIterations)));
 
-		std::cout << __FUNCTION__ << ": Everything is fine!" << std::endl;
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestUniqueMemberNames()
 	{
 		HashStringTable Desktop;
 
-		bool bIsEverythingFine = true;
+		bool bSuccededTestWithoutError = true;
 
 		for (auto Obj : ObjectArray())
 		{
@@ -132,16 +149,20 @@ public:
 			}
 		}
 
-		Desktop.DebugPrintStats();
+		if constexpr (bDoDebugPrinting)
+		{
+			Desktop.DebugPrintStats();
+		}
 
-		std::cout << __FUNCTION__ << ": " << (bIsEverythingFine ? "Everything is fine!" : "Nothing is fine!") << std::endl;
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
 	static inline void TestUniqueStructNames()
 	{
 		HashStringTable Desktop;
 
-		bool bIsEverythingFine = true;
+		bool bSuccededTestWithoutError = true;
 
 		for (auto Obj : ObjectArray())
 		{
@@ -151,8 +172,11 @@ public:
 			Desktop.FindOrAdd(Obj.GetCppName());
 		}
 
-		Desktop.DebugPrintStats();
+		if constexpr (bDoDebugPrinting)
+		{
+			Desktop.DebugPrintStats();
+		}
 
-		std::cout << __FUNCTION__ << ": " << (bIsEverythingFine ? "Everything is fine!" : "Nothing is fine!") << std::endl;
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 };
