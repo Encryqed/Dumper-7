@@ -21,12 +21,12 @@ UEStruct StructWrapper::GetUnrealStruct() const
 
 std::string StructWrapper::GetName() const
 {
-    return bIsUnrealStruct ? Struct.GetName() : "INVALID";
+    return bIsUnrealStruct ? InfoHandle.GetName().GetName() : PredefStruct->UniqueName;
 }
 
 std::string StructWrapper::GetFullName() const
 {
-    return bIsUnrealStruct ? Struct.GetFullName() : "INVALID2";
+    return bIsUnrealStruct ? Struct.GetFullName() : "Predefined struct " + PredefStruct->UniqueName;
 }
 
 StructWrapper StructWrapper::GetSuper() const
@@ -64,6 +64,11 @@ bool StructWrapper::ShouldUseExplicitAlignment() const
 bool StructWrapper::IsFinal() const
 {
     return bIsUnrealStruct ? InfoHandle.IsFinal() : PredefStruct->bIsFinal;
+}
+
+bool StructWrapper::IsClass() const
+{
+    return bIsUnrealStruct ? Struct.IsA(EClassCastFlags::Class) : PredefStruct->bIsClass;
 }
 
 bool StructWrapper::IsValid() const

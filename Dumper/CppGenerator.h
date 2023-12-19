@@ -28,7 +28,7 @@ private:
     friend class Generator;
 
 private:
-    using StreamType = std::stringstream /*current config: debug, default: std::ofstream*/;
+    using StreamType = decltype(std::cout);//std::stringstream /*current config: debug, default: std::ofstream*/;
 
 public:
     static inline PredefinedMemberLookupMapType PredefinedMembers;
@@ -39,7 +39,7 @@ public:
     static inline fs::path MainFolder;
     static inline fs::path Subfolder;
 
-private:
+public: /* DEBUG */
     static std::string MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment);
 
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);

@@ -35,7 +35,7 @@ public:
 
     StructWrapper(const UEStruct Str);
 
-private:
+public:
     UEStruct GetUnrealStruct() const;
 
 public:
@@ -49,6 +49,8 @@ public:
     int32 GetSize() const;
     bool ShouldUseExplicitAlignment() const;
     bool IsFinal() const;
+
+    bool IsClass() const;
 
     bool IsValid() const;
 

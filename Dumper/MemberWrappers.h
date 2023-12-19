@@ -35,6 +35,8 @@ public:
     bool IsUnrealProperty() const;
     bool IsStatic() const;
 
+    bool IsType(EClassCastFlags CombinedFlags) const;
+    bool HasPropertyFlags(EPropertyFlags Flags) const;
     bool IsBitField() const;
 
     uint8 GetBitIndex() const;
@@ -50,8 +52,24 @@ public:
     std::string StringifyFlags() const;
 };
 
+struct ParamCollection
+{
+private:
+    std::vector<std::pair<std::string, std::string>> TypeNamePairs;
+
+public:
+    /* always exists, std::pair<"void", "+InvalidName-"> if ReturnValue is void */
+    inline std::pair<std::string, std::string>& GetRetValue() { return TypeNamePairs[0]; }
+
+    inline auto begin() { return TypeNamePairs.begin() + 1; /* skip ReturnValue */ }
+    inline auto end() { return TypeNamePairs.begin() + 1; /* skip ReturnValue */ }
+};
+
 class FunctionWrapper
 {
+public:
+    using GetTypeStringFunctionType = std::string(*)(UEProperty Param);
+
 private:
     union
     {
@@ -77,12 +95,17 @@ public:
 
     NameInfo GetNameCollisionInfo() const;
 
+    [[deprecated]]
     PropertyWrapper GetReturnParam() const;
     EFunctionFlags GetFunctionFlags() const;
+
+    MemberManager GetMembers() const;
 
     std::string StringifyFlags() const;
     std::string GetParamStructName() const;
 
+    std::string GetPredefFuncHeaderDeclaration() const;
+    std::string GetPredefFuncSourceDeclaration() const;
     std::string GetPredefFunctionBody() const;
 
     bool IsPredefined() const;

@@ -54,7 +54,8 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		{
 			uint8 BitFieldIndex = Member.GetBitIndex();
 
-			Comment = std::format("Mask: 0x{:02X}, PropSize: 0x{:04X} {}", Member.GetFieldMask(), MemberSize, Comment);
+			std::string BitfieldInfoComment = std::format("Mask: 0x{:02X}, PropSize: 0x{:04X} ({})", Member.GetFieldMask(), MemberSize, StringifyPropertyFlags(Member.GetPropertyFlags()));
+			Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, BitfieldInfoComment);
 
 			if (PrevBoolPropertyEnd < MemberOffset)
 				PrevBoolPropertyBit = 1;
@@ -87,21 +88,91 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 
 	std::string StaticFunctions;
 	std::string NonStaticFunctions;
-	NonStaticFunctions.reserve(Members.GetNumFunctions() * AverageNumCharactersPerFunction);
+	NonStaticFunctions.reserve(static_cast<uint64>(Members.GetNumFunctions()) * AverageNumCharactersPerFunction);
+
+	std::string AllFuntionsText;
+
+	bool bIsFirstIteration = true;
+	bool bWasLastFuncStatic = false;
+	bool bWasLastFuncInline = false;
 
 	for (const FunctionWrapper& Func : Members.IterateFunctions())
 	{
-		std::string FuncText;
+		if ((bWasLastFuncStatic != Func.IsStatic() || bWasLastFuncInline != Func.HasInlineBody()) && !bIsFirstIteration)
+			AllFuntionsText += '\n';
 
+		bWasLastFuncStatic = Func.IsStatic();
+		bWasLastFuncInline = Func.HasInlineBody();
+		bIsFirstIteration = false;
 
+		if (Func.IsPredefined())
+		{
+			AllFuntionsText += std::format("\t{}{}\n", Func.IsStatic() ? "static " : "", Func.GetPredefFuncHeaderDeclaration(), Func.GetName());
 
+			if (Func.HasInlineBody())
+				AllFuntionsText += Func.GetPredefFunctionBody() + "\n";
 
+			continue;
+		}
 
-		std::string StrToAppendto;// = Func.HasFlags(EFunctionFlags::Static) ? StaticFunctions : NonStaticFunctions;
-		StrToAppendto += FuncText;
+		MemberManager FuncParams = Func.GetMembers();
+
+		std::string RetType = "void";
+		std::string Params;
+
+		bool bIsFirstParam = true;
+
+		for (const PropertyWrapper& Param : FuncParams.IterateMembers())
+		{
+			std::string Type = GetMemberTypeString(Param);
+
+			if (Param.IsReturnParam())
+			{
+				RetType = GetMemberTypeString(Param);
+				continue;
+			}
+
+			bool bIsRef = false;
+			bool bIsOut = false;
+			bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
+			bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
+		
+			if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
+			{
+				Type += "&";
+				bIsRef = true;
+				bIsOut = true;
+			}
+
+			if (!bIsRef && Param.HasPropertyFlags(EPropertyFlags::OutParm))
+			{
+				Type += "*";
+				bIsOut = true;
+			}
+
+			if (bIsConst)
+				Type = "const " + Type;
+
+			if (!bIsOut && !bIsRef && bIsMoveType)
+			{
+				Type += "&";
+
+				if (!bIsConst)
+					Type = "const " + Type;
+			}
+
+			if (!bIsFirstParam)
+				Params += ", ";
+
+			Params += Type + " " + Param.GetName();
+
+			bIsFirstParam = false;
+		}
+
+		AllFuntionsText += std::format("\t{}{} {}({});\n", Func.IsStatic() ? "static " : "", RetType, Func.GetName(), Params);
 	}
 
-	return "CppGenerator::GenerateFunctionInClass";
+	return AllFuntionsText;
 }
 
 void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& Struct)
@@ -123,12 +194,13 @@ void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& S
 	StructFile << std::format(R"(
 // {}
 // 0x{:04X} (0x{:04X} - 0x{:04X})
-struct {}{}{}{}
+{} {}{}{}{}
 {{
 )", Struct.GetFullName()
   , StructSize - SuperSize
   , StructSize
   , SuperSize
+  , Struct.IsClass() ? "class" : "struct"
   , Struct.ShouldUseExplicitAlignment() ? std::format("alignas({:02X}) ", Struct.GetAlignment()) : ""
   , UniqueName
   , Struct.IsFinal() ? " final " : ""
@@ -171,9 +243,7 @@ std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 {
 	auto [ValidName, bIsUnique] = Struct.GetUniqueName();
 
-	// 'GetStruct()' is just a temporary "fix"
-	//return (bIsUnique ? "" : (Struct.GetStruct().GetOutermost().GetValidName() + "::")) + Struct.GetName();
-	return "GetStructPrefixedName is not implemented!";
+	return (bIsUnique ? "" : (Struct.GetUnrealStruct().GetOutermost().GetValidName() + "::")) + Struct.GetName();
 }
 
 void CppGenerator::Generate(const std::unordered_map<int32, PackageInfo>& Dependencies)
@@ -208,6 +278,7 @@ std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapp
 std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 {
 	auto [Class, FieldClass] = Member.GetClass();
+
 	EClassCastFlags Flags = Class ? Class.GetCastFlags() : FieldClass.GetCastFlags();
 
 	if (Flags & EClassCastFlags::ByteProperty)

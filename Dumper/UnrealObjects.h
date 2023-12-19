@@ -242,6 +242,7 @@ public:
 	void* GetAddress();
 
 	std::pair<UEClass, UEFFieldClass> GetClass() const;
+	EClassCastFlags GetCastFlags() const;
 
 	operator bool() const;
 

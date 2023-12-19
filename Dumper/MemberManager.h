@@ -172,6 +172,7 @@ class MemberManager
 {
 private:
 	friend class StructWrapper;
+	friend class FunctionWrapper;
 	friend class MemberManagerTest;
 
 private:

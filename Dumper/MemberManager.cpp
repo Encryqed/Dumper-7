@@ -60,11 +60,11 @@ int32 MemberManager::GetNumPredefMembers() const
 
 bool MemberManager::HasFunctions() const
 {
-	return GetNumFunctions() > 0x0 && GetNumPredefMembers() > 0x0;
+	return GetNumFunctions() > 0x0 || GetNumPredefFunctions() > 0x0;
 }
 
 bool MemberManager::HasMembers() const
 {
-	return GetNumMembers() > 0x0 && GetNumPredefMembers() > 0x0;
+	return GetNumMembers() > 0x0 || GetNumPredefMembers() > 0x0;
 }
 

@@ -22,10 +22,10 @@ struct PredefinedMember
 
 struct PredefinedFunction
 {
-    std::string RetType;
     std::string Name;
 
-    std::vector<std::pair<std::string, std::string>> Params;
+    std::string HeaderDeclaration;
+    std::string SourceDeclaration;
 
     std::string Body;
 
@@ -46,6 +46,7 @@ struct PredefinedStruct
     int32 Alignment;
     bool bUseExplictAlignment;
     bool bIsFinal;
+    bool bIsClass;
 
     const PredefinedStruct* Super;
 

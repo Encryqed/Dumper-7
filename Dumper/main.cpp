@@ -67,6 +67,14 @@ DWORD MainThread(HMODULE Module)
 
 	MemberManagerTest::TestFunctionIterator<true>();
 
+	MemberManager::InitMemberNameCollisions();
+	StructManager::Init();
+	MemberManager::SetPredefinedMemberLookupPtr(&CppGenerator::PredefinedMembers);
+
+	CppGenerator::GenerateStruct(std::cout, ObjectArray::FindClassFast("Pawn"));
+	std::cout << std::endl;
+	CppGenerator::GenerateStruct(std::cout, ObjectArray::FindClassFast("KismetSystemLibrary"));
+
 	//GeneratorRewrite::Generate<CppGenerator>();
 
 	//std::cout << "FTransform::MinAlignment: " << *reinterpret_cast<int32*>(static_cast<uint8*>(ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct)) + Off::UStruct::Size + 0x4) << std::endl;

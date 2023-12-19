@@ -96,6 +96,9 @@ public:
 		if (!Struct)
 			return {};
 
+		if (Struct.IsA(EClassCastFlags::Function))
+			return {};
+
 		return StructInfoOverrides.at(Struct.GetIndex());
 	}
 };

@@ -679,6 +679,13 @@ std::pair<UEClass, UEFFieldClass> UEProperty::GetClass() const
 	return { UEObject(Base).GetClass(), UEFFieldClass(0) };
 }
 
+EClassCastFlags UEProperty::GetCastFlags() const
+{
+	auto [Class, FieldClass] = GetClass();
+	
+	return Class ? Class.GetCastFlags() : FieldClass.GetCastFlags();
+}
+
 UEProperty::operator bool() const
 {
 	return Base != nullptr && ((Base + Off::UObject::Class) != nullptr || (Base + Off::FField::Class) != nullptr);
