@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_map>
+#include <memory>
 #include "ObjectArray.h"
 #include "HashStringTable.h"
 #include "NameCollisionHandler.h"
@@ -14,7 +15,7 @@ private:
 	using DereferenceType = std::conditional_t<bIsDeferredTemplateCreation, class PropertyWrapper, void>;
 
 private:
-	const UEStruct Struct;
+	const std::shared_ptr<class StructWrapper> Struct;
 
 	const std::vector<UEProperty>& Members;
 	const std::vector<PredefType>* PredefElements;
@@ -25,7 +26,7 @@ private:
 	bool bIsCurrentlyPredefined = true;
 
 public:
-	inline MemberIterator(const UEStruct Str, const std::vector<UEProperty>& Mbr, const std::vector<PredefType>* const Predefs = nullptr, int32 StartIdx = 0x0, int32 PredefStart = 0x0)
+	inline MemberIterator(const std::shared_ptr<class StructWrapper>& Str, const std::vector<UEProperty>& Mbr, const std::vector<PredefType>* const Predefs = nullptr, int32 StartIdx = 0x0, int32 PredefStart = 0x0)
 		: Struct(Str), Members(Mbr), PredefElements(Predefs), CurrentIdx(StartIdx), CurrentPredefIdx(PredefStart)
 	{
 		const int32 NextUnrealOffset = GetUnrealMemberOffset();
@@ -85,7 +86,7 @@ private:
 	using DereferenceType = std::conditional_t<bIsDeferredTemplateCreation, class FunctionWrapper, void> ;
 
 private:
-	const UEStruct Struct;
+	const std::shared_ptr<StructWrapper> Struct;
 
 	const std::vector<UEFunction>& Members;
 	const std::vector<PredefType>* PredefElements;
@@ -96,7 +97,7 @@ private:
 	bool bIsCurrentlyPredefined = true;
 
 public:
-	inline FunctionIterator(const UEStruct Str, const std::vector<UEFunction>& Mbr, const std::vector<PredefType>* const Predefs = nullptr, int32 StartIdx = 0x0, int32 PredefStart = 0x0)
+	inline FunctionIterator(const std::shared_ptr<StructWrapper>& Str, const std::vector<UEFunction>& Mbr, const std::vector<PredefType>* const Predefs = nullptr, int32 StartIdx = 0x0, int32 PredefStart = 0x0)
 		: Struct(Str), Members(Mbr), PredefElements(Predefs), CurrentIdx(StartIdx), CurrentPredefIdx(PredefStart)
 	{
 		bIsCurrentlyPredefined = bShouldNextMemberBePredefined();
@@ -189,7 +190,7 @@ private:
 	static inline const PredefinedMemberLookupMapType* PredefinedMemberLookup = nullptr;
 
 private:
-	UEStruct Struct;
+	const std::shared_ptr<StructWrapper> Struct;
 
 	std::vector<UEProperty> Members;
 	std::vector<UEFunction> Functions;
@@ -197,11 +198,9 @@ private:
 	const std::vector<PredefinedMember>* PredefMembers = nullptr;
 	const std::vector<PredefinedFunction>* PredefFunctions = nullptr;
 
-	int32 NumStaticPredefMembers = 0x0;
-	int32 NumStaticPredefFunctions = 0x0;
-
 private:
 	MemberManager(UEStruct Str);
+	MemberManager(const PredefinedStruct* Str);
 
 public:
 	int32 GetNumFunctions() const;
@@ -213,15 +212,8 @@ public:
 	bool HasFunctions() const;
 	bool HasMembers() const;
 
-	inline MemberIterator<true> IterateMembers() const
-	{
-		return MemberIterator<true>(Struct, Members, PredefMembers);
-	}
-
-	inline FunctionIterator<true> IterateFunctions() const
-	{
-		return FunctionIterator<true>(Struct, Functions, PredefFunctions);
-	}
+	MemberIterator<true> IterateMembers() const;
+	FunctionIterator<true> IterateFunctions() const;
 
 public:
 	static inline void SetPredefinedMemberLookupPtr(const PredefinedMemberLookupMapType* Lookup)

@@ -1,13 +1,13 @@
 #include "MemberWrappers.h"
 
 
-PropertyWrapper::PropertyWrapper(const StructWrapper& Str, const PredefinedMember* Predef)
-    : PredefProperty(Predef), Struct(&Str), Name()
+PropertyWrapper::PropertyWrapper(const std::shared_ptr<StructWrapper>& Str, const PredefinedMember* Predef)
+    : PredefProperty(Predef), Struct(Str), Name()
 {
 }
 
-PropertyWrapper::PropertyWrapper(const StructWrapper& Str, UEProperty Prop)
-    : Property(Prop), Name(MemberManager::GetNameCollisionInfo(Str.GetUnrealStruct(), Prop)), Struct(&Str), bIsUnrealProperty(true)
+PropertyWrapper::PropertyWrapper(const std::shared_ptr<StructWrapper>& Str, UEProperty Prop)
+    : Property(Prop), Name(MemberManager::GetNameCollisionInfo(Str->GetUnrealStruct(), Prop)), Struct(Str), bIsUnrealProperty(true)
 {
 }
 
@@ -127,13 +127,13 @@ bool PropertyWrapper::IsStatic() const
 }
 
 
-FunctionWrapper::FunctionWrapper(const StructWrapper& Str, const PredefinedFunction* Predef)
-    : PredefFunction(Predef), Struct(&Str), Name()
+FunctionWrapper::FunctionWrapper(const std::shared_ptr<StructWrapper>& Str, const PredefinedFunction* Predef)
+    : PredefFunction(Predef), Struct(Str), Name()
 {
 }
 
-FunctionWrapper::FunctionWrapper(const StructWrapper& Str, UEFunction Func)
-    : Function(Func), Name(MemberManager::GetNameCollisionInfo(Str.GetUnrealStruct(), Func)), Struct(&Str), bIsUnrealFunction(true)
+FunctionWrapper::FunctionWrapper(const std::shared_ptr<StructWrapper>& Str, UEFunction Func)
+    : Function(Func), Name(MemberManager::GetNameCollisionInfo(Str->GetUnrealStruct(), Func)), Struct(Str), bIsUnrealFunction(true)
 {
 }
 
@@ -152,18 +152,6 @@ NameInfo FunctionWrapper::GetNameCollisionInfo() const
     assert(bIsUnrealFunction && "FunctionWrapper doesn't contian UnrealFunction. Illegal call to 'GetNameCollisionInfo()'.");
 
     return Name;
-}
-
-[[deprecated]]
-PropertyWrapper FunctionWrapper::GetReturnParam() const
-{
-    assert(bIsUnrealFunction && "FunctionWrapper doesn't contian UnrealFunction. Illegal call to 'GetReturnParam()'.");
-
-    for (auto Param : Function.GetProperties())
-    {
-        if (Param.HasPropertyFlags(EPropertyFlags::ReturnParm))
-            return PropertyWrapper(*Struct, Param);
-    }
 }
 
 EFunctionFlags FunctionWrapper::GetFunctionFlags() const

@@ -246,6 +246,7 @@ public:
 		std::sort(APawnFunctions.begin(), APawnFunctions.end(), ComparePredefinedFunctions);
 
 		StructManager::Init();
+		MemberManager::InitMemberNameCollisions();
 		MemberManager::SetPredefinedMemberLookupPtr(&PredefinedMembers);
 
 		MemberManager Members(APawn);

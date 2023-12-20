@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include "ObjectArray.h"
 #include "NameCollisionHandler.h"
 #include "StructWrapper.h"
@@ -12,7 +13,7 @@ private:
         const PredefinedMember* PredefProperty;
     };
 
-    const StructWrapper* Struct;
+    const std::shared_ptr<StructWrapper> Struct;
 
     NameInfo Name;
 
@@ -21,9 +22,9 @@ private:
 public:
     PropertyWrapper(const PropertyWrapper&) = default;
 
-    PropertyWrapper(const StructWrapper& Str, const PredefinedMember* Predef);
+    PropertyWrapper(const std::shared_ptr<StructWrapper>& Str, const PredefinedMember* Predef);
 
-    PropertyWrapper(const StructWrapper& Str, UEProperty Prop);
+    PropertyWrapper(const std::shared_ptr<StructWrapper>& Str, UEProperty Prop);
 
 public:
     std::string GetName() const;
@@ -77,16 +78,16 @@ private:
         const PredefinedFunction* PredefFunction;
     };
 
-    const StructWrapper* Struct;
+    const std::shared_ptr<StructWrapper> Struct;
 
     NameInfo Name;
 
     bool bIsUnrealFunction = false;
 
 public:
-    FunctionWrapper(const StructWrapper& Str, const PredefinedFunction* Predef);
+    FunctionWrapper(const std::shared_ptr<StructWrapper>& Str, const PredefinedFunction* Predef);
 
-    FunctionWrapper(const StructWrapper& Str, UEFunction Func);
+    FunctionWrapper(const std::shared_ptr<StructWrapper>& Str, UEFunction Func);
 
 public:
     StructWrapper AsStruct() const;
@@ -95,8 +96,6 @@ public:
 
     NameInfo GetNameCollisionInfo() const;
 
-    [[deprecated]]
-    PropertyWrapper GetReturnParam() const;
     EFunctionFlags GetFunctionFlags() const;
 
     MemberManager GetMembers() const;

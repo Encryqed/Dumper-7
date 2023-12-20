@@ -10,10 +10,10 @@
 #include "StructManagerTest.h"
 #include "CollisionManagerTest.h"
 #include "MemberManagerTest.h"
+#include "CppGeneratorTest.h"
 
 #include "GeneratorRewrite.h"
 
-//#include "CppGeneratorTest.h"
 //#include "StringTableTest.h"
 
 enum class EFortToastType : uint8
@@ -74,7 +74,13 @@ DWORD MainThread(HMODULE Module)
 	CppGenerator::GenerateStruct(std::cout, ObjectArray::FindClassFast("Pawn"));
 	std::cout << std::endl;
 	CppGenerator::GenerateStruct(std::cout, ObjectArray::FindClassFast("KismetSystemLibrary"));
+	std::cout << std::endl;
+	CppGenerator::GenerateStruct(std::cout, ObjectArray::FindClassFast("ABPI_WeaponAnimLayer_C"));
+	std::cout << std::endl;
 
+	CppGeneratorTest::TestAll();
+	std::cout << std::endl;
+	
 	//GeneratorRewrite::Generate<CppGenerator>();
 
 	//std::cout << "FTransform::MinAlignment: " << *reinterpret_cast<int32*>(static_cast<uint8*>(ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct)) + Off::UStruct::Size + 0x4) << std::endl;

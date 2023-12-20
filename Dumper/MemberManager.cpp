@@ -5,9 +5,9 @@
 
 
 MemberManager::MemberManager(UEStruct Str)
-	: Struct(Str)
-	, Functions(Struct.GetFunctions())
-	, Members(Struct.GetProperties())
+	: Struct(std::make_shared<StructWrapper>(Str))
+	, Functions(Str.GetFunctions())
+	, Members(Str.GetProperties())
 {
 	// sorts functions/members in O(n * log(n)), can be sorted via radix, O(n), but the overhead might not be worth it
 	std::sort(Functions.begin(), Functions.end(), CompareUnrealFunctions);
@@ -16,26 +16,21 @@ MemberManager::MemberManager(UEStruct Str)
 	if (!PredefinedMemberLookup)
 		return;
 
-	auto It = PredefinedMemberLookup->find(Struct.GetIndex());
+	auto It = PredefinedMemberLookup->find(Struct->GetUnrealStruct().GetIndex());
 	if (It != PredefinedMemberLookup->end())
 	{
 		PredefMembers = &It->second.Members;
 		PredefFunctions = &It->second.Functions;
-
-		auto FindFirstStaticMember = [](auto& ElementVector) -> int32
-		{
-			for (int i = 0; i < ElementVector.size(); i++)
-			{
-				if (ElementVector[i].bIsStatic)
-					return i + 1;
-			}
-
-			return 0x0;
-		};
-
-		NumStaticPredefMembers = FindFirstStaticMember(*PredefMembers);
-		NumStaticPredefFunctions = FindFirstStaticMember(*PredefFunctions);
 	}
+}
+
+MemberManager::MemberManager(const PredefinedStruct* Str)
+	: Struct(std::make_shared<StructWrapper>(Str))
+	, Functions()
+	, Members()
+	, PredefMembers(&Str->Properties)
+	, PredefFunctions(&Str->Functions)
+{
 }
 
 int32 MemberManager::GetNumFunctions() const
@@ -66,5 +61,15 @@ bool MemberManager::HasFunctions() const
 bool MemberManager::HasMembers() const
 {
 	return GetNumMembers() > 0x0 || GetNumPredefMembers() > 0x0;
+}
+
+MemberIterator<true> MemberManager::IterateMembers() const
+{
+	return MemberIterator<true>(Struct, Members, PredefMembers);
+}
+
+FunctionIterator<true> MemberManager::IterateFunctions() const
+{
+	return FunctionIterator<true>(Struct, Functions, PredefFunctions);
 }
 

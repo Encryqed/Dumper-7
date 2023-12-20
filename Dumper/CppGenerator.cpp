@@ -107,11 +107,9 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 
 		if (Func.IsPredefined())
 		{
-			AllFuntionsText += std::format("\t{}{}\n", Func.IsStatic() ? "static " : "", Func.GetPredefFuncHeaderDeclaration(), Func.GetName());
+			AllFuntionsText += std::format("\t{}{}", Func.IsStatic() ? "static " : "", Func.GetPredefFuncHeaderDeclaration());
 
-			if (Func.HasInlineBody())
-				AllFuntionsText += Func.GetPredefFunctionBody() + "\n";
-
+			AllFuntionsText += (Func.HasInlineBody() ? ("\n" + Func.GetPredefFunctionBody()) : ";") + "\n";
 			continue;
 		}
 
@@ -201,7 +199,7 @@ void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& S
   , StructSize
   , SuperSize
   , Struct.IsClass() ? "class" : "struct"
-  , Struct.ShouldUseExplicitAlignment() ? std::format("alignas({:02X}) ", Struct.GetAlignment()) : ""
+  , Struct.ShouldUseExplicitAlignment() ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
   , UniqueName
   , Struct.IsFinal() ? " final " : ""
   , Super.IsValid() ? (" : public " + UniqueSuperName) : "");
@@ -403,7 +401,7 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 	else if (Flags & EClassCastFlags::EnumProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEEnumProperty>().GetEnum())
-			return std::format("enum class {}", Enum.GetEnumTypeAsStr());
+			return Enum.GetEnumTypeAsStr();
 
 		return GetMemberTypeString(Member.Cast<UEEnumProperty>().GetUnderlayingProperty());
 	}

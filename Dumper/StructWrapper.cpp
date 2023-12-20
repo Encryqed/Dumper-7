@@ -36,7 +36,7 @@ StructWrapper StructWrapper::GetSuper() const
 
 MemberManager StructWrapper::GetMembers() const
 {
-    return MemberManager(Struct);
+    return bIsUnrealStruct ? MemberManager(Struct) : MemberManager(PredefStruct);
 }
 
 
