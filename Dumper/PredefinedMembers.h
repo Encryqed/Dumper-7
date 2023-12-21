@@ -91,9 +91,16 @@ inline bool CompareUnrealFunctions(UEFunction Left, UEFunction Right)
     const bool bIsLeftStatic = Left.HasFlags(EFunctionFlags::Static);
     const bool bIsRightStatic = Right.HasFlags(EFunctionFlags::Static);
 
+    const bool bIsLeftConst = Left.HasFlags(EFunctionFlags::Const);
+    const bool bIsRightConst = Right.HasFlags(EFunctionFlags::Const);
+
     // Static members come first
     if (bIsLeftStatic != bIsRightStatic)
         return bIsLeftStatic > bIsRightStatic;
+
+    // Const members come last
+    if (bIsLeftConst != bIsRightConst)
+        return bIsLeftConst < bIsRightConst;
 
     return Left.GetIndex() < Right.GetIndex();
 };

@@ -95,14 +95,22 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 	bool bIsFirstIteration = true;
 	bool bWasLastFuncStatic = false;
 	bool bWasLastFuncInline = false;
+	bool bWaslastFuncConst = false;
 
 	for (const FunctionWrapper& Func : Members.IterateFunctions())
 	{
-		if ((bWasLastFuncStatic != Func.IsStatic() || bWasLastFuncInline != Func.HasInlineBody()) && !bIsFirstIteration)
+		if (bWasLastFuncStatic != Func.IsStatic() && !bIsFirstIteration)
+			AllFuntionsText += '\n';
+
+		if (bWasLastFuncInline != Func.HasInlineBody() && !bIsFirstIteration)
+			AllFuntionsText += "public:\n";
+
+		if (bWaslastFuncConst != Func.IsConst() && !bIsFirstIteration)
 			AllFuntionsText += '\n';
 
 		bWasLastFuncStatic = Func.IsStatic();
 		bWasLastFuncInline = Func.HasInlineBody();
+		bWaslastFuncConst = Func.IsConst();
 		bIsFirstIteration = false;
 
 		if (Func.IsPredefined())
@@ -167,7 +175,7 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 			bIsFirstParam = false;
 		}
 
-		AllFuntionsText += std::format("\t{}{} {}({});\n", Func.IsStatic() ? "static " : "", RetType, Func.GetName(), Params);
+		AllFuntionsText += std::format("\t{}{} {}({}){};\n", Func.IsStatic() ? "static " : "", RetType, Func.GetName(), Params, Func.IsConst() ? " const" : "");
 	}
 
 	return AllFuntionsText;
@@ -189,6 +197,8 @@ void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& S
 		SuperSize = Super.GetSize();
 	}
 
+	const bool bIsClass = Struct.IsClass();
+
 	StructFile << std::format(R"(
 // {}
 // 0x{:04X} (0x{:04X} - 0x{:04X})
@@ -198,7 +208,7 @@ void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& S
   , StructSize - SuperSize
   , StructSize
   , SuperSize
-  , Struct.IsClass() ? "class" : "struct"
+  , bIsClass ? "class" : "struct"
   , Struct.ShouldUseExplicitAlignment() ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
   , UniqueName
   , Struct.IsFinal() ? " final " : ""
@@ -217,7 +227,7 @@ void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& S
 		StructFile << GenerateMembers(Struct, Members, SuperSize);
 
 		if (bHasFunctions)
-			StructFile << "\n\n";
+			StructFile << "\npublic:\n";
 	}
 
 	if (bHasFunctions)

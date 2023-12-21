@@ -209,6 +209,11 @@ bool FunctionWrapper::IsStatic() const
     return bIsUnrealFunction ? Function.HasFlags(EFunctionFlags::Static) : PredefFunction->bIsStatic;
 }
 
+bool FunctionWrapper::IsConst() const
+{
+    return GetFunctionFlags() & EFunctionFlags::Const;
+}
+
 bool FunctionWrapper::HasInlineBody() const
 {
     return bIsUnrealFunction ? false : PredefFunction->bIsBodyInline;

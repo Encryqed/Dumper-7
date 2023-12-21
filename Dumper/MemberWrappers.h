@@ -107,7 +107,8 @@ public:
     std::string GetPredefFuncSourceDeclaration() const;
     std::string GetPredefFunctionBody() const;
 
-    bool IsPredefined() const;
     bool IsStatic() const;
+    bool IsConst() const;
+    bool IsPredefined() const;
     bool HasInlineBody() const;
 };
