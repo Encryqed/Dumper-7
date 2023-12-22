@@ -86,38 +86,36 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 {
 	constexpr int32 AverageNumCharactersPerFunction = 0x50;
 
-	std::string StaticFunctions;
-	std::string NonStaticFunctions;
-	NonStaticFunctions.reserve(static_cast<uint64>(Members.GetNumFunctions()) * AverageNumCharactersPerFunction);
-
 	std::string AllFuntionsText;
 
 	bool bIsFirstIteration = true;
+	bool bDidSwitch = false;
 	bool bWasLastFuncStatic = false;
 	bool bWasLastFuncInline = false;
 	bool bWaslastFuncConst = false;
 
 	for (const FunctionWrapper& Func : Members.IterateFunctions())
 	{
-		if (bWasLastFuncStatic != Func.IsStatic() && !bIsFirstIteration)
-			AllFuntionsText += '\n';
-
 		if (bWasLastFuncInline != Func.HasInlineBody() && !bIsFirstIteration)
-			AllFuntionsText += "public:\n";
+		{
+			AllFuntionsText += "\npublic:\n";
+			bDidSwitch = true;
+		}
 
-		if (bWaslastFuncConst != Func.IsConst() && !bIsFirstIteration)
+		if ((bWasLastFuncStatic != Func.IsStatic() || bWaslastFuncConst != Func.IsConst()) && !bIsFirstIteration && !bDidSwitch)
 			AllFuntionsText += '\n';
 
 		bWasLastFuncStatic = Func.IsStatic();
 		bWasLastFuncInline = Func.HasInlineBody();
 		bWaslastFuncConst = Func.IsConst();
 		bIsFirstIteration = false;
+		bDidSwitch = false;
 
 		if (Func.IsPredefined())
 		{
-			AllFuntionsText += std::format("\t{}{}", Func.IsStatic() ? "static " : "", Func.GetPredefFuncHeaderDeclaration());
+			AllFuntionsText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", Func.GetPredefFuncReturnType(), Func.GetPredefFuncNameWithParams(), Func.IsConst() ? " const" : "");
 
-			AllFuntionsText += (Func.HasInlineBody() ? ("\n" + Func.GetPredefFunctionBody()) : ";") + "\n";
+			AllFuntionsText += (Func.HasInlineBody() ? ("\n" + Func.GetPredefFunctionBodyCopy()) : ";") + "\n";
 			continue;
 		}
 
@@ -181,8 +179,89 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 	return AllFuntionsText;
 }
 
-void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& Struct)
+CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrapper& Func)
 {
+	FunctionInfo RetFuncInfo;
+
+	RetFuncInfo.bIsConst = Func.IsConst();
+	RetFuncInfo.bIsStatic = Func.IsStatic();
+	RetFuncInfo.bIsUnrealFunc = Func.IsPredefined();
+	RetFuncInfo.bIsNativeUFunction = Func.HasFunctionFlag(EFunctionFlags::Native);
+
+	if (Func.IsPredefined())
+	{
+		RetFuncInfo.RetType = Func.GetPredefFuncReturnType();
+		RetFuncInfo.FuncNameWithParams = Func.GetPredefFuncNameWithParams();
+
+		RetFuncInfo.BodyIfExisting = &Func.GetPredefFunctionBodyRef();
+
+		return RetFuncInfo;
+	}
+
+	MemberManager FuncParams = Func.GetMembers();
+
+	RetFuncInfo.RetType = "void";
+	RetFuncInfo.FuncNameWithParams = Func.GetName() + "(";
+
+	bool bIsFirstParam = true;
+
+	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
+	{
+		std::string Type = GetMemberTypeString(Param);
+
+		if (Param.IsReturnParam())
+		{
+			RetFuncInfo.RetType = GetMemberTypeString(Param);
+			continue;
+		}
+
+		bool bIsRef = false;
+		bool bIsOut = false;
+		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
+		bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
+
+		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
+		{
+			Type += "&";
+			bIsRef = true;
+			bIsOut = true;
+		}
+
+		if (!bIsRef && Param.HasPropertyFlags(EPropertyFlags::OutParm))
+		{
+			Type += "*";
+			bIsOut = true;
+		}
+
+		if (bIsConst)
+			Type = "const " + Type;
+
+		if (!bIsOut && !bIsRef && bIsMoveType)
+		{
+			Type += "&";
+
+			if (!bIsConst)
+				Type = "const " + Type;
+		}
+
+		if (!bIsFirstParam)
+			RetFuncInfo.FuncNameWithParams += ", ";
+
+		RetFuncInfo.FuncNameWithParams += Type + " " + Param.GetName();
+
+		bIsFirstParam = false;
+	}
+
+	RetFuncInfo.FuncNameWithParams += ")";
+
+	return RetFuncInfo;
+}
+
+void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile)
+{
+	if (!Struct.IsValid())
+		return;
+
 	std::string UniqueName = GetStructPrefixedName(Struct);
 	std::string UniqueSuperName;
 
@@ -217,7 +296,7 @@ void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& S
 	MemberManager Members = Struct.GetMembers();
 
 	const bool bHasMembers = Members.HasMembers();
-	const bool bHasFunctions = Members.HasFunctions();
+	const bool bHasFunctions = Members.HasFunctions() && !Struct.IsFunction();
 
 	if (bHasMembers || bHasFunctions)
 		StructFile << "public:\n";
@@ -231,27 +310,72 @@ void CppGenerator::GenerateStruct(StreamType& StructFile, const StructWrapper& S
 	}
 
 	if (bHasFunctions)
-		StructFile << GenerateFunctionInHeader(Members);
+		StructFile << GenerateFunctions(Members, FunctionFile, ParamFile);
 
 	StructFile << "};\n";
 }
 
-void CppGenerator::GenerateClass(StreamType& ClassFile, const StructWrapper& Class)
+std::string CppGenerator::GenerateFunctions(const MemberManager& Members, StreamType& FunctionFile, StreamType& ParamFile)
 {
+	constexpr int32 AverageNumCharactersPerFunction = 0x50;
 
-}
+	std::string InHeaderFunctionText;
 
-void CppGenerator::GenerateFunctionInCppFile(StreamType& FunctionFile, std::ofstream& ParamFile, const UEFunction& Function)
-{
+	bool bIsFirstIteration = true;
+	bool bDidSwitch = false;
+	bool bWasLastFuncStatic = false;
+	bool bWasLastFuncInline = false;
+	bool bWaslastFuncConst = false;
 
+	for (const FunctionWrapper& Func : Members.IterateFunctions())
+	{
+		// Handeling spacing between static and non-static, const and non-const, as well as inline and non-inline functions
+		if (bWasLastFuncInline != Func.HasInlineBody() && !bIsFirstIteration)
+		{
+			InHeaderFunctionText += "\npublic:\n";
+			bDidSwitch = true;
+		}
+
+		if ((bWasLastFuncStatic != Func.IsStatic() || bWaslastFuncConst != Func.IsConst()) && !bIsFirstIteration && !bDidSwitch)
+			InHeaderFunctionText += '\n';
+
+		bWasLastFuncStatic = Func.IsStatic();
+		bWasLastFuncInline = Func.HasInlineBody();
+		bWaslastFuncConst = Func.IsConst();
+		bIsFirstIteration = false;
+		bDidSwitch = false;
+
+
+		FunctionInfo FuncInfo = GenerateFunctionInfo(Func);
+
+		const bool bHasInlineBody = Func.HasInlineBody();
+
+		// Function declaration and inline-body generation
+		InHeaderFunctionText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", FuncInfo.RetType, FuncInfo.FuncNameWithParams, Func.IsConst() ? " const" : "");
+		InHeaderFunctionText += (bHasInlineBody ? ("\n" + *FuncInfo.BodyIfExisting) : ";") + "\n";
+
+		if (bHasInlineBody || Func.IsPredefined())
+			continue;
+
+		// Parameter struct generation for unreal-functions
+		if (!Func.IsPredefined() && Func.GetParamStructSize() > 0x0)
+			GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile);
+
+		Func.GetParamStructName()
+	}
+
+	return InHeaderFunctionText;
 }
 
 
 std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 {
+	if (Struct.IsFunction())
+		return Struct.GetUnrealStruct().GetOuter().GetValidName() + "_" + Struct.GetName();
+
 	auto [ValidName, bIsUnique] = Struct.GetUniqueName();
 
-	return (bIsUnique ? "" : (Struct.GetUnrealStruct().GetOutermost().GetValidName() + "::")) + Struct.GetName();
+	return (bIsUnique ? "" : (Struct.GetUnrealStruct().GetOutermost().GetValidName() + "::")) + ValidName;
 }
 
 void CppGenerator::Generate(const std::unordered_map<int32, PackageInfo>& Dependencies)

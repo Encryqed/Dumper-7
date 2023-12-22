@@ -51,6 +51,7 @@ public:
     bool IsFinal() const;
 
     bool IsClass() const;
+    bool IsFunction() const;
 
     bool IsValid() const;
 

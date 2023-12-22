@@ -211,36 +211,37 @@ public:
 			- StaticTestFunc
 			- GetNullPtr
 		*/
-		APawnFunctions =
-		{ 
-			PredefinedFunction{ 
-				"IsReelPawn", 
-				"bool IsReelPawn(bool bIsGuaranteedToBePawn)", 
-				"bool APawn::IsReelPawn(bool bIsGuaranteedToBePawn)",
-				"{\n\treturn bIsGuaranteedToBePawn + 4;\n}"
-				, false, false
-			},
+		APawnFunctions = {
 			PredefinedFunction{
-				"GetActors",
-				"TArray<class AActor*>* GetActors(int a1)",
-				"TArray<class AActor*>* APawn::GetActors(int a1)",
-				"{\n\treturn reinterpret_cast<TArray<class AActor*>*>(&a2);\n}"
-				, true, false
-			},
+				"bool",
+				"IsReelPawn(bool bIsGuaranteedToBePawn)",
+				"\t{\n\t\treturn bIsGuaranteedToBePawn + 4;\n\t}"
+				, false, false, false
+		},
 			PredefinedFunction{
-				"GetNullPtr",
-				"std::nullptr_t GetNullPtr()",
-				"",
-				"{\n\treturn nullptr;\n}"
-				, false, true
-			},
+				"TArray<class AActor*>*",
+				"GetActors(int a1)",
+				"\t{\n\t\treturn reinterpret_cast<TArray<class AActor*>*>(&a2);\n\t}"
+				, true, false, false
+		},
 			PredefinedFunction{
-				"StaticTestFunc",
-				"void StaticTestFunc(bool* bIsGuaranteedToBePawn)",
-				"",
-				"{\n\t*bIsGuaranteedToBePawn = true;\n}"
-				, true, true
-			},
+				"std::nullptr_t",
+				"GetNullPtr()",
+				"\t{\n\t\treturn nullptr;\n\t}"
+				, false, false, true
+		},
+			PredefinedFunction{
+				"std::nullptr_t",
+				"GetNullPtrConst()",
+				"\t{\n\t\treturn nullptr;\n\t}"
+				, false, true, true
+		},
+			PredefinedFunction{
+				"void",
+				"StaticTestFunc(bool* bIsGuaranteedToBePawn)",
+				"\t{\n\t\t*bIsGuaranteedToBePawn = true;\n\t}"
+				, true, false, true
+		}
 		};
 
 		std::sort(APawnFunctions.begin(), APawnFunctions.end(), ComparePredefinedFunctions);

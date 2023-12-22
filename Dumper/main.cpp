@@ -67,16 +67,7 @@ DWORD MainThread(HMODULE Module)
 
 	MemberManagerTest::TestFunctionIterator<true>();
 
-	MemberManager::InitMemberNameCollisions();
-	StructManager::Init();
 	MemberManager::SetPredefinedMemberLookupPtr(&CppGenerator::PredefinedMembers);
-
-	CppGenerator::GenerateStruct(std::cout, ObjectArray::FindClassFast("Pawn"));
-	std::cout << std::endl;
-	CppGenerator::GenerateStruct(std::cout, ObjectArray::FindClassFast("KismetSystemLibrary"));
-	std::cout << std::endl;
-	CppGenerator::GenerateStruct(std::cout, ObjectArray::FindClassFast("ABPI_WeaponAnimLayer_C"));
-	std::cout << std::endl;
 
 	CppGeneratorTest::TestAll();
 	std::cout << std::endl;

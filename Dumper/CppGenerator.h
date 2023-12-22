@@ -28,7 +28,21 @@ private:
     friend class Generator;
 
 private:
-    using StreamType = decltype(std::cout);//std::stringstream /*current config: debug, default: std::ofstream*/;
+    struct FunctionInfo
+    {
+        bool bIsConst;
+        bool bIsStatic;
+        bool bIsUnrealFunc;
+        bool bIsNativeUFunction;
+
+        std::string RetType;
+        std::string FuncNameWithParams;
+
+        const std::string* BodyIfExisting = nullptr;
+    };
+
+private:
+    using StreamType = std::ofstream;
 
 public:
     static inline PredefinedMemberLookupMapType PredefinedMembers;
@@ -47,10 +61,11 @@ public: /* DEBUG */
 
     static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize);
     static std::string GenerateFunctionInHeader(const MemberManager& Members);
+    static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func);
+    static void GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile);
 
-    static void GenerateStruct(StreamType& StructFile, const StructWrapper& Struct);
-    static void GenerateClass(StreamType& ClassFile, const StructWrapper& Class);
-    static void GenerateFunctionInCppFile(StreamType& FunctionFile, std::ofstream& ParamFile, const UEFunction& Function);
+    // return: In-header function declarations and inline functions
+    static std::string GenerateFunctions(const MemberManager& Members, StreamType& FunctionFile, StreamType& ParamFile);
 
 private: /* utility functions */
     static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper);

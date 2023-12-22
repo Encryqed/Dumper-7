@@ -97,7 +97,7 @@ void StructManager::InitAlignmentsAndNames()
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
 
-		constexpr int MaxNumSuperClasses = 0x20;
+		constexpr int MaxNumSuperClasses = 0x30;
 
 		std::array<UEStruct, MaxNumSuperClasses> StructStack;
 		int32 NumElementsInStructStack = 0x0;
@@ -133,10 +133,13 @@ void StructManager::InitSizesAndIsFinal()
 {
 	for (auto Obj : ObjectArray())
 	{
-		if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function))
+		if (!Obj.IsA(EClassCastFlags::Struct)/* || Obj.IsA(EClassCastFlags::Function)*/)
 			continue;
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
+
+		if (ObjAsStruct.GetOuter().GetName() == "Pawn")
+			std::cout << std::endl;
 
 		StructInfo& NewOrExistingInfo = StructInfoOverrides[Obj.GetIndex()];
 

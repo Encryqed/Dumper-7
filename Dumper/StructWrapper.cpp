@@ -21,7 +21,7 @@ UEStruct StructWrapper::GetUnrealStruct() const
 
 std::string StructWrapper::GetName() const
 {
-    return bIsUnrealStruct ? InfoHandle.GetName().GetName() : PredefStruct->UniqueName;
+    return bIsUnrealStruct ? Struct.GetValidName() : PredefStruct->UniqueName;
 }
 
 std::string StructWrapper::GetFullName() const
@@ -71,7 +71,14 @@ bool StructWrapper::IsClass() const
     return bIsUnrealStruct ? Struct.IsA(EClassCastFlags::Class) : PredefStruct->bIsClass;
 }
 
+bool StructWrapper::IsFunction() const
+{
+    return bIsUnrealStruct && Struct.IsA(EClassCastFlags::Function);
+}
+
+
 bool StructWrapper::IsValid() const
 {
+    // Struct and PredefStruct share the same memory location, if Struct is nullptr so is PredefStruct
     return Struct != nullptr;
 }

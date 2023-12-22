@@ -22,14 +22,13 @@ struct PredefinedMember
 
 struct PredefinedFunction
 {
-    std::string Name;
-
-    std::string HeaderDeclaration;
-    std::string SourceDeclaration;
+    std::string ReturnType;
+    std::string NameWithParams;
 
     std::string Body;
 
     bool bIsStatic;
+    bool bIsConst;
     bool bIsBodyInline;
 };
 
@@ -116,7 +115,11 @@ inline bool ComparePredefinedFunctions(const PredefinedFunction& Left, const Pre
     if (Left.bIsStatic != Right.bIsStatic)
         return Left.bIsStatic > Right.bIsStatic;
 
-    return Left.Name < Right.Name;
+    // Const members come last
+    if (Left.bIsConst != Right.bIsConst)
+        return Left.bIsConst < Right.bIsConst;
+
+    return Left.NameWithParams < Right.NameWithParams;
 };
 
 

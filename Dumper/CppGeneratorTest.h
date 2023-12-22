@@ -11,34 +11,64 @@ class CppGeneratorTest : protected TestBase
 private:
 	static inline std::vector<PredefinedFunction> TestFunctions = {
 		PredefinedFunction{
-			"IsReelPawn",
-			"bool IsReelPawn(bool bIsGuaranteedToBePawn)",
-			"bool APawn::IsReelPawn(bool bIsGuaranteedToBePawn)",
+			"bool",
+			"IsReelPawn(bool bIsGuaranteedToBePawn)",
 			"\t{\n\t\treturn bIsGuaranteedToBePawn + 4;\n\t}"
-			, false, false
+			, false, false, false
 		},
 		PredefinedFunction{
-			"GetActors",
-			"TArray<class AActor*>* GetActors(int a1)",
-			"TArray<class AActor*>* APawn::GetActors(int a1)",
+			"TArray<class AActor*>*",
+			"GetActors(int a1)",
 			"\t{\n\t\treturn reinterpret_cast<TArray<class AActor*>*>(&a2);\n\t}"
-			, true, false
+			, true, false, false
 		},
 		PredefinedFunction{
-			"GetNullPtr",
-			"std::nullptr_t GetNullPtr()",
-			"",
+			"std::nullptr_t",
+			"GetNullPtr()",
 			"\t{\n\t\treturn nullptr;\n\t}"
-			, false, true
+			, false, false, true
 		},
 		PredefinedFunction{
-			"StaticTestFunc",
-			"void StaticTestFunc(bool* bIsGuaranteedToBePawn)",
-			"",
+			"std::nullptr_t",
+			"GetNullPtrConst()",
+			"\t{\n\t\treturn nullptr;\n\t}"
+			, false, true, true
+		},
+		PredefinedFunction{
+			"void",
+			"StaticTestFunc(bool* bIsGuaranteedToBePawn)",
 			"\t{\n\t\t*bIsGuaranteedToBePawn = true;\n\t}"
-			, true, true
+			, true, false, true
 		}
 	};
+
+	static inline std::ofstream ClassFile;
+	static inline std::ofstream StructFile;
+	static inline std::ofstream FunctionFile;
+	static inline std::ofstream ParamFile;
+
+private:
+	static void InitTestVariables()
+	{
+		static bool bDidInit = false;
+
+		if (bDidInit)
+			return;
+
+		MemberManager::InitMemberNameCollisions();
+		StructManager::Init();
+
+		std::sort(TestFunctions.begin(), TestFunctions.end(), ComparePredefinedFunctions);
+
+		fs::path BasePath("C:/Users/savek/Documents/GitHub/Fortnite-Dumper-7/SDKTest");
+
+		ClassFile = std::ofstream(BasePath / "CPP_classes.hpp", std::ios::trunc);
+		StructFile = std::ofstream(BasePath / "CPP_structs.hpp", std::ios::trunc);
+		FunctionFile = std::ofstream(BasePath / "CPP_functions.hpp", std::ios::trunc);
+		ParamFile = std::ofstream(BasePath / "CPP_params.hpp", std::ios::trunc);
+
+		bDidInit = true;
+	}
 
 public:
 	template<bool bDoDebugPrinting = false>
@@ -46,6 +76,7 @@ public:
 	{
 		TestPredefStructGeneration<bDoDebugPrinting>();
 		TestUnrealStructGeneration<bDoDebugPrinting>();
+		TestUnrealClassGeneration<bDoDebugPrinting>();
 
 		std::cout << std::endl;
 	}
@@ -53,15 +84,17 @@ public:
 	template<bool bDoDebugPrinting = false>
 	static inline void TestPredefStructGeneration()
 	{
+		InitTestVariables();
+
 		PredefinedStruct TestStruct = {
-		   "FField",
-		   0x50,
-		   0x8,
-		   false,
-		   false,
-		   true,
-		   nullptr,
-		   {
+			"FField",
+			0x50,
+			0x8,
+			false,
+			false,
+			true,
+			nullptr,
+			{
 			   PredefinedMember{
 				   "void*", "Vft",
 				   Off::FField::Vft,
@@ -86,26 +119,24 @@ public:
 				   sizeof(int32), 0x1, alignof(int32),
 				   false, false, 0xFF
 			   },
-		   },
-		   TestFunctions
+			},
+			{
+				TestFunctions[0],
+				TestFunctions[2],
+				TestFunctions[3],
+			}
 		};
 
 		std::sort(TestStruct.Properties.begin(), TestStruct.Properties.end(), ComparePredefinedMembers);
 		std::sort(TestStruct.Functions.begin(), TestStruct.Functions.end(), ComparePredefinedFunctions);
 
-		MemberManager::InitMemberNameCollisions();
-		StructManager::Init();
-
-		CppGenerator::GenerateStruct(std::cout, &TestStruct);
+		CppGenerator::GenerateStruct(&TestStruct, ClassFile, FunctionFile, ParamFile);
 	}
 
 	template<bool bDoDebugPrinting = false>
 	static inline void TestUnrealStructGeneration()
 	{
-		MemberManager::InitMemberNameCollisions();
-		StructManager::Init();
-
-		std::sort(TestFunctions.begin(), TestFunctions.end(), ComparePredefinedFunctions);
+		InitTestVariables();
 
 		UEStruct FTransform = ObjectArray::FindObjectFast<UEStruct>("Transform");
 
@@ -114,6 +145,18 @@ public:
 
 		MemberManager::SetPredefinedMemberLookupPtr(&PredefMemberLookup);
 
-		CppGenerator::GenerateStruct(std::cout, FTransform);
+		CppGenerator::GenerateStruct(FTransform, StructFile, FunctionFile, ParamFile);
+	}
+
+	template<bool bDoDebugPrinting = false>
+	static inline void TestUnrealClassGeneration()
+	{
+		InitTestVariables();
+
+		MemberManager::SetPredefinedMemberLookupPtr(&CppGenerator::PredefinedMembers);
+
+		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("Pawn"), ClassFile, FunctionFile, ParamFile);
+		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("KismetSystemLibrary"), ClassFile, FunctionFile, ParamFile);
+		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("ABPI_WeaponAnimLayer_C"), ClassFile, FunctionFile, ParamFile);
 	}
 };

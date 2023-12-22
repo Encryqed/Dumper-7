@@ -40,7 +40,7 @@ struct StructInfo
 	HashStringTableIndex Name;
 
 	int32 Size = INT_MAX;
-	int32 Alignment;
+	int32 Alignment = 0x1;
 
 	bool bUseExplicitAlignment; // whether alignment should be specified with 'alignas(Alignment)'
 	bool bIsFinal = true; // wheter this class is ever inherited from. set to false when this struct is found to be another structs super
@@ -96,8 +96,8 @@ public:
 		if (!Struct)
 			return {};
 
-		if (Struct.IsA(EClassCastFlags::Function))
-			return {};
+		//if (Struct.IsA(EClassCastFlags::Function))
+		//	return {};
 
 		return StructInfoOverrides.at(Struct.GetIndex());
 	}

@@ -102,13 +102,16 @@ public:
 
     std::string StringifyFlags() const;
     std::string GetParamStructName() const;
+    int32 GetParamStructSize() const;
 
-    std::string GetPredefFuncHeaderDeclaration() const;
-    std::string GetPredefFuncSourceDeclaration() const;
-    std::string GetPredefFunctionBody() const;
+    std::string GetPredefFuncNameWithParams() const;
+    std::string GetPredefFuncReturnType() const;
+    const std::string& GetPredefFunctionBodyRef() const;
+    std::string GetPredefFunctionBodyCopy() const;
 
     bool IsStatic() const;
     bool IsConst() const;
     bool IsPredefined() const;
     bool HasInlineBody() const;
+    bool HasFunctionFlag(EFunctionFlags Flag) const;
 };
