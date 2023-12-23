@@ -206,10 +206,19 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 	{
 		std::string Type = GetMemberTypeString(Param);
 
+		ParamInfo PInfo;
+		PInfo.Type = Type;
+
 		if (Param.IsReturnParam())
 		{
 			RetFuncInfo.RetType = GetMemberTypeString(Param);
 			RetFuncInfo.bIsReturningVoid = false;
+
+			PInfo.PropFlags = Param.GetPropertyFlags();
+			PInfo.Name = Param.GetName();
+			PInfo.Type = Type;
+			PInfo.bIsRetParam = true;
+			RetFuncInfo.UnrealFuncParams.push_back(PInfo);
 			continue;
 		}
 
@@ -217,9 +226,6 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 		bool bIsOut = false;
 		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
 		bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
-
-		ParamInfo PInfo;
-		PInfo.Type = Type;
 
 		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
 		{
@@ -248,8 +254,10 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 		std::string ParamName = Param.GetName();
 
 		PInfo.bIsOutPtr = bIsOut && !bIsRef;
-		PInfo.bIsOutRef = bIsRef;
+		PInfo.bIsOutRef = bIsOut && bIsRef;
 		PInfo.bIsMoveParam = bIsMoveType;
+		PInfo.bIsRetParam = false;
+		PInfo.PropFlags = Param.GetPropertyFlags();
 		PInfo.Name = ParamName;
 		RetFuncInfo.UnrealFuncParams.push_back(PInfo);
 
@@ -383,6 +391,7 @@ std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const 
     , StructName
     , Func.GetPredefFuncNameWithParams()
     , Func.GetPredefFunctionBody());
+
 			continue;
 		}
 
@@ -404,34 +413,48 @@ std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const 
 		std::string ParamDescriptionCommentString = "// Parameters:\n";
 		std::string ParamAssignments;
 		std::string OutPtrAssignments;
+		std::string OutRefAssignments;
 
 		const bool bHasParams = !FuncInfo.UnrealFuncParams.empty();
 		bool bHasParamsToInit = false;
-		bool bHasOutParamsToInit = false;
+		bool bHasOutPtrParamsToInit = false;
+		bool bHasOutRefParamsToInit = false;
 
 		for (const ParamInfo& PInfo : FuncInfo.UnrealFuncParams)
 		{
-			ParamDescriptionCommentString += std::format("//{:{}}{:{}}({})\n", PInfo.Type, 40, PInfo.Name, 55, StringifyPropertyFlags(PInfo.PropFlags));
+			ParamDescriptionCommentString += std::format("// {:{}}{:{}}({})\n", PInfo.Type, 40, PInfo.Name, 55, StringifyPropertyFlags(PInfo.PropFlags));
+
+			if (PInfo.bIsRetParam)
+				continue;
 
 			if (PInfo.bIsOutPtr)
 			{
 				OutPtrAssignments += PInfo.bIsMoveParam ? std::format(R"(
+
 	if ({0} != nullptr)
 		*{0} = Parms.{0};)", PInfo.Name) : std::format(R"(
+
 	if ({0} != nullptr)
 		*{0} = std::move(Parms.{0});)", PInfo.Name);
-				bHasOutParamsToInit = true;
+				bHasOutPtrParamsToInit = true;
 			}
 			else
 			{
 				ParamAssignments += PInfo.bIsMoveParam ? std::format("\tParms.{0} = std::move({0});\n", PInfo.Name) : std::format("\tParms.{0} = {0};\n", PInfo.Name);
 				bHasParamsToInit = true;
 			}
+
+			if (PInfo.bIsOutRef)
+			{
+				OutRefAssignments += PInfo.bIsMoveParam ? std::format("\n\t{0} = std::move(Parms.{0});", PInfo.Name) : std::format("\n\t{0} = Parms.{0};", PInfo.Name);
+				bHasOutRefParamsToInit = true;
+			}
 		}
 
 		//ParamAssignments = ParamAssignments + '\n';
 		ParamAssignments = '\n' + ParamAssignments;
-		OutPtrAssignments = '\n' + OutPtrAssignments;
+		//OutPtrAssignments = '\n' + OutPtrAssignments;
+		OutRefAssignments = '\n' + OutRefAssignments;
 
 		constexpr const char* RestoreFunctionFlagsString = R"(
 
@@ -457,7 +480,7 @@ std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const 
 	if (Func == nullptr)
 		Func = Class->GetFunction("{}", "{}");
 {}{}{}
-	UObject::ProcessEvent(Func, {});{}{}{}
+	UObject::ProcessEvent(Func, {});{}{}{}{}
 }}
 
 )"  , UnrealFunc.GetFullName()
@@ -473,7 +496,8 @@ std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const 
     , bIsNativeFunc ? StoreFunctionFlagsString : ""
     , bHasParams ? "Parms" : "nullptr"
     , bIsNativeFunc ? RestoreFunctionFlagsString : ""
-    , bHasOutParamsToInit ? OutPtrAssignments : ""
+    , bHasOutRefParamsToInit ? OutRefAssignments : ""
+    , bHasOutPtrParamsToInit ? OutPtrAssignments : ""
     , !FuncInfo.bIsReturningVoid ? ReturnValueString : "");
 
 		FunctionFile << FunctionImplementation;
@@ -499,7 +523,7 @@ void CppGenerator::Generate(const std::unordered_map<int32, PackageInfo>& Depend
 
 	// Generate Basic.hpp and Basic.cpp files
 
-	// Generate SDK.hpp with sorted packages and 
+	// Generate SDK.hpp with sorted packages
 
 	// Generate NameCollisions.inl file containing forward declarations for classes in namespaces (potentially requires lock)
 

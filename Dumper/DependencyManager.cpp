@@ -11,7 +11,7 @@ void DependencyManager::AddDependency(const int32 DepedantIdx, int32 DependencyI
 	AllDependencies[DepedantIdx].DependencyIndices.insert(DependencyIndex);
 }
 
-void DependencyManager::SetDependencies(const int32 DepedantIdx, std::unordered_set<int32> Dependencies)
+void DependencyManager::SetDependencies(const int32 DepedantIdx, std::unordered_set<int32>&& Dependencies)
 {
 	AllDependencies[DepedantIdx].DependencyIndices = std::move(Dependencies);
 }

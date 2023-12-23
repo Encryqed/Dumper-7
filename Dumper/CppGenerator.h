@@ -33,6 +33,7 @@ private:
         bool bIsOutPtr;
         bool bIsOutRef;
         bool bIsMoveParam;
+        bool bIsRetParam;
         EPropertyFlags PropFlags;
 
         std::string Type;

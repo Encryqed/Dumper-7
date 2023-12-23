@@ -27,7 +27,7 @@ public:
 public:
 	void AddDependency(const int32 DepedantIdx, int32 DependencyIndex);
 
-	void SetDependencies(const int32 DepedantIdx, std::unordered_set<int32> Dependencies);
+	void SetDependencies(const int32 DepedantIdx, std::unordered_set<int32>&& Dependencies);
 
 	size_t GetNumEntries() const;
 };

@@ -86,7 +86,8 @@ std::unordered_map<int32, PackageInfo> GeneratorRewrite::GatherPackages()
 				CurrentPackageInfo.PackageDependencies.insert(ObjectArray::GetByIndex(Dependency).GetOutermost().GetIndex());
 			}
 
-			bIsClass ? CurrentPackageInfo.Classes.SetDependencies(Obj.GetIndex(), std::move(Dependencies)) : CurrentPackageInfo.Structs.SetDependencies(Obj.GetIndex(), std::move(Dependencies));
+			DependencyManager& Manager = bIsClass ? CurrentPackageInfo.Classes : CurrentPackageInfo.Structs;
+			Manager.SetDependencies(Obj.GetIndex(), std::move(Dependencies));
 		}
 		else if (bIsEnum)
 		{
