@@ -28,17 +28,26 @@ private:
     friend class Generator;
 
 private:
+    struct ParamInfo
+    {
+        bool bIsOutPtr;
+        bool bIsOutRef;
+        bool bIsMoveParam;
+        EPropertyFlags PropFlags;
+
+        std::string Type;
+        std::string Name;
+    };
+
     struct FunctionInfo
     {
-        bool bIsConst;
-        bool bIsStatic;
-        bool bIsUnrealFunc;
-        bool bIsNativeUFunction;
+        bool bIsReturningVoid;
+        EFunctionFlags FuncFlags = EFunctionFlags::None;
 
         std::string RetType;
         std::string FuncNameWithParams;
 
-        const std::string* BodyIfExisting = nullptr;
+        std::vector<ParamInfo> UnrealFuncParams; // for unreal-functions
     };
 
 private:
@@ -65,7 +74,7 @@ public: /* DEBUG */
     static void GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile);
 
     // return: In-header function declarations and inline functions
-    static std::string GenerateFunctions(const MemberManager& Members, StreamType& FunctionFile, StreamType& ParamFile);
+    static std::string GenerateFunctions(const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile);
 
 private: /* utility functions */
     static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper);

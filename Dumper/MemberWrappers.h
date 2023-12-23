@@ -104,10 +104,12 @@ public:
     std::string GetParamStructName() const;
     int32 GetParamStructSize() const;
 
+    std::string GetPredefFunctionCustomComment() const;
     std::string GetPredefFuncNameWithParams() const;
     std::string GetPredefFuncReturnType() const;
-    const std::string& GetPredefFunctionBodyRef() const;
-    std::string GetPredefFunctionBodyCopy() const;
+    std::string GetPredefFunctionBody() const;
+
+    UEFunction GetUnrealFunction() const;
 
     bool IsStatic() const;
     bool IsConst() const;

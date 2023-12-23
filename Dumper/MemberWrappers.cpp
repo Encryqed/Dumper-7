@@ -183,6 +183,13 @@ int32  FunctionWrapper::GetParamStructSize() const
     return bIsUnrealFunction ? Function.GetStructSize() : 0x0;
 }
 
+std::string FunctionWrapper::GetPredefFunctionCustomComment() const
+{
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionCustomComment()'.");
+
+    return PredefFunction->CustomComment;
+}
+
 std::string FunctionWrapper::GetPredefFuncNameWithParams() const
 {
     assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFuncNameWithParams()'.");
@@ -197,18 +204,18 @@ std::string FunctionWrapper::GetPredefFuncReturnType() const
     return PredefFunction->ReturnType;
 }
 
-const std::string& FunctionWrapper::GetPredefFunctionBodyRef() const
+std::string FunctionWrapper::GetPredefFunctionBody() const
 {
     assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionBodyRef()'.");
 
     return PredefFunction->Body;
 }
 
-std::string FunctionWrapper::GetPredefFunctionBodyCopy() const
+UEFunction FunctionWrapper::GetUnrealFunction() const
 {
-    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionBodyCopy()'.");
+    assert(bIsUnrealFunction && "FunctionWrapper doesn't contian UnrealFunction. Illegal call to 'GetUnrealFunction()'.");
 
-    return PredefFunction->Body;
+    return Function;
 }
 
 bool FunctionWrapper::IsPredefined() const

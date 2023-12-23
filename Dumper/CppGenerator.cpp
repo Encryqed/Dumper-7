@@ -115,7 +115,7 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 		{
 			AllFuntionsText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", Func.GetPredefFuncReturnType(), Func.GetPredefFuncNameWithParams(), Func.IsConst() ? " const" : "");
 
-			AllFuntionsText += (Func.HasInlineBody() ? ("\n" + Func.GetPredefFunctionBodyCopy()) : ";") + "\n";
+			AllFuntionsText += (Func.HasInlineBody() ? ("\n" + Func.GetPredefFunctionBody()) : ";") + "\n";
 			continue;
 		}
 
@@ -183,27 +183,24 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 {
 	FunctionInfo RetFuncInfo;
 
-	RetFuncInfo.bIsConst = Func.IsConst();
-	RetFuncInfo.bIsStatic = Func.IsStatic();
-	RetFuncInfo.bIsUnrealFunc = Func.IsPredefined();
-	RetFuncInfo.bIsNativeUFunction = Func.HasFunctionFlag(EFunctionFlags::Native);
-
 	if (Func.IsPredefined())
 	{
 		RetFuncInfo.RetType = Func.GetPredefFuncReturnType();
 		RetFuncInfo.FuncNameWithParams = Func.GetPredefFuncNameWithParams();
-
-		RetFuncInfo.BodyIfExisting = &Func.GetPredefFunctionBodyRef();
 
 		return RetFuncInfo;
 	}
 
 	MemberManager FuncParams = Func.GetMembers();
 
+	RetFuncInfo.FuncFlags = Func.GetFunctionFlags();
+	RetFuncInfo.bIsReturningVoid = true;
 	RetFuncInfo.RetType = "void";
 	RetFuncInfo.FuncNameWithParams = Func.GetName() + "(";
 
 	bool bIsFirstParam = true;
+
+	RetFuncInfo.UnrealFuncParams.reserve(5);
 
 	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
 	{
@@ -212,6 +209,7 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 		if (Param.IsReturnParam())
 		{
 			RetFuncInfo.RetType = GetMemberTypeString(Param);
+			RetFuncInfo.bIsReturningVoid = false;
 			continue;
 		}
 
@@ -219,6 +217,9 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 		bool bIsOut = false;
 		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
 		bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
+
+		ParamInfo PInfo;
+		PInfo.Type = Type;
 
 		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
 		{
@@ -244,10 +245,18 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 				Type = "const " + Type;
 		}
 
+		std::string ParamName = Param.GetName();
+
+		PInfo.bIsOutPtr = bIsOut && !bIsRef;
+		PInfo.bIsOutRef = bIsRef;
+		PInfo.bIsMoveParam = bIsMoveType;
+		PInfo.Name = ParamName;
+		RetFuncInfo.UnrealFuncParams.push_back(PInfo);
+
 		if (!bIsFirstParam)
 			RetFuncInfo.FuncNameWithParams += ", ";
 
-		RetFuncInfo.FuncNameWithParams += Type + " " + Param.GetName();
+		RetFuncInfo.FuncNameWithParams += Type + " " + ParamName;
 
 		bIsFirstParam = false;
 	}
@@ -310,12 +319,12 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	}
 
 	if (bHasFunctions)
-		StructFile << GenerateFunctions(Members, FunctionFile, ParamFile);
+		StructFile << GenerateFunctions(Members, UniqueName, FunctionFile, ParamFile);
 
 	StructFile << "};\n";
 }
 
-std::string CppGenerator::GenerateFunctions(const MemberManager& Members, StreamType& FunctionFile, StreamType& ParamFile)
+std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile)
 {
 	constexpr int32 AverageNumCharactersPerFunction = 0x50;
 
@@ -352,16 +361,122 @@ std::string CppGenerator::GenerateFunctions(const MemberManager& Members, Stream
 
 		// Function declaration and inline-body generation
 		InHeaderFunctionText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", FuncInfo.RetType, FuncInfo.FuncNameWithParams, Func.IsConst() ? " const" : "");
-		InHeaderFunctionText += (bHasInlineBody ? ("\n" + *FuncInfo.BodyIfExisting) : ";") + "\n";
+		InHeaderFunctionText += (bHasInlineBody ? ("\n" + Func.GetPredefFunctionBody()) : ";") + "\n";
 
-		if (bHasInlineBody || Func.IsPredefined())
+
+		if (bHasInlineBody)
 			continue;
+
+		if (Func.IsPredefined())
+		{
+			std::string CustomComment = Func.GetPredefFunctionCustomComment();
+
+			FunctionFile << std::format(R"(
+// Predefined Function
+{}
+{} {}::{}
+{}
+
+)"
+    , !CustomComment.empty() ? CustomComment + '\n' : ""
+    , Func.GetPredefFuncReturnType()
+    , StructName
+    , Func.GetPredefFuncNameWithParams()
+    , Func.GetPredefFunctionBody());
+			continue;
+		}
+
 
 		// Parameter struct generation for unreal-functions
 		if (!Func.IsPredefined() && Func.GetParamStructSize() > 0x0)
 			GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile);
 
-		Func.GetParamStructName()
+
+		std::string ParamVarCreationString = std::format(R"(
+	Params::{} Parms{{}};
+)", Func.GetParamStructName());
+
+		constexpr const char* StoreFunctionFlagsString = R"(
+	auto Flgs = Func->FunctionFlags;
+	Func->FunctionFlags |= 0x400;
+)";
+
+		std::string ParamDescriptionCommentString = "// Parameters:\n";
+		std::string ParamAssignments;
+		std::string OutPtrAssignments;
+
+		const bool bHasParams = !FuncInfo.UnrealFuncParams.empty();
+		bool bHasParamsToInit = false;
+		bool bHasOutParamsToInit = false;
+
+		for (const ParamInfo& PInfo : FuncInfo.UnrealFuncParams)
+		{
+			ParamDescriptionCommentString += std::format("//{:{}}{:{}}({})\n", PInfo.Type, 40, PInfo.Name, 55, StringifyPropertyFlags(PInfo.PropFlags));
+
+			if (PInfo.bIsOutPtr)
+			{
+				OutPtrAssignments += PInfo.bIsMoveParam ? std::format(R"(
+	if ({0} != nullptr)
+		*{0} = Parms.{0};)", PInfo.Name) : std::format(R"(
+	if ({0} != nullptr)
+		*{0} = std::move(Parms.{0});)", PInfo.Name);
+				bHasOutParamsToInit = true;
+			}
+			else
+			{
+				ParamAssignments += PInfo.bIsMoveParam ? std::format("\tParms.{0} = std::move({0});\n", PInfo.Name) : std::format("\tParms.{0} = {0};\n", PInfo.Name);
+				bHasParamsToInit = true;
+			}
+		}
+
+		//ParamAssignments = ParamAssignments + '\n';
+		ParamAssignments = '\n' + ParamAssignments;
+		OutPtrAssignments = '\n' + OutPtrAssignments;
+
+		constexpr const char* RestoreFunctionFlagsString = R"(
+
+	Func->FunctionFlags = Flgs;)";
+
+		constexpr const char* ReturnValueString = R"(
+
+	return Parms.ReturnValue;)";
+
+		UEFunction UnrealFunc = Func.GetUnrealFunction();
+
+		const bool bIsNativeFunc = Func.HasFunctionFlag(EFunctionFlags::Native);
+
+		// Function implementation generation
+		std::string FunctionImplementation = std::format(R"(
+// {}
+// ({})
+{}
+{} {}::{}
+{{
+	static class UFunction* Func = nullptr;
+
+	if (Func == nullptr)
+		Func = Class->GetFunction("{}", "{}");
+{}{}{}
+	UObject::ProcessEvent(Func, {});{}{}{}
+}}
+
+)"  , UnrealFunc.GetFullName()
+    , StringifyFunctionFlags(FuncInfo.FuncFlags)
+    , bHasParams ? ParamDescriptionCommentString : ""
+    , FuncInfo.RetType
+    , StructName
+    , FuncInfo.FuncNameWithParams
+    , UnrealFunc.GetOuter().GetName()
+    , UnrealFunc.GetName()
+    , bHasParams ? ParamVarCreationString : ""
+    , bHasParamsToInit ? ParamAssignments : ""
+    , bIsNativeFunc ? StoreFunctionFlagsString : ""
+    , bHasParams ? "Parms" : "nullptr"
+    , bIsNativeFunc ? RestoreFunctionFlagsString : ""
+    , bHasOutParamsToInit ? OutPtrAssignments : ""
+    , !FuncInfo.bIsReturningVoid ? ReturnValueString : "");
+
+		FunctionFile << FunctionImplementation;
 	}
 
 	return InHeaderFunctionText;

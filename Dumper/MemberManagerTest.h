@@ -212,31 +212,36 @@ public:
 			- GetNullPtr
 		*/
 		APawnFunctions = {
-			PredefinedFunction{
+			PredefinedFunction {
+				"// Function tells if if this pawn is reel",
 				"bool",
 				"IsReelPawn(bool bIsGuaranteedToBePawn)",
 				"\t{\n\t\treturn bIsGuaranteedToBePawn + 4;\n\t}"
 				, false, false, false
 		},
-			PredefinedFunction{
+			PredefinedFunction {
+				"/* Gets a bunch of actors or smoething, idk */",
 				"TArray<class AActor*>*",
 				"GetActors(int a1)",
 				"\t{\n\t\treturn reinterpret_cast<TArray<class AActor*>*>(&a2);\n\t}"
 				, true, false, false
 		},
-			PredefinedFunction{
+			PredefinedFunction {
+				"",
 				"std::nullptr_t",
 				"GetNullPtr()",
 				"\t{\n\t\treturn nullptr;\n\t}"
 				, false, false, true
 		},
-			PredefinedFunction{
+			PredefinedFunction {
+				"",
 				"std::nullptr_t",
 				"GetNullPtrConst()",
 				"\t{\n\t\treturn nullptr;\n\t}"
 				, false, true, true
 		},
-			PredefinedFunction{
+			PredefinedFunction {
+				"",
 				"void",
 				"StaticTestFunc(bool* bIsGuaranteedToBePawn)",
 				"\t{\n\t\t*bIsGuaranteedToBePawn = true;\n\t}"

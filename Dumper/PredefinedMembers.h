@@ -22,6 +22,7 @@ struct PredefinedMember
 
 struct PredefinedFunction
 {
+    std::string CustomComment;
     std::string ReturnType;
     std::string NameWithParams;
 

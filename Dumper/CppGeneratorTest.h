@@ -10,34 +10,39 @@ class CppGeneratorTest : protected TestBase
 {
 private:
 	static inline std::vector<PredefinedFunction> TestFunctions = {
-		PredefinedFunction{
+		PredefinedFunction {
+			"// Function tells if if this pawn is reel",
 			"bool",
 			"IsReelPawn(bool bIsGuaranteedToBePawn)",
-			"\t{\n\t\treturn bIsGuaranteedToBePawn + 4;\n\t}"
+			"{\n\treturn bIsGuaranteedToBePawn + 4;\n}"
 			, false, false, false
 		},
-		PredefinedFunction{
+		PredefinedFunction {
+			"/* Gets a bunch of actors or smoething, idk */",
 			"TArray<class AActor*>*",
 			"GetActors(int a1)",
-			"\t{\n\t\treturn reinterpret_cast<TArray<class AActor*>*>(&a2);\n\t}"
+			"{\n\treturn reinterpret_cast<TArray<class AActor*>*>(&a2);\n}"
 			, true, false, false
 		},
-		PredefinedFunction{
+		PredefinedFunction {
+			"",
 			"std::nullptr_t",
 			"GetNullPtr()",
-			"\t{\n\t\treturn nullptr;\n\t}"
+			"{\n\treturn nullptr;\n}"
 			, false, false, true
 		},
-		PredefinedFunction{
+		PredefinedFunction {
+			"",
 			"std::nullptr_t",
 			"GetNullPtrConst()",
-			"\t{\n\t\treturn nullptr;\n\t}"
+			"{\n\treturn nullptr;\n}"
 			, false, true, true
 		},
-		PredefinedFunction{
+		PredefinedFunction {
+			"",
 			"void",
 			"StaticTestFunc(bool* bIsGuaranteedToBePawn)",
-			"\t{\n\t\t*bIsGuaranteedToBePawn = true;\n\t}"
+			"{\n\t*bIsGuaranteedToBePawn = true;\n}"
 			, true, false, true
 		}
 	};
@@ -64,7 +69,7 @@ private:
 
 		ClassFile = std::ofstream(BasePath / "CPP_classes.hpp", std::ios::trunc);
 		StructFile = std::ofstream(BasePath / "CPP_structs.hpp", std::ios::trunc);
-		FunctionFile = std::ofstream(BasePath / "CPP_functions.hpp", std::ios::trunc);
+		FunctionFile = std::ofstream(BasePath / "CPP_functions.cpp", std::ios::trunc);
 		ParamFile = std::ofstream(BasePath / "CPP_params.hpp", std::ios::trunc);
 
 		bDidInit = true;
@@ -157,6 +162,7 @@ public:
 
 		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("Pawn"), ClassFile, FunctionFile, ParamFile);
 		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("KismetSystemLibrary"), ClassFile, FunctionFile, ParamFile);
+		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("KismetMathLibrary"), ClassFile, FunctionFile, ParamFile);
 		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("ABPI_WeaponAnimLayer_C"), ClassFile, FunctionFile, ParamFile);
 	}
 };
