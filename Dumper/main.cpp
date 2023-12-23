@@ -55,20 +55,7 @@ DWORD MainThread(HMODULE Module)
 	
 	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 
-	while (true)
-	{
-		if (GetAsyncKeyState(VK_F6) & 1)
-		{
-			fclose(stdout);
-			if (Dummy) fclose(Dummy);
-			FreeConsole();
-
-			FreeLibraryAndExitThread(Module, 0);
-		}
-
-		Sleep(100);
-	}
-
+	FreeLibraryAndExitThread(Module, 0);
 	return 0;
 }
 
@@ -77,7 +64,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 	switch (reason)
 	{
 	case DLL_PROCESS_ATTACH:
-		CreateThread(0, 0, (LPTHREAD_START_ROUTINE)MainThread, hModule, 0, 0);
+		CloseHandle(CreateThread(0, 0, (LPTHREAD_START_ROUTINE)MainThread, hModule, 0, 0));
 		break;
 	}
 
