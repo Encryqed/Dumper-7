@@ -521,12 +521,35 @@ void CppGenerator::Generate(const std::unordered_map<int32, PackageInfo>& Depend
 {
 	// Launch NumberOfProcessorCores threads
 
+	// Generate one package, open streams
+
 	// Generate Basic.hpp and Basic.cpp files
 
 	// Generate SDK.hpp with sorted packages
 
 	// Generate NameCollisions.inl file containing forward declarations for classes in namespaces (potentially requires lock)
+	std::ofstream NameCollisionsInl(MainFolder / "NameCollisions.inl");
+	const StructManager::OverrideMaptType& StructInfoMap = StructManager::GetStructInfos();
 
+	std::unordered_map<int32 /* PackageIdx */, std::string> PackagesAndForwardDeclarations;
+
+	for (const auto& [Index, Info] : StructInfoMap)
+	{
+		if (StructManager::IsStructNameUnique(Info.Name))
+			continue;
+
+		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
+
+		PackagesAndForwardDeclarations[Struct.GetOutermost().GetIndex()] += '\t' + Struct.GetCppName() + ';';
+	}
+
+	for (const auto& [PackageIndex, ForwardDeclarations] : PackagesAndForwardDeclarations)
+	{
+		NameCollisionsInl << std::format(R"(
+namespace {} {{
+{}
+}})", ObjectArray::GetByIndex(PackageIndex).GetValidName(), ForwardDeclarations);
+	}
 }
 
 void CppGenerator::InitPredefinedMembers()

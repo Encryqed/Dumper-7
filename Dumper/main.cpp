@@ -57,6 +57,29 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
+	const StructManager::OverrideMaptType& StructInfoMap = StructManager::GetStructInfos();
+
+	std::unordered_map<int32 /* PackageIdx */, std::string> PackagesAndForwardDeclarations;
+
+	for (const auto& [Index, Info] : StructInfoMap)
+	{
+		if (StructManager::IsStructNameUnique(Info.Name))
+			continue;
+
+		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
+
+		PackagesAndForwardDeclarations[Struct.GetOutermost().GetIndex()] += '\t' + Struct.GetCppName() + ';';
+	}
+
+	for (const auto& [PackageIndex, ForwardDeclarations] : PackagesAndForwardDeclarations)
+	{
+		std::cout << std::format(R"(
+namespace {} {{
+{}
+}}
+)", ObjectArray::GetByIndex(PackageIndex).GetValidName(), ForwardDeclarations);
+	}
+
 	//CppGeneratorTest::TestAll();
 
 	//HashStringTableTest::TestAll();
@@ -65,12 +88,23 @@ DWORD MainThread(HMODULE Module)
 	//CollisionManagerTest::TestAll();
 	//MemberManagerTest::TestAll();
 
-	MemberManagerTest::TestFunctionIterator<true>();
+	//MemberManagerTest::TestFunctionIterator<true>();
 
-	MemberManager::SetPredefinedMemberLookupPtr(&CppGenerator::PredefinedMembers);
+	//CppGeneratorTest::TestAll();
 
-	CppGeneratorTest::TestAll();
-	std::cout << std::endl;
+	for (int i = 0; i < 100; i++)
+	{
+		for (auto Obj : ObjectArray())
+		{
+			Obj.GetFullName();
+
+			if (Obj.IsA(EClassCastFlags::Struct))
+			{
+				for (auto Prop : Obj.Cast<UEStruct>().GetProperties())
+					Prop.GetName();
+			}
+		}
+	}
 	
 	//GeneratorRewrite::Generate<CppGenerator>();
 

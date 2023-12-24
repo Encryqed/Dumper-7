@@ -71,9 +71,12 @@ private:
 	friend StructInfoHandle;
 	friend class StructManagerTest;
 
+public:
+	using OverrideMaptType = std::unordered_map<int32 /*StructIdx*/, StructInfo>;
+
 private:
 	static inline HashStringTable UniqueNameTable;
-	static inline std::unordered_map<int32 /*StructIdx*/, StructInfo> StructInfoOverrides;
+	static inline OverrideMaptType StructInfoOverrides;
 
 	static inline bool bIsInitialized = false;
 
@@ -91,6 +94,16 @@ private:
 	}
 
 public:
+	static inline const OverrideMaptType& GetStructInfos()
+	{
+		return StructInfoOverrides;
+	}
+
+	static inline bool IsStructNameUnique(HashStringTableIndex NameIndex)
+	{
+		return UniqueNameTable[NameIndex].IsUnique();
+	}
+
 	static inline StructInfoHandle GetInfo(const UEStruct Struct)
 	{
 		if (!Struct)

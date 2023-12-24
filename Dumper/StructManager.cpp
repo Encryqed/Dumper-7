@@ -138,9 +138,6 @@ void StructManager::InitSizesAndIsFinal()
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
 
-		if (ObjAsStruct.GetOuter().GetName() == "Pawn")
-			std::cout << std::endl;
-
 		StructInfo& NewOrExistingInfo = StructInfoOverrides[Obj.GetIndex()];
 
 		// Initialize struct-size if it wasn't set already

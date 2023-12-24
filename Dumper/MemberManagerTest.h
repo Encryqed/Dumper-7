@@ -21,7 +21,7 @@ public:
 		TestMemberIterator<bDoDebugPrinting>();
 		TestFunctionIterator<bDoDebugPrinting>();
 
-		std::cout << std::endl;
+		PrintDbgMessage<bDoDebugPrinting>("");
 	}
 
 	template<bool bDoDebugPrinting = false>

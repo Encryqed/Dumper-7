@@ -83,7 +83,7 @@ public:
 		TestUnrealStructGeneration<bDoDebugPrinting>();
 		TestUnrealClassGeneration<bDoDebugPrinting>();
 
-		std::cout << std::endl;
+		PrintDbgMessage<bDoDebugPrinting>("");
 	}
 
 	template<bool bDoDebugPrinting = false>

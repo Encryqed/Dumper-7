@@ -15,7 +15,7 @@ public:
 		TestInit<bDoDebugPrinting>();
 		TestInfo<bDoDebugPrinting>();
 		TestIsFinal<bDoDebugPrinting>();
-		std::cout << std::endl;
+		PrintDbgMessage<bDoDebugPrinting>("");
 	}
 
 	template<bool bDoDebugPrinting = false>

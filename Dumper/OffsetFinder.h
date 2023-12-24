@@ -5,6 +5,8 @@
 
 namespace OffsetFinder
 {
+	constexpr int32 OffsetNotFound = -1;
+
 	template<int Alignement = 4, typename T>
 	inline int32_t FindOffset(std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = 0x28, int MaxOffset = 0x1A0)
 	{
@@ -28,14 +30,14 @@ namespace OffsetFinder
 			}
 		}
 
-		return HighestFoundOffset != MinOffset ? HighestFoundOffset : -1;
+		return HighestFoundOffset != MinOffset ? HighestFoundOffset : OffsetNotFound;
 	}
 
 	template<bool bCheckForVft = true>
 	inline int32_t GetValidPointerOffset(uint8_t* ObjA, uint8_t* ObjB, int32_t StartingOffset, int32_t MaxOffset)
 	{
 		if (IsBadReadPtr(ObjA) || IsBadReadPtr(ObjB))
-			return -1;
+			return OffsetNotFound;
 
 		for (int j = StartingOffset; j <= MaxOffset; j += 0x8)
 		{
@@ -46,7 +48,7 @@ namespace OffsetFinder
 				return j;
 		}
 
-		return -1;
+		return OffsetNotFound;
 	};
 
 	/* UObject */
@@ -73,7 +75,7 @@ namespace OffsetFinder
 		Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8, 0x40);
 
 		// loop a few times in case we accidentally choose a UPackage (which doesn't have an Outer) to find Outer
-		while (Off::UObject::Outer == -1)
+		while (Off::UObject::Outer == OffsetNotFound)
 		{
 			ObjA = (uint8*)ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
 			ObjB = (uint8*)ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
@@ -229,7 +231,7 @@ namespace OffsetFinder
 				return Off::FField::Name;
 		}
 
-		return -1;
+		return OffsetNotFound;
 	}
 
 	/* UEnum */
@@ -287,7 +289,7 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindObjectFast("PlayerController").GetAddress(), ObjectArray::FindObjectFastInOuter("WasInputKeyJustReleased", "PlayerController").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("Controller").GetAddress(), ObjectArray::FindObjectFastInOuter("UnPossess", "Controller").GetAddress() });
 
-		if (FindOffset(Infos) == 0x28)
+		if (FindOffset(Infos) == OffsetNotFound)
 		{
 			Infos.clear();
 
@@ -343,7 +345,7 @@ namespace OffsetFinder
 
 		int32 Ret = FindOffset(Infos);
 
-		if (Ret == 0x28)
+		if (Ret == OffsetNotFound)
 		{
 			for (auto& [_, Flags] : Infos)
 				Flags = Flags | EFunctionFlags::RequiredAPI;
@@ -462,7 +464,7 @@ namespace OffsetFinder
 		int FlagsOffset = FindOffset(Infos);
 
 		// Same flags without AccessSpecifier or Hashing flags
-		if (FlagsOffset == 0x28)
+		if (FlagsOffset == OffsetNotFound)
 		{
 			Infos[1].second = EPropertyFlags::ZeroConstructor;
 			Infos[0].second = EPropertyFlags::NoDestructor;
@@ -653,6 +655,6 @@ namespace OffsetFinder
 			}
 		}
 
-		return -1;
+		return OffsetNotFound;
 	}
 }

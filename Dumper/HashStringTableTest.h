@@ -15,7 +15,7 @@ public:
 		TestUniqueNames<bDoDebugPrinting>();
 		TestUniqueMemberNames<bDoDebugPrinting>();
 		TestUniqueStructNames<bDoDebugPrinting>();
-		std::cout << std::endl;
+		PrintDbgMessage<bDoDebugPrinting>("");
 	}
 
 	template<bool bDoDebugPrinting = false>
