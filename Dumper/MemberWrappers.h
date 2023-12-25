@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 #include "ObjectArray.h"
-#include "NameCollisionHandler.h"
+#include "CollisionManager.h"
 #include "StructWrapper.h"
 
 class PropertyWrapper

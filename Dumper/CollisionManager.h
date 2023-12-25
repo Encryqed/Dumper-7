@@ -59,25 +59,52 @@ public:
 	}
 };
 
-namespace CollisionManager
+namespace KeyFunctions
 {
+	/* Make a unique key from UEProperty/UEFunction for NameTranslation */
+	uint64 GetKeyForCollisionInfo(UEStruct Super, UEProperty Member);
+	uint64 GetKeyForCollisionInfo(UEStruct Super, UEFunction Function);
+}
+
+class CollisionManager
+{
+private:
+	friend class CollisionManagerTest;
+	friend class MemberManagerTest;
+
+public:
 	using NameContainer = std::vector<NameInfo>;
 
 	using NameInfoMapType = std::unordered_map<uint64, NameContainer>;
 	using TranslationMapType = std::unordered_map<uint64, uint64>;
 
-	namespace KeyFunctions
-	{
-		/* Make a unique key from UEProperty/UEFunction for NameTranslation */
-		uint64 GetKeyForCollisionInfo(UEStruct Super, UEProperty Member);
-		uint64 GetKeyForCollisionInfo(UEStruct Super, UEFunction Function);
-	}
+private:
+	/* Nametable used for storing the string-names of member-/function-names contained by NameInfos */
+	HashStringTable MemberNames;
 
+	/* Member-names and name-collision info*/
+	CollisionManager::NameInfoMapType NameInfos;
+
+	/* Map to translation from UEProperty/UEFunction to Index in NameContainer */
+	CollisionManager::TranslationMapType TranslationMap;
+
+private:
 	/* Returns index of NameInfo inside of the NameContainer it was added to */
-	uint64 AddNameToContainer(NameInfoMapType& Names, NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr);
+	uint64 AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr);
 
-	void AddStructToNameContainer(NameInfoMapType& Names, TranslationMapType& TranslationMap, HashStringTable& MemberNames, UEStruct ObjAsStruct);
+public:
+	void AddStructToNameContainer(UEStruct ObjAsStruct);
 
-	std::string StringifyName(HashStringTable& MemberNames, UEStruct Struct, NameInfo Info);
+	std::string StringifyName(UEStruct Struct, NameInfo Info);
+
+public:
+	template<typename UEType>
+	inline NameInfo GetNameCollisionInfoUnchecked(UEStruct Struct, UEType Member)
+	{
+		CollisionManager::NameContainer& InfosForStruct = NameInfos[Struct.GetIndex()];
+		uint64 NameInfoIndex = TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Struct, Member)];
+
+		return InfosForStruct[NameInfoIndex];
+	}
 };
 

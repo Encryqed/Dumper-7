@@ -47,7 +47,7 @@
     <ClCompile Include="MemberManager.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
-    <ClCompile Include="NameCollisionHandler.cpp">
+    <ClCompile Include="CollisionManager.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
     <ClCompile Include="MemberWrappers.cpp">
@@ -165,7 +165,7 @@
     <ClInclude Include="CollisionManagerTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
-    <ClInclude Include="NameCollisionHandler.h">
+    <ClInclude Include="CollisionManager.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
     <ClInclude Include="MemberWrappers.h">

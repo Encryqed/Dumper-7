@@ -1,7 +1,7 @@
 #pragma once
 #include "ObjectArray.h"
 #include "HashStringTable.h"
-#include "NameCollisionHandler.h"
+#include "CollisionManager.h"
 #include "TestBase.h"
 
 inline uint64 TempGlobalNameCounter = 0x0;
@@ -14,6 +14,7 @@ public:
 	static inline void TestAll()
 	{
 		TestKeyCreationFunctions<bDoDebugPrinting>();
+		TestNameTranslation<bDoDebugPrinting>();
 		TestMakeNamesUnique<bDoDebugPrinting>();
 
 		PrintDbgMessage<bDoDebugPrinting>("");
@@ -38,7 +39,7 @@ public:
 
 			for (UEProperty Property : Struct.GetProperties())
 			{
-				uint64 Key = CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Property);
+				uint64 Key = KeyFunctions::GetKeyForCollisionInfo(Struct, Property);
 
 				Counter++;
 				if (!Idx.insert(Key).second)
@@ -50,7 +51,7 @@ public:
 
 			for (UEFunction Function : Struct.GetFunctions())
 			{
-				uint64 Key = CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Function);
+				uint64 Key = KeyFunctions::GetKeyForCollisionInfo(Struct, Function);
 
 				Counter++;
 				if (!Idx.insert(Key).second)
@@ -61,7 +62,7 @@ public:
 
 				for (UEProperty Property : Function.GetProperties())
 				{
-					uint64 Key2 = CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Property);
+					uint64 Key2 = KeyFunctions::GetKeyForCollisionInfo(Struct, Property);
 
 					Counter++;
 					if (!Idx.insert(Key2).second)
@@ -76,21 +77,109 @@ public:
 		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
+	template<bool bDoDebugPrinting = false>
+	static inline void TestNameTranslation()
+	{
+		MemberManager::InitMemberNameCollisions();
+
+		auto TestName = [](CollisionManager& Manager, const CollisionManager::NameContainer& Container, UEStruct Struct, auto Member) -> bool
+		{
+			auto [Index, bWasAdded] = Manager.MemberNames.FindOrAdd(Member.GetValidName());
+
+			if (bWasAdded)
+			{
+				PrintDbgMessage<bDoDebugPrinting>("Error on name '{}'. Name was not found in MemberNameTable!", Member.GetValidName());
+				return false;
+			}
+
+			auto It = Container.begin();
+
+			uint64 InContainerIndex = 0x0;
+			uint64 TranslatedIndex = 0x0;
+
+			while (It != Container.end())
+			{
+				It = std::find_if(It, Container.end(), [Index](const NameInfo& Value) -> bool { return Value.Name == Index; });
+				if (It == Container.end())
+				{
+					PrintDbgMessage<bDoDebugPrinting>("Error on name '{}'. Name was not found in NameContainer!", Member.GetValidName());
+					return false;
+				}
+
+				InContainerIndex = It - Container.begin();
+				TranslatedIndex = Manager.TranslationMap.at(KeyFunctions::GetKeyForCollisionInfo(Struct, Member));
+
+				if (InContainerIndex == TranslatedIndex)
+					return true;
+
+				std::advance(It, 1);
+			}
+
+			PrintDbgMessage<bDoDebugPrinting>("Struct: {}\nMember: {}", Struct.GetFullName(), Member.GetName());
+			PrintDbgMessage<bDoDebugPrinting>("Error on name '{}'. TranslationIndex != Index (0x{:X} <<  != 0x{:X})", Member.GetValidName(), TranslatedIndex, InContainerIndex);
+
+			return true;
+		};
+
+		auto TestEvenHarder = [](CollisionManager& Manager, const CollisionManager::NameContainer& Container, UEStruct Struct, auto Member) -> bool
+		{
+			uint64 TranslatedIndex = Manager.TranslationMap.at(KeyFunctions::GetKeyForCollisionInfo(Struct, Member));
+
+			if (Manager.MemberNames.GetStringEntry(Container[TranslatedIndex].Name).GetName() != Member.GetValidName())
+			{
+				PrintDbgMessage<bDoDebugPrinting>("Error '{}' != '{}'", Manager.MemberNames.GetStringEntry(Container[TranslatedIndex].Name).GetName(), Member.GetValidName());
+				return false;
+			}
+
+			return true;
+		};
+
+		bool bSuccededTestWithoutError = true;
+
+		CollisionManager& Manager = MemberManager::MemberNames;
+
+		for (const auto& [StructIdx, Container] : Manager.NameInfos)
+		{
+			UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(StructIdx);
+
+			for (UEProperty Property : Struct.GetProperties())
+			{
+				SetBoolIfFailed(bSuccededTestWithoutError, TestName(Manager, Container, Struct, Property));
+				SetBoolIfFailed(bSuccededTestWithoutError, TestEvenHarder(Manager, Container, Struct, Property));
+			}
+
+			for (UEFunction Function : Struct.GetFunctions())
+			{
+				SetBoolIfFailed(bSuccededTestWithoutError, TestName(Manager, Container, Struct, Function));
+				SetBoolIfFailed(bSuccededTestWithoutError, TestEvenHarder(Manager, Container, Struct, Function));
+
+				if (!Function.HasMembers())
+					continue;
+
+				const CollisionManager::NameContainer& FuncContainer = Manager.NameInfos.at(Function.GetIndex());
+
+				for (UEProperty Property : Function.GetProperties())
+				{
+					SetBoolIfFailed(bSuccededTestWithoutError, TestName(Manager, FuncContainer, Function, Property));
+					SetBoolIfFailed(bSuccededTestWithoutError, TestEvenHarder(Manager, FuncContainer, Function, Property));
+				}
+			}
+		}
+
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
+	}
 
 	template<bool bDoDebugPrinting = false>
 	static inline void TestMakeNamesUnique()
 	{
-		HashStringTable MemberNames;
-
-		CollisionManager::NameInfoMapType Names;
-		CollisionManager::TranslationMapType NameTranslations;
+		CollisionManager Manager;
 
 		for (UEObject Obj : ObjectArray())
 		{
 			if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function))
 				continue;
 
-			CollisionManager::AddStructToNameContainer(Names, NameTranslations, MemberNames, Obj.Cast<UEStruct>());
+			Manager.AddStructToNameContainer(Obj.Cast<UEStruct>());
 		}
 
 		uint64 NumNames = 0x0;
@@ -98,7 +187,7 @@ public:
 
 		bool bSuccededTestWithoutError = true;
 
-		for (auto [StructIdx, NameContainer] : Names)
+		for (auto [StructIdx, NameContainer] : Manager.NameInfos)
 		{
 			const UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(StructIdx);
 			const bool bIsFunction = Struct.IsA(EClassCastFlags::Function);
@@ -118,7 +207,7 @@ public:
 			}
 		}
 
-		PrintCollidingNames(Names, MemberNames);
+		PrintCollidingNames(Manager.NameInfos, Manager.MemberNames);
 
 
 		PrintDbgMessage<bDoDebugPrinting>("GlobalNumNames: {}", TempGlobalNameCounter);

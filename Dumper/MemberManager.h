@@ -3,7 +3,7 @@
 #include <memory>
 #include "ObjectArray.h"
 #include "HashStringTable.h"
-#include "NameCollisionHandler.h"
+#include "CollisionManager.h"
 #include "PredefinedMembers.h"
 
 
@@ -175,19 +175,14 @@ private:
 	friend class StructWrapper;
 	friend class FunctionWrapper;
 	friend class MemberManagerTest;
+	friend class CollisionManagerTest;
 
 private:
-	/* Nametable used for storing the string-names of member-/function-names contained by NameInfos */
-	static inline HashStringTable MemberNames;
-
-	/* Member-names and name-collision info*/
-	static inline CollisionManager::NameInfoMapType NameInfos;
-
-	/* Map to translation from UEProperty/UEFunction to Index in NameContainer */
-	static inline CollisionManager::TranslationMapType TranslationMap;
-
 	/* Map to lookup if a struct has predefined members */
 	static inline const PredefinedMemberLookupMapType* PredefinedMemberLookup = nullptr;
+
+	/* CollisionManager containing information on colliding member-/function-names */
+	static inline CollisionManager MemberNames;
 
 private:
 	const std::shared_ptr<StructWrapper> Struct;
@@ -241,7 +236,7 @@ public:
 
 	static inline void AddStructToNameContainer(UEStruct Struct)
 	{
-		CollisionManager::AddStructToNameContainer(NameInfos, TranslationMap, MemberNames, Struct);
+		MemberNames.AddStructToNameContainer(Struct);
 	}
 
 	template<typename UEType>
@@ -251,15 +246,12 @@ public:
 
 		assert(Struct && "'GetNameCollisionInfo()' called with 'Struct' == nullptr");
 		assert(Member && "'GetNameCollisionInfo()' called with 'Member' == nullptr");
-
-		CollisionManager::NameContainer& InfosForStruct = NameInfos[Struct.GetIndex()];
-		uint64 NameInfoIndex = TranslationMap[CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Member)];
-
-		return InfosForStruct[NameInfoIndex];
+		
+		return MemberNames.GetNameCollisionInfoUnchecked(Struct, Member);
 	}
 
 	static inline std::string StringifyName(UEStruct Struct, NameInfo Name)
 	{
-		return CollisionManager::StringifyName(MemberNames, Struct, Name);
+		return MemberNames.StringifyName(Struct, Name);
 	}
 };

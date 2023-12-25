@@ -1,4 +1,4 @@
-#include "NameCollisionHandler.h"
+#include "CollisionManager.h"
 
 
 NameInfo::NameInfo(HashStringTableIndex NameIdx, ECollisionType CurrentType)
@@ -39,7 +39,7 @@ bool NameInfo::HasCollisions() const
 	return false;
 }
 
-uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo(UEStruct Super, UEProperty Member)
+uint64 KeyFunctions::GetKeyForCollisionInfo(UEStruct Super, UEProperty Member)
 {
 	uint64 Key = 0x0;
 
@@ -55,7 +55,7 @@ uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo(UEStruct Super, UE
 	return reinterpret_cast<uint64>(Member.GetAddress());
 }
 
-uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo([[maybe_unused]] UEStruct Super, UEFunction Member)
+uint64 KeyFunctions::GetKeyForCollisionInfo([[maybe_unused]] UEStruct Super, UEFunction Member)
 {
 	uint64 Key = 0x0;
 
@@ -69,7 +69,7 @@ uint64 CollisionManager::KeyFunctions::GetKeyForCollisionInfo([[maybe_unused]] U
 	return Key;
 }
 
-uint64 CollisionManager::AddNameToContainer(NameInfoMapType& Names, NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func)
+uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func)
 {
 	static auto AddCollidingName = [](const NameContainer& SearchNames, NameContainer* OutTargetNames, HashStringTableIndex NameIdx, ECollisionType CurrentType, bool bIsSuper) -> bool
 	{
@@ -107,7 +107,7 @@ uint64 CollisionManager::AddNameToContainer(NameInfoMapType& Names, NameContaine
 
 	if (Func)
 	{
-		FuncParamNames = &Names[Func.GetIndex()];
+		FuncParamNames = &NameInfos[Func.GetIndex()];
 
 		if (bWasInserted && bIsParameter)
 		{
@@ -127,7 +127,7 @@ uint64 CollisionManager::AddNameToContainer(NameInfoMapType& Names, NameContaine
 
 	for (UEStruct Current = Struct.GetSuper(); Current; Current = Current.GetSuper())
 	{
-		NameContainer& SuperNames = Names[Current.GetIndex()];
+		NameContainer& SuperNames = NameInfos[Current.GetIndex()];
 
 		if (AddCollidingName(SuperNames, TargetNameContainer, NameIdx, CurrentType, true))
 			return TargetNameContainer->size() - 1;
@@ -146,22 +146,22 @@ uint64 CollisionManager::AddNameToContainer(NameInfoMapType& Names, NameContaine
 	}
 }
 
-void CollisionManager::AddStructToNameContainer(NameInfoMapType& Names, TranslationMapType& TranslationMap,  HashStringTable& MemberNames, UEStruct Struct)
+void CollisionManager::AddStructToNameContainer(UEStruct Struct)
 {
 	if (UEStruct Super = Struct.GetSuper())
 	{
-		if (Names.find(Super.GetIndex()) == Names.end())
-			AddStructToNameContainer(Names, TranslationMap, MemberNames, Super);
+		if (NameInfos.find(Super.GetIndex()) == NameInfos.end())
+			AddStructToNameContainer(Super);
 	}
 
-	NameContainer& StructNames = Names[Struct.GetIndex()];
+	NameContainer& StructNames = NameInfos[Struct.GetIndex()];
 
 	if (!StructNames.empty())
 		return;
 
 	auto AddToContainerAndTranslationMap = [&](auto Member, ECollisionType CollisionType, UEFunction Func = nullptr) -> void
 	{
-		const uint64 Index = AddNameToContainer(Names, StructNames, Struct, MemberNames.FindOrAdd(Member.GetValidName()), CollisionType, Func);
+		const uint64 Index = AddNameToContainer(StructNames, Struct, MemberNames.FindOrAdd(Member.GetValidName()), CollisionType, Func);
 
 		const auto [It, bInserted] = TranslationMap.emplace(KeyFunctions::GetKeyForCollisionInfo(Struct, Member), Index);
 		
@@ -181,7 +181,7 @@ void CollisionManager::AddStructToNameContainer(NameInfoMapType& Names, Translat
 	}
 };
 
-std::string CollisionManager::StringifyName(HashStringTable& MemberNames, UEStruct Struct, NameInfo Info)
+std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 {
 	ECollisionType OwnCollisionType = static_cast<ECollisionType>(Info.OwnType);
 

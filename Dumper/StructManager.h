@@ -104,6 +104,12 @@ public:
 		return UniqueNameTable[NameIndex].IsUnique();
 	}
 
+	// debug function
+	static inline std::string GetName(HashStringTableIndex NameIndex)
+	{
+		return UniqueNameTable[NameIndex].GetName();
+	}
+
 	static inline StructInfoHandle GetInfo(const UEStruct Struct)
 	{
 		if (!Struct)

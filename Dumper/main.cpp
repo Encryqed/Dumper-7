@@ -61,14 +61,31 @@ DWORD MainThread(HMODULE Module)
 
 	std::unordered_map<int32 /* PackageIdx */, std::string> PackagesAndForwardDeclarations;
 
+	StructManager::Init();
+
+	// FName is the same for both UOnlineEngineInterfaceImpls
+	std::cout << std::endl;
+	for (UEObject Obj : ObjectArray())
+	{
+		if (Obj.IsA(EClassCastFlags::Class) && Obj.GetCppName() == "UOnlineEngineInterfaceImpl")
+			std::cout << "UOnlineEngineInterfaceImpl: " << Obj.GetAddress() << std::endl;
+	}
+	std::cout << std::endl;
+
+
 	for (const auto& [Index, Info] : StructInfoMap)
 	{
+		if (StructManager::GetName(Info.Name).find("nimBlueprintGenera") != -1)
+		{
+			std::cout << std::format("IsUnique: {}", StructManager::IsStructNameUnique(Info.Name)) << std::endl;
+		}
+
 		if (StructManager::IsStructNameUnique(Info.Name))
 			continue;
 
 		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
 
-		PackagesAndForwardDeclarations[Struct.GetOutermost().GetIndex()] += '\t' + Struct.GetCppName() + ';';
+		PackagesAndForwardDeclarations[Struct.GetOutermost().GetIndex()] += std::format("\t{} {};\n", Struct.IsA(EClassCastFlags::Class) ? "class" : "struct", Struct.GetCppName());
 	}
 
 	for (const auto& [PackageIndex, ForwardDeclarations] : PackagesAndForwardDeclarations)
@@ -77,34 +94,34 @@ DWORD MainThread(HMODULE Module)
 namespace {} {{
 {}
 }}
-)", ObjectArray::GetByIndex(PackageIndex).GetValidName(), ForwardDeclarations);
+)", ObjectArray::GetByIndex(PackageIndex).GetValidName(), ForwardDeclarations.substr(0, ForwardDeclarations.size() - 1));
 	}
 
-	//CppGeneratorTest::TestAll();
 
-	//HashStringTableTest::TestAll();
-	//GeneratorRewriteTest::TestAll();
-	//StructManagerTest::TestAll();
-	//CollisionManagerTest::TestAll();
-	//MemberManagerTest::TestAll();
+	CppGeneratorTest::TestAll();
+	HashStringTableTest::TestAll();
+	GeneratorRewriteTest::TestAll();
+	StructManagerTest::TestAll();
+	CollisionManagerTest::TestAll();
+	MemberManagerTest::TestAll();
 
 	//MemberManagerTest::TestFunctionIterator<true>();
 
 	//CppGeneratorTest::TestAll();
 
-	for (int i = 0; i < 100; i++)
-	{
-		for (auto Obj : ObjectArray())
-		{
-			Obj.GetFullName();
-
-			if (Obj.IsA(EClassCastFlags::Struct))
-			{
-				for (auto Prop : Obj.Cast<UEStruct>().GetProperties())
-					Prop.GetName();
-			}
-		}
-	}
+	//for (int i = 0; i < 100; i++)
+	//{
+	//	for (auto Obj : ObjectArray())
+	//	{
+	//		Obj.GetFullName();
+	//
+	//		if (Obj.IsA(EClassCastFlags::Struct))
+	//		{
+	//			for (auto Prop : Obj.Cast<UEStruct>().GetProperties())
+	//				Prop.GetName();
+	//		}
+	//	}
+	//}
 	
 	//GeneratorRewrite::Generate<CppGenerator>();
 

@@ -1,6 +1,6 @@
 #pragma once
 #include "ObjectArray.h"
-#include "NameCollisionHandler.h"
+#include "CollisionManager.h"
 #include "StructManager.h"
 #include "MemberManager.h"
 #include "PredefinedMembers.h"

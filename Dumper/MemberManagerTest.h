@@ -17,7 +17,6 @@ public:
 	static inline void TestAll()
 	{
 		TestInit<bDoDebugPrinting>();
-		TestNameTranslation<bDoDebugPrinting>();
 		TestMemberIterator<bDoDebugPrinting>();
 		TestFunctionIterator<bDoDebugPrinting>();
 
@@ -29,107 +28,18 @@ public:
 	{
 		MemberManager::InitMemberNameCollisions();
 
-		size_t FirstInitSize = MemberManager::NameInfos.size();
+		size_t FirstInitSize = MemberManager::MemberNames.NameInfos.size();
 
 		MemberManager::InitMemberNameCollisions();
 		MemberManager::InitMemberNameCollisions();
 		MemberManager::InitMemberNameCollisions();
 
-		bool bSuccededTestWithoutError = MemberManager::NameInfos.size() == FirstInitSize;
+		bool bSuccededTestWithoutError = MemberManager::MemberNames.NameInfos.size() == FirstInitSize;
 
-		PrintDbgMessage<bDoDebugPrinting>("{} --> NameInfos.size(): 0x{:X} -> 0x{:X}", __FUNCTION__, FirstInitSize, MemberManager::NameInfos.size());
+		PrintDbgMessage<bDoDebugPrinting>("{} --> NameInfos.size(): 0x{:X} -> 0x{:X}", __FUNCTION__, FirstInitSize, MemberManager::MemberNames.NameInfos.size());
 		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
-	template<bool bDoDebugPrinting = false>
-	static inline void TestNameTranslation()
-	{
-		MemberManager::InitMemberNameCollisions();
-
-		auto TestName = [](CollisionManager::NameContainer& Container, UEStruct Struct, auto Member) -> bool
-		{
-			auto [Index, bWasAdded] = MemberManager::MemberNames.FindOrAdd(Member.GetValidName());
-
-			if (bWasAdded)
-			{
-				PrintDbgMessage<bDoDebugPrinting>("Error on name '{}'. Name was not found in MemberNameTable!", Member.GetValidName());
-				return false;
-			}
-
-			auto It = Container.begin();
-
-			uint64 InContainerIndex = 0x0;
-			uint64 TranslatedIndex = 0x0;
-
-			while (It != Container.end())
-			{
-				It = std::find_if(It, Container.end(), [Index](const NameInfo& Value) -> bool { return Value.Name == Index; });
-				if (It == Container.end())
-				{
-					PrintDbgMessage<bDoDebugPrinting>("Error on name '{}'. Name was not found in NameContainer!", Member.GetValidName());
-					return false;
-				}
-
-				InContainerIndex = It - Container.begin();
-				TranslatedIndex = MemberManager::TranslationMap.at(CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Member));
-
-				if (InContainerIndex == TranslatedIndex)
-					return true;
-
-				std::advance(It, 1);
-			}
-
-			PrintDbgMessage<bDoDebugPrinting>("Struct: {}\nMember: {}", Struct.GetFullName(), Member.GetName());
-			PrintDbgMessage<bDoDebugPrinting>("Error on name '{}'. TranslationIndex != Index (0x{:X} <<  != 0x{:X})", Member.GetValidName(), TranslatedIndex, InContainerIndex);
-
-			return true;
-		};
-
-		auto TestEvenHarder = [](CollisionManager::NameContainer& Container, UEStruct Struct, auto Member) -> bool
-		{
-			uint64 TranslatedIndex = MemberManager::TranslationMap.at(CollisionManager::KeyFunctions::GetKeyForCollisionInfo(Struct, Member));
-
-			if (MemberManager::MemberNames.GetStringEntry(Container[TranslatedIndex].Name).GetName() != Member.GetValidName())
-			{
-				PrintDbgMessage<bDoDebugPrinting>("Error '{}' != '{}'", MemberManager::MemberNames.GetStringEntry(Container[TranslatedIndex].Name).GetName(), Member.GetValidName());
-				return false;
-			}
-
-			return true;
-		};
-
-		bool bSuccededTestWithoutError = true;
-
-		for (auto& [StructIdx, Container] : MemberManager::NameInfos)
-		{
-			UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(StructIdx);
-
-			for (UEProperty Property : Struct.GetProperties())
-			{
-				SetBoolIfFailed(bSuccededTestWithoutError, TestName(Container, Struct, Property));
-				SetBoolIfFailed(bSuccededTestWithoutError, TestEvenHarder(Container, Struct, Property));
-			}
-
-			for (UEFunction Function : Struct.GetFunctions())
-			{
-				SetBoolIfFailed(bSuccededTestWithoutError, TestName(Container, Struct, Function));
-				SetBoolIfFailed(bSuccededTestWithoutError, TestEvenHarder(Container, Struct, Function));
-			
-				if (!Function.HasMembers())
-					continue;
-
-				CollisionManager::NameContainer& FuncContainer = MemberManager::NameInfos[Function.GetIndex()];
-
-				for (UEProperty Property : Function.GetProperties())
-				{
-					SetBoolIfFailed(bSuccededTestWithoutError, TestName(FuncContainer, Function, Property));
-					SetBoolIfFailed(bSuccededTestWithoutError, TestEvenHarder(FuncContainer, Function, Property));
-				}
-			}
-		}
-
-		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
-	}
 
 	template<bool bDoDebugPrinting = false>
 	static inline void TestMemberIterator()
