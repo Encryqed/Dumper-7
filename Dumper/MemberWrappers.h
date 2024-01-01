@@ -108,6 +108,7 @@ public:
     std::string GetPredefFuncNameWithParams() const;
     std::string GetPredefFuncReturnType() const;
     std::string GetPredefFunctionBody() const;
+    std::string GetPredefFunctionInlineBody() const;
 
     UEFunction GetUnrealFunction() const;
 

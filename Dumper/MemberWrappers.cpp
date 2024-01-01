@@ -211,6 +211,21 @@ std::string FunctionWrapper::GetPredefFunctionBody() const
     return PredefFunction->Body;
 }
 
+std::string FunctionWrapper::GetPredefFunctionInlineBody() const
+{
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionBodyRef()'.");
+
+    std::string BodyCopy = PredefFunction->Body;
+
+    for (int i = 0; i < BodyCopy.size(); i++)
+    {
+        if (BodyCopy[i] == '\n')
+            BodyCopy.insert(++i, "\t");
+    }
+
+    return BodyCopy;
+}
+
 UEFunction FunctionWrapper::GetUnrealFunction() const
 {
     assert(bIsUnrealFunction && "FunctionWrapper doesn't contian UnrealFunction. Illegal call to 'GetUnrealFunction()'.");

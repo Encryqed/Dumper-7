@@ -115,7 +115,7 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 		{
 			AllFuntionsText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", Func.GetPredefFuncReturnType(), Func.GetPredefFuncNameWithParams(), Func.IsConst() ? " const" : "");
 
-			AllFuntionsText += (Func.HasInlineBody() ? ("\n" + Func.GetPredefFunctionBody()) : ";") + "\n";
+			AllFuntionsText += (Func.HasInlineBody() ? ("\n\t" + Func.GetPredefFunctionInlineBody()) : ";") + "\n";
 			continue;
 		}
 
@@ -311,7 +311,7 @@ std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const 
 
 		// Function declaration and inline-body generation
 		InHeaderFunctionText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", FuncInfo.RetType, FuncInfo.FuncNameWithParams, Func.IsConst() ? " const" : "");
-		InHeaderFunctionText += (bHasInlineBody ? ("\n" + Func.GetPredefFunctionBody()) : ";") + "\n";
+		InHeaderFunctionText += (bHasInlineBody ? ("\n\t" + Func.GetPredefFunctionInlineBody()) : ";") + "\n";
 
 
 		if (bHasInlineBody)
@@ -533,7 +533,10 @@ void CppGenerator::GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile)
 		MemberString += std::format("\t{:{}} = {},\n", Info.GetUniqueName(), 40, Info.GetValue());
 	}
 
-	std::string UnderlayingType = Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlayingTypesBySize[Enum.GetUnderlyingTypeSize() - 1] : "uint8";
+	if (!MemberString.empty()) [[likely]]
+		MemberString.pop_back();
+
+	std::string UnderlayingType = Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlayingTypesBySize[static_cast<size_t>(Enum.GetUnderlyingTypeSize()) - 1] : "uint8";
 
 	StructFile << std::format(R"(
 // {}
