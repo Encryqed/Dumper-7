@@ -140,6 +140,7 @@
   <ItemGroup>
     <ClCompile Include="CppGenerator.cpp" />
     <ClCompile Include="DependencyManager.cpp" />
+    <ClCompile Include="EnumManager.cpp" />
     <ClCompile Include="FileWriter.cpp" />
     <ClCompile Include="Generator.cpp" />
     <ClCompile Include="GeneratorRewrite.cpp" />
@@ -164,6 +165,8 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="DependencyManager.h" />
+    <ClInclude Include="EnumManager.h" />
+    <ClInclude Include="EnumManagerTest.h" />
     <ClInclude Include="Enums.h" />
     <ClInclude Include="FileWriter.h" />
     <ClInclude Include="Generator.h" />

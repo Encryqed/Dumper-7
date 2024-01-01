@@ -5,12 +5,16 @@
 #include "Generator.h"
 #include "CppGenerator.h"
 
+#include "StructManager.h"
+#include "EnumManager.h"
+
 #include "HashStringTableTest.h"
 #include "GeneratorRewriteTest.h"
 #include "StructManagerTest.h"
 #include "CollisionManagerTest.h"
 #include "MemberManagerTest.h"
 #include "CppGeneratorTest.h"
+#include "EnumManagerTest.h"
 
 #include "GeneratorRewrite.h"
 
@@ -57,11 +61,6 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
-	const StructManager::OverrideMaptType& StructInfoMap = StructManager::GetStructInfos();
-
-	std::unordered_map<int32 /* PackageIdx */, std::string> PackagesAndForwardDeclarations;
-
-	StructManager::Init();
 
 	// FName is the same for both UOnlineEngineInterfaceImpls
 	std::cout << std::endl;
@@ -73,19 +72,33 @@ DWORD MainThread(HMODULE Module)
 	std::cout << std::endl;
 
 
+
+	std::unordered_map<int32 /* PackageIdx */, std::string> PackagesAndForwardDeclarations;
+
+	StructManager::Init();
+	EnumManager::Init();
+
+	const StructManager::OverrideMaptType& StructInfoMap = StructManager::GetStructInfos();
+	const EnumManager::OverrideMaptType& EnumInfoMap = EnumManager::GetEnumInfos();
+
 	for (const auto& [Index, Info] : StructInfoMap)
 	{
-		if (StructManager::GetName(Info.Name).find("nimBlueprintGenera") != -1)
-		{
-			std::cout << std::format("IsUnique: {}", StructManager::IsStructNameUnique(Info.Name)) << std::endl;
-		}
-
 		if (StructManager::IsStructNameUnique(Info.Name))
 			continue;
 
 		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
 
 		PackagesAndForwardDeclarations[Struct.GetOutermost().GetIndex()] += std::format("\t{} {};\n", Struct.IsA(EClassCastFlags::Class) ? "class" : "struct", Struct.GetCppName());
+	}
+
+	for (const auto& [Index, Info] : EnumInfoMap)
+	{
+		if (EnumManager::IsEnumNameUnique(Info.Name))
+			continue;
+
+		UEEnum Enum = ObjectArray::GetByIndex<UEEnum>(Index);
+
+		PackagesAndForwardDeclarations[Enum.GetOutermost().GetIndex()] += std::format("\t{} {};\n", "eunum class", Enum.GetEnumPrefixedName());
 	}
 
 	for (const auto& [PackageIndex, ForwardDeclarations] : PackagesAndForwardDeclarations)
@@ -98,12 +111,13 @@ namespace {} {{
 	}
 
 
-	CppGeneratorTest::TestAll();
-	HashStringTableTest::TestAll();
-	GeneratorRewriteTest::TestAll();
-	StructManagerTest::TestAll();
-	CollisionManagerTest::TestAll();
-	MemberManagerTest::TestAll();
+	//CppGeneratorTest::TestAll();
+	//HashStringTableTest::TestAll();
+	//GeneratorRewriteTest::TestAll();
+	//StructManagerTest::TestAll();
+	EnumManagerTest::TestAll();
+	//CollisionManagerTest::TestAll();
+	//MemberManagerTest::TestAll();
 
 	//MemberManagerTest::TestFunctionIterator<true>();
 

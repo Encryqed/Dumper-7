@@ -3,8 +3,6 @@
 
 #include "ObjectArray.h"
 #include "DependencyManager.h"
-#include "HashStringTable.h"
-#include "StructManager.h"
 #include "MemberManager.h"
 
 namespace fs = std::filesystem;

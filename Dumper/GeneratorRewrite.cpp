@@ -1,4 +1,8 @@
 #include "GeneratorRewrite.h"
+#include "HashStringTable.h"
+#include "StructManager.h"
+#include "EnumManager.h"
+#include "MemberManager.h"
 
 void GeneratorRewrite::InitEngineCore()
 {
@@ -106,6 +110,9 @@ void GeneratorRewrite::InitInternal()
 
 	// Initialize StructManager with all structs and their names
 	StructManager::Init();
+
+	// Initialize EnumManager with all enums and their names
+	EnumManager::Init();
 
 	// Initialized all Member-Name collisions
 	MemberManager::InitMemberNameCollisions();

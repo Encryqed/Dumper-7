@@ -53,6 +53,9 @@
     <ClCompile Include="MemberWrappers.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
+    <ClCompile Include="EnumManager.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -178,6 +181,12 @@
       <Filter>Tests</Filter>
     </ClInclude>
     <ClInclude Include="TestBase.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="EnumManager.h">
+      <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="EnumManagerTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
   </ItemGroup>

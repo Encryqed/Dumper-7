@@ -75,7 +75,10 @@ public:
 	using OverrideMaptType = std::unordered_map<int32 /*StructIdx*/, StructInfo>;
 
 private:
+	/* NameTable containing names of all structs/classes as well as information on name-collisions */
 	static inline HashStringTable UniqueNameTable;
+
+	/* Map containing infos on all structs/classes. Implemented due to bugs/inconsistencies in Unreal's reflection system */
 	static inline OverrideMaptType StructInfoOverrides;
 
 	static inline bool bIsInitialized = false;

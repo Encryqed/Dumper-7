@@ -452,11 +452,16 @@ std::string UEEnum::GetSingleName(int32 Index) const
 	return GetNameValuePairs()[Index].First.ToString();
 }
 
-std::string UEEnum::GetEnumTypeAsStr() const
+std::string UEEnum::GetEnumPrefixedName() const
 {
 	std::string Temp = GetName();
 
-	return "enum class " + (Temp[0] == 'E' ? Temp : 'E' + Temp);
+	return Temp[0] == 'E' ? Temp : 'E' + Temp;
+}
+
+std::string UEEnum::GetEnumTypeAsStr() const
+{
+	return "enum class " + GetEnumPrefixedName();
 }
 
 UEStruct UEStruct::GetSuper() const

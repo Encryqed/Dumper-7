@@ -166,6 +166,7 @@ public:
 
 	std::vector<TPair<FName, int64>> GetNameValuePairs() const;
 	std::string GetSingleName(int32 Index) const;
+	std::string GetEnumPrefixedName() const;
 	std::string GetEnumTypeAsStr() const;
 };
 
