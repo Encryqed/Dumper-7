@@ -6,6 +6,7 @@
 #include "HashStringTable.h"
 #include "StructWrapper.h"
 #include "MemberWrappers.h"
+#include "EnumWrapper.h"
 
 #include "GeneratorRewrite.h"
 
@@ -72,10 +73,13 @@ public: /* DEBUG */
     static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize);
     static std::string GenerateFunctionInHeader(const MemberManager& Members);
     static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func);
-    static void GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile);
 
     // return: In-header function declarations and inline functions
     static std::string GenerateFunctions(const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile);
+
+    static void GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile);
+
+    static void GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile);
 
 private: /* utility functions */
     static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper);

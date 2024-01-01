@@ -11,7 +11,7 @@
 extern std::string MakeNameValid(std::string&& Name);
 
 template<typename ValueType, typename KeyType>
-class alignas(4) TPair
+class TPair
 {
 public:
 	ValueType First;

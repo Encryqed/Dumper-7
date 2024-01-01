@@ -392,12 +392,12 @@ bool UEField::IsNextValid() const
 	return (bool)GetNext();
 }
 
-std::vector<TPair<FName, int64>> UEEnum::GetNameValuePairs() const
+std::vector<std::pair<FName, int64>> UEEnum::GetNameValuePairs() const
 {
 	struct Name08Byte { uint8 Pad[0x08]; };
 	struct Name16Byte { uint8 Pad[0x10]; };
 
-	std::vector<TPair<FName, int64>> Ret;
+	std::vector<std::pair<FName, int64>> Ret;
 
 	if (!Settings::Internal::bIsEnumNameOnly)
 	{
@@ -449,7 +449,7 @@ std::vector<TPair<FName, int64>> UEEnum::GetNameValuePairs() const
 
 std::string UEEnum::GetSingleName(int32 Index) const
 {
-	return GetNameValuePairs()[Index].First.ToString();
+	return GetNameValuePairs()[Index].first.ToString();
 }
 
 std::string UEEnum::GetEnumPrefixedName() const

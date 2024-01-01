@@ -164,7 +164,7 @@ class UEEnum : public UEField
 public:
 	static std::unordered_map<int32, std::string> BigEnums; //ObjectArray::GetAllPackages()
 
-	std::vector<TPair<FName, int64>> GetNameValuePairs() const;
+	std::vector<std::pair<FName, int64>> GetNameValuePairs() const;
 	std::string GetSingleName(int32 Index) const;
 	std::string GetEnumPrefixedName() const;
 	std::string GetEnumTypeAsStr() const;

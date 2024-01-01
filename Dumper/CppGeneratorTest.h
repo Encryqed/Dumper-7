@@ -62,6 +62,7 @@ private:
 
 		MemberManager::InitMemberNameCollisions();
 		StructManager::Init();
+		EnumManager::Init();
 
 		std::sort(TestFunctions.begin(), TestFunctions.end(), ComparePredefinedFunctions);
 
@@ -82,6 +83,7 @@ public:
 		TestPredefStructGeneration<bDoDebugPrinting>();
 		TestUnrealStructGeneration<bDoDebugPrinting>();
 		TestUnrealClassGeneration<bDoDebugPrinting>();
+		TestUnrealEnumGeneration<bDoDebugPrinting>();
 
 		PrintDbgMessage<bDoDebugPrinting>("");
 	}
@@ -164,5 +166,16 @@ public:
 		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("KismetSystemLibrary"), ClassFile, FunctionFile, ParamFile);
 		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("KismetMathLibrary"), ClassFile, FunctionFile, ParamFile);
 		CppGenerator::GenerateStruct(ObjectArray::FindClassFast("ABPI_WeaponAnimLayer_C"), ClassFile, FunctionFile, ParamFile);
+	}
+
+	template<bool bDoDebugPrinting = false>
+	static inline void TestUnrealEnumGeneration()
+	{
+		InitTestVariables();
+
+		MemberManager::SetPredefinedMemberLookupPtr(&CppGenerator::PredefinedMembers);
+
+		CppGenerator::GenerateEnum(ObjectArray::FindObjectFast<UEEnum>("ENetRole"), StructFile);
+		CppGenerator::GenerateEnum(ObjectArray::FindObjectFast<UEEnum>("ESlateColorStylingMode"), StructFile);
 	}
 };

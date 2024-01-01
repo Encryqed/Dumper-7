@@ -93,7 +93,7 @@ DWORD MainThread(HMODULE Module)
 
 	for (const auto& [Index, Info] : EnumInfoMap)
 	{
-		if (EnumManager::IsEnumNameUnique(Info.Name))
+		if (EnumManager::IsEnumNameUnique(Info))
 			continue;
 
 		UEEnum Enum = ObjectArray::GetByIndex<UEEnum>(Index);
@@ -118,6 +118,23 @@ namespace {} {{
 	EnumManagerTest::TestAll();
 	//CollisionManagerTest::TestAll();
 	//MemberManagerTest::TestAll();
+
+	CppGeneratorTest::TestAll();
+
+	for (auto Obj : ObjectArray())
+	{
+		if (!Obj.IsA(EClassCastFlags::Enum))
+			continue;
+
+		auto Info = EnumManager::GetInfo(Obj.Cast<UEEnum>());
+
+		for (const auto& ValueInfo : Info.GetMemberCollisionInfoIterator())
+		{
+			if (ValueInfo.GetCollisionCount() > 9)
+				std::cout << ValueInfo.GetUniqueName() << std::endl;
+		}
+	}
+
 
 	//MemberManagerTest::TestFunctionIterator<true>();
 

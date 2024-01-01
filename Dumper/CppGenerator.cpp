@@ -274,64 +274,6 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 	return RetFuncInfo;
 }
 
-void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile)
-{
-	if (!Struct.IsValid())
-		return;
-
-	std::string UniqueName = GetStructPrefixedName(Struct);
-	std::string UniqueSuperName;
-
-	int32 StructSize = Struct.GetSize();
-	int32 SuperSize = 0x0;
-
-	StructWrapper Super = Struct.GetSuper();
-
-	if (Super.IsValid())
-	{
-		UniqueSuperName = GetStructPrefixedName(Super);
-		SuperSize = Super.GetSize();
-	}
-
-	const bool bIsClass = Struct.IsClass();
-
-	StructFile << std::format(R"(
-// {}
-// 0x{:04X} (0x{:04X} - 0x{:04X})
-{} {}{}{}{}
-{{
-)", Struct.GetFullName()
-  , StructSize - SuperSize
-  , StructSize
-  , SuperSize
-  , bIsClass ? "class" : "struct"
-  , Struct.ShouldUseExplicitAlignment() ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
-  , UniqueName
-  , Struct.IsFinal() ? " final " : ""
-  , Super.IsValid() ? (" : public " + UniqueSuperName) : "");
-
-	MemberManager Members = Struct.GetMembers();
-
-	const bool bHasMembers = Members.HasMembers();
-	const bool bHasFunctions = Members.HasFunctions() && !Struct.IsFunction();
-
-	if (bHasMembers || bHasFunctions)
-		StructFile << "public:\n";
-
-	if (bHasMembers)
-	{
-		StructFile << GenerateMembers(Struct, Members, SuperSize);
-
-		if (bHasFunctions)
-			StructFile << "\npublic:\n";
-	}
-
-	if (bHasFunctions)
-		StructFile << GenerateFunctions(Members, UniqueName, FunctionFile, ParamFile);
-
-	StructFile << "};\n";
-}
-
 std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile)
 {
 	constexpr int32 AverageNumCharactersPerFunction = 0x50;
@@ -504,6 +446,107 @@ std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const 
 	}
 
 	return InHeaderFunctionText;
+}
+
+void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile)
+{
+	if (!Struct.IsValid())
+		return;
+
+	std::string UniqueName = GetStructPrefixedName(Struct);
+	std::string UniqueSuperName;
+
+	int32 StructSize = Struct.GetSize();
+	int32 SuperSize = 0x0;
+
+	StructWrapper Super = Struct.GetSuper();
+
+	if (Super.IsValid())
+	{
+		UniqueSuperName = GetStructPrefixedName(Super);
+		SuperSize = Super.GetSize();
+	}
+
+	const bool bIsClass = Struct.IsClass();
+
+	StructFile << std::format(R"(
+// {}
+// 0x{:04X} (0x{:04X} - 0x{:04X})
+{} {}{}{}{}
+{{
+)", Struct.GetFullName()
+, StructSize - SuperSize
+, StructSize
+, SuperSize
+, bIsClass ? "class" : "struct"
+, Struct.ShouldUseExplicitAlignment() ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
+, UniqueName
+, Struct.IsFinal() ? " final " : ""
+, Super.IsValid() ? (" : public " + UniqueSuperName) : "");
+
+	MemberManager Members = Struct.GetMembers();
+
+	const bool bHasMembers = Members.HasMembers();
+	const bool bHasFunctions = Members.HasFunctions() && !Struct.IsFunction();
+
+	if (bHasMembers || bHasFunctions)
+		StructFile << "public:\n";
+
+	if (bHasMembers)
+	{
+		StructFile << GenerateMembers(Struct, Members, SuperSize);
+
+		if (bHasFunctions)
+			StructFile << "\npublic:\n";
+	}
+
+	if (bHasFunctions)
+		StructFile << GenerateFunctions(Members, UniqueName, FunctionFile, ParamFile);
+
+	StructFile << "};\n";
+}
+
+void CppGenerator::GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile)
+{
+	if (!Enum.IsValid())
+		return;
+
+	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
+		"uint8",
+		"uint16",
+		"InvalidEnumSize",
+		"uint32",
+		"InvalidEnumSize",
+		"InvalidEnumSize",
+		"InvalidEnumSize",
+		"uint64"
+	};
+
+	CollisionInfoIterator EnumValueIterator = Enum.GetMembers();
+
+	int32 NumValues = 0x0;
+	std::string MemberString;
+
+	for (const EnumCollisionInfo& Info : EnumValueIterator)
+	{
+		NumValues++;
+		MemberString += std::format("\t{:{}} = {},\n", Info.GetUniqueName(), 40, Info.GetValue());
+	}
+
+	std::string UnderlayingType = Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlayingTypesBySize[Enum.GetUnderlyingTypeSize() - 1] : "uint8";
+
+	StructFile << std::format(R"(
+// {}
+// NumValues: 0x{:04X}
+enum class {} : {}
+{{
+{}
+}};
+)", Enum.GetFullName()
+  , NumValues
+  , Enum.GetName()
+  , UnderlayingType
+  , MemberString);
 }
 
 

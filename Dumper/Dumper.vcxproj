@@ -141,6 +141,7 @@
     <ClCompile Include="CppGenerator.cpp" />
     <ClCompile Include="DependencyManager.cpp" />
     <ClCompile Include="EnumManager.cpp" />
+    <ClCompile Include="EnumWrapper.cpp" />
     <ClCompile Include="FileWriter.cpp" />
     <ClCompile Include="Generator.cpp" />
     <ClCompile Include="GeneratorRewrite.cpp" />
@@ -168,6 +169,7 @@
     <ClInclude Include="EnumManager.h" />
     <ClInclude Include="EnumManagerTest.h" />
     <ClInclude Include="Enums.h" />
+    <ClInclude Include="EnumWrapper.h" />
     <ClInclude Include="FileWriter.h" />
     <ClInclude Include="Generator.h" />
     <ClInclude Include="GeneratorRewrite.h" />

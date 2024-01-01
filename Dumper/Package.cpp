@@ -675,7 +675,7 @@ Types::Enum Package::StaticGenerateEnum(UEEnum Enum)
 {
 	std::string EnumName = Enum.GetEnumTypeAsStr();
 
-	std::vector<TPair<FName, int64>> NameValue = Enum.GetNameValuePairs();
+	std::vector<std::pair<FName, int64>> NameValue = Enum.GetNameValuePairs();
 
 	Types::Enum Enm(EnumName, "uint8");
 
@@ -684,9 +684,9 @@ Types::Enum Package::StaticGenerateEnum(UEEnum Enum)
 
 	for (int i = 0; i < NameValue.size(); i++)
 	{
-		std::string TooFullOfAName = NameValue[i].First.ToString();
+		std::string TooFullOfAName = NameValue[i].first.ToString();
 
-		Enm.AddMember(MakeNameValid(TooFullOfAName.substr(TooFullOfAName.find_last_of("::") + 1)), NameValue[i].Second);
+		Enm.AddMember(MakeNameValid(TooFullOfAName.substr(TooFullOfAName.find_last_of("::") + 1)), NameValue[i].second);
 	}
 
 	if (EnumName.find("PixelFormat") != -1)
