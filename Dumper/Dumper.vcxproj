@@ -145,6 +145,7 @@
     <ClCompile Include="FileWriter.cpp" />
     <ClCompile Include="Generator.cpp" />
     <ClCompile Include="GeneratorRewrite.cpp" />
+    <ClCompile Include="HashStringTable.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MemberWrappers.cpp" />
     <ClCompile Include="CollisionManager.cpp" />

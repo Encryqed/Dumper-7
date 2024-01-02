@@ -59,6 +59,9 @@
     <ClCompile Include="GeneratorRewrite.cpp">
       <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
+    <ClCompile Include="HashStringTable.cpp">
+      <Filter>GeneratorRewrite\Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
