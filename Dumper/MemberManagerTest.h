@@ -26,13 +26,13 @@ public:
 	template<bool bDoDebugPrinting = false>
 	static inline void TestInit()
 	{
-		MemberManager::InitMemberNameCollisions();
+		MemberManager::Init();
 
 		size_t FirstInitSize = MemberManager::MemberNames.NameInfos.size();
 
-		MemberManager::InitMemberNameCollisions();
-		MemberManager::InitMemberNameCollisions();
-		MemberManager::InitMemberNameCollisions();
+		MemberManager::Init();
+		MemberManager::Init();
+		MemberManager::Init();
 
 		bool bSuccededTestWithoutError = MemberManager::MemberNames.NameInfos.size() == FirstInitSize;
 
@@ -44,7 +44,7 @@ public:
 	template<bool bDoDebugPrinting = false>
 	static inline void TestMemberIterator()
 	{
-		MemberManager::InitMemberNameCollisions();
+		MemberManager::Init();
 
 		PredefinedMemberLookupMapType PredefinedMembers;
 
@@ -105,7 +105,7 @@ public:
 	template<bool bDoDebugPrinting = false>
 	static inline void TestFunctionIterator()
 	{
-		MemberManager::InitMemberNameCollisions();
+		MemberManager::Init();
 
 		PredefinedMemberLookupMapType PredefinedMembers;
 
@@ -162,7 +162,7 @@ public:
 		std::sort(APawnFunctions.begin(), APawnFunctions.end(), ComparePredefinedFunctions);
 
 		StructManager::Init();
-		MemberManager::InitMemberNameCollisions();
+		MemberManager::Init();
 		MemberManager::SetPredefinedMemberLookupPtr(&PredefinedMembers);
 
 		MemberManager Members(APawn);

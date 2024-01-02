@@ -131,3 +131,4 @@ public:
 		return EnumInfoOverrides.at(Enum.GetIndex());
 	}
 };
+

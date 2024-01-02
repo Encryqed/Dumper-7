@@ -184,6 +184,7 @@
     <ClInclude Include="Offsets.h" />
     <ClInclude Include="Package.h" />
     <ClInclude Include="MemberManager.h" />
+    <ClInclude Include="PackageManager.h" />
     <ClInclude Include="PredefinedMembers.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="StructManager.h" />

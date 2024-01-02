@@ -216,7 +216,7 @@ public:
 		PredefinedMemberLookup = Lookup;
 	}
 
-	static inline void InitMemberNameCollisions()
+	static inline void Init()
 	{
 		static bool bInitialized = false;
 
@@ -225,6 +225,7 @@ public:
 
 		bInitialized = true;
 
+		/* Initialize member-name collisions  */
 		for (auto Obj : ObjectArray())
 		{
 			if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function))

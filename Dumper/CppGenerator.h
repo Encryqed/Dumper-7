@@ -84,10 +84,12 @@ public: /* DEBUG */
 private: /* utility functions */
     static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper);
     static std::string GetMemberTypeString(UEProperty Member);
+
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
+    static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
 
 public:
-    static void Generate(const std::unordered_map<int32, PackageInfo>& Dependencies);
+    static void Generate();
 
     static void InitPredefinedMembers();
     static void InitPredefinedFunctions();

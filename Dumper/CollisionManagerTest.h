@@ -80,7 +80,7 @@ public:
 	template<bool bDoDebugPrinting = false>
 	static inline void TestNameTranslation()
 	{
-		MemberManager::InitMemberNameCollisions();
+		MemberManager::Init();
 
 		auto TestName = [](CollisionManager& Manager, const CollisionManager::NameContainer& Container, UEStruct Struct, auto Member) -> bool
 		{

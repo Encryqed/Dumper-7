@@ -547,7 +547,7 @@ enum class {} : {}
 }};
 )", Enum.GetFullName()
   , NumValues
-  , Enum.GetName()
+  , GetEnumPrefixedName(Enum)
   , UnderlayingType
   , MemberString);
 }
@@ -563,7 +563,14 @@ std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 	return (bIsUnique ? "" : (Struct.GetUnrealStruct().GetOutermost().GetValidName() + "::")) + ValidName;
 }
 
-void CppGenerator::Generate(const std::unordered_map<int32, PackageInfo>& Dependencies)
+std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
+{
+	auto [ValidName, bIsUnique] = Enum.GetUniqueName();
+
+	return (bIsUnique ? "" : (Enum.GetUnrealEnum().GetOutermost().GetValidName() + "::")) + ValidName;
+}
+
+void CppGenerator::Generate()
 {
 	// Launch NumberOfProcessorCores threads
 

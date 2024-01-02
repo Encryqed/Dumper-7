@@ -29,35 +29,35 @@
     <ClCompile Include="UnrealTypes.cpp">
       <Filter>Engine\Private</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratorRewrite.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="CppGenerator.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
+    <ClCompile Include="CollisionManager.cpp">
+      <Filter>GeneratorRewrite\Private\Managers</Filter>
     </ClCompile>
     <ClCompile Include="DependencyManager.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="StructManager.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="StructWrapper.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="MemberManager.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="CollisionManager.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="MemberWrappers.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
+      <Filter>GeneratorRewrite\Private\Managers</Filter>
     </ClCompile>
     <ClCompile Include="EnumManager.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
+      <Filter>GeneratorRewrite\Private\Managers</Filter>
+    </ClCompile>
+    <ClCompile Include="MemberManager.cpp">
+      <Filter>GeneratorRewrite\Private\Managers</Filter>
+    </ClCompile>
+    <ClCompile Include="StructManager.cpp">
+      <Filter>GeneratorRewrite\Private\Managers</Filter>
     </ClCompile>
     <ClCompile Include="EnumWrapper.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
+      <Filter>GeneratorRewrite\Private\Wrappers</Filter>
+    </ClCompile>
+    <ClCompile Include="MemberWrappers.cpp">
+      <Filter>GeneratorRewrite\Private\Wrappers</Filter>
+    </ClCompile>
+    <ClCompile Include="StructWrapper.cpp">
+      <Filter>GeneratorRewrite\Private\Wrappers</Filter>
+    </ClCompile>
+    <ClCompile Include="CppGenerator.cpp">
+      <Filter>GeneratorRewrite\Private\Generators</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratorRewrite.cpp">
+      <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -93,6 +93,24 @@
     </Filter>
     <Filter Include="Tests">
       <UniqueIdentifier>{ae8563d1-816c-4218-9877-a95f062ca4ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeneratorRewrite\Public\Managers">
+      <UniqueIdentifier>{94e86c4a-a3b6-4bff-823c-cc84621b8862}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeneratorRewrite\Private\Managers">
+      <UniqueIdentifier>{93439fa6-5477-4ea1-be46-bd0fee46237b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeneratorRewrite\Public\Wrappers">
+      <UniqueIdentifier>{4cae6d93-ad23-4c27-9bb0-3d556ffebd69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeneratorRewrite\Private\Wrappers">
+      <UniqueIdentifier>{23b14467-832b-4850-87dd-b450adf2c145}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeneratorRewrite\Private\Generators">
+      <UniqueIdentifier>{53bc2117-a7ae-49a1-8463-74f51d3a94df}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GeneratorRewrite\Public\Generators">
+      <UniqueIdentifier>{de34ddb1-4f8d-4224-8d8e-a7cd966d3d86}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -135,15 +153,6 @@
     <ClInclude Include="NameArray.h">
       <Filter>Engine\Public</Filter>
     </ClInclude>
-    <ClInclude Include="GeneratorRewrite.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="CppGenerator.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="DependencyManager.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
     <ClInclude Include="CppGeneratorTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
@@ -153,32 +162,14 @@
     <ClInclude Include="HashStringTableTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
-    <ClInclude Include="StructManager.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
     <ClInclude Include="GeneratorRewriteTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
     <ClInclude Include="StructManagerTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
-    <ClInclude Include="StructWrapper.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="MemberManager.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
     <ClInclude Include="CollisionManagerTest.h">
       <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="CollisionManager.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="MemberWrappers.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="PredefinedMembers.h">
-      <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
     <ClInclude Include="MemberManagerTest.h">
       <Filter>Tests</Filter>
@@ -186,14 +177,44 @@
     <ClInclude Include="TestBase.h">
       <Filter>Tests</Filter>
     </ClInclude>
-    <ClInclude Include="EnumManager.h">
-      <Filter>GeneratorRewrite\Public</Filter>
-    </ClInclude>
     <ClInclude Include="EnumManagerTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
+    <ClInclude Include="CollisionManager.h">
+      <Filter>GeneratorRewrite\Public\Managers</Filter>
+    </ClInclude>
+    <ClInclude Include="EnumManager.h">
+      <Filter>GeneratorRewrite\Public\Managers</Filter>
+    </ClInclude>
+    <ClInclude Include="MemberManager.h">
+      <Filter>GeneratorRewrite\Public\Managers</Filter>
+    </ClInclude>
+    <ClInclude Include="PackageManager.h">
+      <Filter>GeneratorRewrite\Public\Managers</Filter>
+    </ClInclude>
+    <ClInclude Include="StructWrapper.h">
+      <Filter>GeneratorRewrite\Public\Wrappers</Filter>
+    </ClInclude>
     <ClInclude Include="EnumWrapper.h">
-      <Filter>GeneratorRewrite\Public</Filter>
+      <Filter>GeneratorRewrite\Public\Wrappers</Filter>
+    </ClInclude>
+    <ClInclude Include="MemberWrappers.h">
+      <Filter>GeneratorRewrite\Public\Wrappers</Filter>
+    </ClInclude>
+    <ClInclude Include="DependencyManager.h">
+      <Filter>GeneratorRewrite\Public\Managers</Filter>
+    </ClInclude>
+    <ClInclude Include="StructManager.h">
+      <Filter>GeneratorRewrite\Public\Managers</Filter>
+    </ClInclude>
+    <ClInclude Include="CppGenerator.h">
+      <Filter>GeneratorRewrite\Public\Generators</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratorRewrite.h">
+      <Filter>GeneratorRewrite\Public\Generators</Filter>
+    </ClInclude>
+    <ClInclude Include="PredefinedMembers.h">
+      <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

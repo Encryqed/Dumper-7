@@ -60,7 +60,7 @@ private:
 		if (bDidInit)
 			return;
 
-		MemberManager::InitMemberNameCollisions();
+		MemberManager::Init();
 		StructManager::Init();
 		EnumManager::Init();
 

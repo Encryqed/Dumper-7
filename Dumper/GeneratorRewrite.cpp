@@ -115,7 +115,7 @@ void GeneratorRewrite::InitInternal()
 	EnumManager::Init();
 
 	// Initialized all Member-Name collisions
-	MemberManager::InitMemberNameCollisions();
+	MemberManager::Init();
 }
 
 bool GeneratorRewrite::SetupDumperFolder()
