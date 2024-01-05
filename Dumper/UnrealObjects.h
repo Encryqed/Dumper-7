@@ -120,6 +120,8 @@ public:
 	FName GetFName() const;
 	UEObject GetOuter() const;
 
+	int32 GetPackageIndex() const;
+
 	bool HasAnyFlags(EObjectFlags Flags) const;
 
 	template<typename UEType>

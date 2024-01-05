@@ -236,6 +236,11 @@ UEObject UEObject::GetOuter() const
 	return UEObject(*reinterpret_cast<void**>(Object + Off::UObject::Outer));
 }
 
+int32 UEObject::GetPackageIndex() const
+{
+	return GetOutermost().GetIndex();
+}
+
 bool UEObject::HasAnyFlags(EObjectFlags Flags) const
 {
 	return GetFlags() & Flags;

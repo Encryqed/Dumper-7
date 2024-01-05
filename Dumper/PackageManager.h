@@ -19,21 +19,33 @@ struct IncludeStatus
 struct RequirementInfo
 {
 	int32 PackageIdx;
-	
 	IncludeStatus bShouldInclude;
 };
-using DependencyListType = std::vector<RequirementInfo>;
+
+struct VisitedNodeInformation
+{
+	int32 PackageIdx;
+	IncludeStatus bIsIncluded;
+};
+
+using DependencyListType = std::unordered_map<int32, RequirementInfo>;
 
 
 struct DependencyInfo
 {
 	IncludeStatus bIsIncluded;
 
+	/* List of packages required by "ThisPackage_structs.h" */
 	DependencyListType StructsDependencies;
+
+	/* List of packages required by "ThisPackage_classes.h" */
 	DependencyListType ClassesDependencies;
+
+	/* List of packages required by "ThisPackage_params.h" */
+	DependencyListType ParametersDependencies;
 };
 
-using VisitedNodeContainerType = std::vector<std::pair<int32, IncludeStatus>>;
+using VisitedNodeContainerType = std::vector<VisitedNodeInformation>;
 
 struct FindCycleParams
 {
@@ -56,9 +68,12 @@ void FindCycle(const FindCycleParams& Params)
 	};
 
 	static auto FindCycleHandler = [&NewParams](const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes,int32 CurrentIndex, int32 PrevIndex,
-		bool& bIsIncluded, bool bShouldInclude, bool bIsStruct) -> void
+		bool& bIsIncluded, bool bShouldHandlePackage, bool bIsStruct) -> void
 	{
-		if (bShouldInclude && !bIsIncluded)
+		if (!bShouldHandlePackage)
+			return;
+
+		if (!bIsIncluded)
 		{
 			bIsIncluded = true;
 
@@ -66,19 +81,25 @@ void FindCycle(const FindCycleParams& Params)
 
 			VisitedNodes.push_back({ CurrentIndex, Status });
 
-			for (const RequirementInfo& Some : Dependencies)
+			for (auto& [Index, bShouldInclude] : Dependencies)
 			{
-				NewParams.Requriements = Some;
+				NewParams.Requriements = { bIsStruct, !bIsStruct };
+				NewParams.Requriements.PackageIdx = Index;
 				FindCycle(NewParams);
 			}
 		}
-		else if (bShouldInclude && bIsIncluded)
+		else if (bIsIncluded)
 		{
-			/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
-			if (std::find_if(VisitedNodes.begin(), VisitedNodes.end(), [&](const std::pair<int32, IncludeStatus>& Info)
+			const bool bShouldIncludeStructs = bIsStruct;
+			const bool bShouldIncludeClasses = !bIsStruct;
+
+			auto CompareInfoPairs = [&](const VisitedNodeInformation& Info)
 			{
-				return Info.first == CurrentIndex && (Info.second.Structs == bIsStruct || Info.second.Classes == !bIsStruct); /* Maybe wrong */
-			}) != std::end(VisitedNodes))
+				return Info.PackageIdx == CurrentIndex && ((Info.bIsIncluded.Structs && bShouldIncludeStructs) || (Info.bIsIncluded.Classes && bShouldIncludeClasses)); /* Maybe wrong */
+			};
+
+			/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
+			if (std::find_if(VisitedNodes.begin(), VisitedNodes.end(), CompareInfoPairs) != std::end(VisitedNodes))
 			{
 				//std::cout << "Found: " << Node << "\n";
 				wprintf(L"Cycle between: %d and %d\n", CurrentIndex, PrevIndex);
@@ -90,56 +111,6 @@ void FindCycle(const FindCycleParams& Params)
 
 	FindCycleHandler(Dependencies.StructsDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.bIsIncluded.Structs, Params.Requriements.bShouldInclude.Structs, true);
 	FindCycleHandler(Dependencies.ClassesDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.bIsIncluded.Classes, Params.Requriements.bShouldInclude.Structs, false);
-
-	if (Params.Requriements.bShouldInclude.Structs && !Dependencies.bIsIncluded.Structs)
-	{
-		Dependencies.bIsIncluded.Structs = true;
-
-		Params.VisitedNodes.push_back({Params.Requriements.PackageIdx, Dependencies.bIsIncluded });
-
-		for (const RequirementInfo& Some : Dependencies.StructsDependencies)
-		{
-			NewParams.Requriements = Some;
-			FindCycle(NewParams);
-		}
-	}
-	else if (Params.Requriements.bShouldInclude.Structs && Dependencies.bIsIncluded.Structs)
-	{
-		/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
-		if (std::find_if(Params.VisitedNodes.begin(), Params.VisitedNodes.end(), [&](const std::pair<int32, IncludeStatus>& Info)
-		{
-			return Info.first == Params.Requriements.PackageIdx && Info.second.Structs == Params.Requriements.bShouldInclude.Structs;
-		}) != std::end(Params.VisitedNodes))
-		{
-			//std::cout << "Found: " << Node << "\n";
-			wprintf(L"Cycle between: %d and %d\n", Params.Requriements.PackageIdx, Params.PrevNode);
-		}
-	}
-
-	if (Params.Requriements.bShouldIncludeClasses && !Dependencies.IncludeStatus.bIncludedClasses)
-	{
-		Dependencies.IncludeStatus.bIncludedClasses = true;
-
-		Params.VisitedNodes.push_back({ Params.Requriements.PackageIdx, Dependencies.IncludeStatus });
-
-		for (const RequirementInfo& Some : Dependencies.ClassesDependencies)
-		{
-			NewParams.Requriements = { Some.bShouldIncludeStructs, Some.bShouldIncludeClasses };
-			FindCycle(NewParams);
-		}
-	}
-	else if(Params.Requriements.bShouldIncludeClasses && Dependencies.IncludeStatus.bIncludedClasses)
-	{
-		/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
-		if (std::find_if(Params.VisitedNodes.begin(), Params.VisitedNodes.end(), [&](const std::pair<int32, IncludeStatus>& Info)
-		{
-			return Info.first == Params.Requriements.PackageIdx && Info.second.bIncludedClasses == Params.Requriements.bShouldIncludeClasses;
-		}) != std::end(Params.VisitedNodes))
-		{
-			//std::cout << "Found: " << Node << "\n";
-			wprintf(L"Cycle between: %d and %d\n", Params.Requriements.PackageIdx, Params.PrevNode);
-		}
-	}
 }
 
 
@@ -153,18 +124,21 @@ private:
 	/* Name of this Package*/
 	HashStringTableIndex Name;
 
-	bool bHasClasses;
-	bool bHasStructs;
-	bool bHasFunctions;
 	bool bHasEnums;
+	bool bHasStructs;
+	bool bHasClasses;
+	bool bHasFunctions;
+	bool bHasParams;
 
 	DependencyManager Structs;
 	DependencyManager Classes;
 
-	DependencyInfo DependencyInfo;
+	std::vector<int32> Functions;
+	std::vector<int32> Enums;
+
+	DependencyInfo PackageDependencies;
 };
 
-constexpr int a = sizeof(PackageInfo);
 
 class PackageInfoHandle
 {
@@ -204,7 +178,8 @@ public:
 	static inline bool bIsInitialized = false;
 
 private:
-	static void InitInternal();
+	static void InitPackageDependencies();
+	static void InitStructDependenciesAndName();
 
 public:
 	static void Init();

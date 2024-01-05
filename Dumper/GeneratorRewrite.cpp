@@ -62,6 +62,7 @@ std::unordered_map<int32, PackageInfo> GeneratorRewrite::GatherPackages()
 
 		if (bIsFunction)
 		{
+			/* technically not required, forward declaration works too */
 			UEProperty RetProperty = Obj.Cast<UEFunction>().GetReturnProperty();
 
 			if (RetProperty)
