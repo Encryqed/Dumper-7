@@ -32,6 +32,21 @@ inline uint8 SmallPearsonHash(const char* StringToHash)
     return (Hash & HashMask);
 }
 
+/* Used to limit access to StringEntry::OptionalCollisionCount to authorized (friend) classes only */
+struct AccessLimitedCollisionCount
+{
+    friend class PackageManager;
+
+private:
+    uint8 CollisionCount;
+
+public:
+    AccessLimitedCollisionCount(uint8 Value)
+        : CollisionCount(Value)
+    {
+    }
+};
+
 #pragma pack(push, 0x1)
 class StringEntry
 {
@@ -63,8 +78,8 @@ private:
     // Allows for checking if this name is unique without adding it to the table
     mutable uint8 bIsUniqueTemp : 1;
 
-    // Unused bits
-    uint8 Unused : 5;
+    // Optional collision count, not to be used in most cases. Implemented for use in PackageManager
+    mutable uint8 OptionalCollisionCount : 5;
 
     union
     {
@@ -83,6 +98,9 @@ public:
     inline bool IsUnique() const { return bIsUnique && bIsUniqueTemp; }
 
     inline uint8 GetHash() const { return Hash; }
+
+    /* To be used with PackageManager */
+    AccessLimitedCollisionCount GetCollisionCount() { return { OptionalCollisionCount }; }
 
     inline std::string GetName() const { return std::string(Char, GetStringLength()); }
     inline std::wstring GetWideName() const { return std::wstring(WChar, GetStringLength()); }

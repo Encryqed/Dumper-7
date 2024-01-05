@@ -153,6 +153,7 @@
     <ClCompile Include="Offsets.cpp" />
     <ClCompile Include="Package.cpp" />
     <ClCompile Include="MemberManager.cpp" />
+    <ClCompile Include="PackageManager.cpp" />
     <ClCompile Include="StructManager.cpp" />
     <ClCompile Include="Types.cpp" />
     <ClCompile Include="NameArray.cpp" />

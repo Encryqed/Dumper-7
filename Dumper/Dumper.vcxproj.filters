@@ -62,6 +62,9 @@
     <ClCompile Include="HashStringTable.cpp">
       <Filter>GeneratorRewrite\Private</Filter>
     </ClCompile>
+    <ClCompile Include="PackageManager.cpp">
+      <Filter>GeneratorRewrite\Private\Managers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">

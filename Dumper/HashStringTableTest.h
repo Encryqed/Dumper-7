@@ -28,15 +28,15 @@ public:
 
 		for (auto Obj : ObjectArray())
 		{
-			if (Obj.IsA(EClassCastFlags::Struct))
+			if (!Obj.IsA(EClassCastFlags::Struct))
+				continue;
+			
+			std::string FullName = Obj.GetFullName();
+			
+			if (Desktop.FindOrAdd(FullName).second)
 			{
-				std::string FullName = Obj.GetFullName();
-				
-				if (Desktop.FindOrAdd(FullName).second)
-				{
-					SizeCounter += FullName.size();
-					NameCounter++;
-				}
+				SizeCounter += FullName.size();
+				NameCounter++;
 			}
 		}
 

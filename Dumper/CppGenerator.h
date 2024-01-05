@@ -49,7 +49,7 @@ private:
         std::string RetType;
         std::string FuncNameWithParams;
 
-        std::vector<ParamInfo> UnrealFuncParams; // for unreal-functions
+        std::vector<ParamInfo> UnrealFuncParams; // for unreal-functions only
     };
 
 private:

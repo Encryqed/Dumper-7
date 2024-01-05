@@ -20,20 +20,25 @@ struct PackageInfo
     std::vector<int32> Functions;
 };
 
-template<typename T>
-concept GeneratorImplementation = requires(T t)
+template<typename GeneratorType>
+concept GeneratorImplementation = requires(GeneratorType t)
 {
     /* Require static variables of type */
-    { T::PredefinedMembers } -> std::same_as<PredefinedMemberLookupMapType>;
+    GeneratorType::PredefinedMembers;
+    requires(std::same_as<decltype(GeneratorType::PredefinedMembers), PredefinedMemberLookupMapType>);
 
-    { T::MainFolderName } -> std::same_as<std::string>;
-    { T::SubfolderName } -> std::same_as<std::string>;
+    GeneratorType::MainFolderName;
+    requires(std::same_as<decltype(GeneratorType::MainFolderName), std::string>);
+    GeneratorType::SubfolderName;
+    requires(std::same_as<decltype(GeneratorType::SubfolderName), std::string>);
 
-    { T::MainFolder } -> std::same_as<fs::path>;
-    { T::Subfolder } -> std::same_as<fs::path>;
-
+    GeneratorType::MainFolder;
+    requires(std::same_as<decltype(GeneratorType::MainFolder), fs::path>);
+    GeneratorType::Subfolder;
+    requires(std::same_as<decltype(GeneratorType::Subfolder), fs::path>);
+    
     /* Require static functions */
-    T::Generate();
+    GeneratorType::Generate();
 };
 
 class GeneratorRewrite /* renamed to just 'Generator' once the legacy generator is removed */
@@ -74,6 +79,6 @@ public:
 
         MemberManager::SetPredefinedMemberLookupPtr(&GeneratorType::PredefinedMembers);
 
-        GeneratorType::Generate(Packages);
+        GeneratorType::Generate();
     };
 };

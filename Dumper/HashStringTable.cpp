@@ -96,6 +96,8 @@ std::pair<HashStringTableIndex, bool> HashStringTable::AddUnchecked(const CharTy
     NewEmptyEntry.bIsUnique = true;
     NewEmptyEntry.bIsUniqueTemp = true;
 
+    NewEmptyEntry.OptionalCollisionCount = 0;
+
     // Always copy to the WChar, memcyp only copies bytes anways
     memcpy(NewEmptyEntry.WChar, Str, LengthBytes);
 
@@ -177,7 +179,10 @@ inline std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const Ch
 
     if (ExistingIndex != -1)
     {
-        GetStringEntry(ExistingIndex).bIsUnique = false;
+        const StringEntry& Entry = GetStringEntry(ExistingIndex);
+        Entry.bIsUnique = false;
+        Entry.bIsUniqueTemp = false;
+        Entry.OptionalCollisionCount++;
 
         return { ExistingIndex, false };
     }
