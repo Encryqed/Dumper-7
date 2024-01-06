@@ -15,6 +15,7 @@
 #include "MemberManagerTest.h"
 #include "CppGeneratorTest.h"
 #include "EnumManagerTest.h"
+#include "PackageManagerTest.h"
 
 #include "GeneratorRewrite.h"
 
@@ -41,6 +42,7 @@ DWORD MainThread(HMODULE Module)
   
 	Generator::Init();
 	//GeneratorRewrite::InitEngineCore();
+	GeneratorRewrite::InitInternal();
 
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())
 	{
@@ -115,11 +117,14 @@ namespace {} {{
 	//HashStringTableTest::TestAll();
 	//GeneratorRewriteTest::TestAll();
 	//StructManagerTest::TestAll();
-	EnumManagerTest::TestAll();
+	//EnumManagerTest::TestAll();
 	//CollisionManagerTest::TestAll();
 	//MemberManagerTest::TestAll();
 
-	CppGeneratorTest::TestAll();
+	PackageManagerTest::TestAll<true>();
+	//PackageManagerTest::TestIncludeTypes<true>();
+
+	//CppGeneratorTest::TestAll();
 
 	for (auto Obj : ObjectArray())
 	{
@@ -154,7 +159,7 @@ namespace {} {{
 	//	}
 	//}
 	
-	GeneratorRewrite::Generate<CppGenerator>();
+	//GeneratorRewrite::Generate<CppGenerator>();
 
 	//std::cout << "FTransform::MinAlignment: " << *reinterpret_cast<int32*>(static_cast<uint8*>(ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct)) + Off::UStruct::Size + 0x4) << std::endl;
 	//Generator::GenerateSDK();

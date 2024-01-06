@@ -6,6 +6,12 @@
 #include "DependencyManager.h"
 #include "HashStringTable.h"
 
+
+namespace PackageManagerUtils
+{
+	std::unordered_set<int32> GetDependencies(UEStruct Struct, int32 StructIndex);
+}
+
 class PackageInfoHandle;
 class PackageManager;
 
@@ -47,78 +53,14 @@ struct DependencyInfo
 
 using VisitedNodeContainerType = std::vector<VisitedNodeInformation>;
 
-struct FindCycleParams
-{
-	std::unordered_map<int32, DependencyInfo>& Nodes;
-
-	int32 PrevNode;
-
-	RequirementInfo Requriements;
-
-	VisitedNodeContainerType& VisitedNodes;
-};
-
-void FindCycle(const FindCycleParams& Params)
-{
-	FindCycleParams NewParams = {
-		.Nodes = Params.Nodes,
-		.PrevNode = Params.Requriements.PackageIdx,
-		/* Requriements */
-		.VisitedNodes = Params.VisitedNodes,
-	};
-
-	static auto FindCycleHandler = [&NewParams](const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes,int32 CurrentIndex, int32 PrevIndex,
-		bool& bIsIncluded, bool bShouldHandlePackage, bool bIsStruct) -> void
-	{
-		if (!bShouldHandlePackage)
-			return;
-
-		if (!bIsIncluded)
-		{
-			bIsIncluded = true;
-
-			IncludeStatus Status = { bIsIncluded && bIsStruct, bIsIncluded && !bIsStruct };
-
-			VisitedNodes.push_back({ CurrentIndex, Status });
-
-			for (auto& [Index, bShouldInclude] : Dependencies)
-			{
-				NewParams.Requriements = { bIsStruct, !bIsStruct };
-				NewParams.Requriements.PackageIdx = Index;
-				FindCycle(NewParams);
-			}
-		}
-		else if (bIsIncluded)
-		{
-			const bool bShouldIncludeStructs = bIsStruct;
-			const bool bShouldIncludeClasses = !bIsStruct;
-
-			auto CompareInfoPairs = [&](const VisitedNodeInformation& Info)
-			{
-				return Info.PackageIdx == CurrentIndex && ((Info.bIsIncluded.Structs && bShouldIncludeStructs) || (Info.bIsIncluded.Classes && bShouldIncludeClasses)); /* Maybe wrong */
-			};
-
-			/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
-			if (std::find_if(VisitedNodes.begin(), VisitedNodes.end(), CompareInfoPairs) != std::end(VisitedNodes))
-			{
-				//std::cout << "Found: " << Node << "\n";
-				wprintf(L"Cycle between: %d and %d\n", CurrentIndex, PrevIndex);
-			}
-		}
-	};
-
-	DependencyInfo& Dependencies = Params.Nodes[Params.Requriements.PackageIdx];
-
-	FindCycleHandler(Dependencies.StructsDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.bIsIncluded.Structs, Params.Requriements.bShouldInclude.Structs, true);
-	FindCycleHandler(Dependencies.ClassesDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.bIsIncluded.Classes, Params.Requriements.bShouldInclude.Structs, false);
-}
-
 
 struct PackageInfo
 {
 private:
 	friend class PackageInfoHandle;
 	friend class PackageManager;
+	friend class PackageManagerTest;
+	friend void FindCycle(const struct FindCycleParams&);
 
 private:
 	/* Name of this Package*/
@@ -130,14 +72,28 @@ private:
 	bool bHasFunctions;
 	bool bHasParams;
 
-	DependencyManager Structs;
-	DependencyManager Classes;
+	DependencyManager StructsSorted;
+	DependencyManager ClassesSorted;
 
 	std::vector<int32> Functions;
 	std::vector<int32> Enums;
 
 	DependencyInfo PackageDependencies;
 };
+
+struct FindCycleParams
+{
+	std::unordered_map<int32, PackageInfo>& Nodes;
+
+	int32 PrevNode;
+	bool bWasPrevNodeStructs;
+
+	RequirementInfo Requriements;
+
+	VisitedNodeContainerType& VisitedNodes;
+};
+
+void FindCycle(const FindCycleParams& Params);
 
 
 class PackageInfoHandle
@@ -155,7 +111,16 @@ public:
 	bool HasClasses() const;
 	bool HasStructs() const;
 	bool HasFunctions() const;
+	bool HasParameterStructs() const;
 	bool HasEnums() const;
+
+	const DependencyManager& GetSortedStructs() const;
+	const DependencyManager& GetSortedClasses() const;
+
+	const std::vector<int32>& GetFunctions() const;
+	const std::vector<int32>& GetEnums() const;
+
+	const DependencyInfo& GetPackageDependencies() const;
 };
 
 
@@ -178,8 +143,7 @@ public:
 	static inline bool bIsInitialized = false;
 
 private:
-	static void InitPackageDependencies();
-	static void InitStructDependenciesAndName();
+	static void InitNameAndDependencies();
 
 public:
 	static void Init();

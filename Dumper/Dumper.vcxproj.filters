@@ -222,5 +222,8 @@
     <ClInclude Include="PredefinedMembers.h">
       <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
+    <ClInclude Include="PackageManagerTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

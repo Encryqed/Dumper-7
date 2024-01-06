@@ -6,19 +6,8 @@
 #include "MemberManager.h"
 #include "HashStringTable.h"
 
+
 namespace fs = std::filesystem;
-
-struct PackageInfo
-{
-    HashStringTableIndex NameIdx;
-
-    std::unordered_set<int32> PackageDependencies;
-
-    DependencyManager Structs;
-    DependencyManager Classes;
-    std::vector<int32> Enums;
-    std::vector<int32> Functions;
-};
 
 template<typename GeneratorType>
 concept GeneratorImplementation = requires(GeneratorType t)
@@ -46,23 +35,18 @@ class GeneratorRewrite /* renamed to just 'Generator' once the legacy generator 
 private:
     friend class GeneratorRewriteTest;
 
-protected:
-    static inline std::unordered_map<int32, PackageInfo> Packages;
-
+private:
     static inline fs::path DumperFolder;
 
 public:
     static void InitEngineCore();
-
-private:
     static void InitInternal();
 
+private:
     static bool SetupDumperFolder();
 
-    static bool SetupFolders(const std::string& FolderName, fs::path& OutFolder);
-    static bool SetupFolders(const std::string& FolderName, fs::path& OutFolder, const std::string& SubfolderName, fs::path& OutSubFolder);
-
-    static std::unordered_map<int32, PackageInfo> GatherPackages();
+    static bool SetupFolders(std::string& FolderName, fs::path& OutFolder);
+    static bool SetupFolders(std::string& FolderName, fs::path& OutFolder, std::string& SubfolderName, fs::path& OutSubFolder);
 
 public:
     template<GeneratorImplementation GeneratorType>

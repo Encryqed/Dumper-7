@@ -187,6 +187,7 @@
     <ClInclude Include="Package.h" />
     <ClInclude Include="MemberManager.h" />
     <ClInclude Include="PackageManager.h" />
+    <ClInclude Include="PackageManagerTest.h" />
     <ClInclude Include="PredefinedMembers.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="StructManager.h" />
