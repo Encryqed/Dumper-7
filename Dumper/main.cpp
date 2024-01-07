@@ -123,6 +123,7 @@ namespace {} {{
 
 	PackageManagerTest::TestAll<true>();
 	//PackageManagerTest::TestIncludeTypes<true>();
+	//PackageManagerTest::TestCyclicDependencyDetection<true>();
 
 	//CppGeneratorTest::TestAll();
 
@@ -135,7 +136,7 @@ namespace {} {{
 
 		for (const auto& ValueInfo : Info.GetMemberCollisionInfoIterator())
 		{
-			if (ValueInfo.GetCollisionCount() > 9)
+			if (ValueInfo.GetCollisionCount() > 0)
 				std::cout << ValueInfo.GetUniqueName() << std::endl;
 		}
 	}

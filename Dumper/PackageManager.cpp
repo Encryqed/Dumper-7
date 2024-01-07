@@ -1,7 +1,13 @@
 #include "PackageManager.h"
 #include "ObjectArray.h"
 
-void FindCycle(const FindCycleParams& Params)
+
+inline void BooleanOrEqual(bool& b1, bool b2)
+{
+	b1 = b1 || b2;
+}
+
+bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting)
 {
 	FindCycleParams NewParams = {
 		.Nodes = Params.Nodes,
@@ -10,27 +16,34 @@ void FindCycle(const FindCycleParams& Params)
 		.VisitedNodes = Params.VisitedNodes,
 	};
 
-	static auto FindCycleHandler = [&NewParams](const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes, int32 CurrentIndex, int32 PrevIndex,
-		bool& bIsIncluded, bool bShouldHandlePackage, bool bIsStruct) -> void
+	static auto FindCycleHandler = [bSuppressPrinting, DEBUG_Params = &Params](FindCycleParams& NewParams, const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes, int32 CurrentIndex, int32 PrevIndex,
+		bool& bIsIncluded, bool bShouldHandlePackage, bool bIsStruct) -> bool
 	{
 		if (!bShouldHandlePackage)
-			return;
+			return false;
 
 		if (!bIsIncluded)
 		{
 			bIsIncluded = true;
 
-			IncludeStatus Status = { bIsIncluded && bIsStruct, bIsIncluded && !bIsStruct };
+			IncludeStatus Status = { bIsStruct, !bIsStruct };
 
 			VisitedNodes.push_back({ CurrentIndex, Status });
 
-			for (auto& [Index, bShouldInclude] : Dependencies)
+			bool bFoundCycle = false;
+
+			for (auto& [Index, Requirements] : Dependencies)
 			{
 				NewParams.bWasPrevNodeStructs = bIsStruct;
-				NewParams.Requriements = { bIsStruct, !bIsStruct };
-				NewParams.Requriements.PackageIdx = Index;
-				FindCycle(NewParams);
+				NewParams.Requriements = Requirements;
+				
+				/* Search dependencies recursively */
+				const bool bFoundCycleResult = FindCycle(NewParams, bSuppressPrinting);
+
+				BooleanOrEqual(bFoundCycle, bFoundCycleResult);
 			}
+
+			return bFoundCycle;
 		}
 		else if (bIsIncluded)
 		{
@@ -45,40 +58,42 @@ void FindCycle(const FindCycleParams& Params)
 			/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
 			if (std::find_if(VisitedNodes.begin(), VisitedNodes.end(), CompareInfoPairs) != std::end(VisitedNodes))
 			{
-				//std::cout << "Found: " << Node << "\n";
-				//wprintf(L"Cycle between: %d and %d\n", CurrentIndex, PrevIndex);
-				std::cout << std::format("Cycle between \"{}_{}.hpp\" and \"{}_{}.hpp\"\n",
-					ObjectArray::GetByIndex(PrevIndex).GetName(),
-					NewParams.bWasPrevNodeStructs ? "structs" : "classes",
-					ObjectArray::GetByIndex(CurrentIndex).GetName(),
-					bIsStruct ? "structs" : "classes");
+				constexpr bool bShouldPrintPackageName = false;
 
-				auto& PackDeps = PackageManager::GetInfo(ObjectArray::GetByIndex(PrevIndex)).GetPackageDependencies();
-				auto& SpecialDeps = bIsStruct ? PackDeps.StructsDependencies : PackDeps.ClassesDependencies;
-				if (SpecialDeps.size() > 0x20)
-					return;
-
-				for (UEObject Obj : ObjectArray())
+				if constexpr (bShouldPrintPackageName)
 				{
-					if (Obj.IsA(EClassCastFlags::Struct) && Obj.GetPackageIndex() == PrevIndex)
-					{
-						std::unordered_set<int32> Dependencies = PackageManagerUtils::GetDependencies(Obj.Cast<UEStruct>(), Obj.GetIndex());
-
-						for (int32 Index : Dependencies)
-						{
-							UEObject Obj = ObjectArray::GetByIndex(Index);
-							std::cout << std::format("Requires struct \"{}\" from \"{}\"\n", Obj.GetCppName(), Obj.GetOutermost().GetValidName());
-						}
-					}
+					if (!bSuppressPrinting)
+						std::cout << std::format("Cycle between \"{}_{}.hpp\" and \"{}_{}.hpp\"\n",
+							ObjectArray::GetByIndex(PrevIndex).GetName(),
+							DEBUG_Params->bWasPrevNodeStructs ? "structs" : "classes",
+							ObjectArray::GetByIndex(CurrentIndex).GetName(),
+							bIsStruct ? "structs" : "classes");
 				}
+				else
+				{
+					if (!bSuppressPrinting)
+						std::cout << std::format("Cycle between \"0x{:X}_{}.hpp\" and \"0x{:X}_{}.hpp\"\n",
+							PrevIndex,
+							DEBUG_Params->bWasPrevNodeStructs ? "structs" : "classes",
+							CurrentIndex,
+							bIsStruct ? "structs" : "classes");
+				}
+
+				/* Cycle found */
+				return true;
 			}
 		}
+
+		return false;
 	};
 
 	DependencyInfo& Dependencies = Params.Nodes[Params.Requriements.PackageIdx].PackageDependencies;
 
-	FindCycleHandler(Dependencies.StructsDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.bIsIncluded.Structs, Params.Requriements.bShouldInclude.Structs, true);
-	FindCycleHandler(Dependencies.ClassesDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.bIsIncluded.Classes, Params.Requriements.bShouldInclude.Structs, false);
+	if (FindCycleHandler(NewParams, Dependencies.StructsDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.bIsIncluded.Structs, Params.Requriements.bShouldInclude.Structs, true))
+		return true;
+
+	if (FindCycleHandler(NewParams, Dependencies.ClassesDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.bIsIncluded.Classes, Params.Requriements.bShouldInclude.Classes, false))
+		return true;
 }
 
 
@@ -209,11 +224,6 @@ namespace PackageManagerUtils
 	{
 		StructDependencies.SetDependencies(StructIdx, std::move(DependeniesToMove));
 	};
-
-	inline void BooleanOrEqual(bool& b1, bool b2)
-	{
-		b1 = b1 || b2;
-	}
 }
 
 void PackageManager::InitNameAndDependencies()
@@ -271,13 +281,13 @@ void PackageManager::InitNameAndDependencies()
 				{
 					/* A package can't depend on itself, super of a structs will always be in _"structs" file, same for classes and "_classes" files */
 					IncludeStatus& bShouldInclude = PackageDependencyList[SuperPackageIdx].bShouldInclude;
-					PackageManagerUtils::BooleanOrEqual(bShouldInclude.Structs, !bIsClass);
-					PackageManagerUtils::BooleanOrEqual(bShouldInclude.Classes, bIsClass);
+					BooleanOrEqual(bShouldInclude.Structs, !bIsClass);
+					BooleanOrEqual(bShouldInclude.Classes, bIsClass);
 				}
 			}
 
-			PackageManagerUtils::BooleanOrEqual(Info.bHasStructs, bIsStruct);
-			PackageManagerUtils::BooleanOrEqual(Info.bHasClasses, bIsClass);
+			BooleanOrEqual(Info.bHasStructs, bIsStruct);
+			BooleanOrEqual(Info.bHasClasses, bIsClass);
 
 			if (!bIsClass)
 				continue;
@@ -290,7 +300,7 @@ void PackageManager::InitNameAndDependencies()
 
 				std::unordered_set<int32> Dependencies = PackageManagerUtils::GetDependencies(ObjAsStruct, StructIdx);
 
-				PackageManagerUtils::BooleanOrEqual(Info.bHasParams, Func.HasMembers());
+				BooleanOrEqual(Info.bHasParams, Func.HasMembers());
 
 				PackageManagerUtils::SetPackageDependencies(Info.PackageDependencies.ParametersDependencies, Dependencies, StructPackageIdx, true);
 			}

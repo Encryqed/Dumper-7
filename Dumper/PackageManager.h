@@ -60,7 +60,7 @@ private:
 	friend class PackageInfoHandle;
 	friend class PackageManager;
 	friend class PackageManagerTest;
-	friend void FindCycle(const struct FindCycleParams&);
+	friend bool FindCycle(const struct FindCycleParams&, bool);
 
 private:
 	/* Name of this Package*/
@@ -93,7 +93,7 @@ struct FindCycleParams
 	VisitedNodeContainerType& VisitedNodes;
 };
 
-void FindCycle(const FindCycleParams& Params);
+bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting = false);
 
 
 class PackageInfoHandle
