@@ -73,13 +73,6 @@ DWORD MainThread(HMODULE Module)
 	}
 	std::cout << std::endl;
 
-
-
-	std::unordered_map<int32 /* PackageIdx */, std::string> PackagesAndForwardDeclarations;
-
-	StructManager::Init();
-	EnumManager::Init();
-
 	//CppGeneratorTest::TestAll();
 	//HashStringTableTest::TestAll();
 	//GeneratorRewriteTest::TestAll();
@@ -88,27 +81,18 @@ DWORD MainThread(HMODULE Module)
 	//CollisionManagerTest::TestAll();
 	//MemberManagerTest::TestAll();
 
-	CppGeneratorTest::TestAll<true>();
-	PackageManagerTest::TestAll<true>();
+	//CppGeneratorTest::TestAll<true>();
+	//PackageManagerTest::TestAll<true>();
+
 	//PackageManagerTest::TestIncludeTypes<true>();
 	//PackageManagerTest::TestCyclicDependencyDetection<true>();
 
 	//CppGeneratorTest::TestAll();
 
-	for (auto Obj : ObjectArray())
-	{
-		if (!Obj.IsA(EClassCastFlags::Enum))
-			continue;
+	//EnumManagerTest::TestAll<true>();
+	PackageManagerTest::TestAll<true>();
 
-		auto Info = EnumManager::GetInfo(Obj.Cast<UEEnum>());
-
-		for (const auto& ValueInfo : Info.GetMemberCollisionInfoIterator())
-		{
-			if (ValueInfo.GetCollisionCount() > 0)
-				std::cout << ValueInfo.GetUniqueName() << std::endl;
-		}
-	}
-
+	GeneratorRewrite::Generate<CppGenerator>();
 
 	//MemberManagerTest::TestFunctionIterator<true>();
 

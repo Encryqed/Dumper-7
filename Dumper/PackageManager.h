@@ -128,6 +128,42 @@ public:
 	const DependencyInfo& GetPackageDependencies() const;
 };
 
+using PackageManagerOverrideMapType = std::unordered_map<int32 /* PackageIndex */, PackageInfo>;;
+
+struct PackageInfoIterator
+{
+private:
+	using MapType = PackageManagerOverrideMapType;
+	using IteratorType = PackageManagerOverrideMapType::const_iterator;
+
+private:
+	const MapType& PackageInfos;
+	IteratorType It;
+
+private:
+	explicit PackageInfoIterator(const MapType& Infos, IteratorType ItPos)
+		: PackageInfos(Infos), It(ItPos)
+	{
+	}
+
+public:
+	explicit PackageInfoIterator(const MapType& Infos)
+		: PackageInfos(Infos), It(Infos.cbegin())
+	{
+	}
+
+public:
+	inline PackageInfoIterator& operator++() { ++It; return *this; }
+	inline PackageInfoHandle operator*() const { return { PackageInfoHandle(It->second) }; }
+
+	inline bool operator==(const PackageInfoIterator& Other) const { return It == Other.It; }
+	inline bool operator!=(const PackageInfoIterator& Other) const { return It != Other.It; }
+
+public:
+	PackageInfoIterator begin() const { return PackageInfoIterator(PackageInfos, PackageInfos.cbegin()); }
+	PackageInfoIterator end() const   { return PackageInfoIterator(PackageInfos, PackageInfos.cend());   }
+};
+
 
 class PackageManager
 {
@@ -136,9 +172,9 @@ private:
 	friend class PackageManagerTest;
 
 public:
-	using OverrideMaptType = std::unordered_map<int32 /* PackageIndex */, PackageInfo>;
+	using OverrideMaptType = PackageManagerOverrideMapType;
 
-public:
+private:
 	/* NameTable containing names of all Packages as well as information on name-collisions */
 	static inline HashStringTable UniquePackageNameTable;
 
@@ -165,14 +201,19 @@ public:
 		return PackageInfos;
 	}
 
-	static inline std::string GetName(int32 PackageIndex)
+	static inline std::string GetName(const PackageInfoHandle& PackageInfo)
 	{
-		auto [NameString, Count] = GetInfo(PackageIndex).GetName();
+		auto [NameString, Count] = PackageInfo.GetName();
 
 		if (Count > 0) [[unlikely]]
 			return NameString + "_" + std::to_string(Count - 1);
 
 		return NameString;
+	}
+
+	static inline std::string GetName(int32 PackageIndex)
+	{
+		 return GetName(GetInfo(PackageIndex));
 	}
 
 	static inline bool IsPackageNameUnique(const PackageInfo& Info)
@@ -191,5 +232,10 @@ public:
 			return {};
 
 		return PackageInfos.at(Package.GetIndex());
+	}
+
+	static inline PackageInfoIterator IterateOverPackageInfos()
+	{
+		return PackageInfoIterator(PackageInfos);
 	}
 };

@@ -239,26 +239,26 @@ namespace PackageManagerUtils
 void PackageManager::InitNameAndDependencies()
 {
 	// Collects all packages required to compile this file
-	
+
 	for (auto Obj : ObjectArray())
 	{
 		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
 			continue;
 
-		int32 CurrentPackageIdx = Obj.GetOutermost().GetIndex();
+		int32 CurrentPackageIdx = Obj.GetPackageIndex();
 
 		const bool bIsStruct = Obj.IsA(EClassCastFlags::Struct);
 		const bool bIsClass = Obj.IsA(EClassCastFlags::Class);
 
 		const bool bIsFunction = Obj.IsA(EClassCastFlags::Function);
-		const bool bIsEnum = Obj.IsA(EClassCastFlags::Function);
+		const bool bIsEnum = Obj.IsA(EClassCastFlags::Enum);
 
 		const bool bIsPackage = Obj.IsA(EClassCastFlags::Package);
 
 		if (bIsPackage)
 		{
 			/* Init Name in, maybe already existing, PackageInfo */
-			PackageInfo& Info = PackageInfos[CurrentPackageIdx];
+			PackageInfo& Info = PackageInfos[Obj.GetIndex()];
 
 			auto [Name, bWasInserted] = UniquePackageNameTable.FindOrAdd(Obj.GetValidName());
 			Info.Name = Name;

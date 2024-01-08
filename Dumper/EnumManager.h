@@ -83,7 +83,7 @@ private:
 public:
 	using OverrideMaptType = std::unordered_map<int32 /* EnumIndex */, EnumInfo>;
 
-public:
+private:
 	/* NameTable containing names of all enums as well as information on name-collisions */
 	static inline HashStringTable UniqueEnumNameTable;
 
