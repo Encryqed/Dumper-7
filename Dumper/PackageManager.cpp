@@ -16,8 +16,8 @@ bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting)
 		.VisitedNodes = Params.VisitedNodes,
 	};
 
-	static auto FindCycleHandler = [bSuppressPrinting, DEBUG_Params = &Params](FindCycleParams& NewParams, const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes, int32 CurrentIndex, int32 PrevIndex,
-		bool& bIsIncluded, bool bShouldHandlePackage, bool bIsStruct) -> bool
+	static auto FindCycleHandler = [bSuppressPrinting, DEBUG_Params = &Params](FindCycleParams& NewParams, const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes,
+		int32 CurrentIndex, int32 PrevIndex, bool& bIsIncluded, bool bShouldHandlePackage, bool bIsStruct) -> bool
 	{
 		if (!bShouldHandlePackage)
 			return false;
@@ -103,7 +103,17 @@ PackageInfoHandle::PackageInfoHandle(const PackageInfo& InInfo)
 }
 
 
-const StringEntry& PackageInfoHandle::GetName() const
+std::pair<std::string, uint8> PackageInfoHandle::GetName() const
+{
+	const StringEntry& Name = GetNameEntry();
+
+	if (Name.IsUniqueInTable()) [[likely]]
+		return { Name.GetName(), 0 };
+
+	return { Name.GetName(), Name.GetCollisionCount().CollisionCount };
+}
+
+const StringEntry& PackageInfoHandle::GetNameEntry() const
 {
 	return PackageManager::GetPackageName(*Info);
 }
@@ -247,8 +257,14 @@ void PackageManager::InitNameAndDependencies()
 
 		if (bIsPackage)
 		{
+			/* Init Name in, maybe already existing, PackageInfo */
 			PackageInfo& Info = PackageInfos[CurrentPackageIdx];
-			Info.Name = UniquePackageNameTable.FindOrAdd(Obj.GetValidName()).first;
+
+			auto [Name, bWasInserted] = UniquePackageNameTable.FindOrAdd(Obj.GetValidName());
+			Info.Name = Name;
+
+			if (!bWasInserted) [[unlikely]]
+				Info.CollisionCount = UniquePackageNameTable[Name].GetCollisionCount().CollisionCount;
 		}
 		else if (bIsStruct && !bIsFunction)
 		{

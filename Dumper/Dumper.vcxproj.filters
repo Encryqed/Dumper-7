@@ -159,9 +159,6 @@
     <ClInclude Include="NameArray.h">
       <Filter>Engine\Public</Filter>
     </ClInclude>
-    <ClInclude Include="CppGeneratorTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
     <ClInclude Include="HashStringTable.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
@@ -223,6 +220,9 @@
       <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
     <ClInclude Include="PackageManagerTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="CppGeneratorTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
   </ItemGroup>

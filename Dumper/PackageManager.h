@@ -66,6 +66,9 @@ private:
 	/* Name of this Package*/
 	HashStringTableIndex Name;
 
+	/* Count to track how many packages with this name already exists at the point this PackageInfos' initialization */
+	uint8 CollisionCount = 0x0;
+
 	bool bHasEnums;
 	bool bHasStructs;
 	bool bHasClasses;
@@ -106,7 +109,9 @@ public:
 	PackageInfoHandle(const PackageInfo& InInfo);
 
 public:
-	const StringEntry& GetName() const;
+	/* Returns a pair of name and CollisionCount */
+	std::pair<std::string, uint8> GetName() const;
+	const StringEntry& GetNameEntry() const;
 
 	bool HasClasses() const;
 	bool HasStructs() const;
@@ -160,9 +165,24 @@ public:
 		return PackageInfos;
 	}
 
+	static inline std::string GetName(int32 PackageIndex)
+	{
+		auto [NameString, Count] = GetInfo(PackageIndex).GetName();
+
+		if (Count > 0) [[unlikely]]
+			return NameString + "_" + std::to_string(Count - 1);
+
+		return NameString;
+	}
+
 	static inline bool IsPackageNameUnique(const PackageInfo& Info)
 	{
 		return UniquePackageNameTable[Info.Name].IsUnique();
+	}
+
+	static inline PackageInfoHandle GetInfo(int32 PackageIndex)
+	{
+		return PackageInfos.at(PackageIndex);
 	}
 
 	static inline PackageInfoHandle GetInfo(const UEObject Package)

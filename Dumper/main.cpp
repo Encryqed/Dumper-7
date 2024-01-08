@@ -80,39 +80,6 @@ DWORD MainThread(HMODULE Module)
 	StructManager::Init();
 	EnumManager::Init();
 
-	const StructManager::OverrideMaptType& StructInfoMap = StructManager::GetStructInfos();
-	const EnumManager::OverrideMaptType& EnumInfoMap = EnumManager::GetEnumInfos();
-
-	for (const auto& [Index, Info] : StructInfoMap)
-	{
-		if (StructManager::IsStructNameUnique(Info.Name))
-			continue;
-
-		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
-
-		PackagesAndForwardDeclarations[Struct.GetOutermost().GetIndex()] += std::format("\t{} {};\n", Struct.IsA(EClassCastFlags::Class) ? "class" : "struct", Struct.GetCppName());
-	}
-
-	for (const auto& [Index, Info] : EnumInfoMap)
-	{
-		if (EnumManager::IsEnumNameUnique(Info))
-			continue;
-
-		UEEnum Enum = ObjectArray::GetByIndex<UEEnum>(Index);
-
-		PackagesAndForwardDeclarations[Enum.GetOutermost().GetIndex()] += std::format("\t{} {};\n", "eunum class", Enum.GetEnumPrefixedName());
-	}
-
-	for (const auto& [PackageIndex, ForwardDeclarations] : PackagesAndForwardDeclarations)
-	{
-		std::cout << std::format(R"(
-namespace {} {{
-{}
-}}
-)", ObjectArray::GetByIndex(PackageIndex).GetValidName(), ForwardDeclarations.substr(0, ForwardDeclarations.size() - 1));
-	}
-
-
 	//CppGeneratorTest::TestAll();
 	//HashStringTableTest::TestAll();
 	//GeneratorRewriteTest::TestAll();
@@ -121,6 +88,7 @@ namespace {} {{
 	//CollisionManagerTest::TestAll();
 	//MemberManagerTest::TestAll();
 
+	CppGeneratorTest::TestAll<true>();
 	PackageManagerTest::TestAll<true>();
 	//PackageManagerTest::TestIncludeTypes<true>();
 	//PackageManagerTest::TestCyclicDependencyDetection<true>();

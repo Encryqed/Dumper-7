@@ -2,6 +2,7 @@
 #include "CppGenerator.h"
 #include "HashStringTable.h"
 #include "TestBase.h"
+#include "PackageManager.h"
 
 #include <cassert>
 
@@ -52,6 +53,8 @@ private:
 	static inline std::ofstream FunctionFile;
 	static inline std::ofstream ParamFile;
 
+	static inline std::ofstream NameCollisionInl;
+
 private:
 	static void InitTestVariables()
 	{
@@ -63,6 +66,7 @@ private:
 		MemberManager::Init();
 		StructManager::Init();
 		EnumManager::Init();
+		PackageManager::Init();
 
 		std::sort(TestFunctions.begin(), TestFunctions.end(), ComparePredefinedFunctions);
 
@@ -72,6 +76,8 @@ private:
 		StructFile = std::ofstream(BasePath / "CPP_structs.hpp", std::ios::trunc);
 		FunctionFile = std::ofstream(BasePath / "CPP_functions.cpp", std::ios::trunc);
 		ParamFile = std::ofstream(BasePath / "CPP_params.hpp", std::ios::trunc);
+
+		NameCollisionInl = std::ofstream(BasePath / "NameCollision.inl", std::ios::trunc);
 
 		bDidInit = true;
 	}
@@ -84,6 +90,7 @@ public:
 		TestUnrealStructGeneration<bDoDebugPrinting>();
 		TestUnrealClassGeneration<bDoDebugPrinting>();
 		TestUnrealEnumGeneration<bDoDebugPrinting>();
+		TestNameCollisionInlCreation<bDoDebugPrinting>();
 
 		PrintDbgMessage<bDoDebugPrinting>("");
 	}
@@ -177,5 +184,13 @@ public:
 
 		CppGenerator::GenerateEnum(ObjectArray::FindObjectFast<UEEnum>("ENetRole"), StructFile);
 		CppGenerator::GenerateEnum(ObjectArray::FindObjectFast<UEEnum>("ESlateColorStylingMode"), StructFile);
+	}
+
+	template<bool bDoDebugPrinting = false>
+	static inline void TestNameCollisionInlCreation()
+	{
+		InitTestVariables();
+
+		CppGenerator::GenerateNameCollisionsInl(NameCollisionInl);
 	}
 };

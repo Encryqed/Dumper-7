@@ -49,8 +49,8 @@ public:
 		PackageInfoHandle CoreUObject = PackageManager::GetInfo(CoreUObjectPackage);
 
 #define PackageInfoHandleToDebugInfo(InfoHandle) \
-	InfoHandle.GetName().GetName(), \
-	InfoHandle.GetName().IsUnique(), \
+	InfoHandle.GetName().first, \
+	InfoHandle.GetName().second, \
 	InfoHandle.HasClasses(), \
 	InfoHandle.HasStructs(), \
 	InfoHandle.HasFunctions(), \
@@ -150,7 +150,7 @@ public:
 		for (auto [PackageIndex, Info] : PackageManager::PackageInfos)
 		{
 			Visited.clear();
-			Params.Requriements.PackageIdx = PackageIndex;
+			Params.Requriements = { PackageIndex, { true, true } };
 			
 			if (ObjectArray::GetByIndex(PackageIndex).GetValidName() == "Engine")
 				std::cout << std::endl;
@@ -212,7 +212,7 @@ public:
 		for (auto& [FakePackageIndex, Info] : CyclicGraph)
 		{
 			Visited.clear();
-			Params.Requriements.PackageIdx = FakePackageIndex;
+			Params.Requriements = { FakePackageIndex, { true, true } };
 
 			const bool bFoundCycle = FindCycle(Params, !bDoDebugPrinting);
 

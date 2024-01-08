@@ -88,6 +88,9 @@ private: /* utility functions */
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
 
+private:
+    static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);
+
 public:
     static void Generate();
 

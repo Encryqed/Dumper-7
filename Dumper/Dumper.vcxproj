@@ -163,10 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CppGenerator.h" />
-    <ClInclude Include="CppGeneratorTest.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
+    <ClInclude Include="CppGeneratorTest.h" />
     <ClInclude Include="DependencyManager.h" />
     <ClInclude Include="EnumManager.h" />
     <ClInclude Include="EnumManagerTest.h" />

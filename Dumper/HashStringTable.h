@@ -36,6 +36,7 @@ inline uint8 SmallPearsonHash(const char* StringToHash)
 struct AccessLimitedCollisionCount
 {
     friend class PackageManager;
+    friend class PackageInfoHandle;
 
 private:
     uint8 CollisionCount;
@@ -100,7 +101,7 @@ public:
     inline uint8 GetHash() const { return Hash; }
 
     /* To be used with PackageManager */
-    AccessLimitedCollisionCount GetCollisionCount() { return { OptionalCollisionCount }; }
+    AccessLimitedCollisionCount GetCollisionCount() const { return { OptionalCollisionCount }; }
 
     inline std::string GetName() const { return std::string(Char, GetStringLength()); }
     inline std::wstring GetWideName() const { return std::wstring(WChar, GetStringLength()); }

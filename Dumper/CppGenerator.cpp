@@ -2,6 +2,7 @@
 #include "ObjectArray.h"
 #include "MemberWrappers.h"
 #include "MemberManager.h"
+#include "PackageManager.h"
 
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
@@ -84,8 +85,6 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 {
-	constexpr int32 AverageNumCharactersPerFunction = 0x50;
-
 	std::string AllFuntionsText;
 
 	bool bIsFirstIteration = true;
@@ -560,14 +559,101 @@ std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 
 	auto [ValidName, bIsUnique] = Struct.GetUniqueName();
 
-	return (bIsUnique ? "" : (Struct.GetUnrealStruct().GetOutermost().GetValidName() + "::")) + ValidName;
+	if (bIsUnique) [[likely]]
+		return ValidName;
+
+	/* Package::FStructName */
+	return PackageManager::GetName(Struct.GetUnrealStruct().GetPackageIndex()) + "::" + ValidName;
 }
 
 std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 {
 	auto [ValidName, bIsUnique] = Enum.GetUniqueName();
 
-	return (bIsUnique ? "" : (Enum.GetUnrealEnum().GetOutermost().GetValidName() + "::")) + ValidName;
+	if (bIsUnique) [[likely]]
+		return ValidName;
+
+	/* Package::ESomeEnum */
+	return PackageManager::GetName(Enum.GetUnrealEnum().GetPackageIndex()) + "::" + ValidName;
+}
+
+
+void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
+{
+	NameCollisionsFile << R"(
+//---------------------------------------------------------------------------------------------------------------------
+// FORWARD DECLARATIONS
+//---------------------------------------------------------------------------------------------------------------------
+)";
+
+	const StructManager::OverrideMaptType& StructInfoMap = StructManager::GetStructInfos();
+	const EnumManager::OverrideMaptType& EnumInfoMap = EnumManager::GetEnumInfos();
+
+	std::unordered_map<int32 /* PackageIdx */, std::pair<std::string, int32>> PackagesAndForwardDeclarations;
+
+	for (const auto& [Index, Info] : StructInfoMap)
+	{
+		if (StructManager::IsStructNameUnique(Info.Name))
+			continue;
+
+		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
+
+		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Struct.GetOutermost().GetIndex()];
+
+		ForwardDeclarations += std::format("\t{} {};\n", Struct.IsA(EClassCastFlags::Class) ? "class" : "struct", Struct.GetCppName());
+		Count++;
+	}
+
+	for (const auto& [Index, Info] : EnumInfoMap)
+	{
+		if (EnumManager::IsEnumNameUnique(Info))
+			continue;
+
+		UEEnum Enum = ObjectArray::GetByIndex<UEEnum>(Index);
+
+		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Enum.GetOutermost().GetIndex()];
+
+		ForwardDeclarations += std::format("\t{} {};\n", "eunum class", Enum.GetEnumPrefixedName());
+		Count++;
+	}
+
+	bool bHasSingleLineForwardDeclarations = false;
+
+	for (const auto& [PackageIndex, ForwardDeclarations] : PackagesAndForwardDeclarations)
+	{
+		std::string ForwardDeclString = ForwardDeclarations.first.substr(0, ForwardDeclarations.first.size() - 1);
+		std::string PackageName = PackageManager::GetName(PackageIndex);
+
+		/* Only print packages with a single forward declaration at first */
+		if (ForwardDeclarations.second > 1)
+			continue;
+
+		bHasSingleLineForwardDeclarations = true;
+
+		NameCollisionsFile << std::format("\nnamespace {} {{ {} }}\n", PackageName, ForwardDeclString.c_str() + 1);
+	}
+
+	if (bHasSingleLineForwardDeclarations)
+		NameCollisionsFile << "\n";
+
+	for (const auto& [PackageIndex, ForwardDeclarations] : PackagesAndForwardDeclarations)
+	{
+		std::string ForwardDeclString = ForwardDeclarations.first.substr(0, ForwardDeclarations.first.size() - 1);
+		std::string PackageName = PackageManager::GetName(PackageIndex);
+
+		/* Now print all packages with several forward declarations */
+		if (ForwardDeclarations.second <= 1)
+			continue;
+
+		NameCollisionsFile << std::format(R"(
+namespace {}
+{{
+{}
+}}
+)", PackageName, ForwardDeclString);
+	}
+
+	NameCollisionsFile << std::endl;
 }
 
 void CppGenerator::Generate()
@@ -581,28 +667,8 @@ void CppGenerator::Generate()
 	// Generate SDK.hpp with sorted packages
 
 	// Generate NameCollisions.inl file containing forward declarations for classes in namespaces (potentially requires lock)
-	std::ofstream NameCollisionsInl(MainFolder / "NameCollisions.inl");
-	const StructManager::OverrideMaptType& StructInfoMap = StructManager::GetStructInfos();
-
-	std::unordered_map<int32 /* PackageIdx */, std::string> PackagesAndForwardDeclarations;
-
-	for (const auto& [Index, Info] : StructInfoMap)
-	{
-		if (StructManager::IsStructNameUnique(Info.Name))
-			continue;
-
-		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
-
-		PackagesAndForwardDeclarations[Struct.GetOutermost().GetIndex()] += '\t' + Struct.GetCppName() + ';';
-	}
-
-	for (const auto& [PackageIndex, ForwardDeclarations] : PackagesAndForwardDeclarations)
-	{
-		NameCollisionsInl << std::format(R"(
-namespace {} {{
-{}
-}})", ObjectArray::GetByIndex(PackageIndex).GetValidName(), ForwardDeclarations);
-	}
+	StreamType NameCollisionsInl(MainFolder / "NameCollisions.inl");
+	GenerateNameCollisionsInl(NameCollisionsInl);
 }
 
 void CppGenerator::InitPredefinedMembers()
