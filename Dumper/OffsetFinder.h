@@ -18,7 +18,7 @@ namespace OffsetFinder
 
 			for (int j = HighestFoundOffset; j < MaxOffset; j += Alignement)
 			{
-				if ((*(T*)(BytePtr + j)) == ObjectValuePair[i].second && j >= HighestFoundOffset)
+				if ((*reinterpret_cast<T*>(BytePtr + j)) == ObjectValuePair[i].second && j >= HighestFoundOffset)
 				{
 					if (j > HighestFoundOffset)
 					{

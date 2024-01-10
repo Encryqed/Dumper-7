@@ -17,6 +17,7 @@ public:
 		TestIncludeTypes<bDoDebugPrinting>();
 		TestFindCyclidDependencies<bDoDebugPrinting>();
 		TestCyclicDependencyDetection<bDoDebugPrinting>();
+		TestUniquePackageNameGeneration<bDoDebugPrinting>();
 		PrintDbgMessage<bDoDebugPrinting>("");
 	}
 
@@ -136,6 +137,8 @@ public:
 	template<bool bDoDebugPrinting = false>
 	static inline void TestFindCyclidDependencies()
 	{
+		bool bSuccededTestWithoutError = true;
+
 		PackageManager::Init();
 
 		VisitedNodeContainerType Visited;
@@ -149,20 +152,18 @@ public:
 
 		for (auto [PackageIndex, Info] : PackageManager::PackageInfos)
 		{
+			if (ObjectArray::GetByIndex(PackageIndex).GetValidName() == "BP_OnlyPlayerInteractive")
+				std::cout << std::endl;
+
 			Visited.clear();
 			Params.Requriements = { PackageIndex, { true, true } };
 			
-			if (ObjectArray::GetByIndex(PackageIndex).GetValidName() == "Engine")
-				std::cout << std::endl;
-
 			if (FindCycle(Params))
 			{
-				std::cout << "Stack-Trace: " << ObjectArray::GetByIndex(PackageIndex).GetValidName() << "\n";
-				break;
+				std::cout << "Stack-Trace: " << ObjectArray::GetByIndex(PackageIndex).GetValidName() << "\n-----------------------\n";
+				bSuccededTestWithoutError = false;
 			}
 		}
-
-		bool bSuccededTestWithoutError = true;
 
 		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
@@ -214,10 +215,32 @@ public:
 			Visited.clear();
 			Params.Requriements = { FakePackageIndex, { true, true } };
 
-			const bool bFoundCycle = FindCycle(Params, !bDoDebugPrinting);
+			const bool bFoundCycle = FindCycle(Params, !bDoDebugPrinting, false);
 
 			if (bFoundCycle)
 				bSuccededTestWithoutError = true;
+		}
+
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
+	}
+
+	template<bool bDoDebugPrinting = false>
+	static inline void TestUniquePackageNameGeneration()
+	{
+		bool bSuccededTestWithoutError = true;
+
+		PackageManager::Init();
+
+		std::unordered_set<std::string> Names;
+
+		for (auto [PackageIndex, Info] : PackageManager::PackageInfos)
+		{
+			const auto [It, bWasInserted] = Names.insert(PackageManager::GetName(Info));
+			if (!bWasInserted)
+			{
+				bSuccededTestWithoutError = false;
+				PrintDbgMessage<bDoDebugPrinting>("PackageManagerTest: Name '{} is duplicate!'", PackageManager::GetName(Info));
+			}
 		}
 
 		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;

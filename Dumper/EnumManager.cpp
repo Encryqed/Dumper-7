@@ -11,7 +11,7 @@ namespace EnumInitHelper
 	void SetEnumSizeForValue(uint8& Size, uint64 EnumValue)
 	{
 		if (EnumValue > GetMaxOfType<uint32>()) {
-			Size = max(Size, 0x8);
+			Size = 0x8;
 		}
 		else if (EnumValue > GetMaxOfType<uint16>()) {
 			Size = max(Size, 0x4);
@@ -81,25 +81,28 @@ void EnumManager::InitInternal()
 
 				UEEnum Enum = Property.Cast<UEEnumProperty>().GetEnum();
 
-				if (!Enum)
+				UEProperty UnderlayingProperty = Property.Cast<UEEnumProperty>().GetUnderlayingProperty();
+
+				if (!Enum && !UnderlayingProperty)
 					continue;
 
-				EnumInfoOverrides[Enum.GetIndex()].bWasInstanceFound = true;
+				EnumInfo& Info = EnumInfoOverrides[Enum.GetIndex()];
+
+				Info.bWasInstanceFound = true;
+				Info.UnderlyingTypeSize = 0x1;
 
 				/* Check if the size of this enums underlaying type is greater than the default size (0x1) */
-				if (Property.Cast<UEEnumProperty>().GetSize() != 0x1) [[unlikely]]
+				if (Enum) [[unlikely]]
 				{
-					EnumInfoOverrides[Enum.GetIndex()].UnderlyingTypeSize = Property.Cast<UEEnumProperty>().GetSize();
+					Info.UnderlyingTypeSize = Property.Cast<UEEnumProperty>().GetSize();
 					continue;
 				}
 
-				UEProperty UnderlayingProperty = Property.Cast<UEEnumProperty>().GetUnderlayingProperty();
-
-				if (!UnderlayingProperty) [[unlikely]]
+				if (UnderlayingProperty) [[unlikely]]
+				{
+					Info.UnderlyingTypeSize = UnderlayingProperty.GetSize();
 					continue;
-
-				if (UnderlayingProperty.GetSize() != 0x1) [[unlikely]]
-					EnumInfoOverrides[Enum.GetIndex()].UnderlyingTypeSize = UnderlayingProperty.GetSize();
+				}
 			}
 		}
 		else if (Obj.IsA(EClassCastFlags::Enum))
@@ -118,9 +121,11 @@ void EnumManager::InitInternal()
 			{
 				auto& [Name, Value] = NameValuePairs[i];
 
-				EnumMaxValue = max(EnumMaxValue, Value);
-
 				std::string NameWitPrefix = Name.ToString();
+
+				if (!NameWitPrefix.ends_with("_MAX"))
+					EnumMaxValue = max(EnumMaxValue, Value);
+
 				auto [NameIndex, bWasInserted] = UniqueEnumValueNames.FindOrAdd(MakeNameValid(NameWitPrefix.substr(NameWitPrefix.find_last_of("::") + 1)));
 
 				EnumCollisionInfo CurrentEnumValueInfo;
@@ -152,7 +157,6 @@ void EnumManager::InitInternal()
 			/* Initialize the size based on the highest value contained by this enum */
 			if (!NewOrExistingInfo.bWasEnumSizeInitialized && !NewOrExistingInfo.bWasInstanceFound)
 			{
-
 				EnumInitHelper::SetEnumSizeForValue(NewOrExistingInfo.UnderlyingTypeSize, EnumMaxValue);
 				NewOrExistingInfo.bWasEnumSizeInitialized = true;
 			}

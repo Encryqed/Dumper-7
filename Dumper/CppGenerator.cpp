@@ -51,7 +51,9 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		if (MemberOffset > PrevPropertyEnd)
 			OutMembers += GenerateBytePadding(PrevPropertyEnd, MemberOffset - PrevPropertyEnd, "Fixing Size After Last Property [ Dumper-7 ]");
 
-		if (Member.IsBitField())
+		const bool bIsBitField = Member.IsBitField();
+
+		if (bIsBitField)
 		{
 			uint8 BitFieldIndex = Member.GetBitIndex();
 
@@ -66,16 +68,22 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 			PrevBoolPropertyBit = BitFieldIndex + 1;
 			PrevBoolPropertyEnd = MemberOffset;
-
-			bLastPropertyWasBitField = true;
 		}
+
+		bLastPropertyWasBitField = bIsBitField;
 
 		PrevPropertyEnd = MemberOffset + MemberSize;
 
 		std::string MemberName = Member.GetName();
 
 		if (Member.GetArrayDim() > 1)
+		{
 			MemberName += std::format("[0x{:X}]", Member.GetArrayDim());
+		}
+		else if (bIsBitField)
+		{
+			MemberName += " : 1";
+		}
 
 		OutMembers += MakeMemberString(GetMemberTypeString(Member), MemberName, std::move(Comment));
 	}

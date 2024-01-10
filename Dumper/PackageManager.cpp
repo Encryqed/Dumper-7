@@ -7,7 +7,7 @@ inline void BooleanOrEqual(bool& b1, bool b2)
 	b1 = b1 || b2;
 }
 
-bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting)
+bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting, bool bShouldPrintName)
 {
 	FindCycleParams NewParams = {
 		.Nodes = Params.Nodes,
@@ -16,7 +16,7 @@ bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting)
 		.VisitedNodes = Params.VisitedNodes,
 	};
 
-	static auto FindCycleHandler = [bSuppressPrinting, DEBUG_Params = &Params](FindCycleParams& NewParams, const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes,
+	static auto FindCycleHandler = [bSuppressPrinting, bShouldPrintName, DEBUG_Params = &Params](FindCycleParams& NewParams, const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes,
 		int32 CurrentIndex, int32 PrevIndex, bool& bIsIncluded, bool bShouldHandlePackage, bool bIsStruct) -> bool
 	{
 		if (!bShouldHandlePackage)
@@ -38,7 +38,7 @@ bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting)
 				NewParams.Requriements = Requirements;
 				
 				/* Search dependencies recursively */
-				const bool bFoundCycleResult = FindCycle(NewParams, bSuppressPrinting);
+				const bool bFoundCycleResult = FindCycle(NewParams, bSuppressPrinting, bShouldPrintName);
 
 				BooleanOrEqual(bFoundCycle, bFoundCycleResult);
 			}
@@ -50,7 +50,7 @@ bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting)
 			const bool bShouldIncludeStructs = bIsStruct;
 			const bool bShouldIncludeClasses = !bIsStruct;
 
-			auto CompareInfoPairs = [&](const VisitedNodeInformation& Info)
+			auto CompareInfoPairs = [=](const VisitedNodeInformation& Info)
 			{
 				return Info.PackageIdx == CurrentIndex && ((Info.bIsIncluded.Structs && bShouldIncludeStructs) || (Info.bIsIncluded.Classes && bShouldIncludeClasses)); /* Maybe wrong */
 			};
@@ -58,9 +58,7 @@ bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting)
 			/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
 			if (std::find_if(VisitedNodes.begin(), VisitedNodes.end(), CompareInfoPairs) != std::end(VisitedNodes))
 			{
-				constexpr bool bShouldPrintPackageName = false;
-
-				if constexpr (bShouldPrintPackageName)
+				if (bShouldPrintName)
 				{
 					if (!bSuppressPrinting)
 						std::cout << std::format("Cycle between \"{}_{}.hpp\" and \"{}_{}.hpp\"\n",
@@ -110,7 +108,7 @@ std::pair<std::string, uint8> PackageInfoHandle::GetName() const
 	if (Name.IsUniqueInTable()) [[likely]]
 		return { Name.GetName(), 0 };
 
-	return { Name.GetName(), Name.GetCollisionCount().CollisionCount };
+	return { Name.GetName(), Info->CollisionCount };
 }
 
 const StringEntry& PackageInfoHandle::GetNameEntry() const

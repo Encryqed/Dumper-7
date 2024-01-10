@@ -92,16 +92,8 @@ DWORD MainThread(HMODULE Module)
 	//EnumManagerTest::TestAll<true>();
 	PackageManagerTest::TestAll<true>();
 
-	GeneratorRewrite::Generate<CppGenerator>();
+	//GeneratorRewrite::Generate<CppGenerator>();
 	
-	void MakeNewPackage(int);
-	int GetRandomName();
-
-	[]<typename T = int, typename... Args> requires std::integral<T> (Args&&... args) -> T
-	{
-		return (0 + ... + args);
-	}();
-
 	//MemberManagerTest::TestFunctionIterator<true>();
 
 	//CppGeneratorTest::TestAll();
@@ -120,7 +112,7 @@ DWORD MainThread(HMODULE Module)
 	//	}
 	//}
 	
-	//GeneratorRewrite::Generate<CppGenerator>();
+	GeneratorRewrite::Generate<CppGenerator>();
 
 	//std::cout << "FTransform::MinAlignment: " << *reinterpret_cast<int32*>(static_cast<uint8*>(ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct)) + Off::UStruct::Size + 0x4) << std::endl;
 	//Generator::GenerateSDK();
