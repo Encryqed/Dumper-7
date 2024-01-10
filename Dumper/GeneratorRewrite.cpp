@@ -44,7 +44,11 @@ bool GeneratorRewrite::SetupDumperFolder()
 {
 	try
 	{
-		DumperFolder = fs::path(Settings::SDKGenerationPath) / (Settings::GameVersion + '-' + Settings::GameName);
+		std::string FolderName = (Settings::GameVersion + '-' + Settings::GameName);
+
+		FileNameHelper::MakeValidFileName(FolderName);
+
+		DumperFolder = fs::path(Settings::SDKGenerationPath) / FolderName;
 
 		if (fs::exists(DumperFolder))
 		{

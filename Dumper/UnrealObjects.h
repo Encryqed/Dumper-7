@@ -72,7 +72,6 @@ public:
 	class UEObject GetOwnerAsUObject() const;
 	class UEFField GetOwnerAsFField() const;
 	class UEObject GetOwnerUObject() const;
-	class UEObject GetOutermost() const;
 	UEFFieldClass GetClass() const;
 	FName GetFName() const;
 	UEFField GetNext() const;
@@ -266,8 +265,6 @@ public:
 	EPropertyFlags GetPropertyFlags() const;
 	EMappingsTypeFlags GetMappingType() const;
 	bool HasPropertyFlags(EPropertyFlags PropertyFlag) const;
-
-	UEObject GetOutermost() const;
 
 	std::string GetName() const;
 	std::string GetValidName() const;

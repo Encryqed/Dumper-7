@@ -752,7 +752,7 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 
 		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
 
-		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Struct.GetOutermost().GetIndex()];
+		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Struct.GetPackageIndex()];
 
 		ForwardDeclarations += std::format("\t{} {};\n", Struct.IsA(EClassCastFlags::Class) ? "class" : "struct", Struct.GetCppName());
 		Count++;
@@ -765,7 +765,7 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 
 		UEEnum Enum = ObjectArray::GetByIndex<UEEnum>(Index);
 
-		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Enum.GetOutermost().GetIndex()];
+		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Enum.GetPackageIndex()];
 
 		ForwardDeclarations += std::format("\t{} {};\n", "eunum class", Enum.GetEnumPrefixedName());
 		Count++;
@@ -826,18 +826,57 @@ void CppGenerator::Generate()
 
 	// Generate SDK
 
-	for (PackageInfoHandle Handle : PackageManager::IterateOverPackageInfos())
+	for (PackageInfoHandle Package : PackageManager::IterateOverPackageInfos())
 	{
-		std::string PackageName = PackageManager::GetName(Handle);
+		if (Package.IsEmpty())
+			continue;
 
-		StreamType ClassesFile(Subfolder / (PackageName + "_classes.hpp"));
-		StreamType StructsFile(Subfolder / (PackageName + "_structs.hpp"));
-		StreamType ParametersFile(Subfolder / (PackageName + "_parameters.hpp"));
-		StreamType FunctionsFile(Subfolder / (PackageName + "_functions.cpp"));
+		std::string PackageName = PackageManager::GetName(Package);
 
-		for (int32 EnumIdx : Handle.GetEnums())
+		StreamType ClassesFile;
+		StreamType StructsFile;
+		StreamType ParametersFile;
+		StreamType FunctionsFile;
+
+		if (Package.HasClasses())
+			ClassesFile = StreamType(Subfolder / (PackageName + "_classes.hpp"));
+
+		if (Package.HasFunctions() || Package.HasEnums())
+			StructsFile = StreamType(Subfolder / (PackageName + "_structs.hpp"));
+
+		if (Package.HasParameterStructs())
+			ParametersFile = StreamType(Subfolder / (PackageName + "_parameters.hpp"));
+
+		if (Package.HasFunctions())
+			FunctionsFile = StreamType(Subfolder / (PackageName + "_functions.cpp"));
+
+		for (int32 EnumIdx : Package.GetEnums())
 		{
 			GenerateEnum(ObjectArray::GetByIndex<UEEnum>(EnumIdx), StructsFile);
+		}
+
+		if (Package.HasStructs())
+		{
+			const DependencyManager& Structs = Package.GetSortedStructs();
+
+			DependencyManager::IncludeFunctionType GenerateStructCallback = [&](int32 Index) -> void
+			{
+				GenerateStruct(ObjectArray::GetByIndex<UEStruct>(Index), StructsFile, FunctionsFile, ParametersFile);
+			};
+
+			Structs.VisitAllNodesWithCallback(GenerateStructCallback);
+		}
+
+		if (Package.HasClasses())
+		{
+			const DependencyManager& Classes = Package.GetSortedClasses();
+
+			DependencyManager::IncludeFunctionType GenerateClassCallback = [&](int32 Index) -> void
+			{
+				GenerateStruct(ObjectArray::GetByIndex<UEStruct>(Index), ClassesFile, FunctionsFile, ParametersFile);
+			};
+
+			Classes.VisitAllNodesWithCallback(GenerateClassCallback);
 		}
 	}
 

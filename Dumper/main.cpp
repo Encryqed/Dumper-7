@@ -93,6 +93,14 @@ DWORD MainThread(HMODULE Module)
 	PackageManagerTest::TestAll<true>();
 
 	GeneratorRewrite::Generate<CppGenerator>();
+	
+	void MakeNewPackage(int);
+	int GetRandomName();
+
+	[]<typename T = int, typename... Args> requires std::integral<T> (Args&&... args) -> T
+	{
+		return (0 + ... + args);
+	}();
 
 	//MemberManagerTest::TestFunctionIterator<true>();
 

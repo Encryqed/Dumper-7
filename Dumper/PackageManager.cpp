@@ -144,11 +144,17 @@ bool PackageInfoHandle::HasEnums() const
 	return Info->bHasEnums;
 }
 
+bool PackageInfoHandle::IsEmpty() const
+{
+	return !HasClasses() && !HasStructs() && !HasEnums() && !HasParameterStructs() && !HasFunctions();
+}
+
 
 const DependencyManager& PackageInfoHandle::GetSortedStructs() const
 {
 	return Info->StructsSorted;
 }
+
 const DependencyManager& PackageInfoHandle::GetSortedClasses() const
 {
 	return Info->ClassesSorted;
@@ -236,7 +242,7 @@ namespace PackageManagerUtils
 	};
 }
 
-void PackageManager::InitNameAndDependencies()
+void PackageManager::InitDependencies()
 {
 	// Collects all packages required to compile this file
 
@@ -253,20 +259,7 @@ void PackageManager::InitNameAndDependencies()
 		const bool bIsFunction = Obj.IsA(EClassCastFlags::Function);
 		const bool bIsEnum = Obj.IsA(EClassCastFlags::Enum);
 
-		const bool bIsPackage = Obj.IsA(EClassCastFlags::Package);
-
-		if (bIsPackage)
-		{
-			/* Init Name in, maybe already existing, PackageInfo */
-			PackageInfo& Info = PackageInfos[Obj.GetIndex()];
-
-			auto [Name, bWasInserted] = UniquePackageNameTable.FindOrAdd(Obj.GetValidName());
-			Info.Name = Name;
-
-			if (!bWasInserted) [[unlikely]]
-				Info.CollisionCount = UniquePackageNameTable[Name].GetCollisionCount().CollisionCount;
-		}
-		else if (bIsStruct && !bIsFunction)
+		if (bIsStruct && !bIsFunction)
 		{
 			PackageInfo& Info = PackageInfos[CurrentPackageIdx];
 
@@ -331,6 +324,20 @@ void PackageManager::InitNameAndDependencies()
 	}
 }
 
+void PackageManager::InitNames()
+{
+	for (auto& [PackageIdx, Info] : PackageInfos)
+	{
+		std::string PackageName = ObjectArray::GetByIndex(PackageIdx).GetValidName();
+
+		auto [Name, bWasInserted] = UniquePackageNameTable.FindOrAdd(PackageName);
+		Info.Name = Name;
+
+		if (!bWasInserted) [[unlikely]]
+			Info.CollisionCount = UniquePackageNameTable[Name].GetCollisionCount().CollisionCount;
+	}
+}
+
 void PackageManager::Init()
 {
 	if (bIsInitialized)
@@ -340,5 +347,6 @@ void PackageManager::Init()
 
 	PackageInfos.reserve(0x800);
 
-	InitNameAndDependencies();
+	InitDependencies();
+	InitNames();
 }

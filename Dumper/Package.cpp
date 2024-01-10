@@ -231,17 +231,17 @@ void Package::GatherDependencies(const std::vector<int32_t>& PackageMembers)
 			{
 				UEObject Obj = ObjectArray::GetByIndex(Idx);
 			
-				UEObject Outermost = Obj.GetOutermost();
+				int32 PackageIndex = Obj.GetPackageIndex();
 
 				const bool bDependencyIsClass = Obj.IsA(EClassCastFlags::Class);
 				const bool bDependencyIsStruct = Obj.IsA(EClassCastFlags::Struct) && !bDependencyIsClass;
 
-				if (PackageObject != Outermost)
+				if (PackageObject.GetIndex() != PackageIndex)
 				{
 					auto& PackageSorter = bDependencyIsClass ? Package::PackageSorterClasses : Package::PackageSorterStructs;
 
-					PackageSorter.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
-					Package::PackageSorterParams.AddDependency(PackageObject.GetIndex(), Outermost.GetIndex());
+					PackageSorter.AddDependency(PackageObject.GetIndex(), PackageIndex);
+					Package::PackageSorterParams.AddDependency(PackageObject.GetIndex(), PackageIndex);
 
 					continue;
 				}
@@ -538,8 +538,6 @@ Types::Struct Package::StaticGenerateStruct(UEStruct Struct, bool bIsFunction)
 			RetStruct = Types::Struct(StructName, Struct.GetOutermost().GetName(), false, Super.GetCppName());
 			SuperSize = Super.GetStructSize();
 
-			UEObject SuperPackage = Super.GetOutermost();
-
 			auto It = UEStruct::StructSizes.find(Super.GetIndex());
 
 			if (It != UEStruct::StructSizes.end())
@@ -665,7 +663,6 @@ Types::Class Package::StaticGenerateClass(UEClass Class, std::vector<Types::Func
 			return Left.GetOffset() < Right.GetOffset();
 		});
 
-	UEObject PackageObj = Class.GetOutermost();
 	StaticGenerateMembers(Properties, Class, RetClass, Size, SuperSize);
 
 	return RetClass;

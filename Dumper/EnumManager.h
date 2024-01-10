@@ -34,7 +34,13 @@ private:
 	HashStringTableIndex Name;
 
 	/* sizeof(UnderlayingType) */
-	int32 UnderlyingTypeSize = 0x1;
+	uint8 UnderlyingTypeSize = 0x1;
+
+	/* Wether an occurence of this enum was found, if not guess the type by the enums' max value */
+	bool bWasInstanceFound = false;
+
+	/* Whether this enums' size was initialized before */
+	bool bWasEnumSizeInitialized = false;
 
 	/* Infos on all members and if there are any collisions between member-names */
 	std::vector<EnumCollisionInfo> MemberInfos;
@@ -66,7 +72,7 @@ public:
 	EnumInfoHandle(const EnumInfo& InInfo);
 
 public:
-	int32 GetUnderlyingTypeSize() const;
+	uint8 GetUnderlyingTypeSize() const;
 	const StringEntry& GetName() const;
 
 	CollisionInfoIterator GetMemberCollisionInfoIterator() const;

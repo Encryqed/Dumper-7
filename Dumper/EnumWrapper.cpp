@@ -28,7 +28,7 @@ std::pair<std::string, bool> EnumWrapper::GetUniqueName() const
     return { Name.GetName(), Name.IsUnique() };
 }
 
-int32 EnumWrapper::GetUnderlyingTypeSize() const
+uint8 EnumWrapper::GetUnderlyingTypeSize() const
 {
     return InfoHandle.GetUnderlyingTypeSize();
 }

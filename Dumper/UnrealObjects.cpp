@@ -108,12 +108,6 @@ class UEObject UEFField::GetOwnerUObject() const
 	return Field.GetOwnerAsUObject();
 }
 
-class UEObject UEFField::GetOutermost() const
-{
-	UEObject OwnerUObject = GetOwnerUObject();
-	return OwnerUObject.GetOutermost();
-}
-
 UEFFieldClass UEFField::GetClass() const
 {
 	return UEFFieldClass(*reinterpret_cast<void**>(Field + Off::FField::Class));
@@ -265,12 +259,13 @@ bool UEObject::IsA(EClassCastFlags TypeFlags) const
 
 UEObject UEObject::GetOutermost() const
 {
-	UEObject Outermost;
+	UEObject Outermost = *this;
 
 	for (UEObject Outer = *this; Outer; Outer = Outer.GetOuter())
 	{
 		Outermost = Outer;
 	}
+
 	return Outermost;
 }
 
@@ -768,11 +763,6 @@ EMappingsTypeFlags UEProperty::GetMappingType() const
 bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag) const
 {
 	return GetPropertyFlags() & PropertyFlag;
-}
-
-UEObject UEProperty::GetOutermost() const
-{
-	return Settings::Internal::bUseFProperty ? UEFField(Base).GetOutermost() : UEObject(Base).GetOutermost();
 }
 
 std::string UEProperty::GetName() const

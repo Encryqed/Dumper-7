@@ -64,7 +64,7 @@ private:
 
 private:
 	/* Name of this Package*/
-	HashStringTableIndex Name;
+	HashStringTableIndex Name = HashStringTableIndex::FromInt(-1);
 
 	/* Count to track how many packages with this name already exists at the point this PackageInfos' initialization */
 	uint8 CollisionCount = 0x0;
@@ -118,6 +118,8 @@ public:
 	bool HasFunctions() const;
 	bool HasParameterStructs() const;
 	bool HasEnums() const;
+
+	bool IsEmpty() const;
 
 	const DependencyManager& GetSortedStructs() const;
 	const DependencyManager& GetSortedClasses() const;
@@ -184,7 +186,8 @@ private:
 	static inline bool bIsInitialized = false;
 
 private:
-	static void InitNameAndDependencies();
+	static void InitDependencies();
+	static void InitNames();
 
 public:
 	static void Init();

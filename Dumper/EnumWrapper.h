@@ -18,7 +18,7 @@ public:
     std::string GetFullName() const;
 
     std::pair<std::string, bool> GetUniqueName() const;
-    int32 GetUnderlyingTypeSize() const;
+    uint8 GetUnderlyingTypeSize() const;
 
     CollisionInfoIterator GetMembers() const;
 

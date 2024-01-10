@@ -368,7 +368,7 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 
 		if (Object.IsA(EClassCastFlags::Struct))
 		{
-			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
+			OutPackagesWithMembers[Object.GetPackageIndex()].push_back(Object.GetIndex());
 
 			UEStruct ObjAsStruct = Object.Cast<UEStruct>();
 			UEStruct Super = ObjAsStruct.GetSuper();
@@ -416,7 +416,7 @@ void ObjectArray::GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t
 		}
 		else if (Object.IsA(EClassCastFlags::Enum))
 		{
-			OutPackagesWithMembers[Object.GetOutermost().GetIndex()].push_back(Object.GetIndex());
+			OutPackagesWithMembers[Object.GetPackageIndex()].push_back(Object.GetIndex());
 		}
 	}
 }

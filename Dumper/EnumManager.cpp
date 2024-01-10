@@ -1,5 +1,30 @@
 #include "EnumManager.h"
 
+namespace EnumInitHelper
+{
+	template<typename T>
+	constexpr inline uint64 GetMaxOfType()
+	{
+		return (1ull << (sizeof(T) * 0x8ull)) - 1;
+	}
+
+	void SetEnumSizeForValue(uint8& Size, uint64 EnumValue)
+	{
+		if (EnumValue > GetMaxOfType<uint32>()) {
+			Size = max(Size, 0x8);
+		}
+		else if (EnumValue > GetMaxOfType<uint16>()) {
+			Size = max(Size, 0x4);
+		}
+		else if (EnumValue > GetMaxOfType<uint8>()) {
+			Size = max(Size, 0x2);
+		}
+		else {
+			Size = max(Size, 0x1);
+		}
+	}
+}
+
 std::string EnumCollisionInfo::GetUniqueName() const
 {
 	const std::string Name = EnumManager::GetValueName(*this).GetName();
@@ -25,7 +50,7 @@ EnumInfoHandle::EnumInfoHandle(const EnumInfo& InInfo)
 {
 }
 
-int32 EnumInfoHandle::GetUnderlyingTypeSize() const
+uint8 EnumInfoHandle::GetUnderlyingTypeSize() const
 {
 	return Info->UnderlyingTypeSize;
 }
@@ -59,6 +84,8 @@ void EnumManager::InitInternal()
 				if (!Enum)
 					continue;
 
+				EnumInfoOverrides[Enum.GetIndex()].bWasInstanceFound = true;
+
 				/* Check if the size of this enums underlaying type is greater than the default size (0x1) */
 				if (Property.Cast<UEEnumProperty>().GetSize() != 0x1) [[unlikely]]
 				{
@@ -83,11 +110,16 @@ void EnumManager::InitInternal()
 			EnumInfo& NewOrExistingInfo = EnumInfoOverrides[Obj.GetIndex()];
 			NewOrExistingInfo.Name = UniqueEnumNameTable.FindOrAdd(ObjAsEnum.GetEnumPrefixedName()).first;
 
+			uint64 EnumMaxValue = 0x0;
+
 			/* Initialize enum-member names and their collision infos */
 			std::vector<std::pair<FName, int64>> NameValuePairs = ObjAsEnum.GetNameValuePairs();
 			for (int i = 0; i < NameValuePairs.size(); i++)
 			{
 				auto& [Name, Value] = NameValuePairs[i];
+
+				EnumMaxValue = max(EnumMaxValue, Value);
+
 				std::string NameWitPrefix = Name.ToString();
 				auto [NameIndex, bWasInserted] = UniqueEnumValueNames.FindOrAdd(MakeNameValid(NameWitPrefix.substr(NameWitPrefix.find_last_of("::") + 1)));
 
@@ -115,6 +147,14 @@ void EnumManager::InitInternal()
 				}
 
 				NewOrExistingInfo.MemberInfos.push_back(CurrentEnumValueInfo);
+			}
+
+			/* Initialize the size based on the highest value contained by this enum */
+			if (!NewOrExistingInfo.bWasEnumSizeInitialized && !NewOrExistingInfo.bWasInstanceFound)
+			{
+
+				EnumInitHelper::SetEnumSizeForValue(NewOrExistingInfo.UnderlyingTypeSize, EnumMaxValue);
+				NewOrExistingInfo.bWasEnumSizeInitialized = true;
 			}
 		}
 	}
