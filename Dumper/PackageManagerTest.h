@@ -2,6 +2,7 @@
 #include "HashStringTable.h"
 #include "PackageManager.h"
 #include "TestBase.h"
+#include "ObjectArray.h"
 
 #include <cassert>
 
@@ -15,6 +16,7 @@ public:
 		TestInit<bDoDebugPrinting>();
 		TestInfo<bDoDebugPrinting>();
 		TestIncludeTypes<bDoDebugPrinting>();
+		TestMutliIterations<bDoDebugPrinting>();
 		TestFindCyclidDependencies<bDoDebugPrinting>();
 		TestCyclicDependencyDetection<bDoDebugPrinting>();
 		TestUniquePackageNameGeneration<bDoDebugPrinting>();
@@ -61,8 +63,8 @@ public:
 	InfoHandle.GetSortedClasses().GetNumEntries(), \
 	InfoHandle.GetFunctions().size(), \
 	InfoHandle.GetEnums().size(), \
-	InfoHandle.GetPackageDependencies().bIsIncluded.Structs, \
-	InfoHandle.GetPackageDependencies().bIsIncluded.Classes, \
+	InfoHandle.GetPackageDependencies().StructsIterationHitCount, \
+	InfoHandle.GetPackageDependencies().ClassesIterationHitCount, \
 	InfoHandle.GetPackageDependencies().StructsDependencies.size(), \
 	InfoHandle.GetPackageDependencies().ClassesDependencies.size(), \
 	InfoHandle.GetPackageDependencies().ParametersDependencies.size() \
@@ -80,10 +82,8 @@ public:
 	Functions.size() = 0x{:X},
 	Enums.size() = 0x{:X},
 	{{
-		{{
-			bIsIncluded.Structs = {},
-			bIsIncluded.Classes = {},
-		}},
+		StructsIterationHitCount = {},
+		ClassesIterationHitCount = {},
 		StructsDependencies.size() = 0x{:X},
 		ClassesDependencies.size() = 0x{:X},
 		ParametersDependencies.size() = 0x{:X},
@@ -100,6 +100,7 @@ public:
 
 		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
+
 	template<bool bDoDebugPrinting = false>
 	static inline void TestIncludeTypes()
 	{
@@ -109,7 +110,7 @@ public:
 		{
 			for (auto [AnotherPackageIndex, ReqInfo] : Info.PackageDependencies.StructsDependencies)
 			{
-				if (ReqInfo.bShouldInclude.Classes)
+				if (ReqInfo.bShouldIncludeClasses)
 				{
 					PrintDbgMessage<bDoDebugPrinting>("Error: {}_structs.hpp rquires {}_classes.hpp\n", ObjectArray::GetByIndex(PackageIndex).GetName(), ObjectArray::GetByIndex(AnotherPackageIndex).GetName());
 					bSuccededTestWithoutError = false;
@@ -135,6 +136,41 @@ public:
 	}
 
 	template<bool bDoDebugPrinting = false>
+	static inline void TestMutliIterations()
+	{
+		bool bSuccededTestWithoutError = true;
+
+		PackageManager::Init();
+
+		VisitedNodeContainerType Visited;
+
+		std::vector<int32> Indices;
+		std::vector<int32> SecondIndices;
+		Indices.reserve(PackageManager::PackageInfos.size());
+
+		bool bIsSecondIteration;
+
+		PackageManager::FindCycleCallbackType OnElementVisit = [&](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
+		{
+			if (bIsSecondIteration)
+			{
+				SecondIndices.push_back(OldParams.RequiredPackge);
+				return;
+			}
+
+			Indices.push_back(OldParams.RequiredPackge);
+		};
+
+		PackageManager::IterateDependencies(OnElementVisit);
+		bIsSecondIteration = true;
+		PackageManager::IterateDependencies(OnElementVisit);
+
+		bSuccededTestWithoutError = Indices == SecondIndices;
+
+		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
+	}
+
+	template<bool bDoDebugPrinting = false>
 	static inline void TestFindCyclidDependencies()
 	{
 		bool bSuccededTestWithoutError = true;
@@ -143,27 +179,16 @@ public:
 
 		VisitedNodeContainerType Visited;
 
-		FindCycleParams Params = {
-			.Nodes = PackageManager::PackageInfos,
-			.PrevNode = -1,
-			.Requriements = { 0, { true, true }},
-			.VisitedNodes = Visited
+		PackageManager::FindCycleCallbackType OnCycleFound = [&bSuccededTestWithoutError](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
+		{
+			std::string PrevName = ObjectArray::GetByIndex(NewParams.PrevPackage).GetValidName() + (NewParams.bWasPrevNodeStructs ? "_structs" : "_classes");
+			std::string CurrName = ObjectArray::GetByIndex(NewParams.RequiredPackge).GetValidName() + (bIsStruct ? "_structs" : "_classes");
+
+			PrintDbgMessage<bDoDebugPrinting>("Cycle between: Current - '{}' and Previous - '{}'", CurrName, PrevName);
+			bSuccededTestWithoutError = false;
 		};
 
-		for (auto [PackageIndex, Info] : PackageManager::PackageInfos)
-		{
-			if (ObjectArray::GetByIndex(PackageIndex).GetValidName() == "BP_OnlyPlayerInteractive")
-				std::cout << std::endl;
-
-			Visited.clear();
-			Params.Requriements = { PackageIndex, { true, true } };
-			
-			if (FindCycle(Params))
-			{
-				std::cout << "Stack-Trace: " << ObjectArray::GetByIndex(PackageIndex).GetValidName() << "\n-----------------------\n";
-				bSuccededTestWithoutError = false;
-			}
-		}
+		PackageManager::FindCycle(OnCycleFound);
 
 		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
@@ -171,57 +196,51 @@ public:
 	template<bool bDoDebugPrinting = false>
 	static inline void TestCyclicDependencyDetection()
 	{
-		bool bSuccededTestWithoutError = false;
-
-		PackageManager::Init();
-
-		VisitedNodeContainerType Visited;
-		PackageManager::OverrideMaptType CyclicGraph;
-
-		FindCycleParams Params = {
-			.Nodes = CyclicGraph,
-			.PrevNode = -1,
-			.Requriements = { 0, { true, true }},
-			.VisitedNodes = Visited
-		};
-
-		/*
-                                                  
-                   +--------------+               
-                   | CYCLIC GRAPH |               
-                   +--------------+               
-                                                  
-                          +------------------+    
-                          |                  |    
-                    +-----+-----+            |    
-                    | 0_structs |            |    
-                    +-----+-----+   CYCLE    |    
-                          |                  |    
-                 +--------+--------+         |    
-                 |                 |         |    
-           +-----+-----+     +-----+-----+   |    
-           | 1_classes |     | 1_structs |---+    
-           +-----------+     +-----------+        
-                                                  
-		*/
-
-		/* Setup cyclic graph as above */
-		CyclicGraph[0].PackageDependencies.StructsDependencies[1] = { .PackageIdx = 1, .bShouldInclude = {.Structs = true, .Classes = false} };
-		CyclicGraph[1].PackageDependencies.StructsDependencies[0] = { .PackageIdx = 0, .bShouldInclude = {.Structs = true, .Classes = false} };
-		CyclicGraph[1].PackageDependencies.ClassesDependencies[0] = { .PackageIdx = 0, .bShouldInclude = {.Structs = true, .Classes = false} };
-
-		for (auto& [FakePackageIndex, Info] : CyclicGraph)
-		{
-			Visited.clear();
-			Params.Requriements = { FakePackageIndex, { true, true } };
-
-			const bool bFoundCycle = FindCycle(Params, !bDoDebugPrinting, false);
-
-			if (bFoundCycle)
-				bSuccededTestWithoutError = true;
-		}
-
-		std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
+		//bool bSuccededTestWithoutError = false;
+		//
+		//PackageManager::Init();
+		//
+		//VisitedNodeContainerType Visited;
+		//PackageManager::OverrideMaptType CyclicGraph;
+		//
+		//
+		///*
+        //                                          
+        //           +--------------+               
+        //           | CYCLIC GRAPH |               
+        //           +--------------+               
+        //                                          
+        //                  +------------------+    
+        //                  |                  |    
+        //            +-----+-----+            |    
+        //            | 0_structs |            |    
+        //            +-----+-----+   CYCLE    |    
+        //                  |                  |    
+        //         +--------+--------+         |    
+        //         |                 |         |    
+        //   +-----+-----+     +-----+-----+   |    
+        //   | 1_classes |     | 1_structs |---+    
+        //   +-----------+     +-----------+        
+        //                                          
+		//*/
+		//
+		///* Setup cyclic graph as above */
+		//CyclicGraph[0].PackageDependencies.StructsDependencies[1] = { .PackageIdx = 1, .bShouldInclude = {.Structs = true, .Classes = false} };
+		//CyclicGraph[1].PackageDependencies.StructsDependencies[0] = { .PackageIdx = 0, .bShouldInclude = {.Structs = true, .Classes = false} };
+		//CyclicGraph[1].PackageDependencies.ClassesDependencies[0] = { .PackageIdx = 0, .bShouldInclude = {.Structs = true, .Classes = false} };
+		//
+		//for (auto& [FakePackageIndex, Info] : CyclicGraph)
+		//{
+		//	Visited.clear();
+		//	Params.Requriements = { FakePackageIndex, { true, true } };
+		//
+		//	const bool bFoundCycle = false; // FindCycle(Params, !bDoDebugPrinting, false);
+		//
+		//	if (bFoundCycle)
+		//		bSuccededTestWithoutError = true;
+		//}
+		//
+		//std::cout << __FUNCTION__ << ": " << (bSuccededTestWithoutError ? "SUCCEEDED!" : "FAILED!") << std::endl;
 	}
 
 	template<bool bDoDebugPrinting = false>

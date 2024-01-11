@@ -57,7 +57,6 @@ private:
 	friend class PackageInfoHandle;
 	friend class PackageManager;
 	friend class PackageManagerTest;
-	friend bool FindCycle(const struct FindCycleParams&, bool, bool);
 
 private:
 	/* Name of this Package*/
@@ -80,21 +79,6 @@ private:
 
 	DependencyInfo PackageDependencies;
 };
-
-struct FindCycleParams
-{
-	std::unordered_map<int32, PackageInfo>& Nodes;
-
-	int32 PrevNode;
-	bool bWasPrevNodeStructs;
-
-	RequirementInfo Requriements;
-
-	VisitedNodeContainerType& VisitedNodes;
-};
-
-bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting = false, bool bShouldPrintName = true);
-
 
 class PackageInfoHandle
 {
@@ -167,6 +151,18 @@ public:
 };
 
 
+struct PackageManagerIterationParams
+{
+	int32 PrevPackage;
+	int32 RequiredPackge;
+
+	bool bWasPrevNodeStructs;
+	bool bRequiresClasses;
+	bool bRequiresStructs;
+
+	VisitedNodeContainerType& VisitedNodes;
+};
+
 class PackageManager
 {
 private:
@@ -175,6 +171,9 @@ private:
 
 public:
 	using OverrideMaptType = PackageManagerOverrideMapType;
+
+	using IteratePackagesCallbackType = std::function<void(const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct)>;
+	using FindCycleCallbackType = std::function<void(const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct)>;
 
 private:
 	/* NameTable containing names of all Packages as well as information on name-collisions */
@@ -202,11 +201,12 @@ private:
 	}
 
 private:
-	static void IterateDependenciesImplementation(bool bSuppressPrinting, bool bShouldPrintName);
+	template<bool bCheckForCycle = false>
+	static void IterateDependenciesImplementation(const PackageManagerIterationParams& Params, const IteratePackagesCallbackType& CallbackForEachPackage, const FindCycleCallbackType& OnFoundCycle);
 
 public:
-	static void IterateDependencies(bool bSuppressPrinting, bool bShouldPrintName);
-	static void FindCycle(bool bSuppressPrinting, bool bShouldPrintName);
+	static void IterateDependencies(const IteratePackagesCallbackType& CallbackForEachPackage);
+	static void FindCycle(const FindCycleCallbackType& OnFoundCycle);
 
 public:
 	static inline const OverrideMaptType& GetPackageInfos()
