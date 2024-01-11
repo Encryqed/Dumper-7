@@ -16,12 +16,19 @@ public:
 private:
 	struct IndexDependencyInfo
 	{
-		mutable bool bIsIncluded;
+		/* Counter incremented every time this element is hit during iteration, **if** the counter is less than the CurrentIterationIndex */
+		mutable uint8 IterationHitCounter = 0x0;
+
+		/* Indices of Objects required by this Object */
 		std::unordered_set<int32> DependencyIndices;
 	};
 
 private:
+	/* List of Objects and their Dependencies */
 	std::unordered_map<int32, IndexDependencyInfo> AllDependencies;
+
+	/* Count to track how often the Dependency-List was iterated. Allows for up to 255 iterations of this list. */
+	mutable uint8 CurrentIterationHitCount = 0x0;
 
 public:
 	DependencyManager() = default;

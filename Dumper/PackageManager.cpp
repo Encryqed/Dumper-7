@@ -45,7 +45,7 @@ bool FindCycle(const FindCycleParams& Params, bool bSuppressPrinting, bool bShou
 
 			return bFoundCycle;
 		}
-		else if (bIsIncluded)
+		else
 		{
 			const bool bShouldIncludeStructs = bIsStruct;
 			const bool bShouldIncludeClasses = !bIsStruct;
@@ -348,3 +348,70 @@ void PackageManager::Init()
 	InitDependencies();
 	InitNames();
 }
+
+void PackageManager::IterateDependenciesImplementation(bool bSuppressPrinting, bool bShouldPrintName)
+{
+
+}
+
+bool PackageManager::IterateDependencies(bool bSuppressPrinting, bool bShouldPrintName)
+{
+	FindCycleParams NewParams = {
+		.Nodes = Params.Nodes,
+		.PrevNode = Params.Requriements.PackageIdx,
+		/* Requriements */
+		.VisitedNodes = Params.VisitedNodes,
+	};
+
+	static auto FindCycleHandler = [bSuppressPrinting, bShouldPrintName, DEBUG_Params = &Params](FindCycleParams& NewParams, const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes,
+		int32 CurrentIndex, int32 PrevIndex, uint8& IterationHitCounter, bool bShouldHandlePackage, bool bIsStruct) -> void
+	{
+		if (!bShouldHandlePackage)
+			return;
+
+		if (IterationHitCounter < CurrentIterationHitCount)
+		{
+			IterationHitCounter = CurrentIterationHitCount;
+
+			const uint8 StructsHitCount = bIsStruct ? IterationHitCounter : 0x0;
+			const uint8 ClassesHitCount = !bIsStruct ? IterationHitCounter : 0x0;
+
+			VisitedNodes.push_back({ .PackageIdx = CurrentIndex, .StructsIterationHitCount = StructsHitCount, .ClassesIterationHitCount = ClassesHitCount, });
+
+			bool bFoundCycle = false;
+
+			for (auto& [Index, Requirements] : Dependencies)
+			{
+				NewParams.bWasPrevNodeStructs = bIsStruct;
+				NewParams.Requriements = Requirements;
+
+				/* Iterate dependencies recursively */
+				IterateDependencies(NewParams, bSuppressPrinting, bShouldPrintName);
+			}
+		}
+		else
+		{
+			const bool bShouldIncludeStructs = bIsStruct;
+			const bool bShouldIncludeClasses = !bIsStruct;
+
+			auto CompareInfoPairs = [=](const VisitedNodeInformation& Info)
+			{
+				if (bShouldIncludeStructs)
+					return Info.PackageIdx == CurrentIndex && Info.StructsIterationHitCount == IterationHitCounter;
+
+				return Info.PackageIdx == CurrentIndex && Info.ClassesIterationHitCount == IterationHitCounter;
+			};
+
+			/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
+			if (std::find_if(VisitedNodes.begin(), VisitedNodes.end(), CompareInfoPairs) != std::end(VisitedNodes))
+			{
+			}
+		}
+	};
+
+	DependencyInfo& Dependencies = Params.Nodes[Params.Requriements.PackageIdx].PackageDependencies;
+
+	FindCycleHandler(NewParams, Dependencies.StructsDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.StructsIterationHitCount, Params.Requriements.bShouldIncludeStructs, true);
+	FindCycleHandler(NewParams, Dependencies.ClassesDependencies, Params.VisitedNodes, Params.Requriements.PackageIdx, Params.PrevNode, Dependencies.ClassesIterationHitCount, Params.Requriements.bShouldIncludeClasses, false);
+}
+

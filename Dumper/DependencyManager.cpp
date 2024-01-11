@@ -23,11 +23,11 @@ size_t DependencyManager::GetNumEntries() const
 
 void DependencyManager::VisitIndexAndDependencies(int32 Index, const IndexDependencyInfo& Data, IncludeFunctionType Callback) const
 {
-	auto& [bIsIncluded, Dependencies] = Data;
+	auto& [IterationHitCounter, Dependencies] = Data;
 
-	if (!bIsIncluded)
+	if (IterationHitCounter < CurrentIterationHitCount)
 	{
-		bIsIncluded = true;
+		IterationHitCounter = CurrentIterationHitCount;
 
 		for (int32 Dependency : Dependencies)
 		{
@@ -40,6 +40,8 @@ void DependencyManager::VisitIndexAndDependencies(int32 Index, const IndexDepend
 
 void DependencyManager::VisitAllNodesWithCallback(IncludeFunctionType Callback) const
 {
+	CurrentIterationHitCount++;
+
 	for (const auto& [Index, DependencyInfo] : AllDependencies)
 	{
 		VisitIndexAndDependencies(Index, DependencyInfo, Callback);

@@ -15,23 +15,18 @@ namespace PackageManagerUtils
 class PackageInfoHandle;
 class PackageManager;
 
-struct IncludeStatus
-{
-	bool Structs = false; // 'b' prefix omitted, it's the parents' responsibility here
-	bool Classes = false; // 'b' prefix omitted, it's the parents' responsibility here
-};
-
-
 struct RequirementInfo
 {
 	int32 PackageIdx;
-	IncludeStatus bShouldInclude;
+	bool bShouldIncludeStructs;
+	bool bShouldIncludeClasses;
 };
 
 struct VisitedNodeInformation
 {
 	int32 PackageIdx;
-	IncludeStatus bIsIncluded;
+	mutable uint8 StructsIterationHitCount = 0x0;
+	mutable uint8 ClassesIterationHitCount = 0x0;
 };
 
 using DependencyListType = std::unordered_map<int32, RequirementInfo>;
@@ -39,7 +34,9 @@ using DependencyListType = std::unordered_map<int32, RequirementInfo>;
 
 struct DependencyInfo
 {
-	IncludeStatus bIsIncluded;
+	/* Counter incremented every time this element is hit during iteration, **if** the counter is less than the CurrentIterationIndex */
+	mutable uint8 StructsIterationHitCount = 0x0; 
+	mutable uint8 ClassesIterationHitCount = 0x0;
 
 	/* List of packages required by "ThisPackage_structs.h" */
 	DependencyListType StructsDependencies;
@@ -135,22 +132,25 @@ using PackageManagerOverrideMapType = std::unordered_map<int32 /* PackageIndex *
 struct PackageInfoIterator
 {
 private:
+	friend class PackageManager;
+
+private:
 	using MapType = PackageManagerOverrideMapType;
 	using IteratorType = PackageManagerOverrideMapType::const_iterator;
 
 private:
 	const MapType& PackageInfos;
+	uint8 CurrentIterationHitCount;
 	IteratorType It;
 
 private:
-	explicit PackageInfoIterator(const MapType& Infos, IteratorType ItPos)
-		: PackageInfos(Infos), It(ItPos)
+	explicit PackageInfoIterator(const MapType& Infos, uint8 IterationHitCount, IteratorType ItPos)
+		: PackageInfos(Infos), CurrentIterationHitCount(IterationHitCount), It(ItPos)
 	{
 	}
 
-public:
-	explicit PackageInfoIterator(const MapType& Infos)
-		: PackageInfos(Infos), It(Infos.cbegin())
+	explicit PackageInfoIterator(const MapType& Infos, uint8 IterationHitCount)
+		: PackageInfos(Infos), CurrentIterationHitCount(IterationHitCount), It(Infos.cbegin())
 	{
 	}
 
@@ -162,8 +162,8 @@ public:
 	inline bool operator!=(const PackageInfoIterator& Other) const { return It != Other.It; }
 
 public:
-	PackageInfoIterator begin() const { return PackageInfoIterator(PackageInfos, PackageInfos.cbegin()); }
-	PackageInfoIterator end() const   { return PackageInfoIterator(PackageInfos, PackageInfos.cend());   }
+	PackageInfoIterator begin() const { return PackageInfoIterator(PackageInfos, CurrentIterationHitCount, PackageInfos.cbegin()); }
+	PackageInfoIterator end() const   { return PackageInfoIterator(PackageInfos, CurrentIterationHitCount, PackageInfos.cend());   }
 };
 
 
@@ -183,6 +183,9 @@ private:
 	/* Map containing infos on all Packages. Implemented due to information missing in the Unreal's reflection system (PackageSize). */
 	static inline OverrideMaptType PackageInfos;
 
+	/* Count to track how often the PackageInfos was iterated. Allows for up to 255 iterations of this list. */
+	static inline uint8 CurrentIterationHitCount = 0x0;
+
 	static inline bool bIsInitialized = false;
 
 private:
@@ -197,6 +200,13 @@ private:
 	{
 		return UniquePackageNameTable[Info.Name];
 	}
+
+private:
+	static void IterateDependenciesImplementation(bool bSuppressPrinting, bool bShouldPrintName);
+
+public:
+	static void IterateDependencies(bool bSuppressPrinting, bool bShouldPrintName);
+	static void FindCycle(bool bSuppressPrinting, bool bShouldPrintName);
 
 public:
 	static inline const OverrideMaptType& GetPackageInfos()
@@ -239,6 +249,8 @@ public:
 
 	static inline PackageInfoIterator IterateOverPackageInfos()
 	{
-		return PackageInfoIterator(PackageInfos);
+		CurrentIterationHitCount++;
+
+		return PackageInfoIterator(PackageInfos, CurrentIterationHitCount);
 	}
 };

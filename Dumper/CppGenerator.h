@@ -52,6 +52,14 @@ private:
         std::vector<ParamInfo> UnrealFuncParams; // for unreal-functions only
     };
 
+    enum class EFileType
+    {
+        Classes,
+        Structs,
+        Parameters,
+        Functions,
+    };
+
 private:
     using StreamType = std::ofstream;
 
@@ -90,6 +98,7 @@ private: /* utility functions */
 
 private:
     static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);
+    static void WriteFileHead(StreamType& File, const std::string& PackageName, EFileType Type);
 
 public:
     static void Generate();
