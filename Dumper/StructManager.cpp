@@ -44,7 +44,7 @@ bool StructInfoHandle::IsFinal() const
 
 void StructManager::InitAlignmentsAndNames()
 {
-	constexpr int DefaultClassAlignment = 0x8;
+	constexpr int32 DefaultClassAlignment = 0x8;
 
 	for (auto Obj : ObjectArray())
 	{
@@ -59,8 +59,8 @@ void StructManager::InitAlignmentsAndNames()
 
 		UEStruct Super = ObjAsStruct.GetSuper();
 
-		int32 HighestAlignment = ObjAsStruct.GetMinAlignment();
-		bool bIsUsingMinAlignment = true;
+		int32 MinAlignment = ObjAsStruct.GetMinAlignment();
+		int32 HighestMemberAlignment = 0x8;
 
 		// Find member with the highest alignment
 		for (UEProperty Property : ObjAsStruct.GetProperties())
@@ -70,23 +70,20 @@ void StructManager::InitAlignmentsAndNames()
 
 			int32 UnderlayingStructAlignment = Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetMinAlignment();
 
-			if (UnderlayingStructAlignment > HighestAlignment)
-			{
-				bIsUsingMinAlignment = false;
-				HighestAlignment = UnderlayingStructAlignment;
-			}
+			if (UnderlayingStructAlignment > HighestMemberAlignment)
+				HighestMemberAlignment = UnderlayingStructAlignment;
 		}
 
 		// if Class alignment is below pointer-alignment (0x8), use pointer-alignment instead, else use whichever, MinAlignment or HighestAlignment, is bigger
-		if (ObjAsStruct.IsA(EClassCastFlags::Class) &&  HighestAlignment < DefaultClassAlignment)
+		if (ObjAsStruct.IsA(EClassCastFlags::Class) && HighestMemberAlignment < DefaultClassAlignment)
 		{
 			NewOrExistingInfo.bUseExplicitAlignment = false;
 			NewOrExistingInfo.Alignment = DefaultClassAlignment;
 		}
 		else
 		{
-			NewOrExistingInfo.bUseExplicitAlignment = bIsUsingMinAlignment;
-			NewOrExistingInfo.Alignment = HighestAlignment;
+			NewOrExistingInfo.bUseExplicitAlignment = MinAlignment > HighestMemberAlignment;
+			NewOrExistingInfo.Alignment = max(MinAlignment, HighestMemberAlignment);
 		}
 	}
 

@@ -187,6 +187,7 @@
     <ClInclude Include="PackageManagerTest.h" />
     <ClInclude Include="PredefinedMembers.h" />
     <ClInclude Include="Settings.h" />
+    <ClInclude Include="SettingsRewrite.h" />
     <ClInclude Include="StructManager.h" />
     <ClInclude Include="StructManagerTest.h" />
     <ClInclude Include="TestBase.h" />

@@ -52,8 +52,8 @@ public:
 		PackageInfoHandle CoreUObject = PackageManager::GetInfo(CoreUObjectPackage);
 
 #define PackageInfoHandleToDebugInfo(InfoHandle) \
-	InfoHandle.GetName().first, \
-	InfoHandle.GetName().second, \
+	InfoHandle.GetNameCollisionPair().first, \
+	InfoHandle.GetNameCollisionPair().second, \
 	InfoHandle.HasClasses(), \
 	InfoHandle.HasStructs(), \
 	InfoHandle.HasFunctions(), \
@@ -254,11 +254,11 @@ public:
 
 		for (auto [PackageIndex, Info] : PackageManager::PackageInfos)
 		{
-			const auto [It, bWasInserted] = Names.insert(PackageManager::GetName(Info));
+			const auto [It, bWasInserted] = Names.insert(PackageInfoHandle(Info).GetName());
 			if (!bWasInserted)
 			{
 				bSuccededTestWithoutError = false;
-				PrintDbgMessage<bDoDebugPrinting>("PackageManagerTest: Name '{} is duplicate!'", PackageManager::GetName(Info));
+				PrintDbgMessage<bDoDebugPrinting>("PackageManagerTest: Name '{} is duplicate!'", PackageInfoHandle(Info).GetName());
 			}
 		}
 

@@ -45,6 +45,7 @@ public:
 		UEStruct UEngine = ObjectArray::FindClassFast("Engine");
 		UEStruct FVector = ObjectArray::FindObjectFast<UEStruct>("Vector");
 		UEStruct FTransform = ObjectArray::FindObjectFast<UEStruct>("Transform");
+		UEStruct FQuat = ObjectArray::FindObjectFast<UEStruct>("Quat");
 		UEStruct UKismetSystemLibrary = ObjectArray::FindClassFast("KismetSystemLibrary");
 		UEStruct ULevelStreaming = ObjectArray::FindClassFast("LevelStreaming");
 		//UEStruct FPrimitiveComponentInstanceData = ObjectArray::FindObjectFast<UEStruct>("PrimitiveComponentInstanceData");
@@ -57,6 +58,7 @@ public:
 		StructInfoHandle EngineInfo = StructManager::GetInfo(UEngine);
 		StructInfoHandle VectorInfo = StructManager::GetInfo(FVector);
 		StructInfoHandle TransformInfo = StructManager::GetInfo(FTransform);
+		StructInfoHandle QuatInfo = StructManager::GetInfo(FQuat);
 		StructInfoHandle KismetSystemLibraryInfo = StructManager::GetInfo(UKismetSystemLibrary);
 		StructInfoHandle LevelStreamingInfo = StructManager::GetInfo(ULevelStreaming);
 		//StructInfoHandle PrimitiveComponentInstanceData = StructInfos.GetInfo(FPrimitiveComponentInstanceData);
@@ -72,6 +74,7 @@ public:
 		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(EngineInfo));
 		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(VectorInfo));
 		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(TransformInfo));
+		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(QuatInfo));
 		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(KismetSystemLibraryInfo));
 		PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(LevelStreamingInfo));
 		//PrintDbgMessage<bDoDebugPrinting>("{}[{}]: {{ Size=0x{:X}, Alignment=0x{:X}, bUseExplicitAlignment={}, bIsFinal={} }}\n", StructInfoHandleToDebugInfo(PrimitiveComponentInstanceData));

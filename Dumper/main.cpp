@@ -76,7 +76,7 @@ DWORD MainThread(HMODULE Module)
 	//CppGeneratorTest::TestAll();
 	//HashStringTableTest::TestAll();
 	//GeneratorRewriteTest::TestAll();
-	//StructManagerTest::TestAll();
+	StructManagerTest::TestAll<true>();
 	//EnumManagerTest::TestAll();
 	//CollisionManagerTest::TestAll();
 	//MemberManagerTest::TestAll();
@@ -90,7 +90,7 @@ DWORD MainThread(HMODULE Module)
 	//CppGeneratorTest::TestAll();
 
 	//EnumManagerTest::TestAll<true>();
-	PackageManagerTest::TestAll<true>();
+	//PackageManagerTest::TestAll<true>();
 
 	//GeneratorRewrite::Generate<CppGenerator>();
 	
@@ -111,6 +111,32 @@ DWORD MainThread(HMODULE Module)
 	//		}
 	//	}
 	//}
+
+	if (UEObject AtomicHeartPackage = ObjectArray::FindObjectFast("AtomicHeart"))
+	{
+		auto Handle = PackageManager::GetInfo(AtomicHeartPackage);
+
+		const auto& Deps = Handle.GetSortedStructs();
+
+		const auto& Map = Deps.DEBUG_DependencyMap();
+
+		auto WorldMapEntityIndex = ObjectArray::FindObjectFast("WorldMapEntity", EClassCastFlags::Struct).GetIndex();
+		auto WorldMapEntityDynamicIndex = ObjectArray::FindObjectFast("WorldMapEntityDynamic", EClassCastFlags::Struct).GetIndex();
+
+		auto& DependencyInfo = Map.at(WorldMapEntityDynamicIndex);
+		auto It = DependencyInfo.DependencyIndices.find(WorldMapEntityIndex);
+
+		if (It != DependencyInfo.DependencyIndices.end())
+		{
+			std::cout << "\n\nAll should be good!\n\n" << std::endl;
+		}
+		else
+		{
+			std::cout << "\n\nddidn't find stuf in deps!!\n\n" << std::endl;
+		}
+
+		Deps.VisitIndexAndDependenciesWithCallback(WorldMapEntityDynamicIndex, [](int32 Index) { std::cout << "Node: " << ObjectArray::GetByIndex(Index).GetCppName() << "\n"; });
+	}
 	
 	GeneratorRewrite::Generate<CppGenerator>();
 

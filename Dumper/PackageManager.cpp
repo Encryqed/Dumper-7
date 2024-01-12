@@ -13,7 +13,22 @@ PackageInfoHandle::PackageInfoHandle(const PackageInfo& InInfo)
 {
 }
 
-std::pair<std::string, uint8> PackageInfoHandle::GetName() const
+const StringEntry& PackageInfoHandle::GetNameEntry() const
+{
+	return PackageManager::GetPackageName(*Info);
+}
+
+std::string PackageInfoHandle::GetName() const
+{
+	const StringEntry& Name = GetNameEntry();
+
+	if (Info->CollisionCount <= 0) [[likely]]
+		return Name.GetName();
+
+	return Name.GetName() + "_" + std::to_string(Info->CollisionCount - 1);
+}
+
+std::pair<std::string, uint8> PackageInfoHandle::GetNameCollisionPair() const
 {
 	const StringEntry& Name = GetNameEntry();
 
@@ -22,12 +37,6 @@ std::pair<std::string, uint8> PackageInfoHandle::GetName() const
 
 	return { Name.GetName(), Info->CollisionCount };
 }
-
-const StringEntry& PackageInfoHandle::GetNameEntry() const
-{
-	return PackageManager::GetPackageName(*Info);
-}
-
 
 bool PackageInfoHandle::HasClasses() const
 {
@@ -146,9 +155,19 @@ namespace PackageManagerUtils
 		}
 	};
 
-	inline void MoveDependenciesToDependencyManager(DependencyManager& StructDependencies, std::unordered_set<int32>&& DependeniesToMove, int32 StructIdx)
+	inline void AddStructDependencies(DependencyManager& StructDependencies, const std::unordered_set<int32>& Dependenies, int32 StructIdx, int32 StructPackageIndex)
 	{
-		StructDependencies.SetDependencies(StructIdx, std::move(DependeniesToMove));
+		std::unordered_set<int32> TempSet;
+
+		for (int32 DependencyStructIdx : Dependenies)
+		{
+			UEObject Obj = ObjectArray::GetByIndex(DependencyStructIdx);
+
+			if (Obj.GetPackageIndex() == StructPackageIndex && !Obj.IsA(EClassCastFlags::Enum))
+				TempSet.insert(DependencyStructIdx);
+		}
+
+		StructDependencies.SetDependencies(StructIdx, std::move(TempSet));
 	};
 }
 
@@ -183,8 +202,12 @@ void PackageManager::InitDependencies()
 
 			std::unordered_set<int32> Dependencies = PackageManagerUtils::GetDependencies(ObjAsStruct, StructIdx);
 
+			ClassOrStructDependencyList.SetExists(StructIdx);
+
 			PackageManagerUtils::SetPackageDependencies(PackageDependencyList, Dependencies, StructPackageIdx);
-			PackageManagerUtils::MoveDependenciesToDependencyManager(ClassOrStructDependencyList, std::move(Dependencies), StructIdx);
+
+			if (!bIsClass)
+				PackageManagerUtils::AddStructDependencies(ClassOrStructDependencyList, Dependencies, StructIdx, StructPackageIdx);
 
 			/* for both struct and class */
 			if (UEStruct Super = ObjAsStruct.GetSuper())

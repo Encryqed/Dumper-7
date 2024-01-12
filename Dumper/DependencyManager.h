@@ -36,15 +36,23 @@ public:
 	DependencyManager(int32 ObjectToTrack);
 
 private:
-	void VisitIndexAndDependencies(int32 Index, const IndexDependencyInfo& Data, IncludeFunctionType Callback) const;
+	void VisitIndexAndDependencies(int32 Index, IncludeFunctionType Callback) const;
 
 public:
+	void SetExists(const int32 DepedantIdx);
+
 	void AddDependency(const int32 DepedantIdx, int32 DependencyIndex);
 
 	void SetDependencies(const int32 DepedantIdx, std::unordered_set<int32>&& Dependencies);
 
 	size_t GetNumEntries() const;
 
-
+	void VisitIndexAndDependenciesWithCallback(int32 Index, IncludeFunctionType Callback) const;
 	void VisitAllNodesWithCallback(IncludeFunctionType Callback) const;
+
+public:
+	const auto DEBUG_DependencyMap() const
+	{
+		return AllDependencies;
+	}
 };

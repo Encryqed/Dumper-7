@@ -6,6 +6,11 @@ DependencyManager::DependencyManager(int32 ObjectToTrack)
 	AllDependencies.try_emplace(ObjectToTrack, IndexDependencyInfo{ });
 }
 
+void DependencyManager::SetExists(const int32 DepedantIdx)
+{
+	AllDependencies[DepedantIdx];
+}
+
 void DependencyManager::AddDependency(const int32 DepedantIdx, int32 DependencyIndex)
 {
 	AllDependencies[DepedantIdx].DependencyIndices.insert(DependencyIndex);
@@ -21,21 +26,28 @@ size_t DependencyManager::GetNumEntries() const
 	return AllDependencies.size();
 }
 
-void DependencyManager::VisitIndexAndDependencies(int32 Index, const IndexDependencyInfo& Data, IncludeFunctionType Callback) const
+void DependencyManager::VisitIndexAndDependencies(int32 Index, IncludeFunctionType Callback) const
 {
-	auto& [IterationHitCounter, Dependencies] = Data;
+	auto& [IterationHitCounter, Dependencies] = AllDependencies.at(Index);
 
-	if (IterationHitCounter < CurrentIterationHitCount)
+	if (IterationHitCounter >= CurrentIterationHitCount)
+		return;
+
+	IterationHitCounter = CurrentIterationHitCount;
+
+	for (int32 Dependency : Dependencies)
 	{
-		IterationHitCounter = CurrentIterationHitCount;
-
-		for (int32 Dependency : Dependencies)
-		{
-			VisitIndexAndDependencies(Dependency, Data, Callback);
-		}
-
-		Callback(Index);
+		VisitIndexAndDependencies(Dependency, Callback);
 	}
+
+	Callback(Index);
+}
+
+void DependencyManager::VisitIndexAndDependenciesWithCallback(int32 Index, IncludeFunctionType Callback) const
+{
+	CurrentIterationHitCount++;
+
+	VisitIndexAndDependencies(Index, Callback);
 }
 
 void DependencyManager::VisitAllNodesWithCallback(IncludeFunctionType Callback) const
@@ -44,6 +56,6 @@ void DependencyManager::VisitAllNodesWithCallback(IncludeFunctionType Callback) 
 
 	for (const auto& [Index, DependencyInfo] : AllDependencies)
 	{
-		VisitIndexAndDependencies(Index, DependencyInfo, Callback);
+		VisitIndexAndDependencies(Index, Callback);
 	}
 }

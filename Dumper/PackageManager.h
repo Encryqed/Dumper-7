@@ -44,7 +44,7 @@ struct DependencyInfo
 	/* List of packages required by "ThisPackage_classes.h" */
 	DependencyListType ClassesDependencies;
 
-	/* List of packages required by "ThisPackage_params.h" */
+	/* List of packages required by "ThisPackage_parameters.h" */
 	DependencyListType ParametersDependencies;
 };
 
@@ -91,8 +91,9 @@ public:
 
 public:
 	/* Returns a pair of name and CollisionCount */
-	std::pair<std::string, uint8> GetName() const;
+	std::string GetName() const;
 	const StringEntry& GetNameEntry() const;
+	std::pair<std::string, uint8> GetNameCollisionPair() const;
 
 	bool HasClasses() const;
 	bool HasStructs() const;
@@ -214,19 +215,9 @@ public:
 		return PackageInfos;
 	}
 
-	static inline std::string GetName(const PackageInfoHandle& PackageInfo)
-	{
-		auto [NameString, Count] = PackageInfo.GetName();
-
-		if (Count > 0) [[unlikely]]
-			return NameString + "_" + std::to_string(Count - 1);
-
-		return NameString;
-	}
-
 	static inline std::string GetName(int32 PackageIndex)
 	{
-		 return GetName(GetInfo(PackageIndex));
+		 return GetInfo(PackageIndex).GetName();
 	}
 
 	static inline bool IsPackageNameUnique(const PackageInfo& Info)

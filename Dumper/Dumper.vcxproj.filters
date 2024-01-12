@@ -225,5 +225,8 @@
     <ClInclude Include="CppGeneratorTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
+    <ClInclude Include="SettingsRewrite.h">
+      <Filter>GeneratorRewrite</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -7,6 +7,7 @@
 #include "StructWrapper.h"
 #include "MemberWrappers.h"
 #include "EnumWrapper.h"
+#include "PackageManager.h"
 
 #include "GeneratorRewrite.h"
 
@@ -58,6 +59,8 @@ private:
         Structs,
         Parameters,
         Functions,
+
+        NameCollisionsInl,
     };
 
 private:
@@ -98,7 +101,8 @@ private: /* utility functions */
 
 private:
     static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);
-    static void WriteFileHead(StreamType& File, const std::string& PackageName, EFileType Type);
+    static void WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type);
+    static void WriteFileEnd(StreamType& File, EFileType Type);
 
 public:
     static void Generate();
