@@ -40,6 +40,7 @@ public:
 
 public:
     std::string GetName() const;
+    std::string GetRawName() const;
     std::string GetFullName() const;
     StructWrapper GetSuper() const;
 
@@ -54,6 +55,7 @@ public:
     bool IsFunction() const;
 
     bool IsValid() const;
+    bool IsUnrealStruct() const;
 
     MemberManager GetMembers() const;
 };

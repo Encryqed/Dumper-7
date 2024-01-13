@@ -28,6 +28,9 @@ concept GeneratorImplementation = requires(GeneratorType t)
     
     /* Require static functions */
     GeneratorType::Generate();
+
+    GeneratorType::InitPredefinedMembers();
+    GeneratorType::InitPredefinedFunctions();
 };
 
 class GeneratorRewrite /* renamed to just 'Generator' once the legacy generator is removed */
@@ -60,6 +63,9 @@ public:
 
         if (!SetupFolders(GeneratorType::MainFolderName, GeneratorType::MainFolder, GeneratorType::SubfolderName, GeneratorType::Subfolder))
             return;
+
+        GeneratorType::InitPredefinedMembers();
+        GeneratorType::InitPredefinedFunctions();
 
         MemberManager::SetPredefinedMemberLookupPtr(&GeneratorType::PredefinedMembers);
 

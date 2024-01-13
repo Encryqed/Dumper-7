@@ -116,6 +116,11 @@ std::string PropertyWrapper::StringifyFlags() const
     return bIsUnrealProperty ? Property.StringifyFlags() : "NoFlags";
 }
 
+std::string PropertyWrapper::GetFlagsOrCustomComment() const
+{
+    return bIsUnrealProperty ? Property.StringifyFlags() : PredefProperty->Comment;
+}
+
 bool PropertyWrapper::IsUnrealProperty() const
 {
     return bIsUnrealProperty;
@@ -124,6 +129,11 @@ bool PropertyWrapper::IsUnrealProperty() const
 bool PropertyWrapper::IsStatic() const
 {
     return bIsUnrealProperty ? false : PredefProperty->bIsStatic;
+}
+
+bool PropertyWrapper::IsZeroSizedMember() const
+{
+    return bIsUnrealProperty ? false : PredefProperty->bIsZeroSizeMember;
 }
 
 

@@ -65,10 +65,6 @@ private:
 	/* Count to track how many packages with this name already exists at the point this PackageInfos' initialization */
 	uint8 CollisionCount = 0x0;
 
-	bool bHasEnums;
-	bool bHasStructs;
-	bool bHasClasses;
-	bool bHasFunctions;
 	bool bHasParams;
 
 	DependencyManager StructsSorted;

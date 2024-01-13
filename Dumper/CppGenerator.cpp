@@ -44,7 +44,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		int32 MemberOffset = Member.GetOffset();
 		int32 MemberSize = Member.GetSize();
 
-		std::string Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, StringifyPropertyFlags(Member.GetPropertyFlags()));
+		std::string Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, Member.GetFlagsOrCustomComment());
 
 		if (MemberOffset >= PrevPropertyEnd && bLastPropertyWasBitField && PrevBoolPropertyBit != NumBitsInBytePlusOne)
 			OutMembers += GenerateBitPadding(MemberOffset, NumBitsInBytePlusOne - PrevBoolPropertyBit, "Fixing Bit-Field Size [ Dumper-7 ]");
@@ -58,7 +58,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		{
 			uint8 BitFieldIndex = Member.GetBitIndex();
 
-			std::string BitfieldInfoComment = std::format("Mask: 0x{:02X}, PropSize: 0x{:04X} ({})", Member.GetFieldMask(), MemberSize, StringifyPropertyFlags(Member.GetPropertyFlags()));
+			std::string BitfieldInfoComment = std::format("Mask: 0x{:02X}, PropSize: 0x{:04X} ({})", Member.GetFieldMask(), MemberSize, Member.GetFlagsOrCustomComment());
 			Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, BitfieldInfoComment);
 
 			if (PrevBoolPropertyEnd < MemberOffset)
@@ -73,7 +73,8 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 		bLastPropertyWasBitField = bIsBitField;
 
-		PrevPropertyEnd = MemberOffset + MemberSize;
+		if (!Member.IsStatic())
+			PrevPropertyEnd = MemberOffset + MemberSize;
 
 		std::string MemberName = Member.GetName();
 
@@ -287,11 +288,177 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 	return RetFuncInfo;
 }
 
-std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile)
+std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile)
 {
 	namespace CppSettings = SettingsRewrite::CppGenerator;
 
-	constexpr int32 AverageNumCharactersPerFunction = 0x50;
+	std::string InHeaderFunctionText;
+
+	FunctionInfo FuncInfo = GenerateFunctionInfo(Func);
+
+	const bool bHasInlineBody = Func.HasInlineBody();
+
+	// Function declaration and inline-body generation
+	InHeaderFunctionText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", FuncInfo.RetType, FuncInfo.FuncNameWithParams, Func.IsConst() ? " const" : "");
+	InHeaderFunctionText += (bHasInlineBody ? ("\n\t" + Func.GetPredefFunctionInlineBody()) : ";") + "\n";
+
+
+	if (bHasInlineBody)
+		return InHeaderFunctionText;
+
+	if (Func.IsPredefined())
+	{
+		std::string CustomComment = Func.GetPredefFunctionCustomComment();
+
+		FunctionFile << std::format(R"(
+// Predefined Function
+{}
+{} {}::{}
+{}
+
+)"
+, !CustomComment.empty() ? CustomComment + '\n' : ""
+, Func.GetPredefFuncReturnType()
+, StructName
+, Func.GetPredefFuncNameWithParams()
+, Func.GetPredefFunctionBody());
+
+		return InHeaderFunctionText;
+	}
+
+
+	// Parameter struct generation for unreal-functions
+	if (!Func.IsPredefined() && Func.GetParamStructSize() > 0x0)
+		GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile);
+
+
+	std::string ParamVarCreationString = std::format(R"(
+	{}{} Parms{{}};
+)", CppSettings::ParamNamespaceName ? std::format("{}::", CppSettings::ParamNamespaceName) : "", Func.GetParamStructName());
+
+	constexpr const char* StoreFunctionFlagsString = R"(
+	auto Flgs = Func->FunctionFlags;
+	Func->FunctionFlags |= 0x400;
+)";
+
+	std::string ParamDescriptionCommentString = "// Parameters:\n";
+	std::string ParamAssignments;
+	std::string OutPtrAssignments;
+	std::string OutRefAssignments;
+
+	const bool bHasParams = !FuncInfo.UnrealFuncParams.empty();
+	bool bHasParamsToInit = false;
+	bool bHasOutPtrParamsToInit = false;
+	bool bHasOutRefParamsToInit = false;
+
+	for (const ParamInfo& PInfo : FuncInfo.UnrealFuncParams)
+	{
+		ParamDescriptionCommentString += std::format("// {:{}}{:{}}({})\n", PInfo.Type, 40, PInfo.Name, 55, StringifyPropertyFlags(PInfo.PropFlags));
+
+		if (PInfo.bIsRetParam)
+			continue;
+
+		if (PInfo.bIsOutPtr)
+		{
+			OutPtrAssignments += PInfo.bIsMoveParam ? std::format(R"(
+
+	if ({0} != nullptr)
+		*{0} = Parms.{0};)", PInfo.Name) : std::format(R"(
+
+	if ({0} != nullptr)
+		*{0} = std::move(Parms.{0});)", PInfo.Name);
+			bHasOutPtrParamsToInit = true;
+		}
+		else
+		{
+			ParamAssignments += PInfo.bIsMoveParam ? std::format("\tParms.{0} = std::move({0});\n", PInfo.Name) : std::format("\tParms.{0} = {0};\n", PInfo.Name);
+			bHasParamsToInit = true;
+		}
+
+		if (PInfo.bIsOutRef)
+		{
+			OutRefAssignments += PInfo.bIsMoveParam ? std::format("\n\t{0} = std::move(Parms.{0});", PInfo.Name) : std::format("\n\t{0} = Parms.{0};", PInfo.Name);
+			bHasOutRefParamsToInit = true;
+		}
+	}
+
+	ParamAssignments = '\n' + ParamAssignments;
+	OutRefAssignments = '\n' + OutRefAssignments;
+
+	constexpr const char* RestoreFunctionFlagsString = R"(
+
+	Func->FunctionFlags = Flgs;)";
+
+	constexpr const char* ReturnValueString = R"(
+
+	return Parms.ReturnValue;)";
+
+	UEFunction UnrealFunc = Func.GetUnrealFunction();
+
+	const bool bIsNativeFunc = Func.HasFunctionFlag(EFunctionFlags::Native);
+
+	// Function implementation generation
+	std::string FunctionImplementation = std::format(R"(
+// {}
+// ({})
+{}
+{} {}::{}
+{{
+	static class UFunction* Func = nullptr;
+
+	if (Func == nullptr)
+		Func = Class->GetFunction("{}", "{}");
+{}{}{}
+	UObject::ProcessEvent(Func, {});{}{}{}{}
+}}
+
+)", UnrealFunc.GetFullName()
+, StringifyFunctionFlags(FuncInfo.FuncFlags)
+, bHasParams ? ParamDescriptionCommentString : ""
+, FuncInfo.RetType
+, StructName
+, FuncInfo.FuncNameWithParams
+, UnrealFunc.GetOuter().GetName()
+, UnrealFunc.GetName()
+, bHasParams ? ParamVarCreationString : ""
+, bHasParamsToInit ? ParamAssignments : ""
+, bIsNativeFunc ? StoreFunctionFlagsString : ""
+, bHasParams ? "Parms" : "nullptr"
+, bIsNativeFunc ? RestoreFunctionFlagsString : ""
+, bHasOutRefParamsToInit ? OutRefAssignments : ""
+, bHasOutPtrParamsToInit ? OutPtrAssignments : ""
+, !FuncInfo.bIsReturningVoid ? ReturnValueString : "");
+
+	FunctionFile << FunctionImplementation;
+
+	return InHeaderFunctionText;
+}
+
+std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile)
+{
+	static PredefinedFunction StaticClass;
+	static PredefinedFunction GetDefaultObj;
+
+	if (StaticClass.NameWithParams.empty())
+		StaticClass = {
+		.CustomComment = "Used with 'IsA' to check if an object is of a certain type",
+		.ReturnType = "class UClass*",
+		.NameWithParams = "StaticClass()",
+
+		.bIsStatic = true,
+		.bIsConst = false,
+		.bIsBodyInline = true,
+	};
+
+	if (GetDefaultObj.NameWithParams.empty())
+		GetDefaultObj = {
+		.CustomComment = "Only use the default object to call \"static\" functions",
+		.NameWithParams = "GetDefaultObj()",
+
+		.bIsStatic = true,
+		.bIsConst = false,
+		.bIsBodyInline = true,
+	};
 
 	std::string InHeaderFunctionText;
 
@@ -319,146 +486,36 @@ std::string CppGenerator::GenerateFunctions(const MemberManager& Members, const 
 		bIsFirstIteration = false;
 		bDidSwitch = false;
 
-
-		FunctionInfo FuncInfo = GenerateFunctionInfo(Func);
-
-		const bool bHasInlineBody = Func.HasInlineBody();
-
-		// Function declaration and inline-body generation
-		InHeaderFunctionText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", FuncInfo.RetType, FuncInfo.FuncNameWithParams, Func.IsConst() ? " const" : "");
-		InHeaderFunctionText += (bHasInlineBody ? ("\n\t" + Func.GetPredefFunctionInlineBody()) : ";") + "\n";
-
-
-		if (bHasInlineBody)
-			continue;
-
-		if (Func.IsPredefined())
-		{
-			std::string CustomComment = Func.GetPredefFunctionCustomComment();
-
-			FunctionFile << std::format(R"(
-// Predefined Function
-{}
-{} {}::{}
-{}
-
-)"
-    , !CustomComment.empty() ? CustomComment + '\n' : ""
-    , Func.GetPredefFuncReturnType()
-    , StructName
-    , Func.GetPredefFuncNameWithParams()
-    , Func.GetPredefFunctionBody());
-
-			continue;
-		}
-
-
-		// Parameter struct generation for unreal-functions
-		if (!Func.IsPredefined() && Func.GetParamStructSize() > 0x0)
-			GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile);
-
-
-		std::string ParamVarCreationString = std::format(R"(
-	{}{} Parms{{}};
-)", CppSettings::ParamNamespaceName ? std::format("{}::", CppSettings::ParamNamespaceName) : "", Func.GetParamStructName());
-
-		constexpr const char* StoreFunctionFlagsString = R"(
-	auto Flgs = Func->FunctionFlags;
-	Func->FunctionFlags |= 0x400;
-)";
-
-		std::string ParamDescriptionCommentString = "// Parameters:\n";
-		std::string ParamAssignments;
-		std::string OutPtrAssignments;
-		std::string OutRefAssignments;
-
-		const bool bHasParams = !FuncInfo.UnrealFuncParams.empty();
-		bool bHasParamsToInit = false;
-		bool bHasOutPtrParamsToInit = false;
-		bool bHasOutRefParamsToInit = false;
-
-		for (const ParamInfo& PInfo : FuncInfo.UnrealFuncParams)
-		{
-			ParamDescriptionCommentString += std::format("// {:{}}{:{}}({})\n", PInfo.Type, 40, PInfo.Name, 55, StringifyPropertyFlags(PInfo.PropFlags));
-
-			if (PInfo.bIsRetParam)
-				continue;
-
-			if (PInfo.bIsOutPtr)
-			{
-				OutPtrAssignments += PInfo.bIsMoveParam ? std::format(R"(
-
-	if ({0} != nullptr)
-		*{0} = Parms.{0};)", PInfo.Name) : std::format(R"(
-
-	if ({0} != nullptr)
-		*{0} = std::move(Parms.{0});)", PInfo.Name);
-				bHasOutPtrParamsToInit = true;
-			}
-			else
-			{
-				ParamAssignments += PInfo.bIsMoveParam ? std::format("\tParms.{0} = std::move({0});\n", PInfo.Name) : std::format("\tParms.{0} = {0};\n", PInfo.Name);
-				bHasParamsToInit = true;
-			}
-
-			if (PInfo.bIsOutRef)
-			{
-				OutRefAssignments += PInfo.bIsMoveParam ? std::format("\n\t{0} = std::move(Parms.{0});", PInfo.Name) : std::format("\n\t{0} = Parms.{0};", PInfo.Name);
-				bHasOutRefParamsToInit = true;
-			}
-		}
-
-		//ParamAssignments = ParamAssignments + '\n';
-		ParamAssignments = '\n' + ParamAssignments;
-		//OutPtrAssignments = '\n' + OutPtrAssignments;
-		OutRefAssignments = '\n' + OutRefAssignments;
-
-		constexpr const char* RestoreFunctionFlagsString = R"(
-
-	Func->FunctionFlags = Flgs;)";
-
-		constexpr const char* ReturnValueString = R"(
-
-	return Parms.ReturnValue;)";
-
-		UEFunction UnrealFunc = Func.GetUnrealFunction();
-
-		const bool bIsNativeFunc = Func.HasFunctionFlag(EFunctionFlags::Native);
-
-		// Function implementation generation
-		std::string FunctionImplementation = std::format(R"(
-// {}
-// ({})
-{}
-{} {}::{}
-{{
-	static class UFunction* Func = nullptr;
-
-	if (Func == nullptr)
-		Func = Class->GetFunction("{}", "{}");
-{}{}{}
-	UObject::ProcessEvent(Func, {});{}{}{}{}
-}}
-
-)"  , UnrealFunc.GetFullName()
-    , StringifyFunctionFlags(FuncInfo.FuncFlags)
-    , bHasParams ? ParamDescriptionCommentString : ""
-    , FuncInfo.RetType
-    , StructName
-    , FuncInfo.FuncNameWithParams
-    , UnrealFunc.GetOuter().GetName()
-    , UnrealFunc.GetName()
-    , bHasParams ? ParamVarCreationString : ""
-    , bHasParamsToInit ? ParamAssignments : ""
-    , bIsNativeFunc ? StoreFunctionFlagsString : ""
-    , bHasParams ? "Parms" : "nullptr"
-    , bIsNativeFunc ? RestoreFunctionFlagsString : ""
-    , bHasOutRefParamsToInit ? OutRefAssignments : ""
-    , bHasOutPtrParamsToInit ? OutPtrAssignments : ""
-    , !FuncInfo.bIsReturningVoid ? ReturnValueString : "");
-
-		FunctionFile << FunctionImplementation;
+		InHeaderFunctionText += GenerateSingleFunction(Func, StructName, FunctionFile, ParamFile);
 	}
+
+	/* Special spacing for UClass specific functions 'StaticClass' and 'GetDefaultObj' */
+	if (bWasLastFuncInline != StaticClass.bIsBodyInline && !bIsFirstIteration)
+	{
+		InHeaderFunctionText += "\npublic:\n";
+		bDidSwitch = true;
+	}
+
+	if ((bWasLastFuncStatic != StaticClass.bIsStatic || bWaslastFuncConst != StaticClass.bIsConst) && !bIsFirstIteration && !bDidSwitch)
+		InHeaderFunctionText += '\n';
+
+	/* Set class-specific parts of 'StaticClass' and 'GetDefaultObj' */
+	const bool bIsNameUnique = Struct.GetUniqueName().second;
+	StaticClass.Body = std::format(
+R"({{
+	return StaticClassImpl<"{}"{}>();
+}})", (!bIsNameUnique ? Struct.GetFullName() : Struct.GetRawName()), (!bIsNameUnique ? ", true" : ""));
+
+	GetDefaultObj.ReturnType = std::format("class {}*", StructName);
+	GetDefaultObj.Body = std::format(
+R"({{
+	return GetDefaultObjImpl<{}>();
+}})", StructName);
+
+
+	std::shared_ptr<StructWrapper> CurrentStructPtr = std::make_shared<StructWrapper>(Struct);
+	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
+	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &GetDefaultObj), StructName, FunctionFile, ParamFile);
 
 	return InHeaderFunctionText;
 }
@@ -492,19 +549,19 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 {} {}{}{}{}
 {{
 )", Struct.GetFullName()
-, StructSizeWithoutSuper
-, StructSize
-, SuperSize
-, bIsClass ? "class" : "struct"
-, Struct.ShouldUseExplicitAlignment() ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
-, UniqueName
-, Struct.IsFinal() ? " final " : ""
-, Super.IsValid() ? (" : public " + UniqueSuperName) : "");
+  , StructSizeWithoutSuper
+  , StructSize
+  , SuperSize
+  , bIsClass ? "class" : "struct"
+  , Struct.ShouldUseExplicitAlignment() ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
+  , UniqueName
+  , Struct.IsFinal() ? " final " : ""
+  , Super.IsValid() ? (" : public " + UniqueSuperName) : "");
 
 	MemberManager Members = Struct.GetMembers();
 
 	const bool bHasMembers = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment());
-	const bool bHasFunctions = Members.HasFunctions() && !Struct.IsFunction();
+	const bool bHasFunctions = (Members.HasFunctions() && !Struct.IsFunction()) || bIsClass /* StaticClass/GetDefaultObj */;
 
 	if (bHasMembers || bHasFunctions)
 		StructFile << "public:\n";
@@ -518,7 +575,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	}
 
 	if (bHasFunctions)
-		StructFile << GenerateFunctions(Members, UniqueName, FunctionFile, ParamFile);
+		StructFile << GenerateFunctions(Struct, Members, UniqueName, FunctionFile, ParamFile);
 
 	StructFile << "};\n";
 }
@@ -597,8 +654,13 @@ std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 
 std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapper)
 {
-	if (!MemberWrapper.IsUnrealProperty()) [[unlikely]]
+	if (!MemberWrapper.IsUnrealProperty())
+	{
+		if (MemberWrapper.IsStatic() && !MemberWrapper.IsZeroSizedMember())
+			return "static " + MemberWrapper.GetType();
+
 		return MemberWrapper.GetType();
+	}
 
 	return GetMemberTypeString(MemberWrapper.GetUnrealProperty());
 }
@@ -943,6 +1005,14 @@ void CppGenerator::Generate()
 
 		if (Package.HasStructs() || Package.HasEnums())
 		{
+			if (Package.GetName() == "LS_StandButton")
+			{
+				std::cout << "HasStructs: " << Package.HasStructs() << std::endl;
+				std::cout << "HasEnums: " << Package.HasEnums() << std::endl;
+
+				std::cout << "struct-count: " << Package.GetSortedStructs().GetNumEntries() << std::endl;
+			}
+
 			StructsFile = StreamType(Subfolder / (FileName + "_structs.hpp"));
 			WriteFileHead(StructsFile, Package, EFileType::Structs);
 		}
@@ -1007,11 +1077,357 @@ void CppGenerator::Generate()
 
 void CppGenerator::InitPredefinedMembers()
 {
+	static auto SortMembers = [](std::vector<PredefinedMember>& Members) -> void
+	{
+		std::sort(Members.begin(), Members.end(), ComparePredefinedMembers);
+	};
 
+	PredefinedElements& UObjectPredefs = PredefinedMembers[ObjectArray::FindClassFast("Object").GetIndex()];
+	UObjectPredefs.Members = 
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class TUObjectArrayWrapper", .Name = "GObjects", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = true, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "void*", .Name = "Vft", .Offset = Off::UObject::Vft, .Size = 0x8, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "Flags", .Offset = Off::UObject::Flags, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "Index", .Offset = Off::UObject::Index, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UClass*", .Name = "Class", .Offset = Off::UObject::Class, .Size = 0x8, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class FName", .Name = "Name", .Offset = Off::UObject::Name, .Size = Off::InSDK::FNameSize, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UObject*", .Name = "Outer", .Offset = Off::UObject::Outer, .Size = 0x8, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	PredefinedElements& UFieldPredefs = PredefinedMembers[ObjectArray::FindClassFast("Field").GetIndex()];
+	UFieldPredefs.Members =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UField*", .Name = "Next", .Offset = Off::UField::Next, .Size = 0x8, .ArrayDim = 0x1, .Alignment =0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	PredefinedElements& UEnumPredefs = PredefinedMembers[ObjectArray::FindClassFast("Enum").GetIndex()];
+	UEnumPredefs.Members =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class TArray<class TPair<class FName, int64>>", .Name = "Names", .Offset = Off::UEnum::Names, .Size = 0x10, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	PredefinedElements& UStructPredefs = PredefinedMembers[ObjectArray::FindClassFast("Struct").GetIndex()];
+	UStructPredefs.Members =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UStruct*", .Name = "Super", .Offset = Off::UStruct::SuperStruct, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UField*", .Name = "Children", .Offset = Off::UStruct::Children, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "MinAlignemnt", .Offset = Off::UStruct::MinAlignemnt, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "Size", .Offset = Off::UStruct::Size, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	if (Settings::Internal::bUseFProperty)
+	{
+		UStructPredefs.Members.push_back({
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class FField*", .Name = "ChildProperties", .Offset = Off::UStruct::ChildProperties, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		});
+	}
+
+	PredefinedElements& UFunctionPredefs = PredefinedMembers[ObjectArray::FindClassFast("Function").GetIndex()];
+	UFunctionPredefs.Members =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "using FNativeFuncPtr = void (*)(void* Context, void* TheStack, void* Result)", .Name = "", .Offset = 0x0, .Size = 0x00, .ArrayDim = 0x1, .Alignment = 0x0,
+			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint32", .Name = "FunctionFlags", .Offset = Off::UFunction::FunctionFlags, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FNativeFuncPtr", .Name = "ExecFunction", .Offset = Off::UFunction::ExecFunction, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	PredefinedElements& UClassPredefs = PredefinedMembers[ObjectArray::FindClassFast("Class").GetIndex()];
+	UClassPredefs.Members =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "enum class EClassCastFlags", .Name = "CastFlags", .Offset = Off::UClass::CastFlags, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UObject*", .Name = "DefaultObject", .Offset = Off::UClass::ClassDefaultObject, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> PropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "ArrayDim", .Offset = Off::UProperty::ArrayDim, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "ElementSize", .Offset = Off::UProperty::ElementSize, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false,  .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint64", .Name = "PropertyFlags", .Offset = Off::UProperty::PropertyFlags, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "Offset", .Offset = Off::UProperty::Offset_Internal, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> BytePropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UEnum*", .Name = "Enum", .Offset = Off::UByteProperty::Enum, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> BoolPropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint8", .Name = "FieldSize", .Offset = Off::UBoolProperty::Base, .Size = 0x01, .ArrayDim = 0x1, .Alignment = 0x1,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint8", .Name = "ByteOffset", .Offset = Off::UBoolProperty::Base + 0x1, .Size = 0x01, .ArrayDim = 0x1, .Alignment = 0x1,
+			.bIsStatic = false, .bIsZeroSizeMember = false,  .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint8", .Name = "ByteMask", .Offset = Off::UBoolProperty::Base + 0x2, .Size = 0x01, .ArrayDim = 0x1, .Alignment = 0x1,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint8", .Name = "FieldMask", .Offset = Off::UBoolProperty::Base + 0x3, .Size = 0x01, .ArrayDim = 0x1, .Alignment = 0x1,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> ObjectPropertyBaseMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UClass*", .Name = "PropertyClass", .Offset = Off::UObjectProperty::PropertyClass, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> ClassPropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UClass*", .Name = "MetaClass", .Offset = Off::UClassProperty::MetaClass, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> StructPropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UStruct*", .Name = "Struct", .Offset = Off::UStructProperty::Struct, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> ArrayPropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FIX_THIS_INVLID_TYPE" /* Fix this */, .Name = "InnerProperty", .Offset = Off::UArrayProperty::Inner, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> MapPropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FIX_THIS_INVLID_TYPE" /* Fix this */, .Name = "KeyProperty", .Offset = Off::UMapProperty::Base, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FIX_THIS_INVLID_TYPE" /* Fix this */, .Name = "ValueProperty", .Offset = Off::UMapProperty::Base + 0x8, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> SetPropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FIX_THIS_INVLID_TYPE" /* Fix this */, .Name = "ElementProperty", .Offset = Off::USetProperty::ElementProp, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> EnumPropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FIX_THIS_INVLID_TYPE" /* Fix this */, .Name = "UnderlayingProperty", .Offset = Off::UEnumProperty::Base, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UEnum*", .Name = "Enum", .Offset = Off::UEnumProperty::Base + 0x8, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	SortMembers(PropertyMembers);
+	SortMembers(BytePropertyMembers);
+	SortMembers(BoolPropertyMembers);
+	SortMembers(ObjectPropertyBaseMembers);
+	SortMembers(ClassPropertyMembers);
+	SortMembers(StructPropertyMembers);
+	SortMembers(ArrayPropertyMembers);
+	SortMembers(MapPropertyMembers);
+	SortMembers(SetPropertyMembers);
+	SortMembers(EnumPropertyMembers);
+
+	if (!Settings::Internal::bUseFProperty)
+	{
+		PredefinedMembers[ObjectArray::FindClassFast("Property").GetIndex()].Members = PropertyMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("ByteProperty").GetIndex()].Members = BytePropertyMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("BoolProperty").GetIndex()].Members = BoolPropertyMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("ObjectPropertyBase").GetIndex()].Members = ObjectPropertyBaseMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("ClassProperty").GetIndex()].Members = ClassPropertyMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("StructProperty").GetIndex()].Members = StructPropertyMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("ArrayProperty").GetIndex()].Members = ArrayPropertyMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("MapProperty").GetIndex()].Members = MapPropertyMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("SetProperty").GetIndex()].Members = SetPropertyMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("EnumProperty").GetIndex()].Members = EnumPropertyMembers;
+	}
+	else
+	{
+		/* 
+		* Currently these are local variables, they might need to be allocated in the future
+		*/
+
+		PredefinedStruct FProperty{
+			.UniqueName = "FProperty", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .Super = nullptr  /* FField */
+		};
+		PredefinedStruct FByteProperty{
+			.UniqueName = "FByteProperty", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = nullptr  /* FProperty */
+		};
+		PredefinedStruct FBoolProperty{
+			.UniqueName = "FBoolProperty", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = nullptr  /* FProperty */
+		};
+		PredefinedStruct FObjectPropertyBase{
+			.UniqueName = "FObjectPropertyBase", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = nullptr  /* FProperty */
+		};
+		PredefinedStruct FClassProperty{
+			.UniqueName = "FClassProperty", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = nullptr  /* FProperty */
+		};
+		PredefinedStruct FStructProperty{
+			.UniqueName = "FStructProperty", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = nullptr  /* FProperty */
+		};
+		PredefinedStruct FArrayProperty{
+			.UniqueName = "FArrayProperty", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = nullptr  /* FProperty */
+		};
+		PredefinedStruct FMapProperty{
+			.UniqueName = "FMapProperty", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = nullptr  /* FProperty */
+		};
+		PredefinedStruct FSetProperty{
+			.UniqueName = "FSetProperty", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = nullptr  /* FProperty */
+		};
+		PredefinedStruct FEnumProperty{
+			.UniqueName = "FEnumProperty", .Size = 0xBEEF /* Fix this */, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = nullptr  /* FProperty */
+		};
+
+		FProperty.Properties = PropertyMembers;
+		FByteProperty.Properties = BytePropertyMembers;
+		FBoolProperty.Properties = BoolPropertyMembers;
+		FObjectPropertyBase.Properties = ObjectPropertyBaseMembers;
+		FClassProperty.Properties = ClassPropertyMembers;
+		FStructProperty.Properties = StructPropertyMembers;
+		FArrayProperty.Properties = ArrayPropertyMembers;
+		FMapProperty.Properties = MapPropertyMembers;
+		FSetProperty.Properties = SetPropertyMembers;
+		FEnumProperty.Properties = EnumPropertyMembers;
+	}
+
+	SortMembers(UObjectPredefs.Members);
+	SortMembers(UFieldPredefs.Members);
+	SortMembers(UEnumPredefs.Members);
+	SortMembers(UStructPredefs.Members);
+	SortMembers(UFunctionPredefs.Members);
+	SortMembers(UClassPredefs.Members);
 }
 
 void CppGenerator::InitPredefinedFunctions()
 {
+	static auto SortFunctions = [](std::vector<PredefinedFunction>& Functions) -> void
+	{
+		std::sort(Functions.begin(), Functions.end(), ComparePredefinedFunctions);
+	};
 
 }
 

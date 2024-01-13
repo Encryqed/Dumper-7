@@ -40,17 +40,17 @@ std::pair<std::string, uint8> PackageInfoHandle::GetNameCollisionPair() const
 
 bool PackageInfoHandle::HasClasses() const
 {
-	return Info->bHasClasses;
+	return Info->ClassesSorted.GetNumEntries() > 0x0;
 }
 
 bool PackageInfoHandle::HasStructs() const
 {
-	return Info->bHasStructs;
+	return Info->StructsSorted.GetNumEntries() > 0x0;
 }
 
 bool PackageInfoHandle::HasFunctions() const
 {
-	return Info->bHasFunctions;
+	return !Info->Functions.empty();
 }
 
 bool PackageInfoHandle::HasParameterStructs() const
@@ -60,7 +60,7 @@ bool PackageInfoHandle::HasParameterStructs() const
 
 bool PackageInfoHandle::HasEnums() const
 {
-	return Info->bHasEnums;
+	return !Info->Enums.empty();
 }
 
 bool PackageInfoHandle::IsEmpty() const
@@ -228,16 +228,12 @@ void PackageManager::InitDependencies()
 				}
 			}
 
-			BooleanOrEqual(Info.bHasStructs, bIsStruct);
-			BooleanOrEqual(Info.bHasClasses, bIsClass);
-
 			if (!bIsClass)
 				continue;
 			
 			/* Add class-functions to package */
 			for (UEFunction Func : ObjAsStruct.GetFunctions())
 			{
-				Info.bHasFunctions = true;
 				Info.Functions.push_back(Obj.GetIndex());
 
 				std::unordered_set<int32> Dependencies = PackageManagerUtils::GetDependencies(ObjAsStruct, StructIdx);
@@ -251,7 +247,6 @@ void PackageManager::InitDependencies()
 		{
 			PackageInfo& Info = PackageInfos[CurrentPackageIdx];
 
-			Info.bHasEnums = true;
 			Info.Enums.push_back(Obj.GetIndex());
 		}
 	}

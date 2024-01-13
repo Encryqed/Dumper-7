@@ -700,7 +700,7 @@ void Generator::InitPredefinedMembers()
 	};
 
 	if (Settings::Internal::bUseFProperty)
-		PredefinedMembers["UStruct"].insert({ "class FField* ", "ChildProperties", Off::UStruct::ChildProperties, 0x08 });
+		PredefinedMembers["UStruct"].insert({ "class FField*", "ChildProperties", Off::UStruct::ChildProperties, 0x08 });
 
 	PredefinedMembers["UFunction"] =
 	{

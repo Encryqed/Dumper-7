@@ -35,6 +35,7 @@ public:
     bool IsReturnParam() const;
     bool IsUnrealProperty() const;
     bool IsStatic() const;
+    bool IsZeroSizedMember() const;
 
     bool IsType(EClassCastFlags CombinedFlags) const;
     bool HasPropertyFlags(EPropertyFlags Flags) const;
@@ -51,6 +52,7 @@ public:
     UEProperty GetUnrealProperty() const;
 
     std::string StringifyFlags() const;
+    std::string GetFlagsOrCustomComment() const;
 };
 
 struct ParamCollection

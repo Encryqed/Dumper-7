@@ -6,6 +6,8 @@
 
 struct PredefinedMember
 {
+    std::string Comment;
+
     std::string Type;
     std::string Name;
 
@@ -15,6 +17,7 @@ struct PredefinedMember
     int32 Alignment;
 
     bool bIsStatic;
+    bool bIsZeroSizeMember;
 
     bool bIsBitField;
     uint8 BitIndex;

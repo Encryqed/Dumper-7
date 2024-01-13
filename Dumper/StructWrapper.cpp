@@ -24,6 +24,11 @@ std::string StructWrapper::GetName() const
     return bIsUnrealStruct ? Struct.GetValidName() : PredefStruct->UniqueName;
 }
 
+std::string StructWrapper::GetRawName() const
+{
+    return bIsUnrealStruct ? Struct.GetName() : PredefStruct->UniqueName;
+}
+
 std::string StructWrapper::GetFullName() const
 {
     return bIsUnrealStruct ? Struct.GetFullName() : "Predefined struct " + PredefStruct->UniqueName;
@@ -81,4 +86,9 @@ bool StructWrapper::IsValid() const
 {
     // Struct and PredefStruct share the same memory location, if Struct is nullptr so is PredefStruct
     return Struct != nullptr;
+}
+
+bool StructWrapper::IsUnrealStruct() const
+{
+    return bIsUnrealStruct;
 }

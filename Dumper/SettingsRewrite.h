@@ -40,7 +40,7 @@ namespace SettingsRewrite
 	}
 
 	// Do not change manually
-	namespace Iternal
+	namespace Internal
 	{
 		// UEEnum::Names
 		inline bool bIsEnumNameOnly = false;
