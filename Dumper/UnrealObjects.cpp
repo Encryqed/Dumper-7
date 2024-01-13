@@ -271,7 +271,7 @@ UEObject UEObject::GetOutermost() const
 
 std::string UEObject::StringifyObjFlags() const
 {
-	return StringifyObjectFlags(GetFlags());
+	return *this ? StringifyObjectFlags(GetFlags()) : "NoFlags";
 }
 
 std::string UEObject::GetName() const
