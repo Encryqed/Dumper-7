@@ -58,7 +58,7 @@ int32 StructWrapper::GetAlignment() const
 
 int32 StructWrapper::GetSize() const
 {
-    return bIsUnrealStruct ? InfoHandle.GetSize() : PredefStruct->Size;
+    return bIsUnrealStruct ? InfoHandle.GetSize() : Align(PredefStruct->Size, PredefStruct->Alignment);
 }
 
 bool StructWrapper::ShouldUseExplicitAlignment() const
@@ -85,7 +85,7 @@ bool StructWrapper::IsFunction() const
 bool StructWrapper::IsValid() const
 {
     // Struct and PredefStruct share the same memory location, if Struct is nullptr so is PredefStruct
-    return Struct != nullptr;
+    return PredefStruct != nullptr;
 }
 
 bool StructWrapper::IsUnrealStruct() const

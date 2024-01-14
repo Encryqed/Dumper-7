@@ -7,6 +7,10 @@ inline void BooleanOrEqual(bool& b1, bool b2)
 	b1 = b1 || b2;
 }
 
+PackageInfoHandle::PackageInfoHandle(std::nullptr_t Nullptr)
+	: Info(nullptr)
+{
+}
 
 PackageInfoHandle::PackageInfoHandle(const PackageInfo& InInfo)
 	: Info(&InInfo)

@@ -61,6 +61,9 @@ private:
         Functions,
 
         NameCollisionsInl,
+
+        BasicHpp,
+        BasicCpp,
     };
 
 private:
@@ -74,6 +77,8 @@ public:
 
     static inline fs::path MainFolder;
     static inline fs::path Subfolder;
+
+    static inline std::vector<PredefinedStruct> PredefinedStructs;
 
 public: /* DEBUG */
     static std::string MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment);
@@ -102,8 +107,10 @@ private: /* utility functions */
 
 private:
     static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);
-    static void WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type);
+    static void WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment = "", const std::string& CustomIncludes = "");
     static void WriteFileEnd(StreamType& File, EFileType Type);
+
+    static void GenerateBasicFiles(StreamType& BasicH, StreamType& BasicCpp);
 
 public:
     static void Generate();

@@ -139,26 +139,26 @@ void Off::Init()
 	Off::UProperty::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
 	std::cout << "Off::UProperty::PropertyFlags: " << Off::UProperty::PropertyFlags << "\n";
 
-	const int32 PropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
-	std::cout << "UPropertySize: " << PropertySize << "\n\n";
+	Off::InSDK::PropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
+	std::cout << "UPropertySize: " << Off::InSDK::PropertySize << "\n\n";
 
-	Off::UArrayProperty::Inner = OffsetFinder::FindInnerTypeOffset(PropertySize);
+	Off::UArrayProperty::Inner = OffsetFinder::FindInnerTypeOffset(Off::InSDK::PropertySize);
 	std::cout << "Off::UArrayProperty::Inner: " << Off::UArrayProperty::Inner << "\n";
 	
-	Off::USetProperty::ElementProp = OffsetFinder::FindSetPropertyBaseOffset(PropertySize);
+	Off::USetProperty::ElementProp = OffsetFinder::FindSetPropertyBaseOffset(Off::InSDK::PropertySize);
 	std::cout << "Off::USetProperty::ElementProp: " << Off::USetProperty::ElementProp << "\n";
 	
-	Off::UMapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(PropertySize);
+	Off::UMapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(Off::InSDK::PropertySize);
 	std::cout << "Off::UMapProperty::Base: " << Off::UMapProperty::Base << "\n\n";
 
 	Off::ULevel::Actors = OffsetFinder::FindLevelActorsOffset();
 	std::cout << "Off::ULevel::Actors: " << Off::ULevel::Actors << "\n\n";
 
-	Off::UByteProperty::Enum = PropertySize;
-	Off::UBoolProperty::Base = PropertySize;
-	Off::UObjectProperty::PropertyClass = PropertySize;
-	Off::UStructProperty::Struct = PropertySize;
-	Off::UEnumProperty::Base = PropertySize;
+	Off::UByteProperty::Enum = Off::InSDK::PropertySize;
+	Off::UBoolProperty::Base = Off::InSDK::PropertySize;
+	Off::UObjectProperty::PropertyClass = Off::InSDK::PropertySize;
+	Off::UStructProperty::Struct = Off::InSDK::PropertySize;
+	Off::UEnumProperty::Base = Off::InSDK::PropertySize;
 
-	Off::UClassProperty::MetaClass = PropertySize + 0x8; //0x8 inheritance from UObjectProperty
+	Off::UClassProperty::MetaClass = Off::InSDK::PropertySize + 0x8; //0x8 inheritance from UObjectProperty
 }

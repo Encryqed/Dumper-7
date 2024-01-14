@@ -83,7 +83,11 @@ private:
 
 public:
 	PackageInfoHandle() = default;
+	PackageInfoHandle(std::nullptr_t Nullptr);
 	PackageInfoHandle(const PackageInfo& InInfo);
+
+public:
+	inline bool IsValidHandle() { return Info != nullptr; }
 
 public:
 	/* Returns a pair of name and CollisionCount */
