@@ -5,6 +5,23 @@
 
 #include "SettingsRewrite.h"
 
+constexpr std::string GetTypeFromSize(uint8 Size)
+{
+	switch (Size)
+	{
+	case 1:
+		return "uint8";
+	case 2:
+		return "uint16";
+	case 4:
+		return "uint32";
+	case 8:
+		return "uint64";
+	default:
+		return "INVALID_TYPE_SIZE_FOR_BIT_PADDING";
+		break;
+	}
+}
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
 {
@@ -18,17 +35,16 @@ std::string CppGenerator::GenerateBytePadding(const int32 Offset, const int32 Pa
 	return MakeMemberString("uint8", std::format("Pad_{:X}[0x{:X}]", PadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason)));
 }
 
-std::string CppGenerator::GenerateBitPadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
+std::string CppGenerator::GenerateBitPadding(uint8 UnderlayingSizeBytes, const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
 	static uint32 BitPadNum = 0;
 
-	return MakeMemberString("uint8", std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason)));
+	return MakeMemberString(GetTypeFromSize(UnderlayingSizeBytes), std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, UnderlayingSizeBytes, std::move(Reason)));
 }
 
 std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize)
 {
 	constexpr uint64 EstimatedCharactersPerLine = 0x80;
-	constexpr uint64 NumBitsInBytePlusOne = 0x9;
 
 	std::string OutMembers;
 	OutMembers.reserve(Members.GetNumMembers() * EstimatedCharactersPerLine);
@@ -36,8 +52,12 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 	bool bLastPropertyWasBitField = false;
 
 	int PrevPropertyEnd = SuperSize;
-	int PrevBoolPropertyEnd = 0;
-	int PrevBoolPropertyBit = 1;
+	int PrevBitPropertyEnd = 0;
+	int PrevBitPropertyBit = 1;
+
+	uint8 PrevBitPropertySize = 0x1;
+	uint8 PrevBitPropertyOffset = 0x0;
+	uint64 PrevNumBitsInUnderlayingType = 0x9;
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
@@ -46,8 +66,8 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 		std::string Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, Member.GetFlagsOrCustomComment());
 
-		if (MemberOffset >= PrevPropertyEnd && bLastPropertyWasBitField && PrevBoolPropertyBit != NumBitsInBytePlusOne)
-			OutMembers += GenerateBitPadding(MemberOffset, NumBitsInBytePlusOne - PrevBoolPropertyBit, "Fixing Bit-Field Size [ Dumper-7 ]");
+		if (MemberOffset >= PrevPropertyEnd && bLastPropertyWasBitField && PrevBitPropertyBit != PrevNumBitsInUnderlayingType)
+			OutMembers += GenerateBitPadding(PrevBitPropertySize, PrevBitPropertyOffset, PrevNumBitsInUnderlayingType - PrevBitPropertyBit, "Fixing Bit-Field Size [ Dumper-7 ]");
 
 		if (MemberOffset > PrevPropertyEnd)
 			OutMembers += GenerateBytePadding(PrevPropertyEnd, MemberOffset - PrevPropertyEnd, "Fixing Size After Last Property [ Dumper-7 ]");
@@ -57,18 +77,24 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		if (bIsBitField)
 		{
 			uint8 BitFieldIndex = Member.GetBitIndex();
+			uint8 BitSize = Member.GetBitCount();
 
-			std::string BitfieldInfoComment = std::format("Mask: 0x{:02X}, PropSize: 0x{:04X} ({})", Member.GetFieldMask(), MemberSize, Member.GetFlagsOrCustomComment());
+			std::string BitfieldInfoComment = std::format("BitIndex: 0x{:02X}, PropSize: 0x{:04X} ({})", BitFieldIndex, MemberSize, Member.GetFlagsOrCustomComment());
 			Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, BitfieldInfoComment);
 
-			if (PrevBoolPropertyEnd < MemberOffset)
-				PrevBoolPropertyBit = 1;
+			if (PrevBitPropertyEnd < MemberOffset)
+				PrevBitPropertyBit = 1;
 
-			if (PrevBoolPropertyBit < BitFieldIndex)
-				OutMembers += GenerateBitPadding(MemberOffset, BitFieldIndex - PrevBoolPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]");
+			if (PrevBitPropertyBit < BitFieldIndex)
+				OutMembers += GenerateBitPadding(MemberSize, MemberOffset, BitFieldIndex - PrevBitPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]");
 
-			PrevBoolPropertyBit = BitFieldIndex + 1;
-			PrevBoolPropertyEnd = MemberOffset;
+			PrevBitPropertyBit = BitFieldIndex + BitSize;
+			PrevBitPropertyEnd = MemberOffset  + MemberSize;
+
+			PrevBitPropertySize = MemberSize;
+			PrevBitPropertyOffset = MemberOffset;
+
+			PrevNumBitsInUnderlayingType = (MemberSize * 0x8);
 		}
 
 		bLastPropertyWasBitField = bIsBitField;
@@ -84,7 +110,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		}
 		else if (bIsBitField)
 		{
-			MemberName += " : 1";
+			MemberName += (" : " + std::to_string(Member.GetBitCount()));
 		}
 
 		OutMembers += MakeMemberString(GetMemberTypeString(Member), MemberName, std::move(Comment));
@@ -436,6 +462,8 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 
 std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile)
 {
+	namespace CppSettings = SettingsRewrite::CppGenerator;
+
 	static PredefinedFunction StaticClass;
 	static PredefinedFunction GetDefaultObj;
 
@@ -499,12 +527,16 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	if ((bWasLastFuncStatic != StaticClass.bIsStatic || bWaslastFuncConst != StaticClass.bIsConst) && !bIsFirstIteration && !bDidSwitch)
 		InHeaderFunctionText += '\n';
 
-	/* Set class-specific parts of 'StaticClass' and 'GetDefaultObj' */
 	const bool bIsNameUnique = Struct.GetUniqueName().second;
+
+	std::string Name = !bIsNameUnique ? Struct.GetFullName() : Struct.GetRawName();
+	std::string NameText = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Name) : std::format("\"{}\"", Name);
+
+	/* Set class-specific parts of 'StaticClass' and 'GetDefaultObj' */
 	StaticClass.Body = std::format(
 R"({{
-	return StaticClassImpl<"{}"{}>();
-}})", (!bIsNameUnique ? Struct.GetFullName() : Struct.GetRawName()), (!bIsNameUnique ? ", true" : ""));
+	return StaticClassImpl<{}{}>();
+}})", NameText, (!bIsNameUnique ? ", true" : ""));
 
 	GetDefaultObj.ReturnType = std::format("class {}*", StructName);
 	GetDefaultObj.Body = std::format(
@@ -1571,6 +1603,10 @@ void CppGenerator::InitPredefinedFunctions()
 
 }
 
+namespace Offsets
+{
+	int GObjects;
+}
 
 void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp)
 {
@@ -1585,14 +1621,621 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 	WriteFileHead(BasicHpp, nullptr, EFileType::BasicHpp, "Basic file containing structs required by the SDK", CustomIncludes);
 	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp");
 
+
+	/* typedefs for integer types (eg. uint8, int32, etc.) */
+	BasicHpp <<
+		R"(
+typedef __int8 int8;
+typedef __int16 int16;
+typedef __int32 int32;
+typedef __int64 int64;
+
+typedef unsigned __int8 uint8;
+typedef unsigned __int16 uint16;
+typedef unsigned __int32 uint32;
+typedef unsigned __int64 uint64;
+)";
+
+
+	/* Offsets and disclaimer */
+	BasicHpp << std::format(R"(
+/*
+* Disclaimer:
+*	- The 'GNames' is only a fallback and null by default, FName::AppendString is used
+*	- THe 'GWorld' offset is not found automatically, use the provided 'UWorld::GetWorld()' function instead
+*/
+namespace Offsets
+{{
+	constexpr int32 GObjects          = 0x{:08X};
+	constexpr int32 AppendString      = 0x{:08X};
+	constexpr int32 GNames            = 0x{:08X};
+	constexpr int32 ProcessEvent      = 0x{:08X};
+	constexpr int32 ProcessEventIdx   = 0x{:08X};
+}}
+)", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::GNames, Off::InSDK::PEOffset, Off::InSDK::PEIndex);
+
+
+
+	// Start Namespace 'InSDKUtils'
+	BasicHpp <<
+		R"(
+namespace InSDKUtils
+{
+)";
+
+
+	/* Custom 'GetImageBaseInSDK' function */
+	BasicHpp << std::format(R"(	inline void* GetImageBase()
+{}
+)", CppSettings::GetImageBaseFuncBody);
+
+
+	/* GetVirtualFunction(const void* ObjectInstance, int32 Index) function */
+	BasicHpp << R"(	template<typename FuncType>
+	inline FuncType GetVirtualFunction(const void* ObjectInstance, int32 Index)
+	{
+		void** VTable = *reinterpret_cast<const void***>(const_cast<void*>(ObjectInstance));
+
+		return reinterpret_cast<FuncType>(VTable[Index]);
+	}
+)";
+
+	BasicHpp << "}\n\n";
+	// End Namespace 'InSDKUtils'
+
+
+
+	// Start class 'TUObjectArray'
+	PredefinedStruct FUObjectItem = PredefinedStruct{
+		.UniqueName = "FUObjectItem", .Size = Off::InSDK::FUObjectItemSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr  /* FProperty */
+	};
+
+	FUObjectItem.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UObject*", .Name = "Object", .Offset = Off::InSDK::FUObjectItemInitialOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	GenerateStruct(&FUObjectItem, BasicHpp, BasicCpp, BasicHpp);
+
+
+	constexpr const char* DefaultDecryption = R"([](void* ObjPtr) -> uint8*
+	{
+		return reinterpret_cast<uint8*>(ObjPtr);
+	})";
+
+	std::string DecryptionStrToUse = ObjectArray::DecryptionLambdaStr.empty() ? DefaultDecryption : std::move(ObjectArray::DecryptionLambdaStr);
+
+
+	if (Off::InSDK::ChunkSize <= 0)
+	{
+		BasicHpp << std::format(R"(
+class TUObjectArray
+{{
+private:
+	static inline auto DecryptPtr = {};
+
+public:
+	FUObjectItem* Objects;
+	int32 MaxElements;
+	int32 NumElements;
+
+public:
+	// Call InitGObjects() before using these functions
+	inline int Num() const
+	{{
+		return NumElements;
+	}}
+
+	inline FUObjectItem* GetDecrytedObjPtr() const
+	{{
+		return reinterpret_cast<FUObjectItem*>(DecryptPtr(Objects));
+	}}
+
+	inline class UObject* GetByIndex(const int32 Index) const
+	{{
+		if (Index < 0 || Index > NumElements)
+			return nullptr;
+
+		return GetDecrytedObjPtr()[Index].Object;
+	}}
+}};
+)", DecryptionStrToUse);
+	}
+	else
+	{
+		constexpr const char* MemmberString = R"(
+	FUObjectItem** Objects;
+	uint8 Pad_0[0x08];
+	int32 MaxElements;
+	int32 NumElements;
+	int32 MaxChunks;
+	int32 NumChunks;)";
+
+		constexpr const char* MemberStringWeirdLayout = R"(
+	uint8 Pad_0[0x10];
+	int32 MaxElements;
+	int32 NumElements;
+	int32 MaxChunks;
+	int32 NumChunks;
+	FUObjectItem** Objects;)";
+
+		BasicHpp << std::format(R"(
+class TUObjectArray
+{{
+public:
+	enum
+	{{
+		ElementsPerChunk = 0x{:X},
+	}};
+
+private:
+	static inline auto DecryptPtr = {};
+
+public:{}
+
+public:
+	inline int32 Num() const
+	{{
+		return NumElements;
+	}}
+
+	inline FUObjectItem** GetDecrytedObjPtr() const
+	{{
+		return reinterpret_cast<FUObjectItem**>(DecryptPtr(Objects));
+	}}
+
+	inline class UObject* GetByIndex(const int32 Index) const
+	{{
+		if (Index < 0 || Index > NumElements)
+			return nullptr;
+
+		const int32 ChunkIndex = Index / ElementsPerChunk;
+		const int32 InChunkIdx = Index % ElementsPerChunk;
+
+		return GetDecrytedObjPtr()[ChunkIndex][InChunkIdx].Object;
+	}}
+}};
+)", Off::InSDK::ChunkSize, DecryptionStrToUse, Off::FUObjectArray::Ptr == 0 ? MemmberString : MemberStringWeirdLayout);
+	}
+	// End class 'TUObjectArray'
+
+
+
+	/* TUObjectArrayWrapper so InitGObjects() doesn't need to be called manually anymore */
+	// Start class 'TUObjectArrayWrapper'
+		BasicHpp << R"(
+class TUObjectArrayWrapper
+{
+private:
+	void* GObjectsAddress = nullptr;
+
+public:
+	TUObjectArrayWrapper() = delete;
+	TUObjectArrayWrapper(TUObjectArrayWrapper&&) = delete;
+	TUObjectArrayWrapper(const TUObjectArrayWrapper&) = delete;
+
+	TUObjectArrayWrapper& operator=(TUObjectArrayWrapper&&) = delete;
+	TUObjectArrayWrapper& operator=(const TUObjectArrayWrapper&) = delete;
+
+private:
+	inline void InitGObjects()
+	{
+		GObjectsAddress = reinterpret_cast<void*>(uintptr_t(InSDKUtils::GetImageBase()) + Offsets::GObjects);
+	}
+
+public:
+	inline class TUObjectArray* operator->()
+	{
+		if (!GObjectsAddress) [[unlikely]]
+			InitGObjects();
+
+		return reinterpret_cast<class TUObjectArray*>(GObjectsAddress);
+	}
+};
+)";
+	// End class 'TUObjectArrayWrapper'
+
+
+
+	// Start class 'TArray/FString'
+	BasicHpp << R"(
+template<class T>
+class TArray
+{
+protected:
+	T* Data;
+	int32 NumElements;
+	int32 MaxElements;
+
+public:
+
+	inline TArray()
+		:NumElements(0), MaxElements(0), Data(nullptr)
+	{
+	}
+
+	inline TArray(int32 Size)
+		:NumElements(0), MaxElements(Size), Data(reinterpret_cast<T*>(malloc(sizeof(T) * Size)))
+	{
+	}
+
+	inline T& operator[](uint32 Index)
+	{
+		return Data[Index];
+	}
+	inline const T& operator[](uint32 Index) const
+	{
+		return Data[Index];
+	}
+
+	inline int32 Num()
+	{
+		return NumElements;
+	}
+
+	inline int32 Max()
+	{
+		return MaxElements;
+	}
+
+	inline int32 GetSlack()
+	{
+		return MaxElements - NumElements;
+	}
+
+	inline bool IsValid()
+	{
+		return Data != nullptr;
+	}
+
+	inline bool IsValidIndex(int32 Index)
+	{
+		return Index >= 0 && Index < NumElements;
+	}
+
+	inline void ResetNum()
+	{
+		NumElements = 0;
+	}
+};
+)";
+
+	BasicHpp << R"(
+class FString : public TArray<wchar_t>
+{
+public:
+	inline FString() = default;
+
+	using TArray::TArray;
+
+	inline FString(const wchar_t* WChar)
+	{
+		MaxElements = NumElements = *WChar ? std::wcslen(WChar) + 1 : 0;
+
+		if (NumElements)
+		{
+			Data = const_cast<wchar_t*>(WChar);
+		}
+	}
+
+	inline FString operator=(const wchar_t*&& Other)
+	{
+		return FString(Other);
+	}
+
+	inline std::wstring ToWString()
+	{
+		if (IsValid())
+		{
+			return Data;
+		}
+
+		return L"";
+	}
+
+	inline std::string ToString()
+	{
+		if (IsValid())
+		{
+			std::wstring WData(Data);
+			return std::string(WData.begin(), WData.end());
+		}
+
+		return "";
+	}
+};
+)";
+	// End class 'TArray/FString'
+
+
+
+	/*
+
+	if (Off::InSDK::AppendNameToString == 0x0 && !Settings::Internal::bUseNamePool)
+	{
+		MemberBuilder NameEntryMembers;
+		NameEntryMembers.Add("\tint32 NameIndex;\n", Off::FNameEntry::NameArray::IndexOffset, sizeof(int32));
+		NameEntryMembers.Add(
+			R"(
+	union
+	{
+		char    AnsiName[1024];
+		wchar_t WideName[1024];
+	};
+)", Off::FNameEntry::NameArray::StringOffset, 0x0);
+
+		BasicHpp << std::format(R"(
+class FNameEntry
+{{
+public:
+	static constexpr uint32 NameWideMask = 0x1;
+	static constexpr uint32 NameIndexShiftCount = 0x1;
+
+public:
+{}
+
+public:
+	inline bool IsWide() const
+	{{
+		return (NameIndex & NameWideMask);
+	}}
+
+	inline std::string GetString() const
+	{{
+		if (IsWide())
+		{{
+			std::wstring WideString(WideName);
+			return std::string(WideString.begin(), WideString.end());
+		}}
+
+		return AnsiName;
+	}}
+}};
+)", NameEntryMembers.GetMembers());
+
+		BasicHpp << std::format(R"(
+class TNameEntryArray
+{{
+public:
+	
+	static constexpr uint32 ChunkTableSize = {};
+	static constexpr uint32 NumElementsPerChunk = 0x4000;
+
+public:
+	FNameEntry** Chunks[ChunkTableSize];
+	int32 NumElements;
+	int32 NumChunks;
+
+public:
+	inline bool IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx) const
+	{{
+		return return Index >= 0 && Index < NumElements;
+	}}
+
+	inline FNameEntry* GetEntryByIndex(int32 Index) const
+	{{
+		const int32 ChunkIdx = Index / NumElementsPerChunk;
+		const int32 InChunk  = Index % NumElementsPerChunk;
+
+		if (!IsValidIndex(Index, ChunkIdx, InChunk))
+			return nullptr;
+
+		return Chunks[ChunkIdx][InChunk];
+	}}
+}};
+)", Off::NameArray::NumElements / 0x8);
+	}
+	else if (Off::InSDK::AppendNameToString == 0x0 && Settings::Internal::bUseNamePool)
+	{
+		const int32 FNameEntryHeaderSize = Off::FNameEntry::NamePool::StringOffset - Off::FNameEntry::NamePool::HeaderOffset;
+
+		PredefinedStruct FNumberedData = PredefinedStruct{
+			.UniqueName = "FNumberedData", .Size = FNameEntryHeaderSize, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr
+		};
+		PredefinedStruct FNameEntryHeader = PredefinedStruct{
+			.UniqueName = "FNameEntryHeader", .Size = FNameEntryHeaderSize, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr
+		};
+		PredefinedStruct FNameEntry = PredefinedStruct{
+			.UniqueName = "FNameEntry", .Size = FNameEntryHeaderSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr
+		};
+
+		FNameEntryHeader.Properties =
+		{
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "uint16", .Name = "bIsWide", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x0
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "class UObject*", .Name = "Object", .Offset = Off::InSDK::FUObjectItemInitialOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+		};
+
+		if (!Settings::Internal::bUseCasePreservingName)
+		{
+			FNameEntry.Properties.insert(FNameEntry.Properties.begin(),
+				PredefinedMember{
+					.Comment = "NOT AUTO-GENERATED PROPERTY",
+					.Type = "uint8", .Name = "Pad", .Offset = Off::InSDK::FUObjectItemInitialOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+				}
+			);
+
+			FNameEntryHeader.Properties.push_back(
+				PredefinedMember{
+					.Comment = "NOT AUTO-GENERATED PROPERTY",
+					.Type = "uint16", .Name = "Len", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
+					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x6, .BitCount = 10
+				}
+			);
+		}
+		else // this is 'if (WithCasePreservingName == true)
+		{
+			FNameEntryHeader.Properties.push_back(
+				PredefinedMember{
+					.Comment = "NOT AUTO-GENERATED PROPERTY",
+					.Type = "uint16", .Name = "Len", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
+					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x1, .BitCount = 15
+				}
+			);
+		}
+
+		FNameEntry.Properties =
+		{
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "class UObject*", .Name = "Object", .Offset = Off::InSDK::FUObjectItemInitialOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+		};
+
+		MemberBuilder NumberedDataBuilder;
+		NumberedDataBuilder.Indent = "\t\t";
+		NumberedDataBuilder.Add("\t\tuint8 Pad[0x2]\n", -1, sizeof(uint8[0x2]), !Settings::Internal::bUseCasePreservingName);
+		NumberedDataBuilder.Add("\t\tuint32 Id;\n", -1, sizeof(uint32));
+		NumberedDataBuilder.Add("\t\tuint32 Number;", -1, sizeof(uint32));
+
+		MemberBuilder NameEntryHeaderMembers;
+		NameEntryHeaderMembers.Add("\tuint16 bIsWide : 1;\n", 0, 0);
+		NameEntryHeaderMembers.Add("\tuint16 Len : 15;", 0, 0, !Settings::Internal::bUseCasePreservingName);
+		NameEntryHeaderMembers.Add("\tuint16 LowercaseProbeHash : 5;\n", 0, 0, Settings::Internal::bUseCasePreservingName);
+		NameEntryHeaderMembers.Add("\tuint16 Len : 10;", 0, 0, Settings::Internal::bUseCasePreservingName);
+
+		MemberBuilder NameEntryMembers;
+		NameEntryMembers.Add("\tFNameEntryHeader Header;\n", Off::FNameEntry::NamePool::HeaderOffset, sizeof(uint16));
+		NameEntryMembers.Add(
+			R"(
+	union
+	{
+		char    AnsiName[1024];
+		wchar_t WideName[1024];
+		FNumberedData NumberedName;
+	};
+)", Off::FNameEntry::NameArray::StringOffset, 0x0);
+
+		BasicHpp << std::format(R"(
+class FNameEntryHeader
+{{
+public:
+{}
+}};
+)", NameEntryHeaderMembers.GetMembers());
+
+	BasicHpp << std::format(R"(
+class FNameEntry
+{{
+public:
+	struct FNumberedData
+	{{
+{}
+	}};
+
+public:
+{}
+
+public:
+	inline bool IsWide() const
+	{{
+		return Header.bIsWide;
+	}}
+
+	inline std::string GetString() const
+	{{
+		if (IsWide())
+		{{
+			std::wstring WideString(WideName, Header.Len);
+			return std::string(WideString.begin(), WideString.end());
+		}}
+
+		return std::string(AnsiName, Header.Len);
+	}}
+
+}};
+)", NumberedDataBuilder.GetMembers(), NameEntryMembers.GetMembers());
+
+
+		MemberBuilder NamePoolMembers;
+		NamePoolMembers.Add("\tuint32 CurrentBlock;\n", Off::NameArray::MaxChunkIndex, sizeof(uint32));
+		NamePoolMembers.Add("\tuint32 CurrentByteCursor;\n", Off::NameArray::ByteCursor, sizeof(uint32));
+		NamePoolMembers.Add("\tuint8* Blocks[8192];\n", Off::NameArray::ChunksStart, sizeof(uint8**));
+
+		BasicHpp << std::format(R"(
+class FNamePool
+{{
+public:
+	static constexpr uint32 FNameBlockOffsetBits = {};
+	static constexpr uint32 FNameBlockOffsets = 1 << FNameBlockOffsetBits;
+
+	static constexpr uint32 FNameEntryStride = {};
+
+public:
+	// Members of FNamePool with padding
+{}
+
+public:
+	inline bool IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx) const
+	{{
+		return ChunkIdx <= CurrentBlock && !(ChunkIdx == CurrentBlock && InChunkIdx > CurrentByteCursor);
+	}}
+
+	inline FNameEntry* GetEntryByIndex(int32 Index) const
+	{{
+		const int32 ChunkIdx = Index >> FNameBlockOffsetBits;
+		const int32 InChunk = (Index & (FNameBlockOffsets - 1));
+
+		if (!IsValidIndex(Index, ChunkIdx, InChunk))
+			return nullptr;
+
+		return reinterpret_cast<FNameEntry*>(Blocks[ChunkIdx] + (InChunk * FNameEntryStride));
+	}}
+}};
+)", Off::InSDK::FNamePoolBlockOffsetBits, Off::InSDK::FNameEntryStride, NamePoolMembers.GetMembers());
+	}
+
+	*/
+
+
+	PredefinedStruct FTestStruct = PredefinedStruct{
+		.UniqueName = "FTestStruct", .Size = 0x8, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr
+	};
+	
+	FTestStruct.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint16", .Name = "bIsWide", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x0, .BitCount = 1
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint16", .Name = "This4BitSize", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x1, .BitCount = 4
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint16", .Name = "SomeBigerField", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x8, .BitCount = 6
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint8", .Name = "thisisDefaultbeifeld", .Offset = 0x2, .Size = 0x01, .ArrayDim = 0x1, .Alignment = 0x1,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x0, .BitCount = 1
+		},
+	};
+	GenerateStruct(&FTestStruct, BasicHpp, BasicCpp, BasicHpp);
+
+	/* Write Predefined Structs into Basic.hpp */
 	for (const PredefinedStruct& Predefined : PredefinedStructs)
 	{
-		StructWrapper Struct(&Predefined);
-
-		GenerateStruct(Struct, BasicHpp, BasicCpp, BasicHpp);
+		GenerateStruct(&Predefined, BasicHpp, BasicCpp, BasicHpp);
 	}
 
 	WriteFileEnd(BasicHpp, EFileType::BasicHpp);
 	WriteFileEnd(BasicCpp, EFileType::BasicCpp);
 }
-

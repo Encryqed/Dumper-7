@@ -74,6 +74,13 @@ uint8 PropertyWrapper::GetBitIndex() const
     return bIsUnrealProperty ? Property.Cast<UEBoolProperty>().GetBitIndex() : PredefProperty->BitIndex;
 }
 
+uint8 PropertyWrapper::GetBitCount() const
+{
+    assert(IsBitField() && "'GetBitSize' was called on non-bitfield member!");
+
+    return bIsUnrealProperty ? 0x1 : PredefProperty->BitCount;
+}
+
 uint8 PropertyWrapper::GetFieldMask() const
 {
     assert(IsBitField() && "'GetFieldMask' was called on non-bitfield member!");

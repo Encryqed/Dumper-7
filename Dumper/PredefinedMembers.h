@@ -21,6 +21,7 @@ struct PredefinedMember
 
     bool bIsBitField;
     uint8 BitIndex;
+    uint8 BitCount = 0x1;
 };
 
 struct PredefinedFunction

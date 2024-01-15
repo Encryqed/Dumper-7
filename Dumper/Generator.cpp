@@ -1533,9 +1533,9 @@ public:
 			return nullptr;
 
 		return Chunks[ChunkIdx][InChunk];
-	}}	
+	}}
 }};
-)", Off::NameArray::NumElements / 8));
+)", Off::NameArray::NumElements / 0x8));
 	}
 	else if (Off::InSDK::AppendNameToString == 0x0 && Settings::Internal::bUseNamePool)
 	{

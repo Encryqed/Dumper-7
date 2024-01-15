@@ -43,6 +43,7 @@ public:
 
     uint8 GetBitIndex() const;
     uint8 GetFieldMask() const;
+    uint8 GetBitCount() const;
 
     int32 GetArrayDim() const;
     int32 GetSize() const;

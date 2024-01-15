@@ -27,6 +27,13 @@ namespace SettingsRewrite
 
 		//Do not XOR strings -> XORString = nullptr
 		constexpr const char* XORString = nullptr;
+
+		//Customizable part of Cpp code to allow for a custom 'GetImageBaseInSDK' function
+		constexpr const char* GetImageBaseFuncBody = 
+R"(	{
+		reinterpret_cast<void*>(GetModuleHandle(0));
+	}
+)";
 	}
 
 	/* Not implemented */
