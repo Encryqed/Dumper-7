@@ -51,6 +51,20 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 	std::string OutMembers;
 	OutMembers.reserve(Members.GetNumMembers() * EstimatedCharactersPerLine);
 
+	bool bEncounteredStaticVariable = false;
+	bool bAddedSpace = false;
+
+	auto AddSpaceBetweenSticAndNormalMembers = [&](const PropertyWrapper& Member)
+	{
+		if (!bAddedSpace && bEncounteredStaticVariable && !Member.IsStatic())
+		{
+			OutMembers += '\n';
+			bAddedSpace = true;
+		}
+
+		bEncounteredStaticVariable = Member.IsStatic();
+	};
+
 	bool bLastPropertyWasBitField = false;
 
 	int PrevPropertyEnd = SuperSize;
@@ -63,6 +77,8 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
+		AddSpaceBetweenSticAndNormalMembers(Member);
+
 		const int32 MemberOffset = Member.GetOffset();
 		const int32 MemberSize = Member.GetSize();
 
