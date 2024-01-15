@@ -22,6 +22,8 @@ struct PredefinedMember
     bool bIsBitField;
     uint8 BitIndex;
     uint8 BitCount = 0x1;
+
+    std::string DefaultValue = std::string();
 };
 
 struct PredefinedFunction
@@ -51,6 +53,7 @@ struct PredefinedStruct
     bool bUseExplictAlignment;
     bool bIsFinal;
     bool bIsClass;
+    bool bIsUnion;
 
     const PredefinedStruct* Super;
 

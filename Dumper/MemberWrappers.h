@@ -40,6 +40,7 @@ public:
     bool IsType(EClassCastFlags CombinedFlags) const;
     bool HasPropertyFlags(EPropertyFlags Flags) const;
     bool IsBitField() const;
+    bool HasDefaultValue() const;
 
     uint8 GetBitIndex() const;
     uint8 GetFieldMask() const;
@@ -51,6 +52,8 @@ public:
     EPropertyFlags GetPropertyFlags() const;
 
     UEProperty GetUnrealProperty() const;
+
+    std::string GetDefaultValue() const;
 
     std::string StringifyFlags() const;
     std::string GetFlagsOrCustomComment() const;

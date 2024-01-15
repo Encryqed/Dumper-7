@@ -52,6 +52,7 @@ public:
     bool IsFinal() const;
 
     bool IsClass() const;
+    bool IsUnion() const;
     bool IsFunction() const;
 
     bool IsValid() const;

@@ -76,6 +76,11 @@ bool StructWrapper::IsClass() const
     return bIsUnrealStruct ? Struct.IsA(EClassCastFlags::Class) : PredefStruct->bIsClass;
 }
 
+bool StructWrapper::IsUnion() const
+{
+    return !bIsUnrealStruct && PredefStruct->bIsUnion;
+}
+
 bool StructWrapper::IsFunction() const
 {
     return bIsUnrealStruct && Struct.IsA(EClassCastFlags::Function);

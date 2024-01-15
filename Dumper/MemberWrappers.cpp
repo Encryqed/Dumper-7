@@ -40,6 +40,13 @@ UEProperty PropertyWrapper::GetUnrealProperty() const
     return Property;
 }
 
+std::string PropertyWrapper::GetDefaultValue() const
+{
+    assert(!bIsUnrealProperty && "PropertyWrapper doesn't contian PredefiendMember. Illegal call to 'GetDefaultValue()'.");
+
+    return PredefProperty->DefaultValue;
+}
+
 bool PropertyWrapper::IsType(EClassCastFlags CombinedFlags) const
 {
     if (!bIsUnrealProperty)
@@ -64,6 +71,11 @@ bool PropertyWrapper::IsBitField() const
         return Property.IsA(EClassCastFlags::BoolProperty) && !Property.Cast<UEBoolProperty>().IsNativeBool();
 
     return PredefProperty->bIsBitField;
+}
+
+bool PropertyWrapper::HasDefaultValue() const
+{
+    return !bIsUnrealProperty && !PredefProperty->DefaultValue.empty();
 }
 
 

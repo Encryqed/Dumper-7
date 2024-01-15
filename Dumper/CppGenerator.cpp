@@ -46,6 +46,8 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 {
 	constexpr uint64 EstimatedCharactersPerLine = 0x80;
 
+	const bool bIsUnion = Struct.IsUnion();
+
 	std::string OutMembers;
 	OutMembers.reserve(Members.GetNumMembers() * EstimatedCharactersPerLine);
 
@@ -71,13 +73,13 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		const bool bIsBitField = Member.IsBitField();
 
 		/* Padding between two bitfields at different byte-offsets */
-		if (CurrentPropertyEnd > PrevPropertyEnd && bLastPropertyWasBitField && bIsBitField && PrevBitPropertyEndBit < PrevMaxIndexInUnderlayingType)
+		if (CurrentPropertyEnd > PrevPropertyEnd && bLastPropertyWasBitField && bIsBitField && PrevBitPropertyEndBit < PrevMaxIndexInUnderlayingType && !bIsUnion)
 		{
 			OutMembers += GenerateBitPadding(PrevBitPropertySize, PrevBitPropertyOffset, (PrevMaxIndexInUnderlayingType + 1) - PrevBitPropertyEndBit, "Fixing Bit-Field Size For New Byte [ Dumper-7 ]");
 			PrevBitPropertyEndBit = 0;
 		}
 
-		if (MemberOffset > PrevPropertyEnd)
+		if (MemberOffset > PrevPropertyEnd && !bIsUnion)
 			OutMembers += GenerateBytePadding(PrevPropertyEnd, MemberOffset - PrevPropertyEnd, "Fixing Size After Last Property [ Dumper-7 ]");
 
 		if (bIsBitField)
@@ -91,7 +93,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 			if (PrevBitPropertyEnd < MemberOffset)
 				PrevBitPropertyEndBit = 0;
 
-			if (PrevBitPropertyEndBit < BitFieldIndex)
+			if (PrevBitPropertyEndBit < BitFieldIndex && !bIsUnion)
 				OutMembers += GenerateBitPadding(MemberSize, MemberOffset, BitFieldIndex - PrevBitPropertyEndBit, "Fixing Bit-Field Size Between Bits [ Dumper-7 ]");
 
 			PrevBitPropertyEndBit = BitFieldIndex + BitSize;
@@ -106,7 +108,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		bLastPropertyWasBitField = bIsBitField;
 
 		if (!Member.IsStatic()) [[likely]]
-			PrevPropertyEnd = MemberOffset + MemberSize;
+			PrevPropertyEnd = MemberOffset + (MemberSize * Member.GetArrayDim());
 
 		std::string MemberName = Member.GetName();
 
@@ -118,6 +120,9 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		{
 			MemberName += (" : " + std::to_string(Member.GetBitCount()));
 		}
+
+		if (Member.HasDefaultValue()) [[unlikely]]
+			MemberName += (" = " + Member.GetDefaultValue());
 
 		OutMembers += MakeMemberString(GetMemberTypeString(Member), MemberName, std::move(Comment));
 	}
@@ -523,6 +528,9 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		InHeaderFunctionText += GenerateSingleFunction(Func, StructName, FunctionFile, ParamFile);
 	}
 
+	if (!Struct.IsUnrealStruct() || !Struct.IsClass())
+		return InHeaderFunctionText;
+
 	/* Special spacing for UClass specific functions 'StaticClass' and 'GetDefaultObj' */
 	if (bWasLastFuncInline != StaticClass.bIsBodyInline && !bIsFirstIteration)
 	{
@@ -580,6 +588,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	const int32 StructSizeWithoutSuper = StructSize - SuperSize;
 
 	const bool bIsClass = Struct.IsClass();
+	const bool bIsUnion = Struct.IsUnion();
 
 	StructFile << std::format(R"(
 // {}
@@ -590,7 +599,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
   , StructSizeWithoutSuper
   , StructSize
   , SuperSize
-  , bIsClass ? "class" : "struct"
+  , bIsClass ? "class" : (bIsUnion ? "union" : "struct")
   , Struct.ShouldUseExplicitAlignment() ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
   , UniqueName
   , Struct.IsFinal() ? " final " : ""
@@ -1696,7 +1705,7 @@ namespace InSDKUtils
 
 	// Start class 'TUObjectArray'
 	PredefinedStruct FUObjectItem = PredefinedStruct{
-		.UniqueName = "FUObjectItem", .Size = Off::InSDK::FUObjectItemSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr  /* FProperty */
+		.UniqueName = "FUObjectItem", .Size = Off::InSDK::FUObjectItemSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr  /* FProperty */
 	};
 
 	FUObjectItem.Properties =
@@ -1962,10 +1971,15 @@ public:
 
 
 
+	
 	/*
-
 	if (Off::InSDK::AppendNameToString == 0x0 && !Settings::Internal::bUseNamePool)
 	{
+		PredefinedStruct FNameEntry = PredefinedStruct{
+			.UniqueName = "FNameEntry", .Size = FNameEntryHeaderSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
+		};
+
+
 		MemberBuilder NameEntryMembers;
 		NameEntryMembers.Add("\tint32 NameIndex;\n", Off::FNameEntry::NameArray::IndexOffset, sizeof(int32));
 		NameEntryMembers.Add(
@@ -2038,180 +2052,232 @@ public:
 }};
 )", Off::NameArray::NumElements / 0x8);
 	}
-	else if (Off::InSDK::AppendNameToString == 0x0 && Settings::Internal::bUseNamePool)
+	else*/if (Off::InSDK::AppendNameToString == 0x0 && Settings::Internal::bUseNamePool)
 	{
-		const int32 FNameEntryHeaderSize = Off::FNameEntry::NamePool::StringOffset - Off::FNameEntry::NamePool::HeaderOffset;
+		/* struct FNumberedData */
+		const int32 FNumberedDataSize = Settings::Internal::bUseCasePreservingName ? 0xA : 0x8;
 
 		PredefinedStruct FNumberedData = PredefinedStruct{
-			.UniqueName = "FNumberedData", .Size = FNameEntryHeaderSize, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr
+			.UniqueName = "FNumberedData", .Size = FNumberedDataSize, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
 		};
+
+		const int32 FNumberedDataInitialOffset = Settings::Internal::bUseCasePreservingName ? 0x2 : 0x0;
+
+		FNumberedData.Properties =
+		{
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "uint8", .Name = "Id", .Offset = FNumberedDataInitialOffset, .Size = 0x01, .ArrayDim = 0x4, .Alignment = 0x1,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0x0, .BitCount = 1
+			},
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "uint8", .Name = "Number", .Offset = FNumberedDataInitialOffset + 0x4, .Size = 0x01, .ArrayDim = 0x4, .Alignment = 0x1,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			}
+		};
+
+		FNumberedData.Functions =
+		{
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "int32", .NameWithParams = "GetTypedId()", .Body = 
+R"({
+	return reinterpret_cast<int32>(Id);
+})",
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "uint32", .NameWithParams = "GetNumber()", .Body =
+R"({
+	return reinterpret_cast<uint32>(Number);
+})",
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+		};
+
+
+		/* struct FNameEntryHeader */
+		const int32 FNameEntryHeaderSize = Off::FNameEntry::NamePool::StringOffset - Off::FNameEntry::NamePool::HeaderOffset;
+
 		PredefinedStruct FNameEntryHeader = PredefinedStruct{
-			.UniqueName = "FNameEntryHeader", .Size = FNameEntryHeaderSize, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr
+			.UniqueName = "FNameEntryHeader", .Size = FNameEntryHeaderSize, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
 		};
-		PredefinedStruct FNameEntry = PredefinedStruct{
-			.UniqueName = "FNameEntry", .Size = FNameEntryHeaderSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr
-		};
+
+		const uint8 LenBitCount = Settings::Internal::bUseCasePreservingName ? 15 : 10;
+		const uint8 LenBitOffset = Settings::Internal::bUseCasePreservingName ? 1 : 6;
 
 		FNameEntryHeader.Properties =
 		{
 			PredefinedMember {
 				.Comment = "NOT AUTO-GENERATED PROPERTY",
 				.Type = "uint16", .Name = "bIsWide", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x0
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x0, .BitCount = 1
+			},
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "uint16", .Name = "Len", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = LenBitOffset, .BitCount = LenBitCount
+			}
+		};
+
+
+		/* struct FStringData */
+		PredefinedStruct FStringData = PredefinedStruct{
+			.UniqueName = "FStringData", .Size = 0x800, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = true, .Super = nullptr
+		};
+
+		FStringData.Properties =
+		{
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "char", .Name = "AnsiName", .Offset = 0x00, .Size = 0x01, .ArrayDim = 0x400, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			},
 			PredefinedMember {
 				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UObject*", .Name = "Object", .Offset = Off::InSDK::FUObjectItemInitialOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.Type = "wchar_t", .Name = "WideName", .Offset = 0x08, .Size = 0x02, .ArrayDim = 0x400, .Alignment = 0x8,
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			},
 		};
 
-		if (!Settings::Internal::bUseCasePreservingName)
+		if (Settings::Internal::bUseUoutlineNumberName)
 		{
-			FNameEntry.Properties.insert(FNameEntry.Properties.begin(),
+			FStringData.Properties.push_back(
 				PredefinedMember{
 					.Comment = "NOT AUTO-GENERATED PROPERTY",
-					.Type = "uint8", .Name = "Pad", .Offset = Off::InSDK::FUObjectItemInitialOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+					.Type = "FNumberedData", .Name = "AnsiName", .Offset = 0x10, .Size = FNumberedDataSize, .ArrayDim = 0x400, .Alignment = 0x1,
 					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 				}
 			);
+		}
 
-			FNameEntryHeader.Properties.push_back(
-				PredefinedMember{
-					.Comment = "NOT AUTO-GENERATED PROPERTY",
-					.Type = "uint16", .Name = "Len", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
-					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x6, .BitCount = 10
-				}
-			);
-		}
-		else // this is 'if (WithCasePreservingName == true)
-		{
-			FNameEntryHeader.Properties.push_back(
-				PredefinedMember{
-					.Comment = "NOT AUTO-GENERATED PROPERTY",
-					.Type = "uint16", .Name = "Len", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
-					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x1, .BitCount = 15
-				}
-			);
-		}
+
+		/* struct FNameEntry */
+		PredefinedStruct FNameEntry = PredefinedStruct{
+			.UniqueName = "FNameEntry", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
+		};
 
 		FNameEntry.Properties =
 		{
 			PredefinedMember {
 				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UObject*", .Name = "Object", .Offset = Off::InSDK::FUObjectItemInitialOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.Type = "struct FNameEntryHeader", .Name = "Header", .Offset = 0x0, .Size = FNameEntryHeaderSize, .ArrayDim = 0x1, .Alignment = 0x2,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "struct FStringData", .Name = "Name", .Offset = FNameEntryHeaderSize, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			},
 		};
 
-		MemberBuilder NumberedDataBuilder;
-		NumberedDataBuilder.Indent = "\t\t";
-		NumberedDataBuilder.Add("\t\tuint8 Pad[0x2]\n", -1, sizeof(uint8[0x2]), !Settings::Internal::bUseCasePreservingName);
-		NumberedDataBuilder.Add("\t\tuint32 Id;\n", -1, sizeof(uint32));
-		NumberedDataBuilder.Add("\t\tuint32 Number;", -1, sizeof(uint32));
-
-		MemberBuilder NameEntryHeaderMembers;
-		NameEntryHeaderMembers.Add("\tuint16 bIsWide : 1;\n", 0, 0);
-		NameEntryHeaderMembers.Add("\tuint16 Len : 15;", 0, 0, !Settings::Internal::bUseCasePreservingName);
-		NameEntryHeaderMembers.Add("\tuint16 LowercaseProbeHash : 5;\n", 0, 0, Settings::Internal::bUseCasePreservingName);
-		NameEntryHeaderMembers.Add("\tuint16 Len : 10;", 0, 0, Settings::Internal::bUseCasePreservingName);
-
-		MemberBuilder NameEntryMembers;
-		NameEntryMembers.Add("\tFNameEntryHeader Header;\n", Off::FNameEntry::NamePool::HeaderOffset, sizeof(uint16));
-		NameEntryMembers.Add(
-			R"(
-	union
+		FNameEntry.Functions =
+		{
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "bool", .NameWithParams = "IsWide()", .Body =
+R"({
+	return Header.bIsWide;
+})",
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "std::string", .NameWithParams = "GetString()", .Body =
+R"({
+	if (IsWide())
 	{
-		char    AnsiName[1024];
-		wchar_t WideName[1024];
-		FNumberedData NumberedName;
-	};
-)", Off::FNameEntry::NameArray::StringOffset, 0x0);
-
-		BasicHpp << std::format(R"(
-class FNameEntryHeader
-{{
-public:
-{}
-}};
-)", NameEntryHeaderMembers.GetMembers());
-
-	BasicHpp << std::format(R"(
-class FNameEntry
-{{
-public:
-	struct FNumberedData
-	{{
-{}
-	}};
-
-public:
-{}
-
-public:
-	inline bool IsWide() const
-	{{
-		return Header.bIsWide;
-	}}
-
-	inline std::string GetString() const
-	{{
-		if (IsWide())
-		{{
-			std::wstring WideString(WideName, Header.Len);
-			return std::string(WideString.begin(), WideString.end());
-		}}
-
-		return std::string(AnsiName, Header.Len);
-	}}
-
-}};
-)", NumberedDataBuilder.GetMembers(), NameEntryMembers.GetMembers());
-
-
-		MemberBuilder NamePoolMembers;
-		NamePoolMembers.Add("\tuint32 CurrentBlock;\n", Off::NameArray::MaxChunkIndex, sizeof(uint32));
-		NamePoolMembers.Add("\tuint32 CurrentByteCursor;\n", Off::NameArray::ByteCursor, sizeof(uint32));
-		NamePoolMembers.Add("\tuint8* Blocks[8192];\n", Off::NameArray::ChunksStart, sizeof(uint8**));
-
-		BasicHpp << std::format(R"(
-class FNamePool
-{{
-public:
-	static constexpr uint32 FNameBlockOffsetBits = {};
-	static constexpr uint32 FNameBlockOffsets = 1 << FNameBlockOffsetBits;
-
-	static constexpr uint32 FNameEntryStride = {};
-
-public:
-	// Members of FNamePool with padding
-{}
-
-public:
-	inline bool IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx) const
-	{{
-		return ChunkIdx <= CurrentBlock && !(ChunkIdx == CurrentBlock && InChunkIdx > CurrentByteCursor);
-	}}
-
-	inline FNameEntry* GetEntryByIndex(int32 Index) const
-	{{
-		const int32 ChunkIdx = Index >> FNameBlockOffsetBits;
-		const int32 InChunk = (Index & (FNameBlockOffsets - 1));
-
-		if (!IsValidIndex(Index, ChunkIdx, InChunk))
-			return nullptr;
-
-		return reinterpret_cast<FNameEntry*>(Blocks[ChunkIdx] + (InChunk * FNameEntryStride));
-	}}
-}};
-)", Off::InSDK::FNamePoolBlockOffsetBits, Off::InSDK::FNameEntryStride, NamePoolMembers.GetMembers());
+		std::wstring WideString(Name.WideName, Header.Len);
+		return std::string(WideString.begin(), WideString.end());
 	}
 
-	*/
+	return std::string(Name.AnsiName, Header.Len);
+})",
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+		};
+
+		/* class FNamePool */
+		PredefinedStruct FNamePool = PredefinedStruct{
+			.UniqueName = "FNamePool", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
+		};
+
+		FNamePool.Properties =
+		{
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "constexpr uint32", .Name = "FNameBlockOffsetBits", .Offset = 0x0, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+				.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF, .DefaultValue = std::format("0x{:04X}", Off::InSDK::FNamePoolBlockOffsetBits)
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "constexpr uint32", .Name = "FNameBlockOffsets", .Offset = 0x0, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+				.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF, .DefaultValue = "1 << FNameBlockOffsetBits"
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "constexpr uint32", .Name = "FNameEntryStride", .Offset = 0x0, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+				.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF, .DefaultValue = std::format("0x{:04X}", Off::InSDK::FNameEntryStride)
+			},
+
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "uint32", .Name = "CurrentBlock", .Offset = 0x0, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x2,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF,
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "uint32", .Name = "CurrentByteCursor", .Offset = 0x4, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "uint8*", .Name = "Blocks", .Offset = FNameEntryHeaderSize, .Size = 0x8, .ArrayDim = 0x2000, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+		};
+
+		FNamePool.Functions =
+		{
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "bool", .NameWithParams = "IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx)", .Body =
+R"({
+	return ChunkIdx <= CurrentBlock && !(ChunkIdx == CurrentBlock && InChunkIdx > CurrentByteCursor);
+}
+)",
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "FNameEntry*", .NameWithParams = "GetEntryByIndex(int32 Index)", .Body =
+R"({
+	const int32 ChunkIdx = Index >> FNameBlockOffsetBits;
+	const int32 InChunk = (Index & (FNameBlockOffsets - 1));
+
+	if (!IsValidIndex(Index, ChunkIdx, InChunk))
+		return nullptr;
+
+	return reinterpret_cast<FNameEntry*>(Blocks[ChunkIdx] + (InChunk * FNameEntryStride));
+})",
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+		};
+
+		GenerateStruct(&FNumberedData, BasicHpp, BasicCpp, BasicHpp);
+		GenerateStruct(&FNameEntryHeader, BasicHpp, BasicCpp, BasicHpp);
+		GenerateStruct(&FStringData, BasicHpp, BasicCpp, BasicHpp);
+		GenerateStruct(&FNameEntry, BasicHpp, BasicCpp, BasicHpp);
+		GenerateStruct(&FNamePool, BasicHpp, BasicCpp, BasicHpp);
+	}
+
+
 
 
 	PredefinedStruct FTestStruct = PredefinedStruct{
-		.UniqueName = "FTestStruct", .Size = 0x8, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .Super = nullptr
+		.UniqueName = "FTestStruct", .Size = 0x8, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
 	};
 	
 	FTestStruct.Properties =
