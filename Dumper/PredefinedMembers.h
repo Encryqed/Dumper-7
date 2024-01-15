@@ -64,6 +64,14 @@ using PredefinedMemberLookupMapType = std::unordered_map<int32 /* StructIndex */
 // requires strict weak ordering
 inline bool CompareUnrealProperties(UEProperty Left, UEProperty Right)
 {
+    if (Left.IsA(EClassCastFlags::BoolProperty) && Right.IsA(EClassCastFlags::BoolProperty))
+    {
+        if (Left.GetOffset() == Right.GetOffset())
+        {
+            return Left.Cast<UEBoolProperty>().GetFieldMask() < Right.Cast<UEBoolProperty>().GetFieldMask();
+        }
+    }
+
     return Left.GetOffset() < Right.GetOffset();
 };
 

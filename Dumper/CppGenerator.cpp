@@ -53,26 +53,32 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 	int PrevPropertyEnd = SuperSize;
 	int PrevBitPropertyEnd = 0;
-	int PrevBitPropertyBit = 1;
+	int PrevBitPropertyEndBit = 1;
 
 	uint8 PrevBitPropertySize = 0x1;
 	uint8 PrevBitPropertyOffset = 0x0;
-	uint64 PrevNumBitsInUnderlayingType = 0x9;
+	uint64 PrevMaxIndexInUnderlayingType = 0x8;
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
-		int32 MemberOffset = Member.GetOffset();
-		int32 MemberSize = Member.GetSize();
+		const int32 MemberOffset = Member.GetOffset();
+		const int32 MemberSize = Member.GetSize();
+
+		const int32 CurrentPropertyEnd = MemberOffset + MemberSize;
 
 		std::string Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, Member.GetFlagsOrCustomComment());
 
-		if (MemberOffset >= PrevPropertyEnd && bLastPropertyWasBitField && PrevBitPropertyBit != PrevNumBitsInUnderlayingType)
-			OutMembers += GenerateBitPadding(PrevBitPropertySize, PrevBitPropertyOffset, PrevNumBitsInUnderlayingType - PrevBitPropertyBit, "Fixing Bit-Field Size [ Dumper-7 ]");
+		const bool bIsBitField = Member.IsBitField();
+
+		/* Padding between two bitfields at different byte-offsets */
+		if (CurrentPropertyEnd > PrevPropertyEnd && bLastPropertyWasBitField && bIsBitField && PrevBitPropertyEndBit < PrevMaxIndexInUnderlayingType)
+		{
+			OutMembers += GenerateBitPadding(PrevBitPropertySize, PrevBitPropertyOffset, (PrevMaxIndexInUnderlayingType + 1) - PrevBitPropertyEndBit, "Fixing Bit-Field Size For New Byte [ Dumper-7 ]");
+			PrevBitPropertyEndBit = 0;
+		}
 
 		if (MemberOffset > PrevPropertyEnd)
 			OutMembers += GenerateBytePadding(PrevPropertyEnd, MemberOffset - PrevPropertyEnd, "Fixing Size After Last Property [ Dumper-7 ]");
-
-		const bool bIsBitField = Member.IsBitField();
 
 		if (bIsBitField)
 		{
@@ -83,23 +89,23 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 			Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, BitfieldInfoComment);
 
 			if (PrevBitPropertyEnd < MemberOffset)
-				PrevBitPropertyBit = 1;
+				PrevBitPropertyEndBit = 0;
 
-			if (PrevBitPropertyBit < BitFieldIndex)
-				OutMembers += GenerateBitPadding(MemberSize, MemberOffset, BitFieldIndex - PrevBitPropertyBit, "Fixing Bit-Field Size  [ Dumper-7 ]");
+			if (PrevBitPropertyEndBit < BitFieldIndex)
+				OutMembers += GenerateBitPadding(MemberSize, MemberOffset, BitFieldIndex - PrevBitPropertyEndBit, "Fixing Bit-Field Size Between Bits [ Dumper-7 ]");
 
-			PrevBitPropertyBit = BitFieldIndex + BitSize;
+			PrevBitPropertyEndBit = BitFieldIndex + BitSize;
 			PrevBitPropertyEnd = MemberOffset  + MemberSize;
 
 			PrevBitPropertySize = MemberSize;
 			PrevBitPropertyOffset = MemberOffset;
 
-			PrevNumBitsInUnderlayingType = (MemberSize * 0x8);
+			PrevMaxIndexInUnderlayingType = (MemberSize * 0x8) - 1;
 		}
 
 		bLastPropertyWasBitField = bIsBitField;
 
-		if (!Member.IsStatic())
+		if (!Member.IsStatic()) [[likely]]
 			PrevPropertyEnd = MemberOffset + MemberSize;
 
 		std::string MemberName = Member.GetName();
@@ -942,6 +948,9 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	if (Type != EFileType::BasicHpp && Type != EFileType::NameCollisionsInl)
 		File << "#include \"Basic.hpp\";\n";
+
+	if (Type == EFileType::BasicHpp)
+		File << "#include \"NameCollisions.inl\";\n";
 
 	if (Type == EFileType::Functions && Package.HasParameterStructs())
 	{
