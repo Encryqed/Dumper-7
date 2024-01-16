@@ -28,10 +28,20 @@ namespace SettingsRewrite
 		//Do not XOR strings -> XORString = nullptr
 		constexpr const char* XORString = nullptr;
 
-		//Customizable part of Cpp code to allow for a custom 'GetImageBaseInSDK' function
+		//Customizable part of Cpp code to allow for a custom 'uintptr_t InSDKUtils::GetImageBase()' function
 		constexpr const char* GetImageBaseFuncBody = 
 R"(	{
-		reinterpret_cast<void*>(GetModuleHandle(0));
+		reinterpret_cast<uintptr_t>(GetModuleHandle(0));
+	}
+)";
+		//Customizable part of Cpp code to allow for a custom 'InSDKUtils::CallGameFunction' function
+		constexpr const char* CallGameFunction =
+R"(
+	template<typename FuncType, typename... ParamTypes>
+	requires std::invocable<FuncType, ParamTypes...>
+	inline auto CallGameFunction(FuncType Function, ParamTypes&&... Args)
+	{
+		return Function(std::forward<ParamTypes>(Args)...);
 	}
 )";
 	}

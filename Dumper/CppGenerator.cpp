@@ -1672,9 +1672,15 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 {
 	namespace CppSettings = SettingsRewrite::CppGenerator;
 
+	static auto SortMembers = [](std::vector<PredefinedMember>& Members) -> void
+	{
+		std::sort(Members.begin(), Members.end(), ComparePredefinedMembers);
+	};
+
 	std::string CustomIncludes = R"(#include <string>
-#include <Windows.h>
 #include <iostream>
+#include <Windows.h>
+#include <functional>
 #include <type_traits>
 )";
 
@@ -1724,8 +1730,8 @@ namespace InSDKUtils
 )";
 
 
-	/* Custom 'GetImageBaseInSDK' function */
-	BasicHpp << std::format(R"(	inline void* GetImageBase()
+	/* Custom 'GetImageBase' function */
+	BasicHpp << std::format(R"(	inline uintptr_t GetImageBase()
 {}
 )", CppSettings::GetImageBaseFuncBody);
 
@@ -1739,6 +1745,9 @@ namespace InSDKUtils
 		return reinterpret_cast<FuncType>(VTable[Index]);
 	}
 )";
+
+	//Customizable part of Cpp code to allow for a custom 'CallGameFunction' function
+	BasicHpp << CppSettings::CallGameFunction;
 
 	BasicHpp << "}\n\n";
 	// End Namespace 'InSDKUtils'
@@ -1884,7 +1893,7 @@ public:
 private:
 	inline void InitGObjects()
 	{
-		GObjectsAddress = reinterpret_cast<void*>(uintptr_t(InSDKUtils::GetImageBase()) + Offsets::GObjects);
+		GObjectsAddress = reinterpret_cast<void*>(InSDKUtils::GetImageBase() + Offsets::GObjects);
 	}
 
 public:
@@ -2060,7 +2069,7 @@ public:
 			},
 		};
 
-		std::sort(FNameEntry.Properties.begin(), FNameEntry.Properties.end(), ComparePredefinedMembers);
+		SortMembers(FNameEntry.Properties);
 
 		FNameEntry.Functions =
 		{
@@ -2360,6 +2369,160 @@ R"({
 	}
 
 
+	/* class FName */
+	PredefinedStruct FName = PredefinedStruct{
+		.UniqueName = "FName", .Size = Off::InSDK::FNameSize, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+	};
+
+	std::string NameArrayType = Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "FNamePool*" : "TNameEntryArray*" : "void*";
+	std::string NameArrayName = Off::InSDK::AppendNameToString == 0 ? "GNames" : "AppendString";
+
+	FName.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = NameArrayType, .Name = NameArrayName, .Offset = 0x0, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF, .DefaultValue = "nullptr"
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "ComparisonIndex", .Offset = 0x0, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF,
+		},
+	};
+
+	if (Off::FName::Number != 0x0)
+	{
+		FName.Properties.push_back(PredefinedMember{
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "Number", .Offset = Off::FName::Number, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF,
+			}
+		);
+	}
+
+	if (Settings::Internal::bUseCasePreservingName)
+	{
+		const int32 DisplayIndexOffset = Off::FName::Number == 4 ? 0x8 : 0x4;
+
+		FName.Properties.push_back(PredefinedMember{
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "DisplayIndex", .Offset = DisplayIndexOffset, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF,
+			}
+		);
+	}
+
+	SortMembers(FName.Properties);
+
+	constexpr const char* GetRawStringWithAppendString =
+		R"({
+	thread_local FString TempString(1024);
+
+	if (!AppendString)
+		InitInternal();
+
+	InSDKUtils::CallGameFunction(reinterpret_cast<void(*)(const FName*, FString&)>(AppendString), this, TempString);
+
+	std::string OutputString = TempString.ToString();
+	TempString.ResetNum();
+
+	return OutputString;
+}
+)";
+
+	constexpr const char* GetRawStringWithNameArray =
+		R"({
+	if (!GNames)
+		InitInternal();
+
+	std::string RetStr = FName::GNames->GetEntryByIndex(GetDisplayIndex())->GetString();
+
+	if (Number > 0)
+		RetStr += ("_" + std::to_string(Number - 1));
+
+	return RetStr;
+}
+)";
+
+	constexpr const char* GetRawStringWithNameArrayWithOutlineNumber =
+		R"({
+	if (!GNames)
+		InitInternal();
+
+	const FNameEntry* Entry = FName::GNames->GetEntryByIndex(GetDisplayIndex());
+
+	if (Entry->Header.Length == 0)
+	{{
+		if (Entry->Number > 0)
+			return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString() + "_" + std::to_string(Entry->Number - 1);
+
+		return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString();
+	}}
+
+	return Entry.GetString();
+}
+)";
+
+	std::string GetRawStringBody = Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseUoutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString;
+
+	FName.Functions =
+	{
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "void", .NameWithParams = "InitInternal()", .Body =
+std::format(R"({{
+	{0} = reinterpret_cast<{1}>(InSDKUtils::GetImageBase() + Offsets::{0});
+}})", NameArrayName, NameArrayType),
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "int32", .NameWithParams = "GetDisplayIndex()", .Body =
+std::format(R"({{
+	return {};
+}}
+)", Settings::Internal::bUseCasePreservingName ? "DisplayIndex" : "ComparisonIndex"),
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "std::string", .NameWithParams = "GetRawString()", .Body = GetRawStringBody,
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "std::string", .NameWithParams = "ToString()", .Body = R"({
+	std::string OutputString = GetRawString();
+
+	size_t pos = OutputString.rfind('/');
+
+	if (pos == std::string::npos)
+		return OutputString;
+
+	return OutputString.substr(pos + 1);
+}
+)",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "std::string", .NameWithParams = "operator==(const FName& Other)", .Body =
+std::format(R"({{
+	return ComparisonIndex == Other.ComparisonIndex{};
+}})", !Settings::Internal::bUseUoutlineNumberName ? " && Number == Other.Number" : ""),
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "std::string", .NameWithParams = "operator!=(const FName& Other)", .Body =
+std::format(R"({{
+	return ComparisonIndex != Other.ComparisonIndex{};
+}})", !Settings::Internal::bUseUoutlineNumberName ? " || Number != Other.Number" : ""),
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+	};
+
 
 
 	PredefinedStruct FTestStruct = PredefinedStruct{
@@ -2389,6 +2552,9 @@ R"({
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x0, .BitCount = 1
 		},
 	};
+
+
+	GenerateStruct(&FName, BasicHpp, BasicCpp, BasicHpp);
 	GenerateStruct(&FTestStruct, BasicHpp, BasicCpp, BasicHpp);
 
 	/* Write Predefined Structs into Basic.hpp */
