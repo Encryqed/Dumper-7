@@ -5,13 +5,6 @@
 #include "MemberManager.h"
 #include "PredefinedMembers.h"
 
-inline PredefinedStruct Test = {
-    "UStruct",
-    0x560,
-    0x8,
-    false,
-    false
-};
 
 class StructWrapper
 {
@@ -48,6 +41,7 @@ public:
     std::pair<std::string, bool> GetUniqueName() const;
     int32 GetAlignment() const;
     int32 GetSize() const;
+
     bool ShouldUseExplicitAlignment() const;
     bool IsFinal() const;
 
@@ -57,6 +51,9 @@ public:
 
     bool IsValid() const;
     bool IsUnrealStruct() const;
+
+    bool HasCustomTemplateText() const;
+    std::string GetCustomTemplateText() const;
 
     MemberManager GetMembers() const;
 };

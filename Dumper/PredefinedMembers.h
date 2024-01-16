@@ -47,6 +47,7 @@ struct PredefinedElements
 
 struct PredefinedStruct
 {
+    std::string CustomTemplateText = std::string();
     std::string UniqueName;
     int32 Size;
     int32 Alignment;

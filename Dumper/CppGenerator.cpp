@@ -631,12 +631,13 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	StructFile << std::format(R"(
 // {}
 // 0x{:04X} (0x{:04X} - 0x{:04X})
-{} {}{}{}{}
+{}{} {}{}{}{}
 {{
 )", Struct.GetFullName()
   , StructSizeWithoutSuper
   , StructSize
   , SuperSize
+  , Struct.HasCustomTemplateText() ? (Struct.GetCustomTemplateText() + "\n") : ""
   , bIsClass ? "class" : (bIsUnion ? "union" : "struct")
   , Struct.ShouldUseExplicitAlignment() ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
   , UniqueName
@@ -664,7 +665,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	if (bHasFunctions)
 		StructFile << GenerateFunctions(Struct, Members, UniqueName, FunctionFile, ParamFile);
 
-	StructFile << "};\n";
+	StructFile << "\n};\n";
 }
 
 void CppGenerator::GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile)
@@ -2557,6 +2558,345 @@ std::format(R"({{
 	GenerateStruct(&FName, BasicHpp, BasicCpp, BasicHpp);
 	GenerateStruct(&FTestStruct, BasicHpp, BasicCpp, BasicHpp);
 
+
+	BasicHpp <<
+		R"(
+template<typename ClassType>
+class TSubclassOf
+{
+	class UClass* ClassPtr;
+
+public:
+	TSubclassOf() = default;
+
+	inline TSubclassOf(UClass* Class)
+		: ClassPtr(Class)
+	{
+	}
+
+	inline UClass* Get()
+	{
+		return ClassPtr;
+	}
+
+	inline operator UClass*() const
+	{
+		return ClassPtr;
+	}
+
+	template<typename Target, typename = std::enable_if<std::is_base_of_v<Target, ClassType>, bool>::type>
+	inline operator TSubclassOf<Target>() const
+	{
+		return ClassPtr;
+	}
+
+	inline UClass* operator->()
+	{
+		return ClassPtr;
+	}
+
+	inline TSubclassOf& operator=(UClass* Class)
+	{
+		ClassPtr = Class;
+
+		return *this;
+	}
+
+	inline bool operator==(const TSubclassOf& Other) const
+	{
+		return ClassPtr == Other.ClassPtr;
+	}
+
+	inline bool operator!=(const TSubclassOf& Other) const
+	{
+		return ClassPtr != Other.ClassPtr;
+	}
+
+	inline bool operator==(UClass* Other) const
+	{
+		return ClassPtr == Other;
+	}
+
+	inline bool operator!=(UClass* Other) const
+	{
+		return ClassPtr != Other;
+	}
+};
+)";
+
+	BasicHpp <<
+		R"(
+template<typename ValueType, typename KeyType>
+class TPair
+{
+public:
+	ValueType First;
+	KeyType Second;
+};
+)";
+
+	BasicHpp << R"(
+class FTextData 
+{
+public:
+	uint8 Pad[0x28];
+	wchar_t* Name;
+	int32 Length;
+};
+)";
+
+	BasicHpp <<
+		R"(
+class FText 
+{
+public:
+	FTextData* Data;
+	uint8 Pad[0x10];
+
+	wchar_t* Get() const 
+	{
+		if (Data) 
+			return Data->Name;
+
+		return nullptr;
+	}
+
+	std::string ToString()
+	{
+		if (Data)
+		{
+			std::wstring Temp(Data->Name);
+			return std::string(Temp.begin(), Temp.end());
+		}
+
+		return "";
+	}
+};
+)";
+
+	BasicHpp <<
+		R"(
+template<typename ElementType>
+class TSet
+{
+	uint8 ComingWithUnrealContainersUpdate[0x50];
+};
+)";
+
+	BasicHpp <<
+		R"(
+template<typename KeyType, typename ValueType>
+class TMap
+{
+	uint8 ComingWithUnrealContainersUpdate[0x50];
+};
+)";
+
+
+
+	/* class FWeakObjectPtr */
+	PredefinedStruct FWeakObjectPtr = PredefinedStruct{
+		.UniqueName = "FWeakObjectPtr", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+	};
+
+	FWeakObjectPtr.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "ObjectIndex", .Offset = 0x0, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "ObjectSerialNumber", .Offset = 0x4, .Size = 0x4, .ArrayDim = 0x2000, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	FWeakObjectPtr.Functions =
+	{
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "class UObject*", .NameWithParams = "Get()", .Body =
+R"({
+	return UObject::GObjects->GetByIndex(ObjectIndex);
+}
+)",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "class UObject*", .NameWithParams = "operator->()", .Body =
+R"({
+	return UObject::GObjects->GetByIndex(ObjectIndex);
+}
+)",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator==(const FWeakObjectPtr& Other)", .Body =
+R"({
+	return ObjectIndex == Other.ObjectIndex;
+}
+)",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator!=(const FWeakObjectPtr& Other)", .Body =
+R"({
+	return ObjectIndex != Other.ObjectIndex;
+}
+)",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator==(const class UObject* Other)", .Body =
+R"({
+	return ObjectIndex == Other->Index;
+}
+)",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator!=(const class UObject* Other)", .Body =
+R"({
+	return ObjectIndex != Other->Index;
+}
+)",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+	};
+
+	GenerateStruct(&FWeakObjectPtr, BasicHpp, BasicCpp, BasicHpp);
+
+
+	BasicHpp <<
+		R"(
+template<typename UEType>
+class TWeakObjectPtr : FWeakObjectPtr
+{
+public:
+	UEType* Get() const
+	{
+		return static_cast<UEType*>(FWeakObjectPtr::Get());
+	}
+
+	UEType* operator->() const
+	{
+		return static_cast<UEType*>(FWeakObjectPtr::Get());
+	}
+};
+)";
+
+
+	/* class FUniqueObjectGuid */
+	PredefinedStruct FUniqueObjectGuid = PredefinedStruct{
+		.UniqueName = "FUniqueObjectGuid", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+	};
+
+	FUniqueObjectGuid.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint32", .Name = "A", .Offset = 0x0, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint32", .Name = "B", .Offset = 0x4, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint32", .Name = "C", .Offset = 0x8, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint32", .Name = "D", .Offset = 0xC, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	GenerateStruct(&FUniqueObjectGuid, BasicHpp, BasicCpp, BasicHpp);
+
+
+	/* class TPersistentObjectPtr */
+	PredefinedStruct TPersistentObjectPtr = PredefinedStruct{
+		.CustomTemplateText = "template<typename TObjectID>",
+		.UniqueName = "FUniqueObjectGuid", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+	};
+
+	const int32 ObjectIDOffset = Settings::Internal::bIsWeakObjectPtrWithoutTag ? 0x8 : 0xC;
+
+	TPersistentObjectPtr.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FWeakObjectPtr", .Name = "WeakPtr", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "TagAtLastTest", .Offset = 0x8, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "TObjectID", .Name = "ObjectID", .Offset = ObjectIDOffset, .Size = 0x00, .ArrayDim = 0x1, .Alignment = 0x1,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	if (Settings::Internal::bIsWeakObjectPtrWithoutTag)
+		TPersistentObjectPtr.Properties.erase(TPersistentObjectPtr.Properties.begin() + 1); // TagAtLast
+
+	GenerateStruct(&TPersistentObjectPtr, BasicHpp, BasicCpp, BasicHpp);
+
+	// Start Namespace 'FakeSoftObjectPtr'
+	BasicHpp <<
+		R"(
+namespace FakeSoftObjectPtr
+{
+)";
+
+	UEStruct SoftObjectPath = ObjectArray::FindObjectFast<UEStruct>("SoftObjectPath");
+
+	/* if SoftObjectPath doesn't exist just generate FStringAssetReference and call it SoftObjectPath, it's basically the same thing anyways */
+	if (!SoftObjectPath)
+	{
+		/* struct FSoftObjectPtr */
+		PredefinedStruct FSoftObjectPath = PredefinedStruct{
+			.UniqueName = "FSoftObjectPath", .Size = 0x10, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = false, .bIsUnion = false, .Super = nullptr
+		};
+
+		FSoftObjectPath.Properties =
+		{
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "class FString", .Name = "AssetLongPathname", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+		};
+
+		GenerateStruct(&FSoftObjectPath, BasicHpp, BasicCpp, BasicHpp);
+	}
+	else /* if SoftObjectPath exists generate a copy of it within this namespace to allow for TSoftObjectPtr declaration (comes before real SoftObjectPath) */
+	{
+		GenerateStruct(SoftObjectPath, BasicHpp, BasicCpp, BasicHpp);
+	}
+
+	// Start Namespace 'FakeSoftObjectPtr'
+	BasicHpp << "\n}\n";
+
+
+
+	BasicHpp << "\n\n";
+
 	/* Write Predefined Structs into Basic.hpp */
 	for (const PredefinedStruct& Predefined : PredefinedStructs)
 	{
@@ -2566,3 +2906,17 @@ std::format(R"({{
 	WriteFileEnd(BasicHpp, EFileType::BasicHpp);
 	WriteFileEnd(BasicCpp, EFileType::BasicCpp);
 }
+
+/*
+template<typename ClassType>
+class TEst
+{
+	template<typename Target>
+	requires std::derived_from<Target, ClassType>
+	inline operator TSubclassOf<Target>() const
+	{
+		return ClassPtr;
+	}
+
+};
+*/

@@ -9,6 +9,30 @@ Generator::MemberMap Generator::PredefinedMembers;
 std::mutex Generator::PackageMutex;
 std::vector<std::future<void>> Generator::Futures;
 
+inline void InitSettings()
+{
+	constexpr int32 SizeOfFUniqueObjectGuid = 0x10;
+	constexpr int32 SizeOfFFWeakObjectPtr   = 0x08;
+
+	UEStruct LandscapeInfo = ObjectArray::FindClassFast("LandscapeInfo");
+
+	if (!LandscapeInfo)
+	{
+		std::cout << "\nDumper-7: 'LandscapeInfo' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
+		return;
+	}
+
+	UEProperty LandscapeActor = LandscapeInfo.FindMember("LandscapeActor", EClassCastFlags::LazyObjectProperty);
+	if (!LandscapeActor)
+	{
+		std::cout << "\nDumper-7: 'LandscapeActor' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
+		return;
+	}
+
+	Settings::Internal::bIsWeakObjectPtrWithoutTag = LandscapeActor.GetSize() < (SizeOfFUniqueObjectGuid + SizeOfFFWeakObjectPtr);
+
+	std::cout << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
+}
 
 void Generator::Init()
 {
@@ -28,6 +52,8 @@ void Generator::Init()
 	//FName::Init(0x109577C);
 	Off::Init();
 	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
+
+	InitSettings();
 
 	InitPredefinedMembers();
 	InitPredefinedFunctions();

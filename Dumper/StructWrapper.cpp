@@ -97,3 +97,15 @@ bool StructWrapper::IsUnrealStruct() const
 {
     return bIsUnrealStruct;
 }
+
+bool StructWrapper::HasCustomTemplateText() const
+{
+    return !IsUnrealStruct() && !PredefStruct->CustomTemplateText.empty();
+}
+
+std::string StructWrapper::GetCustomTemplateText() const
+{
+    assert(!IsUnrealStruct() && "StructWrapper doesn't contian PredefStruct. Illegal call to 'GetCustomTemplateText()'.");
+
+    return PredefStruct->CustomTemplateText;
+}
