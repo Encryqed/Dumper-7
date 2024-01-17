@@ -130,8 +130,8 @@ void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 		}
 	}
 
-	Off::InSDK::FUObjectItemInitialOffset = FUObjectItemInitialOffset;
-	Off::InSDK::FUObjectItemSize = SizeOfFUObjectItem;
+	Off::InSDK::ObjArray::FUObjectItemInitialOffset = FUObjectItemInitialOffset;
+	Off::InSDK::ObjArray::FUObjectItemSize = SizeOfFUObjectItem;
 }
 
 void ObjectArray::InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), const char* DecryptionLambdaAsStr)
@@ -167,7 +167,7 @@ void ObjectArray::InitializeChunkSize(uint8_t* ChunksPtr)
 		IndexToCheck += 0x10400;
 	}
 
-	Off::InSDK::ChunkSize = NumElementsPerChunk;
+	Off::InSDK::ObjArray::ChunkSize = NumElementsPerChunk;
 }
 
 /* We don't speak about this function... */
@@ -214,9 +214,9 @@ void ObjectArray::Init(bool bScanAllMemory)
 			Off::FUObjectArray::Num = 0xC;
 			NumElementsPerChunk = -1;
 
-			Off::InSDK::GObjects = uintptr_t(SearchBase + i) - ImageBase;
+			Off::InSDK::ObjArray::GObjects = uintptr_t(SearchBase + i) - ImageBase;
 
-			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n\n";
+			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 			{
@@ -242,9 +242,9 @@ void ObjectArray::Init(bool bScanAllMemory)
 			Off::FUObjectArray::Num = 0x14;
 			FUObjectItemInitialOffset = 0x0;
 
-			Off::InSDK::GObjects = uintptr_t(SearchBase + i) - ImageBase;
+			Off::InSDK::ObjArray::GObjects = uintptr_t(SearchBase + i) - ImageBase;
 
-			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::GObjects << std::dec << "\n\n";
+			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 			{
@@ -286,7 +286,7 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 {
 	GObjects = reinterpret_cast<uint8_t*>(GetImageBase() + GObjectsOffset);
 
-	Off::InSDK::GObjects = GObjectsOffset;
+	Off::InSDK::ObjArray::GObjects = GObjectsOffset;
 
 	std::cout << "GObjects: 0x" << (void*)GObjects << "\n" << std::endl;
 
@@ -332,7 +332,7 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 	}
 
 	NumElementsPerChunk = ElementsPerChunk;
-	Off::InSDK::ChunkSize = ElementsPerChunk;
+	Off::InSDK::ObjArray::ChunkSize = ElementsPerChunk;
 }
 
 void ObjectArray::DumpObjects()

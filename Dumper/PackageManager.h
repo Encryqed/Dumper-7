@@ -25,8 +25,8 @@ struct RequirementInfo
 struct VisitedNodeInformation
 {
 	int32 PackageIdx;
-	mutable uint8 StructsIterationHitCount = 0x0;
-	mutable uint8 ClassesIterationHitCount = 0x0;
+	mutable uint64 StructsIterationHitCount = 0x0;
+	mutable uint64 ClassesIterationHitCount = 0x0;
 };
 
 using DependencyListType = std::unordered_map<int32, RequirementInfo>;
@@ -35,8 +35,8 @@ using DependencyListType = std::unordered_map<int32, RequirementInfo>;
 struct DependencyInfo
 {
 	/* Counter incremented every time this element is hit during iteration, **if** the counter is less than the CurrentIterationIndex */
-	mutable uint8 StructsIterationHitCount = 0x0; 
-	mutable uint8 ClassesIterationHitCount = 0x0;
+	mutable uint64 StructsIterationHitCount = 0x0;
+	mutable uint64 ClassesIterationHitCount = 0x0;
 
 	/* List of packages required by "ThisPackage_structs.h" */
 	DependencyListType StructsDependencies;
@@ -63,7 +63,7 @@ private:
 	HashStringTableIndex Name = HashStringTableIndex::FromInt(-1);
 
 	/* Count to track how many packages with this name already exists at the point this PackageInfos' initialization */
-	uint8 CollisionCount = 0x0;
+	uint64 CollisionCount = 0x0;
 
 	bool bHasParams;
 
@@ -183,8 +183,8 @@ private:
 	/* Map containing infos on all Packages. Implemented due to information missing in the Unreal's reflection system (PackageSize). */
 	static inline OverrideMaptType PackageInfos;
 
-	/* Count to track how often the PackageInfos was iterated. Allows for up to 255 iterations of this list. */
-	static inline uint8 CurrentIterationHitCount = 0x0;
+	/* Count to track how often the PackageInfos was iterated. Allows for up to 2^64 iterations of this list. */
+	static inline uint64 CurrentIterationHitCount = 0x0;
 
 	static inline bool bIsInitialized = false;
 

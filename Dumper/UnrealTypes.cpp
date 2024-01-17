@@ -113,7 +113,7 @@ void FName::Init()
 		i++;
 	}
 
-	Off::InSDK::AppendNameToString = AppendString ? GetOffset(AppendString) : 0x0;
+	Off::InSDK::Name::AppendNameToString = AppendString ? GetOffset(AppendString) : 0x0;
 
 	if (!AppendString)
 	{
@@ -136,7 +136,7 @@ void FName::Init()
 	}
 
 
-	std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
+	std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::Name::AppendNameToString << "\n\n";
 
 	ToStr = [](void* Name) -> std::string
 	{
@@ -155,7 +155,7 @@ void FName::Init(int32 AppendStringOffset)
 {
 	AppendString = reinterpret_cast<void(*)(void*, FString&)>(GetImageBase() + AppendStringOffset);
 
-	Off::InSDK::AppendNameToString = AppendStringOffset;
+	Off::InSDK::Name::AppendNameToString = AppendStringOffset;
 
 	ToStr = [](void* Name) -> std::string
 	{
@@ -169,7 +169,7 @@ void FName::Init(int32 AppendStringOffset)
 		return OutputString;
 	};
 
-	std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::AppendNameToString << "\n\n";
+	std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::Name::AppendNameToString << "\n\n";
 }
 
 std::string FName::ToString()

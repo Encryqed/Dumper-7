@@ -39,7 +39,7 @@ inline constexpr EEnumClass operator|(EEnumClass Left, EEnumClass Right)								
 																																										\
 inline constexpr EEnumClass& operator|=(EEnumClass& Left, EEnumClass Right)																								\
 {																																										\
-	return (EEnumClass&)((std::underlying_type<EEnumClass>::type&)(Left) |= (std::underlying_type<EEnumClass>::type)(Right));												\
+	return (EEnumClass&)((std::underlying_type<EEnumClass>::type&)(Left) |= (std::underlying_type<EEnumClass>::type)(Right));											\
 }																																										\
 																																										\
 inline bool operator&(EEnumClass Left, EEnumClass Right)																												\

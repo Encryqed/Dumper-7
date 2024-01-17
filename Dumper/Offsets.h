@@ -9,25 +9,51 @@ namespace Off
 	//Offsets not to be used during generation but inside of the generated SDK
 	namespace InSDK
 	{
-		void InitPE();
-		void InitPE(int32 Index);
+		namespace ProcessEvent
+		{
+			inline int32 PEIndex;
+			inline int32 PEOffset;
 
-		inline int32 PEIndex;
-		inline int32 PEOffset;
+			void InitPE();
+			void InitPE(int32 Index);
+		}
 
-		inline int32 GObjects;
-		inline int32 ChunkSize;
-		inline int32 FUObjectItemSize;
-		inline int32 FUObjectItemInitialOffset;
+		namespace ObjArray
+		{
+			inline int32 GObjects;
+			inline int32 ChunkSize;
+			inline int32 FUObjectItemSize;
+			inline int32 FUObjectItemInitialOffset;
+		}
 
-		inline int32 AppendNameToString;
-		inline int32 FNameSize;
+		namespace Name
+		{
+			inline int32 AppendNameToString;
+			inline int32 FNameSize;
+		}
 
-		inline int32 PropertySize;
+		namespace NameArray
+		{
+			inline int32 GNames = 0x0;
+			inline int32 FNamePoolBlockOffsetBits = 0x0;
+			inline int32 FNameEntryStride = 0x0;
+		}
 
-		inline int32 GNames = 0x0;
-		inline int32 FNamePoolBlockOffsetBits = 0x0;
-		inline int32 FNameEntryStride = 0x0;
+		namespace Properties
+		{
+			inline int32 PropertySize;
+		}
+
+		namespace Text
+		{
+			inline int32 TextDatOffset = 0x0;
+
+			inline int32 InTextDataStringOffset = 0x0;
+
+			inline int32 TextSize = 0x0;
+
+			void InitTextOffsets();
+		}
 	}
 
 	namespace FUObjectArray

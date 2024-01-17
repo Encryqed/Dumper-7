@@ -377,7 +377,7 @@ void UEObject::ProcessEvent(UEFunction Func, void* Params)
 {
 	void** VFT = *reinterpret_cast<void***>(GetAddress());
 
-	void(*Prd)(void*, void*, void*) = decltype(Prd)(VFT[Off::InSDK::PEIndex]);
+	void(*Prd)(void*, void*, void*) = decltype(Prd)(VFT[Off::InSDK::ProcessEvent::PEIndex]);
 
 	Prd(Object, Func.GetAddress(), Params);
 }

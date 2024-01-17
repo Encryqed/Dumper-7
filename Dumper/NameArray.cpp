@@ -227,7 +227,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 	}
 
 	NameEntryStride = FNameEntryHeaderSize == 2 ? 2 : 4;
-	Off::InSDK::FNameEntryStride = NameEntryStride;
+	Off::InSDK::NameArray::FNameEntryStride = NameEntryStride;
 
 	ByIndex = [](void* NamesArray, int32 ComparisonIndex, int32 NamePoolBlockOffsetBits) -> void*
 	{
@@ -282,7 +282,7 @@ void NameArray::Init()
 		exit(1);
 	}
 
-	Off::InSDK::GNames = uintptr_t(GNamesAddress) - ImageBase;
+	Off::InSDK::NameArray::GNames = uintptr_t(GNamesAddress) - ImageBase;
 
 	if (NameArray::InitializeNameArray(*GNamesAddress))
 	{
@@ -338,7 +338,7 @@ void NameArray::PostInit()
 
 			i--;
 		}
-		Off::InSDK::FNamePoolBlockOffsetBits = NameArray::FNameBlockOffsetBits;
+		Off::InSDK::NameArray::FNamePoolBlockOffsetBits = NameArray::FNameBlockOffsetBits;
 
 		std::cout << "\nNameArray::FNameBlockOffsetBits: 0x" << std::hex << NameArray::FNameBlockOffsetBits << "\n" << std::endl;
 	}

@@ -167,7 +167,7 @@ namespace OffsetFinder
 			Settings::Internal::bUseUoutlineNumberName = true;
 
 			Off::FName::Number = -0x1;
-			Off::InSDK::FNameSize = 0x8;
+			Off::InSDK::Name::FNameSize = 0x8;
 		}
 		else if (FNameSize == 0x10) /* WITH_CASE_PRESERVING_NAME */
 		{
@@ -175,7 +175,7 @@ namespace OffsetFinder
 
 			Off::FName::Number = FNameFirstInt == FNameSecondInt ? 0x8 : 0x4;
 
-			Off::InSDK::FNameSize = 0xC;
+			Off::InSDK::Name::FNameSize = 0xC;
 		}
 		else if (GetNumNamesWithNumberOneToFour() < 0x3A) /* FNAME_OUTLINE_NUMBER*/
 		{
@@ -183,13 +183,13 @@ namespace OffsetFinder
 
 			Off::FName::Number = -0x1;
 
-			Off::InSDK::FNameSize = 0x4;
+			Off::InSDK::Name::FNameSize = 0x4;
 		}
 		else /* Default */
 		{
 			Off::FName::Number = 0x4;
 
-			Off::InSDK::FNameSize = 0x8;
+			Off::InSDK::Name::FNameSize = 0x8;
 		}
 	}
 
@@ -658,3 +658,4 @@ namespace OffsetFinder
 		return OffsetNotFound;
 	}
 }
+

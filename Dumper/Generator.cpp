@@ -11,25 +11,29 @@ std::vector<std::future<void>> Generator::Futures;
 
 inline void InitSettings()
 {
-	constexpr int32 SizeOfFUniqueObjectGuid = 0x10;
-	constexpr int32 SizeOfFFWeakObjectPtr   = 0x08;
 
-	UEStruct LandscapeInfo = ObjectArray::FindClassFast("LandscapeInfo");
+	UEStruct LoadAsset = ObjectArray::FindObjectFast<UEFunction>("LoadAsset", EClassCastFlags::Function);
 
-	if (!LandscapeInfo)
+	if (!LoadAsset)
 	{
-		std::cout << "\nDumper-7: 'LandscapeInfo' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
+		std::cout << "\nDumper-7: 'LoadAsset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
 		return;
 	}
 
-	UEProperty LandscapeActor = LandscapeInfo.FindMember("LandscapeActor", EClassCastFlags::LazyObjectProperty);
-	if (!LandscapeActor)
+	UEProperty Asset = LoadAsset.FindMember("Asset", EClassCastFlags::SoftObjectProperty);
+	if (!Asset)
 	{
-		std::cout << "\nDumper-7: 'LandscapeActor' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
+		std::cout << "\nDumper-7: 'Asset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
 		return;
 	}
 
-	Settings::Internal::bIsWeakObjectPtrWithoutTag = LandscapeActor.GetSize() < (SizeOfFUniqueObjectGuid + SizeOfFFWeakObjectPtr);
+	UEStruct SoftObjectPath = ObjectArray::FindObjectFast<UEStruct>("SoftObjectPath");
+
+	constexpr int32 SizeOfFFWeakObjectPtr = 0x08;
+	constexpr int32 OldUnrealAssetPtrSize = 0x10;
+	const int32 SizeOfSoftObjectPath = SoftObjectPath ? SoftObjectPath.GetStructSize() : OldUnrealAssetPtrSize;
+
+	Settings::Internal::bIsWeakObjectPtrWithoutTag = Asset.GetSize() < (SizeOfSoftObjectPath + SizeOfFFWeakObjectPtr);
 
 	std::cout << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
 }
@@ -39,7 +43,7 @@ void Generator::Init()
 	/* manual override */
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
 	//FName::Init(/*FName::AppendString*/);
-	//Off::InSDK::InitPE(/*PEIndex*/);
+	//Off::InSDK::ProcessEvent::InitPE(/*PEIndex*/);
 
 	/* Back4Blood*/
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
@@ -51,7 +55,9 @@ void Generator::Init()
 	FName::Init();
 	//FName::Init(0x109577C);
 	Off::Init();
-	Off::InSDK::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
+	Off::InSDK::ProcessEvent::InitPE(); //Must here, relies on offsets initialized in Off::Init()
+
+	Off::InSDK::Text::InitTextOffsets(); //Must here, relies on offsets initialized in Off::InitPE()
 
 	InitSettings();
 
@@ -598,7 +604,7 @@ namespace Offsets
 	constexpr int32 ProcessEvent      = 0x{:08X};
 	constexpr int32 ProcessEventIdx   = 0x{:08X};
 }}
-)", Off::InSDK::GObjects, Off::InSDK::AppendNameToString, Off::InSDK::GNames, Off::InSDK::PEOffset, Off::InSDK::PEIndex);
+)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex);
 
 	if (Settings::XORString)
 		HeaderStream << std::format("#define {}(str) str\n", Settings::XORString);
@@ -703,7 +709,7 @@ void Generator::InitPredefinedMembers()
 		{ "int32 ", "Flags", Off::UObject::Flags, 0x04 },
 		{ "int32", "Index", Off::UObject::Index, 0x04 },
 		{ "class UClass*", "Class", Off::UObject::Class, 0x08 },
-		{ "class FName", "Name", Off::UObject::Name, Off::InSDK::FNameSize },
+		{ "class FName", "Name", Off::UObject::Name, Off::InSDK::Name::FNameSize },
 		{ "class UObject*", "Outer", Off::UObject::Outer, 0x08 }
 	};
 
@@ -811,7 +817,7 @@ void Generator::InitPredefinedMembers()
 
 	PredefinedMembers["FFieldClass"] =
 	{
-		{ "FName", "Name", Off::FFieldClass::Name, Off::InSDK::FNameSize },
+		{ "FName", "Name", Off::FFieldClass::Name, Off::InSDK::Name::FNameSize },
 		{ "uint64", "Id", Off::FFieldClass::Id, 0x8 },
 		{ "uint64", "CastFlags", Off::FFieldClass::CastFlags, 0x8 },
 		{ "EClassFlags", "ClassFlags", Off::FFieldClass::ClassFlags, 0x4 },
@@ -834,7 +840,7 @@ void Generator::InitPredefinedMembers()
 		{ "FFieldClass*", "Class", Off::FField::Class, 0x8 },
 		{ "FFieldVariant", "Owner", Off::FField::Owner, FFieldVariantSize },
 		{ "FField*", "Next", Off::FField::Next, 0x8 },
-		{ "FName", "Name", Off::FField::Name, Off::InSDK::FNameSize },
+		{ "FName", "Name", Off::FField::Name, Off::InSDK::Name::FNameSize },
 		{ "int32", "Flags", Off::FField::Flags, 0x4 }
 	};
 }
@@ -1273,16 +1279,16 @@ inline Fn GetVFunction(const void* Instance, std::size_t Index)
 	std::string DecryptionStrToUse = ObjectArray::DecryptionLambdaStr.empty() ? DefaultDecryption : std::move(ObjectArray::DecryptionLambdaStr);
 
 	MemberBuilder FUObjectItemMemberBuilder;
-	FUObjectItemMemberBuilder.Add("\tclass UObject* Object;\n", Off::InSDK::FUObjectItemInitialOffset, sizeof(void*));
+	FUObjectItemMemberBuilder.Add("\tclass UObject* Object;\n", Off::InSDK::ObjArray::FUObjectItemInitialOffset, sizeof(void*));
 
 	BasicHeader.Write(std::format(R"(
 struct FUObjectItem
 {{
 {}
 }};
-)", FUObjectItemMemberBuilder.GetMembers(Off::InSDK::FUObjectItemSize)));
+)", FUObjectItemMemberBuilder.GetMembers(Off::InSDK::ObjArray::FUObjectItemSize)));
 
-	if (Off::InSDK::ChunkSize <= 0)
+	if (Off::InSDK::ObjArray::ChunkSize <= 0)
 	{
 		BasicHeader.Write(
 			std::format(R"(
@@ -1375,7 +1381,7 @@ public:
 		return GetDecrytedObjPtr()[ChunkIndex][InChunkIdx].Object;
 	}}
 }};
-)", Off::InSDK::ChunkSize, DecryptionStrToUse, Off::FUObjectArray::Ptr == 0 ? MemmberString : MemberStringWeirdLayout));
+)", Off::InSDK::ObjArray::ChunkSize, DecryptionStrToUse, Off::FUObjectArray::Ptr == 0 ? MemmberString : MemberStringWeirdLayout));
 	}
 
 	BasicHeader.Write(
@@ -1489,7 +1495,7 @@ public:
 )");
 
 
-	if (Off::InSDK::AppendNameToString == 0x0 && !Settings::Internal::bUseNamePool)
+	if (Off::InSDK::Name::AppendNameToString == 0x0 && !Settings::Internal::bUseNamePool)
 	{
 		MemberBuilder NameEntryMembers;
 		NameEntryMembers.Add("\tint32 NameIndex;\n", Off::FNameEntry::NameArray::IndexOffset, sizeof(int32));
@@ -1563,7 +1569,7 @@ public:
 }};
 )", Off::NameArray::NumElements / 0x8));
 	}
-	else if (Off::InSDK::AppendNameToString == 0x0 && Settings::Internal::bUseNamePool)
+	else if (Off::InSDK::Name::AppendNameToString == 0x0 && Settings::Internal::bUseNamePool)
 	{
 		const int32 FNameEntryHeaderSize = Off::FNameEntry::NamePool::StringOffset - Off::FNameEntry::NamePool::HeaderOffset;
 
@@ -1667,7 +1673,7 @@ public:
 		return reinterpret_cast<FNameEntry*>(Blocks[ChunkIdx] + (InChunk * FNameEntryStride));
 	}}
 }};
-)", Off::InSDK::FNamePoolBlockOffsetBits, Off::InSDK::FNameEntryStride, NamePoolMembers.GetMembers()));
+)", Off::InSDK::NameArray::FNamePoolBlockOffsetBits, Off::InSDK::NameArray::FNameEntryStride, NamePoolMembers.GetMembers()));
 	}
 
 
@@ -1782,11 +1788,11 @@ public:
 		return ComparisonIndex != Other.ComparisonIndex{};
 	}}
 }};
-)", Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "FNamePool" : "TNameEntryArray" : "void"
+)", Off::InSDK::Name::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "FNamePool" : "TNameEntryArray" : "void"
   , FNameMemberStr
   , GetDisplayIndexString
-  , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseUoutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString
-  , Off::InSDK::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "reinterpret_cast<FNamePool*>" : "*reinterpret_cast<TNameEntryArray**>" : "reinterpret_cast<void*>"
+  , Off::InSDK::Name::AppendNameToString == 0 ? Settings::Internal::bUseUoutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString
+  , Off::InSDK::Name::AppendNameToString == 0 ? Settings::Internal::bUseNamePool ? "reinterpret_cast<FNamePool*>" : "*reinterpret_cast<TNameEntryArray**>" : "reinterpret_cast<void*>"
   , !Settings::Internal::bUseUoutlineNumberName ? " && Number == Other.Number" : ""
   , !Settings::Internal::bUseUoutlineNumberName ? " || Number != Other.Number" : ""));
 

@@ -294,7 +294,7 @@ void PackageManager::IterateDependenciesImplementation(const PackageManagerItera
 	};
 
 	static auto FindCycleHandler = [&CallbackForEachPackage, &OnFoundCycle, OldParams = &Params](PackageManagerIterationParams& NewParams, const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes,
-		int32 CurrentIndex, int32 PrevIndex, uint8& IterationHitCounter, bool bShouldHandlePackage, bool bIsStruct) -> void
+		int32 CurrentIndex, int32 PrevIndex, uint64& IterationHitCounter, bool bShouldHandlePackage, bool bIsStruct) -> void
 	{
 		if (!bShouldHandlePackage)
 			return;
@@ -305,8 +305,8 @@ void PackageManager::IterateDependenciesImplementation(const PackageManagerItera
 		{
 			IterationHitCounter = CurrentIterationHitCount;
 
-			const uint8 StructsHitCount = bIsStruct ? IterationHitCounter : 0x0;
-			const uint8 ClassesHitCount = !bIsStruct ? IterationHitCounter : 0x0;
+			const uint64 StructsHitCount = bIsStruct ? IterationHitCounter : 0x0;
+			const uint64 ClassesHitCount = !bIsStruct ? IterationHitCounter : 0x0;
 
 			VisitedNodes.push_back({ .PackageIdx = CurrentIndex, .StructsIterationHitCount = StructsHitCount, .ClassesIterationHitCount = ClassesHitCount, });
 

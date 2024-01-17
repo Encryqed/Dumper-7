@@ -1,10 +1,12 @@
+#include <format>
+
 #include "Offsets.h"
 #include "ObjectArray.h"
 #include "OffsetFinder.h"
 
 #include "NameArray.h"
 
-void Off::InSDK::InitPE()
+void Off::InSDK::ProcessEvent::InitPE()
 {
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
@@ -30,11 +32,11 @@ void Off::InSDK::InitPE()
 		if (FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, Resolve32BitRelativeJump(Vft[i]), 0x400)
 		&&  FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, Resolve32BitRelativeJump(Vft[i]), 0x400))
 		{
-			Off::InSDK::PEIndex = i;
-			Off::InSDK::PEOffset = GetOffset(Vft[i]);
+			Off::InSDK::ProcessEvent::PEIndex = i;
+			Off::InSDK::ProcessEvent::PEOffset = GetOffset(Vft[i]);
 
-			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
-			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
+			std::cout << std::format("PE-Offset: 0x{:X}\n", Off::InSDK::ProcessEvent::PEOffset);
+			std::cout << std::format("PE-Index: 0x{:X}\n\n", i);
 			return;
 		}
 	}
@@ -48,29 +50,125 @@ void Off::InSDK::InitPE()
 
 		if (Resolve32BitRelativeJump(Vft[i]) == PeAddr)
 		{
-			Off::InSDK::PEIndex = i;
-			Off::InSDK::PEOffset = GetOffset(PeAddr);
+			Off::InSDK::ProcessEvent::PEIndex = i;
+			Off::InSDK::ProcessEvent::PEOffset = GetOffset(PeAddr);
 
-			std::cout << "PE-Offset: 0x" << std::hex << Off::InSDK::PEOffset << "\n";
-			std::cout << "PE-Index: 0x" << std::hex << i << "\n\n";
+			std::cout << std::format("PE-Offset: 0x{:X}\n", Off::InSDK::ProcessEvent::PEOffset);
+			std::cout << std::format("PE-Index: 0x{:X}\n\n", i);
 			return;
 		}
 	}
-
-	// If PE wasn't found by string ref, use a sig (or two)
 }
 
-void Off::InSDK::InitPE(int32 Index)
+void Off::InSDK::ProcessEvent::InitPE(int32 Index)
 {
-	Off::InSDK::PEIndex = Index;
+	Off::InSDK::ProcessEvent::PEIndex = Index;
 
 	void** VFT = *reinterpret_cast<void***>(ObjectArray::GetByIndex(0).GetAddress());
 
 	uintptr_t Imagebase = GetImageBase();
 
-	Off::InSDK::PEOffset = uintptr_t(VFT[Off::InSDK::PEIndex]) - Imagebase;
+	Off::InSDK::ProcessEvent::PEOffset = uintptr_t(VFT[Off::InSDK::ProcessEvent::PEIndex]) - Imagebase;
 
-	std::cout << "VFT-Offset: 0x" << std::hex << uintptr_t(VFT) - Imagebase << std::endl;
+	std::cout << std::format("VFT-Offset: 0x{:X}", uintptr_t(VFT) - Imagebase);
+}
+
+
+
+/* FText */
+void Off::InSDK::Text::InitTextOffsets()
+{
+	if (!Off::InSDK::ProcessEvent::PEIndex)
+	{
+		std::cout << std::format("\nDumper-7: Error, 'InitInSDKTextOffsets' was called before ProcessEvent was initialized!\n") << std::endl;
+		return;
+	}
+
+	auto IsValidPtr = [](void* a) -> bool
+	{
+		return !IsBadReadPtr(a) && (uintptr_t(a) & 0x1) == 0; // realistically, there wont be any pointers to unaligned memory
+	};
+
+
+	UEFunction Conv_StringToText = ObjectArray::FindObjectFast<UEFunction>("Conv_StringToText", EClassCastFlags::Function);
+
+	UEProperty InStringProp = nullptr;
+	UEProperty ReturnProp = nullptr;
+
+	for (UEProperty Prop : Conv_StringToText.GetProperties())
+	{
+		/* Func has 2 params, if the param is the return value assign to ReturnProp, else InStringProp*/
+		(Prop.HasPropertyFlags(EPropertyFlags::ReturnParm) ? ReturnProp : InStringProp) = Prop;
+	}
+
+	const int32 ParamSize = Conv_StringToText.GetStructSize();
+
+	const int32 FTextSize = ReturnProp.GetSize();
+
+	const int32 StringOffset = InStringProp.GetOffset();
+	const int32 ReturnValueOffset = ReturnProp.GetOffset();
+
+	Off::InSDK::Text::TextSize = FTextSize;
+
+
+	/* Allocate and zero-initialize ParamStruct */
+#pragma warning(disable: 6255)
+	uint8_t* ParamPtr = static_cast<uint8_t*>(alloca(ParamSize));
+	memset(ParamPtr, 0, ParamSize);
+
+	/* Choose a, fairly random, string to later search for in FTextData */
+	constexpr const wchar_t* StringText = L"ThisIsAGoodString!";
+	constexpr int32 StringLength = (sizeof(L"ThisIsAGoodString!") / sizeof(wchar_t));
+	constexpr int32 StringLengthBytes = (sizeof(L"ThisIsAGoodString!"));
+
+	/* Initialize 'InString' in the ParamStruct */
+	*reinterpret_cast<FString*>(ParamPtr + StringOffset) = StringText;
+
+	/* This function is 'static' so the object on which we call it doesn't matter */
+	ObjectArray::GetByIndex(0).ProcessEvent(Conv_StringToText, ParamPtr);
+
+	uint8_t* FTextDataPtr = nullptr;
+
+	/* Search for the first valid pointer inside of the FText and make the offset our 'TextDatOffset' */
+	for (int32 i = 0; i < (FTextSize - sizeof(void*)); i += sizeof(void*))
+	{
+		void* PossibleTextDataPtr = *reinterpret_cast<void**>(ParamPtr + ReturnValueOffset + i);
+
+		if (IsValidPtr(PossibleTextDataPtr))
+		{
+			FTextDataPtr = static_cast<uint8_t*>(PossibleTextDataPtr);
+
+			Off::InSDK::Text::TextDatOffset = i;
+			break;
+		}
+	}
+
+	if (!FTextDataPtr)
+	{
+		std::cout << std::format("\nDumper-7: Error, 'FTextDataPtr' could not be found!\n") << std::endl;
+		return;
+	}
+
+	constexpr int32 MaxOffset = 0x50;
+	constexpr int32 StartOffset = sizeof(void*); // FString::NumElements offset
+
+	/* Search for a pointer pointing to a int32 Value (FString::NumElements) equal to StringLength */
+	for (int32 i = StartOffset; i < MaxOffset; i += sizeof(int32))
+	{
+		wchar_t* PosibleStringPtr = *reinterpret_cast<wchar_t**>((FTextDataPtr + i) - 0x8);
+		const int32 PossibleLength = *reinterpret_cast<int32*>(FTextDataPtr + i);
+
+		/* Check if our length matches and see if the data before the length is a pointer to our StringText */
+		if (PossibleLength == StringLength && PosibleStringPtr && IsValidPtr(PosibleStringPtr) && memcmp(StringText, PosibleStringPtr, StringLengthBytes) == 0)
+		{
+			Off::InSDK::Text::InTextDataStringOffset = (i - 0x8);
+			break;
+		}
+	}
+
+	std::cout << std::format("Off::InSDK::Text::TextSize: 0x{:X}\n", Off::InSDK::Text::TextSize);
+	std::cout << std::format("Off::InSDK::Text::TextDatOffset: 0x{:X}\n", Off::InSDK::Text::TextDatOffset);
+	std::cout << std::format("Off::InSDK::Text::InTextDataStringOffset: 0x{:X}\n", Off::InSDK::Text::InTextDataStringOffset);
 }
 
 void Off::Init()
@@ -82,83 +180,83 @@ void Off::Init()
 	::NameArray::PostInit();
 
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
-	std::cout << "Off::UStruct::Children: " << Off::UStruct::Children << "\n";
+	std::cout << std::format("Off::UStruct::Children: 0x{:X}\n", Off::UStruct::Children);
 
 	Off::UField::Next = OffsetFinder::FindUFieldNextOffset();
-	std::cout << "Off::UField::Next: " << Off::UField::Next << "\n";
+	std::cout << std::format("Off::UField::Next: 0x{:X}\n", Off::UField::Next);
 
 	Off::UStruct::SuperStruct = OffsetFinder::FindSuperOffset();
-	std::cout << "Off::UStruct::SuperStruct: " << Off::UStruct::SuperStruct << "\n";
+	std::cout << std::format("Off::UStruct::SuperStruct: 0x{:X}\n", Off::UStruct::SuperStruct);
 
 	Off::UStruct::Size = OffsetFinder::FindStructSizeOffset();
-	std::cout << "Off::UStruct::Size: " << Off::UStruct::Size << "\n";
+	std::cout << std::format("Off::UStruct::Size: 0x{:X}\n", Off::UStruct::Size);
 
 	Off::UStruct::MinAlignemnt = OffsetFinder::FindMinAlignment();
-	std::cout << "Off::UStruct::MinAlignemnts: " << Off::UStruct::MinAlignemnt << "\n\n";
+	std::cout << std::format("Off::UStruct::MinAlignemnts: 0x{:X}\n", Off::UStruct::MinAlignemnt);
 
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
-	std::cout << "Off::UClass::CastFlags: " << Off::UClass::CastFlags << "\n";
+	std::cout << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
 
 	if (Settings::Internal::bUseFProperty)
 	{
-		std::cout << "Game uses FProperty system\n\n";
+		std::cout << std::format("Game uses FProperty system\n\n");
 
 		Off::UStruct::ChildProperties = OffsetFinder::FindChildPropertiesOffset();
-		std::cout << "Off::UStruct::ChildProperties: " << Off::UStruct::ChildProperties << "\n";
+		std::cout << std::format("Off::UStruct::ChildProperties: 0x{:X}\n", Off::UStruct::ChildProperties);
 
 		OffsetFinder::FixupHardcodedOffsets(); // must be called after FindChildPropertiesOffset 
 
 		Off::FField::Next = OffsetFinder::FindFFieldNextOffset();
-		std::cout << "Off::FField::Next: " << Off::FField::Next << "\n";
+		std::cout << std::format("Off::FField::Next: 0x{:X}\n", Off::FField::Next);
 		
 		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
-		std::cout << "Off::FField::Name: " << Off::FField::Name << "\n";
+		std::cout << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
 	}
 
 	Off::UClass::ClassDefaultObject = OffsetFinder::FindDefaultObjectOffset();
-	std::cout << "Off::UClass::ClassDefaultObject: " << Off::UClass::ClassDefaultObject << "\n";
+	std::cout << std::format("Off::UClass::ClassDefaultObject: 0x{:X}\n", Off::UClass::ClassDefaultObject);
 
 	Off::UEnum::Names = OffsetFinder::FindEnumNamesOffset();
-	std::cout << "Off::UEnum::Names: " << Off::UEnum::Names << "\n";
+	std::cout << std::format("Off::UEnum::Names: 0x{:X}\n", Off::UEnum::Names);
 
 	Off::UFunction::FunctionFlags = OffsetFinder::FindFunctionFlagsOffset();
-	std::cout << "Off::UFunction::FunctionFlags: " << Off::UFunction::FunctionFlags << "\n\n";
+	std::cout << std::format("Off::UFunction::FunctionFlags: 0x{:X}\n", Off::UFunction::FunctionFlags) << std::endl;
 
 	Off::UFunction::ExecFunction = OffsetFinder::FindFunctionNativeFuncOffset();
-	std::cout << "Off::UFunction::ExecFunction: " << Off::UFunction::ExecFunction << "\n\n";
+	std::cout << std::format("Off::UFunction::ExecFunction: 0x{:X}\n", Off::UFunction::ExecFunction) << std::endl;
 
 	Off::UProperty::ElementSize = OffsetFinder::FindElementSizeOffset();
-	std::cout << "Off::UProperty::ElementSize: " << Off::UProperty::ElementSize << "\n";
+	std::cout << std::format("Off::UProperty::ElementSize: 0x{:X}\n", Off::UProperty::ElementSize);
 
 	Off::UProperty::ArrayDim = OffsetFinder::FindArrayDimOffset();
-	std::cout << "Off::UProperty::ArrayDim: " << Off::UProperty::ArrayDim << "\n";
+	std::cout << std::format("Off::UProperty::ArrayDim: 0x{:X}\n", Off::UProperty::ArrayDim);
 
 	Off::UProperty::Offset_Internal = OffsetFinder::FindOffsetInternalOffset();
-	std::cout << "Off::UProperty::Offset_Internal: " << Off::UProperty::Offset_Internal << "\n";
+	std::cout << std::format("Off::UProperty::Offset_Internal: 0x{:X}\n", Off::UProperty::Offset_Internal);
 
 	Off::UProperty::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
-	std::cout << "Off::UProperty::PropertyFlags: " << Off::UProperty::PropertyFlags << "\n";
+	std::cout << std::format("Off::UProperty::PropertyFlags: 0x{:X}\n", Off::UProperty::PropertyFlags);
 
-	Off::InSDK::PropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
-	std::cout << "UPropertySize: " << Off::InSDK::PropertySize << "\n\n";
+	Off::InSDK::Properties::PropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
+	std::cout << std::format("UPropertySize: 0x{:X}\n", Off::InSDK::Properties::PropertySize) << std::endl;
 
-	Off::UArrayProperty::Inner = OffsetFinder::FindInnerTypeOffset(Off::InSDK::PropertySize);
-	std::cout << "Off::UArrayProperty::Inner: " << Off::UArrayProperty::Inner << "\n";
+	Off::UArrayProperty::Inner = OffsetFinder::FindInnerTypeOffset(Off::InSDK::Properties::PropertySize);
+	std::cout << std::format("Off::UArrayProperty::Inner: 0x{:X}\n", Off::UArrayProperty::Inner);
 	
-	Off::USetProperty::ElementProp = OffsetFinder::FindSetPropertyBaseOffset(Off::InSDK::PropertySize);
-	std::cout << "Off::USetProperty::ElementProp: " << Off::USetProperty::ElementProp << "\n";
+	Off::USetProperty::ElementProp = OffsetFinder::FindSetPropertyBaseOffset(Off::InSDK::Properties::PropertySize);
+	std::cout << std::format("Off::USetProperty::ElementProp: 0x{:X}\n", Off::USetProperty::ElementProp);
 	
-	Off::UMapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(Off::InSDK::PropertySize);
-	std::cout << "Off::UMapProperty::Base: " << Off::UMapProperty::Base << "\n\n";
+	Off::UMapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(Off::InSDK::Properties::PropertySize);
+	std::cout << std::format("Off::UMapProperty::Base: 0x{:X}\n", Off::UMapProperty::Base) << std::endl;
 
 	Off::ULevel::Actors = OffsetFinder::FindLevelActorsOffset();
-	std::cout << "Off::ULevel::Actors: " << Off::ULevel::Actors << "\n\n";
+	std::cout << std::format("Off::ULevel::Actors: 0x{:X}\n", Off::ULevel::Actors) << std::endl;
 
-	Off::UByteProperty::Enum = Off::InSDK::PropertySize;
-	Off::UBoolProperty::Base = Off::InSDK::PropertySize;
-	Off::UObjectProperty::PropertyClass = Off::InSDK::PropertySize;
-	Off::UStructProperty::Struct = Off::InSDK::PropertySize;
-	Off::UEnumProperty::Base = Off::InSDK::PropertySize;
+	Off::UByteProperty::Enum = Off::InSDK::Properties::PropertySize;
+	Off::UBoolProperty::Base = Off::InSDK::Properties::PropertySize;
+	Off::UObjectProperty::PropertyClass = Off::InSDK::Properties::PropertySize;
+	Off::UStructProperty::Struct = Off::InSDK::Properties::PropertySize;
+	Off::UEnumProperty::Base = Off::InSDK::Properties::PropertySize;
 
-	Off::UClassProperty::MetaClass = Off::InSDK::PropertySize + 0x8; //0x8 inheritance from UObjectProperty
+	Off::UClassProperty::MetaClass = Off::InSDK::Properties::PropertySize + 0x8; //0x8 inheritance from UObjectProperty
 }
