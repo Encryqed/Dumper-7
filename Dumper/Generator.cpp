@@ -520,7 +520,7 @@ void Generator::GenerateSDK()
 		return;
 	}
 
-	ObjectArray::DumpObjects();
+	ObjectArray::DumpObjects(GenFolder);
 
 	Package::InitAssertionStream(GenFolder);
 

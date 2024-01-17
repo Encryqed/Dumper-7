@@ -13,15 +13,6 @@
 
 namespace fs = std::filesystem;
 
-struct PackageRewrite
-{
-    // Function params that are & or * don't require sorting
-    bool bHasClasses;
-    bool bHasStructsOrEnums;
-    bool bhasFunctions;
-    DependencyManager Structs;
-    DependencyManager Classes;
-};
 
 class CppGenerator
 {
@@ -64,6 +55,8 @@ private:
 
         BasicHpp,
         BasicCpp,
+
+        PropertyFixup,
     };
 
 private:
@@ -106,8 +99,11 @@ private: /* utility functions */
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
 
+    static std::unordered_map<std::string /* Name */, int32 /* Size */> GetUnknownProperties();
+
 private:
     static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);
+    static void GeneratePropertyFixupFile(StreamType& PropertyFixup);
     static void WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment = "", const std::string& CustomIncludes = "");
     static void WriteFileEnd(StreamType& File, EFileType Type);
 

@@ -894,8 +894,32 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 	}
 	else
 	{
+		/* When changing this also change 'GetUnknownProperties()' */
 		return (Class ? Class.GetCppName() : FieldClass.GetCppName()) + "_";
 	}
+}
+
+
+std::unordered_map<std::string /* Name */, int32 /* Size */> CppGenerator::GetUnknownProperties()
+{
+	std::unordered_map<std::string, int32> RetMap;
+
+	for (UEObject Obj : ObjectArray())
+	{
+		if (!Obj.IsA(EClassCastFlags::Struct))
+			continue;
+
+		for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
+		{
+			std::string TypeName = GetMemberTypeString(Prop);
+
+			/* Relies on unknown names being post-fixed with an underscore by 'GetMemberTypeString()' */
+			if (TypeName.back() == '_')
+				RetMap[TypeName] = Prop.GetSize();
+		}
+	}
+
+	return RetMap;
 }
 
 void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
@@ -975,6 +999,20 @@ namespace {}
 	WriteFileEnd(NameCollisionsFile, EFileType::NameCollisionsInl);
 }
 
+void CppGenerator::GeneratePropertyFixupFile(StreamType& PropertyFixup)
+{
+	WriteFileHead(PropertyFixup, nullptr, EFileType::PropertyFixup, "PROPERTY-FIXUP");
+
+	std::unordered_map<std::string, int32> UnknownProperties = GetUnknownProperties();
+
+	for (const auto& [Name, PropertySize] : UnknownProperties)
+	{
+		PropertyFixup << std::format("\nclass {}\n{{\n\tunsigned __int8 Pad[0x{:X}];\n}};\n", Name, PropertySize);
+	}
+	
+	WriteFileEnd(PropertyFixup, EFileType::PropertyFixup);
+}
+
 void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment, const std::string& CustomIncludes)
 {
 	namespace CppSettings = SettingsRewrite::CppGenerator;
@@ -994,11 +1032,14 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	if (!CustomIncludes.empty())
 		File << CustomIncludes + "\n";
 
-	if (Type != EFileType::BasicHpp && Type != EFileType::NameCollisionsInl)
+	if (Type != EFileType::BasicHpp && Type != EFileType::NameCollisionsInl && Type != EFileType::PropertyFixup)
 		File << "#include \"Basic.hpp\";\n";
 
 	if (Type == EFileType::BasicHpp)
-		File << "#include \"NameCollisions.inl\";\n";
+	{
+		File << "#include \"../NameCollisions.inl\";\n";
+		File << "#include \"../PropertyFixup.hpp\";\n";
+	}
 
 	if (Type == EFileType::Functions && Package.HasParameterStructs())
 	{
@@ -1076,7 +1117,11 @@ void CppGenerator::Generate()
 
 	// Generate SDK.hpp with sorted packages
 
+
+
 	// Generate PropertyFixup.hpp
+	StreamType PropertyFixup(MainFolder / "PropertyFixup.hpp");
+	GeneratePropertyFixupFile(PropertyFixup);
 
 	// Generate NameCollisions.inl file containing forward declarations for classes in namespaces (potentially requires lock)
 	StreamType NameCollisionsInl(MainFolder / "NameCollisions.inl");
@@ -1095,6 +1140,7 @@ void CppGenerator::Generate()
 		StreamType ParametersFile;
 		StreamType FunctionsFile;
 
+		/* Create files and handles namespaces and includes */
 		if (Package.HasClasses())
 		{
 			ClassesFile = StreamType(Subfolder / (FileName + "_classes.hpp"));
@@ -1120,6 +1166,11 @@ void CppGenerator::Generate()
 		}
 
 
+		/* 
+		* Generate classes/structs/enums/functions directly into the respective files
+		* 
+		* Note: Some filestreams aren't opened but passed as parameters anyway because the function demands it, they are not used if they are closed
+		*/
 		for (int32 EnumIdx : Package.GetEnums())
 		{
 			GenerateEnum(ObjectArray::GetByIndex<UEEnum>(EnumIdx), StructsFile);
@@ -1150,6 +1201,7 @@ void CppGenerator::Generate()
 		}
 
 
+		/* Closes any namespaces if required */
 		if (Package.HasClasses())
 			WriteFileEnd(ClassesFile, EFileType::Classes);
 
@@ -1162,7 +1214,6 @@ void CppGenerator::Generate()
 		if (Package.HasFunctions())
 			WriteFileEnd(FunctionsFile, EFileType::Functions);
 	}
-
 }
 
 void CppGenerator::InitPredefinedMembers()

@@ -335,13 +335,8 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 	Off::InSDK::ObjArray::ChunkSize = ElementsPerChunk;
 }
 
-void ObjectArray::DumpObjects()
+void ObjectArray::DumpObjects(const fs::path& Path)
 {
-	fs::path Path(Settings::SDKGenerationPath);
-
-	if (!Settings::GameVersion.empty() && !Settings::GameName.empty())
-		Path /= (Settings::GameVersion + '-' + Settings::GameName);
-
 	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
 	DumpStream << "Object dump by Dumper-7\n\n";

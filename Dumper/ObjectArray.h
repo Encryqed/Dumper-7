@@ -1,7 +1,10 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <filesystem>
 #include "UnrealObjects.h"
+
+namespace fs = std::filesystem;
 
 class ObjectArray
 {
@@ -35,7 +38,7 @@ public:
 
 	static void Init(int32 GObjectsOffset, int32 NumElementsPerChunk, bool bIsChunked);
 
-	static void DumpObjects();
+	static void DumpObjects(const fs::path& Path);
 
 	static void GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t>>& OutPackagesWithMembers);
 

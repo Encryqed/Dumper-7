@@ -59,6 +59,8 @@ public:
         {
             if (!SetupDumperFolder())
                 return;
+
+            ObjectArray::DumpObjects(DumperFolder);
         }
 
         if (!SetupFolders(GeneratorType::MainFolderName, GeneratorType::MainFolder, GeneratorType::SubfolderName, GeneratorType::Subfolder))
