@@ -432,7 +432,7 @@ std::string UEEnum::GetSingleName(int32 Index) const
 
 std::string UEEnum::GetEnumTypeAsStr() const
 {
-	std::string Temp = GetName();
+	std::string Temp = GetValidName();
 
 	return "enum class " + (Temp[0] == 'E' ? Temp : 'E' + Temp);
 }
