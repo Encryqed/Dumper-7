@@ -208,7 +208,7 @@ void PackageManager::InitDependencies()
 
 			ClassOrStructDependencyList.SetExists(StructIdx);
 
-			PackageManagerUtils::SetPackageDependencies(PackageDependencyList, Dependencies, StructPackageIdx);
+			PackageManagerUtils::SetPackageDependencies(PackageDependencyList, Dependencies, StructPackageIdx, bIsClass);
 
 			if (!bIsClass)
 				PackageManagerUtils::AddStructDependencies(ClassOrStructDependencyList, Dependencies, StructIdx, StructPackageIdx);
