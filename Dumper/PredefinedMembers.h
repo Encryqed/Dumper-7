@@ -29,8 +29,10 @@ struct PredefinedMember
 struct PredefinedFunction
 {
     std::string CustomComment;
+    std::string CustomTemplateText = std::string();
     std::string ReturnType;
     std::string NameWithParams;
+    std::string NameWithParamsWithoutDefaults = std::string();
 
     std::string Body;
 

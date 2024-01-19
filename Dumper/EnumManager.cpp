@@ -151,6 +151,16 @@ void EnumManager::InitInternal()
 					break;
 				}
 
+				/* Check if this name is illegal */
+				for (HashStringTableIndex IllegalIndex : IllegalNames)
+				{
+					if (NameIndex == IllegalIndex) [[unlikely]]
+					{
+						CurrentEnumValueInfo.CollisionCount++;
+						break;
+					}
+				}
+
 				NewOrExistingInfo.MemberInfos.push_back(CurrentEnumValueInfo);
 			}
 
@@ -164,6 +174,14 @@ void EnumManager::InitInternal()
 	}
 }
 
+void EnumManager::InitIllegalNames()
+{
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("TRUE").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("FALSE").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("PF_MAX").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("TRANSPARENT").first);
+}
+
 void EnumManager::Init()
 {
 	if (bIsInitialized)
@@ -173,5 +191,6 @@ void EnumManager::Init()
 
 	EnumInfoOverrides.reserve(0x1000);
 
+	InitIllegalNames(); // call this first
 	InitInternal();
 }

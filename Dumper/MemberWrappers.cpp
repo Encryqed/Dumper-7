@@ -219,11 +219,25 @@ std::string FunctionWrapper::GetPredefFunctionCustomComment() const
     return PredefFunction->CustomComment;
 }
 
+std::string FunctionWrapper::GetPredefFunctionCustomTemplateText() const
+{
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionCustomTemplateText()'.");
+
+    return PredefFunction->CustomTemplateText;
+}
+
 std::string FunctionWrapper::GetPredefFuncNameWithParams() const
 {
     assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFuncNameWithParams()'.");
 
     return PredefFunction->NameWithParams;
+}
+
+std::string FunctionWrapper::GetPredefFuncNameWithParamsForCppFile() const
+{
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFuncNameWithParamsForCppFile()'.");
+
+    return !PredefFunction->NameWithParamsWithoutDefaults.empty() ? PredefFunction->NameWithParamsWithoutDefaults : PredefFunction->NameWithParams;
 }
 
 std::string FunctionWrapper::GetPredefFuncReturnType() const
@@ -280,6 +294,11 @@ bool FunctionWrapper::IsConst() const
 bool FunctionWrapper::HasInlineBody() const
 {
     return !bIsUnrealFunction && PredefFunction->bIsBodyInline;
+}
+
+bool FunctionWrapper::HasCustomTemplateText() const
+{
+    return !bIsUnrealFunction && !PredefFunction->CustomTemplateText.empty();
 }
 
 bool FunctionWrapper::HasFunctionFlag(EFunctionFlags Flag) const

@@ -111,7 +111,9 @@ public:
     int32 GetParamStructSize() const;
 
     std::string GetPredefFunctionCustomComment() const;
+    std::string GetPredefFunctionCustomTemplateText() const;
     std::string GetPredefFuncNameWithParams() const;
+    std::string GetPredefFuncNameWithParamsForCppFile() const;
     std::string GetPredefFuncReturnType() const;
     std::string GetPredefFunctionBody() const;
     std::string GetPredefFunctionInlineBody() const;
@@ -122,5 +124,6 @@ public:
     bool IsConst() const;
     bool IsPredefined() const;
     bool HasInlineBody() const;
+    bool HasCustomTemplateText() const;
     bool HasFunctionFlag(EFunctionFlags Flag) const;
 };

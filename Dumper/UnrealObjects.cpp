@@ -454,7 +454,7 @@ std::string UEEnum::GetSingleName(int32 Index) const
 
 std::string UEEnum::GetEnumPrefixedName() const
 {
-	std::string Temp = GetName();
+	std::string Temp = GetValidName();
 
 	return Temp[0] == 'E' ? Temp : 'E' + Temp;
 }

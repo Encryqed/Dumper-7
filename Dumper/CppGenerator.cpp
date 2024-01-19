@@ -154,14 +154,16 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		if (Member.HasDefaultValue()) [[unlikely]]
 			MemberName += (" = " + Member.GetDefaultValue());
 
+		const bool bAllowForConstPtrMembers = Struct.IsFunction();
+
 		/* using directives */
 		if (Member.IsZeroSizedMember()) [[unlikely]]
 		{
-			OutMembers += MakeMemberStringWithoutName(GetMemberTypeString(Member), std::move(Comment));
+			OutMembers += MakeMemberStringWithoutName(GetMemberTypeString(Member, bAllowForConstPtrMembers), std::move(Comment));
 		}
 		else [[likely]]
 		{
-			OutMembers += MakeMemberString(GetMemberTypeString(Member), MemberName, std::move(Comment));
+			OutMembers += MakeMemberString(GetMemberTypeString(Member, bAllowForConstPtrMembers), MemberName, std::move(Comment));
 		}
 	}
 
@@ -221,7 +223,7 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 
 			if (Param.IsReturnParam())
 			{
-				RetType = GetMemberTypeString(Param);
+				RetType = Type;
 				continue;
 			}
 
@@ -304,6 +306,7 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 			RetFuncInfo.bIsReturningVoid = false;
 
 			PInfo.PropFlags = Param.GetPropertyFlags();
+			PInfo.bIsConst = false;
 			PInfo.Name = Param.GetName();
 			PInfo.Type = Type;
 			PInfo.bIsRetParam = true;
@@ -329,9 +332,6 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 			bIsOut = true;
 		}
 
-		if (bIsConst)
-			Type = "const " + Type;
-
 		if (!bIsOut && !bIsRef && bIsMoveType)
 		{
 			Type += "&";
@@ -346,6 +346,7 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 		PInfo.bIsOutRef = bIsOut && bIsRef;
 		PInfo.bIsMoveParam = bIsMoveType;
 		PInfo.bIsRetParam = false;
+		PInfo.bIsConst = bIsConst;
 		PInfo.PropFlags = Param.GetPropertyFlags();
 		PInfo.Name = ParamName;
 		RetFuncInfo.UnrealFuncParams.push_back(PInfo);
@@ -372,11 +373,11 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	FunctionInfo FuncInfo = GenerateFunctionInfo(Func);
 
 	const bool bHasInlineBody = Func.HasInlineBody();
+	const std::string TemplateText = (bHasInlineBody && Func.HasCustomTemplateText() ? (Func.GetPredefFunctionCustomTemplateText() + "\n\t") : "");
 
 	// Function declaration and inline-body generation
-	InHeaderFunctionText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", FuncInfo.RetType, FuncInfo.FuncNameWithParams, Func.IsConst() ? " const" : "");
+	InHeaderFunctionText += std::format("\t{}{}{} {}{}", TemplateText, (Func.IsStatic() ? "static " : ""), FuncInfo.RetType, FuncInfo.FuncNameWithParams, Func.IsConst() ? " const" : "");
 	InHeaderFunctionText += (bHasInlineBody ? ("\n\t" + Func.GetPredefFunctionInlineBody()) : ";") + "\n";
-
 
 	if (bHasInlineBody)
 		return InHeaderFunctionText;
@@ -388,14 +389,15 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 		FunctionFile << std::format(R"(
 // Predefined Function
 {}
-{} {}::{}
+{} {}::{}{}
 {}
 
 )"
-, !CustomComment.empty() ? CustomComment + '\n' : ""
+, !CustomComment.empty() ? ("// " + CustomComment + '\n') : ""
 , Func.GetPredefFuncReturnType()
 , StructName
-, Func.GetPredefFuncNameWithParams()
+, Func.GetPredefFuncNameWithParamsForCppFile()
+, Func.IsConst() ? " const" : ""
 , Func.GetPredefFunctionBody());
 
 		return InHeaderFunctionText;
@@ -450,7 +452,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 			bHasParamsToInit = true;
 		}
 
-		if (PInfo.bIsOutRef)
+		if (PInfo.bIsOutRef && !PInfo.bIsConst)
 		{
 			OutRefAssignments += PInfo.bIsMoveParam ? std::format("\n\t{0} = std::move(Parms.{0});", PInfo.Name) : std::format("\n\t{0} = Parms.{0};", PInfo.Name);
 			bHasOutRefParamsToInit = true;
@@ -477,14 +479,14 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 // {}
 // ({})
 {}
-{} {}::{}
+{} {}::{}{}
 {{
 	static class UFunction* Func = nullptr;
 
 	if (Func == nullptr)
-		Func = Class->GetFunction("{}", "{}");
+		Func = {}->GetFunction("{}", "{}");
 {}{}{}
-	UObject::ProcessEvent(Func, {});{}{}{}{}
+	{}ProcessEvent(Func, {});{}{}{}{}
 }}
 
 )", UnrealFunc.GetFullName()
@@ -493,12 +495,15 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , FuncInfo.RetType
 , StructName
 , FuncInfo.FuncNameWithParams
+, Func.IsConst() ? " const" : ""
+, Func.IsStatic() ? "StaticClass()" : "Class"
 , UnrealFunc.GetOuter().GetName()
 , UnrealFunc.GetName()
 , bHasParams ? ParamVarCreationString : ""
 , bHasParamsToInit ? ParamAssignments : ""
 , bIsNativeFunc ? StoreFunctionFlagsString : ""
-, bHasParams ? "Parms" : "nullptr"
+, Func.IsStatic() ? "GetDefaultObj()->" : "UObject::"
+, bHasParams ? "&Parms" : "nullptr"
 , bIsNativeFunc ? RestoreFunctionFlagsString : ""
 , bHasOutRefParamsToInit ? OutRefAssignments : ""
 , bHasOutPtrParamsToInit ? OutPtrAssignments : ""
@@ -740,7 +745,7 @@ std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 	return PackageManager::GetName(Enum.GetUnrealEnum().GetPackageIndex()) + "::" + ValidName;
 }
 
-std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapper)
+std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapper, bool bAllowForConstPtrMembers)
 {
 	if (!MemberWrapper.IsUnrealProperty())
 	{
@@ -750,10 +755,26 @@ std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapp
 		return MemberWrapper.GetType();
 	}
 
-	return GetMemberTypeString(MemberWrapper.GetUnrealProperty());
+	return GetMemberTypeString(MemberWrapper.GetUnrealProperty(), bAllowForConstPtrMembers);
 }
 
-std::string CppGenerator::GetMemberTypeString(UEProperty Member)
+std::string CppGenerator::GetMemberTypeString(UEProperty Member, bool bAllowForConstPtrMembers)
+{
+	static auto IsMemberPtr = [](UEProperty Mem) -> bool
+	{
+		if (Mem.IsA(EClassCastFlags::ClassProperty))
+			return !Mem.HasPropertyFlags(EPropertyFlags::UObjectWrapper);
+
+		return Mem.IsA(EClassCastFlags::ObjectProperty);
+	};
+
+	if (bAllowForConstPtrMembers && Member.HasPropertyFlags(EPropertyFlags::ConstParm) && IsMemberPtr(Member))
+		return "const " + GetMemberTypeStringWithoutConst(Member);
+
+	return GetMemberTypeStringWithoutConst(Member);
+}
+
+std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member)
 {
 	auto [Class, FieldClass] = Member.GetClass();
 
@@ -804,7 +825,7 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 	}
 	else if (Flags & EClassCastFlags::ClassProperty)
 	{
-		if (Member.GetPropertyFlags() & EPropertyFlags::UObjectWrapper)
+		if (Member.HasPropertyFlags(EPropertyFlags::UObjectWrapper))
 			return std::format("TSubclassOf<class {}>", GetStructPrefixedName(Member.Cast<UEClassProperty>().GetMetaClass()));
 
 		return "class UClass*";
@@ -831,7 +852,7 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 	}
 	else if (Flags & EClassCastFlags::ArrayProperty)
 	{
-		return std::format("TArray<{}>", GetMemberTypeString(Member.Cast<UEArrayProperty>().GetInnerProperty()));
+		return std::format("TArray<{}>", GetMemberTypeStringWithoutConst(Member.Cast<UEArrayProperty>().GetInnerProperty()));
 	}
 	else if (Flags & EClassCastFlags::WeakObjectProperty)
 	{
@@ -872,18 +893,18 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member)
 	{
 		UEMapProperty MemberAsMapProperty = Member.Cast<UEMapProperty>();
 
-		return std::format("TMap<{}, {}>", GetMemberTypeString(MemberAsMapProperty.GetKeyProperty()), GetMemberTypeString(MemberAsMapProperty.GetValueProperty()));
+		return std::format("TMap<{}, {}>", GetMemberTypeStringWithoutConst(MemberAsMapProperty.GetKeyProperty()), GetMemberTypeStringWithoutConst(MemberAsMapProperty.GetValueProperty()));
 	}
 	else if (Flags & EClassCastFlags::SetProperty)
 	{
-		return std::format("TSet<{}>", GetMemberTypeString(Member.Cast<UESetProperty>().GetElementProperty()));
+		return std::format("TSet<{}>", GetMemberTypeStringWithoutConst(Member.Cast<UESetProperty>().GetElementProperty()));
 	}
 	else if (Flags & EClassCastFlags::EnumProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEEnumProperty>().GetEnum())
 			return Enum.GetEnumTypeAsStr();
 
-		return GetMemberTypeString(Member.Cast<UEEnumProperty>().GetUnderlayingProperty());
+		return GetMemberTypeStringWithoutConst(Member.Cast<UEEnumProperty>().GetUnderlayingProperty());
 	}
 	else if (Flags & EClassCastFlags::InterfaceProperty)
 	{
@@ -911,7 +932,7 @@ std::unordered_map<std::string /* Name */, int32 /* Size */> CppGenerator::GetUn
 
 		for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
 		{
-			std::string TypeName = GetMemberTypeString(Prop);
+			std::string TypeName = GetMemberTypeString(Prop, true);
 
 			/* Relies on unknown names being post-fixed with an underscore by 'GetMemberTypeString()' */
 			if (TypeName.back() == '_')
@@ -1041,10 +1062,24 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 		File << "#include \"../PropertyFixup.hpp\";\n";
 	}
 
-	if (Type == EFileType::Functions && Package.HasParameterStructs())
+	if (Type == EFileType::BasicCpp)
 	{
+		File << "\n#include \"CoreUObject_classes.hpp\"";
+		File << "\n#include \"CoreUObject_structs.hpp\"\n";
+	}
+
+	if (Type == EFileType::Functions && (Package.HasClasses() || Package.HasParameterStructs()))
+	{
+		std::string PackageName = Package.GetName();
+
 		File << "\n";
-		File << std::format("#include \"{}_parameters.hpp\"\n", Package.GetName());
+
+		if (Package.HasClasses())
+			File << std::format("#include \"{}_classes.hpp\"\n", PackageName);
+
+		if (Package.HasParameterStructs())
+			File << std::format("#include \"{}_parameters.hpp\"\n", PackageName);
+
 		File << "\n";
 	}
 	else if (Package.IsValidHandle())
@@ -1235,6 +1270,8 @@ void CppGenerator::InitPredefinedMembers()
 		const PredefinedMember& LastMember = Struct.Properties[Struct.Properties.size() - 1];
 		Struct.Size = LastMember.Offset + LastMember.Size;
 	};
+
+
 	PredefinedElements& ULevelPredefs = PredefinedMembers[ObjectArray::FindClassFast("Level").GetIndex()];
 	ULevelPredefs.Members =
 	{
@@ -1250,7 +1287,7 @@ void CppGenerator::InitPredefinedMembers()
 	{
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class TUObjectArrayWrapper", .Name = "GObjects", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = 0x8,
+			.Type = "inline class TUObjectArrayWrapper", .Name = "GObjects", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = 0x8,
 			.bIsStatic = true, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
 		},
 		PredefinedMember {
@@ -1260,7 +1297,7 @@ void CppGenerator::InitPredefinedMembers()
 		},
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "Flags", .Offset = Off::UObject::Flags, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+			.Type = "EObjectFlags", .Name = "Flags", .Offset = Off::UObject::Flags, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
 			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
 		},
 		PredefinedMember {
@@ -1708,6 +1745,7 @@ void CppGenerator::InitPredefinedMembers()
 	SortMembers(UClassPredefs.Members);
 }
 
+
 void CppGenerator::InitPredefinedFunctions()
 {
 	static auto SortFunctions = [](std::vector<PredefinedFunction>& Functions) -> void
@@ -1715,12 +1753,288 @@ void CppGenerator::InitPredefinedFunctions()
 		std::sort(Functions.begin(), Functions.end(), ComparePredefinedFunctions);
 	};
 
+	PredefinedElements& UObjectPredefs = PredefinedMembers[ObjectArray::FindClassFast("Object").GetIndex()];
+
+	UObjectPredefs.Functions =
+	{
+		/* static non-inline functions */
+		PredefinedFunction {
+			.CustomComment = "Finds a UObject in the global object array by full-name, optionally with ECastFlags to reduce heavy string comparison",
+			.ReturnType = "class UObject*", .NameWithParams = "FindObjectImpl(const std::string& FullName, EClassCastFlags RequiredType = EClassCastFlags::None)",
+			.NameWithParamsWithoutDefaults = "FindObjectImpl(const std::string& FullName, EClassCastFlags RequiredType)", .Body =
+R"({
+	for (int i = 0; i < GObjects->Num(); ++i)
+	{
+		UObject* Object = GObjects->GetByIndex(i);
+	
+		if (!Object)
+			continue;
+		
+		if (Object->HasTypeFlag(RequiredType) && Object->GetFullName() == FullName)
+		{
+			return Object;
+		}
+	}
+
+	return nullptr;
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "Finds a UObject in the global object array by name, optionally with ECastFlags to reduce heavy string comparison",
+			.ReturnType = "class UObject*", .NameWithParams = "FindObjectFastImpl(const std::string& Name, EClassCastFlags RequiredType = EClassCastFlags::None)",
+			.NameWithParamsWithoutDefaults = "FindObjectFastImpl(const std::string& Name, EClassCastFlags RequiredType)", .Body =
+R"({
+	for (int i = 0; i < GObjects->Num(); ++i)
+	{
+		UObject* Object = GObjects->GetByIndex(i);
+	
+		if (!Object)
+			continue;
+		
+		if (Object->HasTypeFlag(RequiredType) && Object->GetName() == Name)
+		{
+			return Object;
+		}
+	}
+
+	return nullptr;
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = false
+		},
+
+		/* static inline functions */
+		PredefinedFunction {
+			.CustomComment = "",
+			.CustomTemplateText = "template<typename UEType = UObject>",
+			.ReturnType = "UEType*", .NameWithParams = "FindObject(const std::string& Name, EClassCastFlags RequiredType = EClassCastFlags::None)", .Body =
+R"({
+	return static_cast<UEType*>(FindObjectImpl(Name, RequiredType));
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.CustomTemplateText = "template<typename UEType = UObject>",
+			.ReturnType = "UEType*", .NameWithParams = "FindObjectFast(const std::string& Name, EClassCastFlags RequiredType = EClassCastFlags::None)", .Body =
+R"({
+	return static_cast<UEType*>(FindObjectFastImpl(Name, RequiredType));
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "class UClass*", .NameWithParams = "FindClass(const std::string& ClassFullName)", .Body =
+R"({
+	return FindObject<class UClass>(ClassFullName, EClassCastFlags::Class);
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "class UClass*", .NameWithParams = "FindClassFast(const std::string& ClassName)", .Body =
+R"({
+	return FindObjectFast<class UClass>(ClassName, EClassCastFlags::Class);
+}
+)",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+		},
+
+
+		/* non-static non-inline functions */
+		PredefinedFunction {
+			.CustomComment = "Retuns the name of this object",
+			.ReturnType = "std::string", .NameWithParams = "GetName()", .Body =
+R"({
+	return this ? Name.ToString() : "None";
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "Returns the name of this object in the format 'Class Package.Outer.Object'",
+			.ReturnType = "std::string", .NameWithParams = "GetFullName()", .Body =
+R"({
+	if (Class)
+	{
+		std::string Temp;
+
+		for (UObject* NextOuter = Outer; NextOuter; NextOuter = NextOuter->Outer)
+		{
+			Temp = NextOuter->GetName() + "." + Temp;
+		}
+
+		std::string Name = Class->GetName();
+		Name += " ";
+		Name += Temp;
+		Name += GetName();
+
+		return Name;
+	}
+
+	return "None";
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction{
+			.CustomComment = "Checks a UObjects' type by Class",
+			.ReturnType = "bool", .NameWithParams = "IsA(class UClass* TypeClass)", .Body =
+R"({
+	for (UStruct* Super = Class; Super; Super = Super->Super)
+	{
+		if (Super == TypeClass)
+			return true;
+	}
+
+	return false;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction{
+			.CustomComment = "Checks a UObjects' type by TypeFlags",
+			.ReturnType = "bool", .NameWithParams = "IsA(EClassCastFlags TypeFlags)", .Body =
+R"({
+	return (Class->CastFlags & TypeFlags);
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction{
+			.CustomComment = "Checks Class->FunctionFlags for TypeFlags",
+			.ReturnType = "bool", .NameWithParams = "HasTypeFlag(EClassCastFlags TypeFlags)", .Body =
+R"({
+	return (Class->CastFlags & TypeFlags);
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction{
+			.CustomComment = "Checks whether this object is a classes' default-object",
+			.ReturnType = "bool", .NameWithParams = "IsDefaultObject()", .Body =
+		R"({
+	return (Flags & EObjectFlags::ClassDefaultObject);
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+
+		/* non-static inline functions */
+		PredefinedFunction{
+			.CustomComment = "Unreal Function to process all UFunction-calls",
+			.ReturnType = "void", .NameWithParams = "ProcessEvent(class UFunction* Function, void* Parms)", .Body =
+R"({
+	InSDKUtils::GetVirtualFunction<void(*)(const UObject*, class UFunction*, void*)>(this, Offsets::ProcessEventIdx)(this, Function, Parms);
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+	};
+
+	PredefinedElements& UClassPredefs = PredefinedMembers[ObjectArray::FindClassFast("Class").GetIndex()];
+
+	UClassPredefs.Functions =
+	{
+		/* non-static non-inline functions */
+		PredefinedFunction {
+			.CustomComment = "Gets a UFunction from this UClasses' 'Children' list",
+			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const std::string& ClassName, const std::string& FuncName)", .Body =
+R"({
+	for(const UStruct* Clss = this; Clss; Clss = Clss->Super)
+	{
+		if (Clss->GetName() != ClassName)
+			continue;
+			
+		for (UField* Field = Clss->Children; Field; Field = Field->Next)
+		{
+			if(Field->HasTypeFlag(EClassCastFlags::Function) && Field->GetName() == FuncName)
+				return static_cast<class UFunction*>(Field);
+		}
+	}
+
+	return nullptr;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+	};
+
+
+	PredefinedElements& UEnginePredefs = PredefinedMembers[ObjectArray::FindClassFast("Engine").GetIndex()];
+
+	UEnginePredefs.Functions =
+	{
+		/* static non-inline functions */
+		PredefinedFunction {
+			.CustomComment = "Gets a pointer to a valid UObject of type UEngine",
+			.ReturnType = "class UEngine*", .NameWithParams = "GetEngine()", .Body =
+R"({
+	static UEngine* GEngine = nullptr;
+
+	if (GEngine)
+		return GEngine;
+	
+	/* (Re-)Initialize if GEngine is nullptr */
+	for (int i = 0; i < UObject::GObjects->Num(); i++)
+	{
+		UObject* Obj = UObject::GObjects->GetByIndex(i);
+
+		if (!Obj)
+			continue;
+
+		if (Obj->IsA(UEngine::StaticClass()) && !Obj->IsDefaultObject())
+		{
+			GEngine = static_cast<UEngine*>(Obj);
+			break;
+		}
+	}
+
+	return GEngine; 
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = false
+		},
+	};
+
+
+	PredefinedElements& UGameEnginePredefs = PredefinedMembers[ObjectArray::FindClassFast("GameEngine").GetIndex()];
+
+	UGameEnginePredefs.Functions =
+	{
+		/* static non-inline functions */
+		PredefinedFunction {
+			.CustomComment = "Returns the result of UEngine::GetEngine() without a type-check, might be dangerous",
+			.ReturnType = "class UGameEngine*", .NameWithParams = "GetEngine()", .Body =
+R"({
+	return static_cast<UGameEngine*>(UEngine::GetEngine());
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = false
+		},
+	};
+
+
+	PredefinedElements& UWorldPredefs = PredefinedMembers[ObjectArray::FindClassFast("World").GetIndex()];
+
+	UWorldPredefs.Functions =
+	{
+		/* static non-inline functions */
+		PredefinedFunction {
+			.CustomComment = "Gets a pointer to the current World of the GameViewport",
+			.ReturnType = "class UWorld*", .NameWithParams = "GetWorld()", .Body =
+R"({
+	if (UEngine* Engine = UEngine::GetEngine())
+	{
+		if (!Engine->GameViewport)
+			return nullptr;
+
+		return Engine->GameViewport->World;
+	}
+
+	return nullptr;
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = false
+		},
+	};
+
+	SortFunctions(UObjectPredefs.Functions);
+	SortFunctions(UClassPredefs.Functions);
+	SortFunctions(UEnginePredefs.Functions);
+	SortFunctions(UGameEnginePredefs.Functions);
+	SortFunctions(UWorldPredefs.Functions);
 }
 
-namespace Offsets
-{
-	int GObjects;
-}
 
 void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp)
 {
@@ -1794,7 +2108,7 @@ namespace InSDKUtils
 	BasicHpp << R"(	template<typename FuncType>
 	inline FuncType GetVirtualFunction(const void* ObjectInstance, int32 Index)
 	{
-		void** VTable = *reinterpret_cast<const void***>(const_cast<void*>(ObjectInstance));
+		void** VTable = *reinterpret_cast<void***>(const_cast<void*>(ObjectInstance));
 
 		return reinterpret_cast<FuncType>(VTable[Index]);
 	}
@@ -1806,7 +2120,83 @@ namespace InSDKUtils
 	BasicHpp << "}\n\n";
 	// End Namespace 'InSDKUtils'
 
+	/* Utility class for contexpr string literals. Used for 'StaticClassImpl<"ClassName">()'. */
+	BasicHpp << R"(
+template<int32 Len>
+struct StringLiteral
+{
+	char Chars[Len];
 
+	consteval StringLiteral(const char(&String)[Len])
+	{
+		std::copy_n(String, Len, Chars);
+	}
+
+	operator std::string() const
+	{
+		return static_cast<const char*>(Chars);
+	}
+};
+)";
+
+	BasicHpp << R"(
+// Forward declarations because in-line forward declarations make the compiler think 'StaticClassImpl()' is a class template
+class UClass;
+class UObject;
+)";
+
+	BasicHpp << R"(
+namespace StaticClassHelper
+{
+	// Helper functions for StaticClassImpl
+	UClass* FindClassByName(const std::string& Name);
+	UClass* FindClassByFullName(const std::string& Name);
+}
+)";
+
+	BasicCpp << R"(
+class UClass* StaticClassHelper::FindClassByName(const std::string& Name)
+{
+	return UObject::FindClassFast(Name);
+}
+
+class UClass* StaticClassHelper::FindClassByFullName(const std::string& Name)
+{
+	return UObject::FindClass(Name);
+}
+
+)";
+
+	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-object local static */
+	BasicHpp << R"(
+template<StringLiteral Name, bool bIsFullName = false>
+class UClass* StaticClassImpl()
+{
+	static class UClass* Clss = nullptr;
+
+	if (Clss == nullptr)
+	{
+		if constexpr (bIsFullName) {
+			Clss = StaticClassHelper::FindClassByName(Name);
+		}
+		else {
+			Clss = StaticClassHelper::FindClassByFullName(Name);
+		}
+	}
+
+	return Clss;
+}
+)";
+
+	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-object local static */
+	BasicHpp << R"(
+template<class ClassType>
+ClassType* GetDefaultObjImpl()
+{
+	return static_cast<ClassType*>(ClassType::StaticClass()->DefaultObject);
+}
+
+)";
 
 	// Start class 'TUObjectArray'
 	PredefinedStruct FUObjectItem = PredefinedStruct{
@@ -1847,7 +2237,6 @@ public:
 	int32 NumElements;
 
 public:
-	// Call InitGObjects() before using these functions
 	inline int Num() const
 	{{
 		return NumElements;
@@ -1934,10 +2323,15 @@ public:
 class TUObjectArrayWrapper
 {
 private:
+	friend class UObject;
+
+private:
 	void* GObjectsAddress = nullptr;
 
+private:
+	TUObjectArrayWrapper() = default;
+
 public:
-	TUObjectArrayWrapper() = delete;
 	TUObjectArrayWrapper(TUObjectArrayWrapper&&) = delete;
 	TUObjectArrayWrapper(const TUObjectArrayWrapper&) = delete;
 
@@ -1957,6 +2351,11 @@ public:
 			InitGObjects();
 
 		return reinterpret_cast<class TUObjectArray*>(GObjectsAddress);
+	}
+
+	inline operator const void* () const
+	{
+		return GObjectsAddress;
 	}
 
 	inline class TUObjectArray* GetTypedPtr()
@@ -2435,7 +2834,7 @@ R"({
 	{
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = NameArrayType, .Name = NameArrayName, .Offset = 0x0, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
+			.Type = "inline " + NameArrayType, .Name = NameArrayName, .Offset = 0x0, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x4,
 			.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF, .DefaultValue = "nullptr"
 		},
 		PredefinedMember {
@@ -2561,7 +2960,7 @@ std::format(R"({{
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "std::string", .NameWithParams = "operator==(const FName& Other)", .Body =
+			.ReturnType = "bool", .NameWithParams = "operator==(const FName& Other)", .Body =
 std::format(R"({{
 	return ComparisonIndex == Other.ComparisonIndex{};
 }})", !Settings::Internal::bUseUoutlineNumberName ? " && Number == Other.Number" : ""),
@@ -2569,7 +2968,7 @@ std::format(R"({{
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "std::string", .NameWithParams = "operator!=(const FName& Other)", .Body =
+			.ReturnType = "bool", .NameWithParams = "operator!=(const FName& Other)", .Body =
 std::format(R"({{
 	return ComparisonIndex != Other.ComparisonIndex{};
 }})", !Settings::Internal::bUseUoutlineNumberName ? " || Number != Other.Number" : ""),
@@ -2637,8 +3036,7 @@ public:
 		return ClassPtr;
 	}
 
-	template<typename Target>
-	requires std::derived_from<Target, ClassType>
+	template<typename Target, typename = std::enable_if<std::is_base_of_v<Target, ClassType>, bool>::type>
 	inline operator TSubclassOf<Target>() const
 	{
 		return ClassPtr;
@@ -2739,11 +3137,11 @@ public:
 	{
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "class FString&", .NameWithParams = "GetStringRef()", .Body =
+			.ReturnType = "const class FString&", .NameWithParams = "GetStringRef()", .Body =
 R"({
 	return TextData->TextSource;
 })",
-			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 		PredefinedFunction {
 			.CustomComment = "",
@@ -2751,7 +3149,7 @@ R"({
 R"({
 	return TextData->TextSource.ToString();
 })",
-			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 	};
 
@@ -2780,7 +3178,7 @@ class TMap
 
 	/* class FWeakObjectPtr */
 	PredefinedStruct FWeakObjectPtr = PredefinedStruct{
-		.UniqueName = "FWeakObjectPtr", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "FWeakObjectPtr", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	FWeakObjectPtr.Properties =
@@ -2804,8 +3202,7 @@ class TMap
 			.ReturnType = "class UObject*", .NameWithParams = "Get()", .Body =
 R"({
 	return UObject::GObjects->GetByIndex(ObjectIndex);
-}
-)",
+})",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 		PredefinedFunction {
@@ -2813,8 +3210,7 @@ R"({
 			.ReturnType = "class UObject*", .NameWithParams = "operator->()", .Body =
 R"({
 	return UObject::GObjects->GetByIndex(ObjectIndex);
-}
-)",
+})",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 		PredefinedFunction {
@@ -2822,8 +3218,7 @@ R"({
 			.ReturnType = "bool", .NameWithParams = "operator==(const FWeakObjectPtr& Other)", .Body =
 R"({
 	return ObjectIndex == Other.ObjectIndex;
-}
-)",
+})",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 		PredefinedFunction {
@@ -2831,8 +3226,7 @@ R"({
 			.ReturnType = "bool", .NameWithParams = "operator!=(const FWeakObjectPtr& Other)", .Body =
 R"({
 	return ObjectIndex != Other.ObjectIndex;
-}
-)",
+})",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 		PredefinedFunction {
@@ -2840,8 +3234,7 @@ R"({
 			.ReturnType = "bool", .NameWithParams = "operator==(const class UObject* Other)", .Body =
 R"({
 	return ObjectIndex == Other->Index;
-}
-)",
+})",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 		PredefinedFunction {
@@ -2849,8 +3242,7 @@ R"({
 			.ReturnType = "bool", .NameWithParams = "operator!=(const class UObject* Other)", .Body =
 R"({
 	return ObjectIndex != Other->Index;
-}
-)",
+})",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 	};
@@ -2861,7 +3253,7 @@ R"({
 	BasicHpp <<
 		R"(
 template<typename UEType>
-class TWeakObjectPtr : FWeakObjectPtr
+class TWeakObjectPtr : public FWeakObjectPtr
 {
 public:
 	UEType* Get() const
@@ -2912,7 +3304,7 @@ public:
 	/* class TPersistentObjectPtr */
 	PredefinedStruct TPersistentObjectPtr = PredefinedStruct{
 		.CustomTemplateText = "template<typename TObjectID>",
-		.UniqueName = "TPersistentObjectPtr", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "TPersistentObjectPtr", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	const int32 ObjectIDOffset = Settings::Internal::bIsWeakObjectPtrWithoutTag ? 0x8 : 0xC;
@@ -3053,12 +3445,12 @@ public:
 	{
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "ObjectIndex", .Offset = 0x0, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x8,
+			.Type = "UObject*", .Name = "ObjectPointer", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "ObjectSerialNumber", .Offset = 0x8, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x8,
+			.Type = "void*", .Name = "InterfacePointer", .Offset = 0x8, .Size = 0x8, .ArrayDim = 0x1, .Alignment = 0x8,
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
@@ -3088,7 +3480,7 @@ R"({
 	GenerateStruct(&FScriptInterface, BasicHpp, BasicCpp, BasicHpp);
 
 
-	/* class FScriptInterface */
+	/* class TScriptInterface */
 	PredefinedStruct TScriptInterface = PredefinedStruct{
 		.CustomTemplateText = "template<class InterfaceType>",
 		.UniqueName = "TScriptInterface", .Size = 0x10, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = &FScriptInterface
@@ -3308,13 +3700,79 @@ enum class EClassCastFlags : uint64
 };
 )";
 
+	/* enum class EPropertyFlags */
+	BasicHpp <<
+		R"(
+enum class EPropertyFlags : uint64
+{
+	None								= 0x0000000000000000,
+
+	Edit								= 0x0000000000000001,
+	ConstParm							= 0x0000000000000002,
+	BlueprintVisible					= 0x0000000000000004,
+	ExportObject						= 0x0000000000000008,
+	BlueprintReadOnly					= 0x0000000000000010,
+	Net									= 0x0000000000000020,
+	EditFixedSize						= 0x0000000000000040,
+	Parm								= 0x0000000000000080,
+	OutParm								= 0x0000000000000100,
+	ZeroConstructor						= 0x0000000000000200,
+	ReturnParm							= 0x0000000000000400,
+	DisableEditOnTemplate 				= 0x0000000000000800,
+
+	Transient							= 0x0000000000002000,
+	Config								= 0x0000000000004000,
+
+	DisableEditOnInstance				= 0x0000000000010000,
+	EditConst							= 0x0000000000020000,
+	GlobalConfig						= 0x0000000000040000,
+	InstancedReference					= 0x0000000000080000,	
+
+	DuplicateTransient					= 0x0000000000200000,	
+	SubobjectReference					= 0x0000000000400000,	
+
+	SaveGame							= 0x0000000001000000,
+	NoClear								= 0x0000000002000000,
+
+	ReferenceParm						= 0x0000000008000000,
+	BlueprintAssignable					= 0x0000000010000000,
+	Deprecated							= 0x0000000020000000,
+	IsPlainOldData						= 0x0000000040000000,
+	RepSkip								= 0x0000000080000000,
+	RepNotify							= 0x0000000100000000, 
+	Interp								= 0x0000000200000000,
+	NonTransactional					= 0x0000000400000000,
+	EditorOnly							= 0x0000000800000000,
+	NoDestructor						= 0x0000001000000000,
+
+	AutoWeak							= 0x0000004000000000,
+	ContainsInstancedReference			= 0x0000008000000000,	
+	AssetRegistrySearchable				= 0x0000010000000000,
+	SimpleDisplay						= 0x0000020000000000,
+	AdvancedDisplay						= 0x0000040000000000,
+	Protected							= 0x0000080000000000,
+	BlueprintCallable					= 0x0000100000000000,
+	BlueprintAuthorityOnly				= 0x0000200000000000,
+	TextExportTransient					= 0x0000400000000000,
+	NonPIEDuplicateTransient			= 0x0000800000000000,
+	ExposeOnSpawn						= 0x0001000000000000,
+	PersistentInstance					= 0x0002000000000000,
+	UObjectWrapper						= 0x0004000000000000, 
+	HasGetValueTypeHash					= 0x0008000000000000, 
+	NativeAccessSpecifierPublic			= 0x0010000000000000,	
+	NativeAccessSpecifierProtected		= 0x0020000000000000,
+	NativeAccessSpecifierPrivate		= 0x0040000000000000,	
+	SkipSerialization					= 0x0080000000000000, 
+};
+)";
+
 	/* enum class EClassCastFlags */
 	BasicHpp << R"(
 UE_ENUM_OPERATORS(EObjectFlags);
 UE_ENUM_OPERATORS(EFunctionFlags);
-UE_ENUM_OPERATORS(EPropertyFlags);
 UE_ENUM_OPERATORS(EClassFlags);
 UE_ENUM_OPERATORS(EClassCastFlags);
+UE_ENUM_OPERATORS(EPropertyFlags);
 )";
 
 

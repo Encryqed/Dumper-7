@@ -88,6 +88,7 @@ private:
 
 public:
 	using OverrideMaptType = std::unordered_map<int32 /* EnumIndex */, EnumInfo>;
+	using IllegalNameContaierType = std::vector<HashStringTableIndex>;
 
 private:
 	/* NameTable containing names of all enums as well as information on name-collisions */
@@ -99,10 +100,14 @@ private:
 	/* NameTable containing names of all enum-values as well as information on name-collisions */
 	static inline HashStringTable UniqueEnumValueNames;
 
+	/* List containing names-indices which contain illegal enum names such as 'PF_MAX' */
+	static inline IllegalNameContaierType IllegalNames;
+
 	static inline bool bIsInitialized = false;
 
 private:
 	static void InitInternal();
+	static void InitIllegalNames();
 
 public:
 	static void Init();

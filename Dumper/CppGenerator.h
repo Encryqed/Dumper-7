@@ -27,6 +27,7 @@ private:
         bool bIsOutRef;
         bool bIsMoveParam;
         bool bIsRetParam;
+        bool bIsConst;
         EPropertyFlags PropFlags;
 
         std::string Type;
@@ -93,8 +94,9 @@ public: /* DEBUG */
     static void GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile);
 
 private: /* utility functions */
-    static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper);
-    static std::string GetMemberTypeString(UEProperty Member);
+    static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper, bool bAllowForConstPtrMembers = false /* const USomeClass* Member; */);
+    static std::string GetMemberTypeString(UEProperty Member, bool bAllowForConstPtrMembers = false);
+    static std::string GetMemberTypeStringWithoutConst(UEProperty Member);
 
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);

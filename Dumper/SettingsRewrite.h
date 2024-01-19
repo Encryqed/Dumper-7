@@ -31,7 +31,7 @@ namespace SettingsRewrite
 		//Customizable part of Cpp code to allow for a custom 'uintptr_t InSDKUtils::GetImageBase()' function
 		constexpr const char* GetImageBaseFuncBody = 
 R"(	{
-		reinterpret_cast<uintptr_t>(GetModuleHandle(0));
+		return reinterpret_cast<uintptr_t>(GetModuleHandle(0));
 	}
 )";
 		//Customizable part of Cpp code to allow for a custom 'InSDKUtils::CallGameFunction' function

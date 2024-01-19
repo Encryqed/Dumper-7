@@ -13,36 +13,46 @@ private:
 	static inline std::vector<PredefinedFunction> TestFunctions = {
 		PredefinedFunction {
 			"// Function tells if if this pawn is reel",
+			"",
 			"bool",
 			"IsReelPawn(bool bIsGuaranteedToBePawn)",
+			"",
 			"{\n\treturn bIsGuaranteedToBePawn + 4;\n}"
 			, false, false, false
 		},
 		PredefinedFunction {
 			"/* Gets a bunch of actors or smoething, idk */",
+			"",
 			"TArray<class AActor*>*",
 			"GetActors(int a1)",
+			"",
 			"{\n\treturn reinterpret_cast<TArray<class AActor*>*>(&a2);\n}"
 			, true, false, false
 		},
 		PredefinedFunction {
 			"",
+			"",
 			"std::nullptr_t",
 			"GetNullPtr()",
+			"",
 			"{\n\treturn nullptr;\n}"
 			, false, false, true
 		},
 		PredefinedFunction {
 			"",
+			"",
 			"std::nullptr_t",
 			"GetNullPtrConst()",
+			"",
 			"{\n\treturn nullptr;\n}"
 			, false, true, true
 		},
 		PredefinedFunction {
 			"",
+			"",
 			"void",
 			"StaticTestFunc(bool* bIsGuaranteedToBePawn)",
+			"",
 			"{\n\t*bIsGuaranteedToBePawn = true;\n}"
 			, true, false, true
 		}
