@@ -480,13 +480,30 @@ Types::Function Package::StaticGenerateFunction(UEFunction& Function, UEStruct& 
 
 	FuncBody += "\tstatic class UFunction* Func = nullptr;\n\n\tif (!Func)\n";
 
+	static auto PrefixQuotsWithBackslash = [](std::string&& Str) -> std::string
+	{
+		for (int i = 0; i < Str.size(); i++)
+		{
+			if (Str[i] == '"')
+			{
+				Str.insert(i, "\\");
+				i++;
+			}
+		}
+
+		return Str;
+	};
+	
+	std::string FixedSuperName = PrefixQuotsWithBackslash(Super.GetName());
+	std::string FixedFunctionName = PrefixQuotsWithBackslash(Function.GetName());
+	
 	if (Settings::XORString)
 	{
-		FuncBody += std::format("\t\tFunc = Class->GetFunction({0}(\"{1}\"), {0}(\"{2}\"));\n\n", Settings::XORString, Super.GetName(), Function.GetName());
+		FuncBody += std::format("\t\tFunc = Class->GetFunction({0}(\"{1}\"), {0}(\"{2}\"));\n\n", Settings::XORString, FixedSuperName, FixedFunctionName);
 	}
 	else
 	{
-		FuncBody += std::format("\t\tFunc = Class->GetFunction(\"{}\", \"{}\");\n\n", Super.GetName(), Function.GetName());
+		FuncBody += std::format("\t\tFunc = Class->GetFunction(\"{}\", \"{}\");\n\n", FixedSuperName, FixedFunctionName);
 	}
 
 	if (bHasParams)
