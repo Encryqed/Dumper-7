@@ -474,6 +474,23 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 
 	const bool bIsNativeFunc = Func.HasFunctionFlag(EFunctionFlags::Native);
 
+	static auto PrefixQuotsWithBackslash = [](std::string&& Str) -> std::string
+	{
+		for (int i = 0; i < Str.size(); i++)
+		{
+			if (Str[i] == '"')
+			{
+				Str.insert(i, "\\");
+				i++;
+			}
+		}
+
+		return Str;
+	};
+
+	std::string FixedOuterName = PrefixQuotsWithBackslash(UnrealFunc.GetOuter().GetName());
+	std::string FixedFunctionName = PrefixQuotsWithBackslash(UnrealFunc.GetName());
+
 	// Function implementation generation
 	std::string FunctionImplementation = std::format(R"(
 // {}
@@ -497,8 +514,8 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , FuncInfo.FuncNameWithParams
 , Func.IsConst() ? " const" : ""
 , Func.IsStatic() ? "StaticClass()" : "Class"
-, UnrealFunc.GetOuter().GetName()
-, UnrealFunc.GetName()
+, FixedOuterName
+, FixedFunctionName
 , bHasParams ? ParamVarCreationString : ""
 , bHasParamsToInit ? ParamAssignments : ""
 , bIsNativeFunc ? StoreFunctionFlagsString : ""
@@ -2177,10 +2194,10 @@ class UClass* StaticClassImpl()
 	if (Clss == nullptr)
 	{
 		if constexpr (bIsFullName) {
-			Clss = StaticClassHelper::FindClassByName(Name);
-		}
-		else {
 			Clss = StaticClassHelper::FindClassByFullName(Name);
+		}
+		else /* default */ {
+			Clss = StaticClassHelper::FindClassByName(Name);
 		}
 	}
 
@@ -2353,13 +2370,19 @@ public:
 		return reinterpret_cast<class TUObjectArray*>(GObjectsAddress);
 	}
 
-	inline operator const void* () const
+	inline operator const void* ()
 	{
+		if (!GObjectsAddress) [[unlikely]]
+			InitGObjects();
+
 		return GObjectsAddress;
 	}
 
 	inline class TUObjectArray* GetTypedPtr()
 	{
+		if (!GObjectsAddress) [[unlikely]]
+			InitGObjects();
+
 		return reinterpret_cast<class TUObjectArray*>(GObjectsAddress);
 	}
 };
@@ -3789,16 +3812,3 @@ UE_ENUM_OPERATORS(EPropertyFlags);
 	WriteFileEnd(BasicCpp, EFileType::BasicCpp);
 }
 
-/*
-template<typename ClassType>
-class TEst
-{
-	template<typename Target>
-	requires std::derived_from<Target, ClassType>
-	inline operator TSubclassOf<Target>() const
-	{
-		return ClassPtr;
-	}
-
-};
-*/
