@@ -231,6 +231,9 @@ public:
 			if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function))
 				continue;
 
+			if (Obj.GetName() == "PropertyBag_8288bbedc6ee022")
+				std::cout << std::endl;
+
 			AddStructToNameContainer(Obj.Cast<UEStruct>());
 		}
 	}

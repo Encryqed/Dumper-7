@@ -58,6 +58,7 @@ private:
         BasicCpp,
 
         PropertyFixup,
+        SdkHpp,
     };
 
 private:
@@ -108,6 +109,8 @@ private:
     static void GeneratePropertyFixupFile(StreamType& PropertyFixup);
     static void WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment = "", const std::string& CustomIncludes = "");
     static void WriteFileEnd(StreamType& File, EFileType Type);
+
+    static void GenerateSDKHeader(StreamType& SdkHpp);
 
     static void GenerateBasicFiles(StreamType& BasicH, StreamType& BasicCpp);
 

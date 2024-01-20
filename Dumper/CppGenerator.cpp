@@ -202,9 +202,11 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 		bIsFirstIteration = false;
 		bDidSwitch = false;
 
+		const bool bIsConstFunc = Func.IsConst() && !Func.IsStatic();
+
 		if (Func.IsPredefined())
 		{
-			AllFuntionsText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", Func.GetPredefFuncReturnType(), Func.GetPredefFuncNameWithParams(), Func.IsConst() ? " const" : "");
+			AllFuntionsText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", Func.GetPredefFuncReturnType(), Func.GetPredefFuncNameWithParams(), bIsConstFunc ? " const" : "");
 
 			AllFuntionsText += (Func.HasInlineBody() ? ("\n\t" + Func.GetPredefFunctionInlineBody()) : ";") + "\n";
 			continue;
@@ -229,7 +231,7 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 
 			bool bIsRef = false;
 			bool bIsOut = false;
-			bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
+			bool bIsConstParam = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
 			bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
 		
 			if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
@@ -245,14 +247,14 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 				bIsOut = true;
 			}
 
-			if (bIsConst)
+			if (bIsConstParam)
 				Type = "const " + Type;
 
 			if (!bIsOut && !bIsRef && bIsMoveType)
 			{
 				Type += "&";
 
-				if (!bIsConst)
+				if (!bIsConstParam)
 					Type = "const " + Type;
 			}
 
@@ -264,7 +266,7 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 			bIsFirstParam = false;
 		}
 
-		AllFuntionsText += std::format("\t{}{} {}({}){};\n", Func.IsStatic() ? "static " : "", RetType, Func.GetName(), Params, Func.IsConst() ? " const" : "");
+		AllFuntionsText += std::format("\t{}{} {}({}){};\n", Func.IsStatic() ? "static " : "", RetType, Func.GetName(), Params, bIsConstFunc ? " const" : "");
 	}
 
 	return AllFuntionsText;
@@ -297,12 +299,17 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 	{
 		std::string Type = GetMemberTypeString(Param);
 
+		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
+
 		ParamInfo PInfo;
 		PInfo.Type = Type;
 
 		if (Param.IsReturnParam())
 		{
-			RetFuncInfo.RetType = GetMemberTypeString(Param);
+			if (bIsConst)
+				Type = "const " + Type;
+
+			RetFuncInfo.RetType = Type;
 			RetFuncInfo.bIsReturningVoid = false;
 
 			PInfo.PropFlags = Param.GetPropertyFlags();
@@ -316,7 +323,6 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 
 		bool bIsRef = false;
 		bool bIsOut = false;
-		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
 		bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
 
 		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
@@ -375,8 +381,10 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	const bool bHasInlineBody = Func.HasInlineBody();
 	const std::string TemplateText = (bHasInlineBody && Func.HasCustomTemplateText() ? (Func.GetPredefFunctionCustomTemplateText() + "\n\t") : "");
 
+	const bool bIsConstFunc = Func.IsConst() && !Func.IsStatic();
+
 	// Function declaration and inline-body generation
-	InHeaderFunctionText += std::format("\t{}{}{} {}{}", TemplateText, (Func.IsStatic() ? "static " : ""), FuncInfo.RetType, FuncInfo.FuncNameWithParams, Func.IsConst() ? " const" : "");
+	InHeaderFunctionText += std::format("\t{}{}{} {}{}", TemplateText, (Func.IsStatic() ? "static " : ""), FuncInfo.RetType, FuncInfo.FuncNameWithParams, bIsConstFunc ? " const" : "");
 	InHeaderFunctionText += (bHasInlineBody ? ("\n\t" + Func.GetPredefFunctionInlineBody()) : ";") + "\n";
 
 	if (bHasInlineBody)
@@ -397,7 +405,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , Func.GetPredefFuncReturnType()
 , StructName
 , Func.GetPredefFuncNameWithParamsForCppFile()
-, Func.IsConst() ? " const" : ""
+, bIsConstFunc ? " const" : ""
 , Func.GetPredefFunctionBody());
 
 		return InHeaderFunctionText;
@@ -512,7 +520,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , FuncInfo.RetType
 , StructName
 , FuncInfo.FuncNameWithParams
-, Func.IsConst() ? " const" : ""
+, bIsConstFunc ? " const" : ""
 , Func.IsStatic() ? "StaticClass()" : "Class"
 , FixedOuterName
 , FixedFunctionName
@@ -1051,6 +1059,31 @@ void CppGenerator::GeneratePropertyFixupFile(StreamType& PropertyFixup)
 	WriteFileEnd(PropertyFixup, EFileType::PropertyFixup);
 }
 
+void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
+{
+	WriteFileHead(SdkHpp, nullptr, EFileType::SdkHpp, "Includes the entire SDK, include files directly for faster compilation!");
+
+
+	auto ForEachElementCallback = [&SdkHpp](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
+	{
+		PackageInfoHandle CurrentPackage = PackageManager::GetInfo(NewParams.RequiredPackge);
+
+		const bool bHasClassesFile = CurrentPackage.HasClasses();
+		const bool bHasStructsFile = (CurrentPackage.HasStructs() || CurrentPackage.HasEnums());
+
+		if (bIsStruct && bHasStructsFile)
+			SdkHpp << std::format("#include \"SDK/{}_structs.hpp\"\n", CurrentPackage.GetName());
+
+		if (!bIsStruct && bHasClassesFile)
+			SdkHpp << std::format("#include \"SDK/{}_classes.hpp\"\n", CurrentPackage.GetName());
+	};
+
+	PackageManager::IterateDependencies(ForEachElementCallback);
+
+
+	WriteFileEnd(SdkHpp, EFileType::SdkHpp);
+}
+
 void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment, const std::string& CustomIncludes)
 {
 	namespace CppSettings = SettingsRewrite::CppGenerator;
@@ -1070,13 +1103,16 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	if (!CustomIncludes.empty())
 		File << CustomIncludes + "\n";
 
-	if (Type != EFileType::BasicHpp && Type != EFileType::NameCollisionsInl && Type != EFileType::PropertyFixup)
-		File << "#include \"Basic.hpp\";\n";
+	if (Type != EFileType::BasicHpp && Type != EFileType::NameCollisionsInl && Type != EFileType::PropertyFixup && Type != EFileType::SdkHpp)
+		File << "#include \"Basic.hpp\"\n";
+
+	if (Type == EFileType::SdkHpp)
+		File << "#include \"SDK/Basic.hpp\"\n";
 
 	if (Type == EFileType::BasicHpp)
 	{
-		File << "#include \"../NameCollisions.inl\";\n";
-		File << "#include \"../PropertyFixup.hpp\";\n";
+		File << "#include \"../NameCollisions.inl\"\n";
+		File << "#include \"../PropertyFixup.hpp\"\n";
 	}
 
 	if (Type == EFileType::BasicCpp)
@@ -1115,14 +1151,10 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 			std::string DependencyName = PackageManager::GetName(PackageIndex);
 
 			if (Requirements.bShouldIncludeStructs)
-			{
 				File << std::format("#include \"{}_structs.hpp\"\n", DependencyName);
-			}
 
 			if (Requirements.bShouldIncludeClasses)
-			{
 				File << std::format("#include \"{}_classes.hpp\"\n", DependencyName);
-			}
 		}
 
 		if (bAddNewLine)
@@ -1130,6 +1162,9 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	}
 
 	File << "\n";
+
+	if (Type == EFileType::SdkHpp)
+		return; /* No namespace in SDK.hpp */
 
 	if constexpr (CppSettings::SDKNamespaceName)
 	{
@@ -1151,6 +1186,9 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 {
 	namespace CppSettings = SettingsRewrite::CppGenerator;
 
+	if (Type == EFileType::SdkHpp)
+		return; /* No namespace in SDK.hpp */
+
 	if constexpr (CppSettings::SDKNamespaceName || CppSettings::ParamNamespaceName)
 	{
 		if (Type != EFileType::Functions)
@@ -1162,14 +1200,9 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 
 void CppGenerator::Generate()
 {
-	// Generate Basic.hpp and Basic.cpp files
-	StreamType BasicHpp(Subfolder / "Basic.hpp");
-	StreamType BasicCpp(Subfolder / "Basic.cpp");
-	GenerateBasicFiles(BasicHpp, BasicCpp);
-
 	// Generate SDK.hpp with sorted packages
-
-
+	StreamType SdkHpp(MainFolder / "SDK.hpp");
+	GenerateSDKHeader(SdkHpp);
 
 	// Generate PropertyFixup.hpp
 	StreamType PropertyFixup(MainFolder / "PropertyFixup.hpp");
@@ -1178,6 +1211,11 @@ void CppGenerator::Generate()
 	// Generate NameCollisions.inl file containing forward declarations for classes in namespaces (potentially requires lock)
 	StreamType NameCollisionsInl(MainFolder / "NameCollisions.inl");
 	GenerateNameCollisionsInl(NameCollisionsInl);
+
+	// Generate Basic.hpp and Basic.cpp files
+	StreamType BasicHpp(Subfolder / "Basic.hpp");
+	StreamType BasicCpp(Subfolder / "Basic.cpp");
+	GenerateBasicFiles(BasicHpp, BasicCpp);
 
 	// Generate one package, open streams
 	for (PackageInfoHandle Package : PackageManager::IterateOverPackageInfos())
@@ -1788,9 +1826,7 @@ R"({
 			continue;
 		
 		if (Object->HasTypeFlag(RequiredType) && Object->GetFullName() == FullName)
-		{
 			return Object;
-		}
 	}
 
 	return nullptr;
@@ -1810,9 +1846,7 @@ R"({
 			continue;
 		
 		if (Object->HasTypeFlag(RequiredType) && Object->GetName() == Name)
-		{
 			return Object;
-		}
 	}
 
 	return nullptr;
@@ -3406,6 +3440,11 @@ namespace FakeSoftObjectPtr
 	}
 	else /* if SoftObjectPath exists generate a copy of it within this namespace to allow for TSoftObjectPtr declaration (comes before real SoftObjectPath) */
 	{
+		UEProperty Assetpath = SoftObjectPath.FindMember("AssetPath");
+
+		if (Assetpath && Assetpath.IsA(EClassCastFlags::StructProperty))
+			GenerateStruct(Assetpath.Cast<UEStructProperty>().GetUnderlayingStruct(), BasicHpp, BasicCpp, BasicHpp);
+
 		GenerateStruct(SoftObjectPath, BasicHpp, BasicCpp, BasicHpp);
 	}
 

@@ -116,18 +116,18 @@ public:
 					bSuccededTestWithoutError = false;
 				}
 
-				if (ReqInfo.PackageIdx == PackageIndex)
+				if (ReqInfo.PackageIdx == PackageIndex && ReqInfo.bShouldIncludeStructs)
 				{
-					PrintDbgMessage<bDoDebugPrinting>("Error: {} itself\n", ObjectArray::GetByIndex(PackageIndex).GetName());
+					PrintDbgMessage<bDoDebugPrinting>("Error: {} requires itself\n", ObjectArray::GetByIndex(PackageIndex).GetName());
 					bSuccededTestWithoutError = false;
 				}
 			}
 
 			for (auto [AnotherPackageIndex, ReqInfo] : Info.PackageDependencies.ClassesDependencies)
 			{
-				if (ReqInfo.PackageIdx == PackageIndex)
+				if (ReqInfo.PackageIdx == PackageIndex && ReqInfo.bShouldIncludeClasses)
 				{
-					PrintDbgMessage<bDoDebugPrinting>("Error: {} itself\n", ObjectArray::GetByIndex(PackageIndex).GetName());
+					PrintDbgMessage<bDoDebugPrinting>("Error: {} requires itself\n", ObjectArray::GetByIndex(PackageIndex).GetName());
 					bSuccededTestWithoutError = false;
 				}
 			}
@@ -148,7 +148,7 @@ public:
 		std::vector<int32> SecondIndices;
 		Indices.reserve(PackageManager::PackageInfos.size());
 
-		bool bIsSecondIteration;
+		bool bIsSecondIteration = false;
 
 		PackageManager::FindCycleCallbackType OnElementVisit = [&](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
 		{
@@ -176,8 +176,6 @@ public:
 		bool bSuccededTestWithoutError = true;
 
 		PackageManager::Init();
-
-		VisitedNodeContainerType Visited;
 
 		PackageManager::FindCycleCallbackType OnCycleFound = [&bSuccededTestWithoutError](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
 		{

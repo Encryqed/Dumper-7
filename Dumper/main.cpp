@@ -73,48 +73,22 @@ DWORD MainThread(HMODULE Module)
 	}
 	std::cout << std::endl;
 
-	//CppGeneratorTest::TestAll();
-	//HashStringTableTest::TestAll();
-	//GeneratorRewriteTest::TestAll();
-	//StructManagerTest::TestAll<true>();
-	//EnumManagerTest::TestAll();
-	//CollisionManagerTest::TestAll();
-	//MemberManagerTest::TestAll();
 
 	//CppGeneratorTest::TestAll<true>();
-	//PackageManagerTest::TestAll<true>();
+	//HashStringTableTest::TestAll<true>();
+	//StructManagerTest::TestAll<true>();
+	//EnumManagerTest::TestAll<true>();
+	//CollisionManagerTest::TestAll<true>();
+	//MemberManagerTest::TestAll<true>();
 
-	//PackageManagerTest::TestIncludeTypes<true>();
+	//PackageManagerTest::TestAll<true>();
+	PackageManagerTest::TestFindCyclidDependencies<true>();
 	//PackageManagerTest::TestCyclicDependencyDetection<true>();
 
-	//CppGeneratorTest::TestAll();
-
-	//EnumManagerTest::TestAll<true>();
-	//PackageManagerTest::TestAll<true>();
 
 	//GeneratorRewrite::Generate<CppGenerator>();
-	
-	//MemberManagerTest::TestFunctionIterator<true>();
 
-	//CppGeneratorTest::TestAll();
 
-	//for (int i = 0; i < 100; i++)
-	//{
-	//	for (auto Obj : ObjectArray())
-	//	{
-	//		Obj.GetFullName();
-	//
-	//		if (Obj.IsA(EClassCastFlags::Struct))
-	//		{
-	//			for (auto Prop : Obj.Cast<UEStruct>().GetProperties())
-	//				Prop.GetName();
-	//		}
-	//	}
-	//}
-
-	GeneratorRewrite::Generate<CppGenerator>();
-
-	//std::cout << "FTransform::MinAlignment: " << *reinterpret_cast<int32*>(static_cast<uint8*>(ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct)) + Off::UStruct::Size + 0x4) << std::endl;
 	//Generator::GenerateSDK();
 	//Generator::GenerateMappings();
 	//Generator::GenerateIDAMappings();

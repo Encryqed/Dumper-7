@@ -48,7 +48,13 @@ struct DependencyInfo
 	DependencyListType ParametersDependencies;
 };
 
-using VisitedNodeContainerType = std::vector<VisitedNodeInformation>;
+struct IncludeData
+{
+	bool bIncludedStructs = false;
+	bool bIncludedClasses = false;
+};
+
+using VisitedNodeContainerType = std::unordered_map<int32, IncludeData>;
 
 
 struct PackageInfo
@@ -151,7 +157,6 @@ public:
 	PackageInfoIterator end() const   { return PackageInfoIterator(PackageInfos, CurrentIterationHitCount, PackageInfos.cend());   }
 };
 
-
 struct PackageManagerIterationParams
 {
 	int32 PrevPackage;
@@ -175,6 +180,25 @@ public:
 
 	using IteratePackagesCallbackType = std::function<void(const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct)>;
 	using FindCycleCallbackType = std::function<void(const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct)>;
+
+private:
+	struct SingleDependencyIterationParamsInternal
+	{
+		const IteratePackagesCallbackType& CallbackForEachPackage;
+		const FindCycleCallbackType& OnFoundCycle;
+
+		PackageManagerIterationParams& NewParams;
+		const PackageManagerIterationParams& OldParams;
+		const DependencyListType& Dependencies;
+		VisitedNodeContainerType& VisitedNodes;
+
+		int32 CurrentIndex;
+		int32 PrevIndex;
+		uint64& IterationHitCounterRef;
+
+		bool bShouldHandlePackage;
+		bool bIsStruct;
+	};
 
 private:
 	/* NameTable containing names of all Packages as well as information on name-collisions */
@@ -202,8 +226,9 @@ private:
 	}
 
 private:
-	template<bool bCheckForCycle = false>
-	static void IterateDependenciesImplementation(const PackageManagerIterationParams& Params, const IteratePackagesCallbackType& CallbackForEachPackage, const FindCycleCallbackType& OnFoundCycle);
+	static void IterateSingleDependencyImplementation(SingleDependencyIterationParamsInternal& Params, bool bCheckForCycle);
+
+	static void IterateDependenciesImplementation(const PackageManagerIterationParams& Params, const IteratePackagesCallbackType& CallbackForEachPackage, const FindCycleCallbackType& OnFoundCycle, bool bCheckForCycle);
 
 public:
 	static void IterateDependencies(const IteratePackagesCallbackType& CallbackForEachPackage);

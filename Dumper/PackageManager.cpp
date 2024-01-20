@@ -109,7 +109,7 @@ namespace PackageManagerUtils
 		}
 		else if (Prop.IsA(EClassCastFlags::EnumProperty))
 		{
-			if (auto Enum = Prop.Cast<UEEnumProperty>().GetEnum())
+			if (UEObject Enum = Prop.Cast<UEEnumProperty>().GetEnum())
 				Store.insert(Enum.GetIndex());
 		}
 		else if (Prop.IsA(EClassCastFlags::ByteProperty))
@@ -146,7 +146,7 @@ namespace PackageManagerUtils
 		Dependencies.erase(StructIdx);
 
 		return Dependencies;
-	};
+	}
 
 	inline void SetPackageDependencies(DependencyListType& DependencyTracker, const std::unordered_set<int32>& Dependencies, int32 StructPackageIdx, bool bAllowToIncludeOwnPackage = false)
 	{
@@ -154,10 +154,35 @@ namespace PackageManagerUtils
 		{
 			const int32 PackageIdx = ObjectArray::GetByIndex(Dependency).GetPackageIndex();
 
+
 			if (bAllowToIncludeOwnPackage || PackageIdx != StructPackageIdx)
-				DependencyTracker[PackageIdx].bShouldIncludeStructs = true; // Dependencies only contains structs/enums which are in the "PackageName_structs.hpp" file
+			{
+				RequirementInfo& ReqInfo = DependencyTracker[PackageIdx];
+				ReqInfo.PackageIdx = PackageIdx;
+				ReqInfo.bShouldIncludeStructs = true; // Dependencies only contains structs/enums which are in the "PackageName_structs.hpp" file
+			}
 		}
-	};
+	}
+
+	inline void AddEnumPackageDependencies(DependencyListType& DependencyTracker, const std::unordered_set<int32>& Dependencies, int32 StructPackageIdx, bool bAllowToIncludeOwnPackage = false)
+	{
+		for (int32 Dependency : Dependencies)
+		{
+			UEObject DependencyObject = ObjectArray::GetByIndex(Dependency);
+
+			if (!DependencyObject.IsA(EClassCastFlags::Enum))
+				continue;
+
+			const int32 PackageIdx = DependencyObject.GetPackageIndex();
+
+			if (bAllowToIncludeOwnPackage || PackageIdx != StructPackageIdx)
+			{
+				RequirementInfo& ReqInfo = DependencyTracker[PackageIdx];
+				ReqInfo.PackageIdx = PackageIdx;
+				ReqInfo.bShouldIncludeStructs = true; // Dependencies only contains enums which are in the "PackageName_structs.hpp" file
+			}
+		}
+	}
 
 	inline void AddStructDependencies(DependencyManager& StructDependencies, const std::unordered_set<int32>& Dependenies, int32 StructIdx, int32 StructPackageIndex)
 	{
@@ -172,7 +197,7 @@ namespace PackageManagerUtils
 		}
 
 		StructDependencies.SetDependencies(StructIdx, std::move(TempSet));
-	};
+	}
 }
 
 void PackageManager::InitDependencies()
@@ -238,13 +263,17 @@ void PackageManager::InitDependencies()
 			/* Add class-functions to package */
 			for (UEFunction Func : ObjAsStruct.GetFunctions())
 			{
-				Info.Functions.push_back(Obj.GetIndex());
+				Info.Functions.push_back(Func.GetIndex());
 
-				std::unordered_set<int32> Dependencies = PackageManagerUtils::GetDependencies(ObjAsStruct, StructIdx);
+				std::unordered_set<int32> ParamDependencies = PackageManagerUtils::GetDependencies(Func, Func.GetIndex());
 
 				BooleanOrEqual(Info.bHasParams, Func.HasMembers());
 
-				PackageManagerUtils::SetPackageDependencies(Info.PackageDependencies.ParametersDependencies, Dependencies, StructPackageIdx, true);
+				const int32 FuncPackageIndex = Func.GetPackageIndex();
+
+				/* Add dependencies to ParamDependencies and add enums only to class dependencies (forwarddeclaration of enum classes defaults to int) */
+				PackageManagerUtils::SetPackageDependencies(Info.PackageDependencies.ParametersDependencies, ParamDependencies, FuncPackageIndex, true);
+				PackageManagerUtils::AddEnumPackageDependencies(Info.PackageDependencies.ClassesDependencies, ParamDependencies, FuncPackageIndex, true);
 			}
 		}
 		else if (bIsEnum)
@@ -283,77 +312,96 @@ void PackageManager::Init()
 	InitNames();
 }
 
-template<bool bCheckForCycle>
-void PackageManager::IterateDependenciesImplementation(const PackageManagerIterationParams& Params, const IteratePackagesCallbackType& CallbackForEachPackage, const FindCycleCallbackType& OnFoundCycle)
+void PackageManager::IterateSingleDependencyImplementation(SingleDependencyIterationParamsInternal& Params, bool bCheckForCycle)
+{
+	if (!Params.bShouldHandlePackage)
+		return;
+
+	const bool bIsIncluded = Params.IterationHitCounterRef >= CurrentIterationHitCount;
+
+	if (!bIsIncluded)
+	{
+		Params.IterationHitCounterRef = CurrentIterationHitCount;
+
+		IncludeData& Include = Params.VisitedNodes[Params.CurrentIndex];
+		Include.bIncludedStructs = (Include.bIncludedStructs || Params.bIsStruct);
+		Include.bIncludedClasses = (Include.bIncludedClasses || !Params.bIsStruct);
+
+		for (auto& [Index, Requirements] : Params.Dependencies)
+		{
+			Params.NewParams.bWasPrevNodeStructs = Params.bIsStruct;
+			Params.NewParams.bRequiresClasses = Requirements.bShouldIncludeClasses;
+			Params.NewParams.bRequiresStructs = Requirements.bShouldIncludeStructs;
+			Params.NewParams.RequiredPackge = Requirements.PackageIdx;
+
+			/* Iterate dependencies recursively */
+			IterateDependenciesImplementation(Params.NewParams, Params.CallbackForEachPackage, Params.OnFoundCycle, bCheckForCycle);
+		}
+
+		Params.VisitedNodes.erase(Params.CurrentIndex);
+
+		// PERFORM ACTION
+		Params.CallbackForEachPackage(Params.NewParams, Params.OldParams, Params.bIsStruct);
+		return;
+	}
+
+	if (bCheckForCycle)
+	{
+		auto It = Params.VisitedNodes.find(Params.CurrentIndex);
+		if (It != Params.VisitedNodes.end())
+		{
+			if ((It->second.bIncludedStructs && Params.bIsStruct) || (It->second.bIncludedClasses && !Params.bIsStruct))
+				Params.OnFoundCycle(Params.NewParams, Params.OldParams, Params.bIsStruct);
+		}
+	}
+}
+
+void PackageManager::IterateDependenciesImplementation(const PackageManagerIterationParams& Params, const IteratePackagesCallbackType& CallbackForEachPackage, const FindCycleCallbackType& OnFoundCycle, bool bCheckForCycle)
 {
 	PackageManagerIterationParams NewParams = {
 		.PrevPackage = Params.RequiredPackge,
-		.RequiredPackge = 4,
 
 		.VisitedNodes = Params.VisitedNodes,
 	};
 
-	static auto FindCycleHandler = [&CallbackForEachPackage, &OnFoundCycle, OldParams = &Params](PackageManagerIterationParams& NewParams, const DependencyListType& Dependencies, VisitedNodeContainerType& VisitedNodes,
-		int32 CurrentIndex, int32 PrevIndex, uint64& IterationHitCounter, bool bShouldHandlePackage, bool bIsStruct) -> void
-	{
-		if (!bShouldHandlePackage)
-			return;
+	DependencyInfo& Dependencies = PackageInfos.at(Params.RequiredPackge).PackageDependencies;
 
-		const bool bIsIncluded = IterationHitCounter < CurrentIterationHitCount;
+	SingleDependencyIterationParamsInternal StructsParams{
+		.CallbackForEachPackage = CallbackForEachPackage,
+		.OnFoundCycle = OnFoundCycle,
 
-		if (bIsIncluded)
-		{
-			IterationHitCounter = CurrentIterationHitCount;
+		.NewParams = NewParams,
+		.OldParams = Params,
+		.Dependencies = Dependencies.StructsDependencies,
+		.VisitedNodes = Params.VisitedNodes,
 
-			const uint64 StructsHitCount = bIsStruct ? IterationHitCounter : 0x0;
-			const uint64 ClassesHitCount = !bIsStruct ? IterationHitCounter : 0x0;
+		.CurrentIndex = Params.RequiredPackge,
+		.PrevIndex = Params.PrevPackage,
+		.IterationHitCounterRef = Dependencies.StructsIterationHitCount,
 
-			VisitedNodes.push_back({ .PackageIdx = CurrentIndex, .StructsIterationHitCount = StructsHitCount, .ClassesIterationHitCount = ClassesHitCount, });
-
-			bool bFoundCycle = false;
-
-			for (auto& [Index, Requirements] : Dependencies)
-			{
-				NewParams.bWasPrevNodeStructs = bIsStruct;
-				NewParams.bRequiresClasses = Requirements.bShouldIncludeClasses;
-				NewParams.bRequiresStructs = Requirements.bShouldIncludeStructs;
-
-				/* Iterate dependencies recursively */
-				IterateDependenciesImplementation(NewParams, CallbackForEachPackage, OnFoundCycle);
-			}
-
-			// PERFORM ACTION
-			CallbackForEachPackage(NewParams, *OldParams, bIsStruct);
-		}
-
-		if constexpr (bCheckForCycle)
-		{
-			if (!bIsIncluded)
-				return;
-
-			const bool bShouldIncludeStructs = bIsStruct;
-			const bool bShouldIncludeClasses = !bIsStruct;
-
-			auto CompareInfoPairs = [=](const VisitedNodeInformation& Info)
-			{
-				if (bShouldIncludeStructs)
-					return Info.PackageIdx == CurrentIndex && Info.StructsIterationHitCount == IterationHitCounter;
-
-				return Info.PackageIdx == CurrentIndex && Info.ClassesIterationHitCount == IterationHitCounter;
-			};
-
-			/* No need to check unvisited nodes, they are guaranteed not to be in our "Visited" list */
-			if (std::find_if(VisitedNodes.begin(), VisitedNodes.end(), CompareInfoPairs) != std::end(VisitedNodes))
-			{
-				OnFoundCycle(NewParams, *OldParams, bIsStruct);
-			}
-		}
+		.bShouldHandlePackage = Params.bRequiresStructs,
+		.bIsStruct = true,
 	};
 
-	DependencyInfo& Dependencies = PackageInfos[Params.RequiredPackge].PackageDependencies;
+	SingleDependencyIterationParamsInternal ClassesParams{
+		.CallbackForEachPackage = CallbackForEachPackage,
+		.OnFoundCycle = OnFoundCycle,
 
-	FindCycleHandler(NewParams, Dependencies.StructsDependencies, Params.VisitedNodes, Params.RequiredPackge, Params.PrevPackage, Dependencies.StructsIterationHitCount, Params.bRequiresStructs, true);
-	FindCycleHandler(NewParams, Dependencies.ClassesDependencies, Params.VisitedNodes, Params.RequiredPackge, Params.PrevPackage, Dependencies.ClassesIterationHitCount, Params.bRequiresClasses, false);
+		.NewParams = NewParams,
+		.OldParams = Params,
+		.Dependencies = Dependencies.ClassesDependencies,
+		.VisitedNodes = Params.VisitedNodes,
+
+		.CurrentIndex = Params.RequiredPackge,
+		.PrevIndex = Params.PrevPackage,
+		.IterationHitCounterRef = Dependencies.ClassesIterationHitCount,
+
+		.bShouldHandlePackage = Params.bRequiresClasses,
+		.bIsStruct = false,
+	};
+
+	IterateSingleDependencyImplementation(StructsParams, bCheckForCycle);
+	IterateSingleDependencyImplementation(ClassesParams, bCheckForCycle);
 }
 
 void PackageManager::IterateDependencies(const IteratePackagesCallbackType& CallbackForEachPackage)
@@ -368,6 +416,9 @@ void PackageManager::IterateDependencies(const IteratePackagesCallbackType& Call
 
 	FindCycleCallbackType OnCycleFoundCallback = [](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void { };
 
+	/* Increment hit counter for new iteration-cycle */
+	CurrentIterationHitCount++;
+
 	for (const auto& [PackageIndex, Info] : PackageInfos)
 	{
 		Params.RequiredPackge = PackageIndex;
@@ -376,7 +427,7 @@ void PackageManager::IterateDependencies(const IteratePackagesCallbackType& Call
 		Params.bRequiresStructs = true;
 		Params.VisitedNodes.clear();
 
-		IterateDependenciesImplementation(Params, CallbackForEachPackage, OnCycleFoundCallback);
+		IterateDependenciesImplementation(Params, CallbackForEachPackage, OnCycleFoundCallback, false);
 	}
 }
 
@@ -392,6 +443,9 @@ void PackageManager::FindCycle(const FindCycleCallbackType& OnFoundCycle)
 
 	FindCycleCallbackType CallbackForEachPackage = [](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void {};
 
+	/* Increment hit counter for new iteration-cycle */
+	CurrentIterationHitCount++;
+
 	for (const auto& [PackageIndex, Info] : PackageInfos)
 	{
 		Params.RequiredPackge = PackageIndex;
@@ -400,7 +454,7 @@ void PackageManager::FindCycle(const FindCycleCallbackType& OnFoundCycle)
 		Params.bRequiresStructs = true;
 		Params.VisitedNodes.clear();
 
-		IterateDependenciesImplementation<true>(Params, CallbackForEachPackage, OnFoundCycle);
+		IterateDependenciesImplementation(Params, CallbackForEachPackage, OnFoundCycle, true);
 	}
 }
 

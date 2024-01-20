@@ -78,8 +78,10 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 		NameInfo NewInfo(NameIdx, CurrentType);
 		NewInfo.OwnType = static_cast<uint8>(CurrentType);
 
-		for (const NameInfo& ExistingName : SearchNames)
+		for (auto RevIt = SearchNames.crbegin(); RevIt != SearchNames.crend(); ++RevIt)
 		{
+			const NameInfo& ExistingName = *RevIt;
+
 			if (ExistingName.Name != NameIdx)
 				continue;
 

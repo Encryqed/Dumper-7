@@ -33,13 +33,13 @@ void GeneratorRewrite::InitInternal()
 	PackageManager::Init();
 
 	// Initialize StructManager with all structs and their names
-	StructManager::Init();
-
-	// Initialize EnumManager with all enums and their names
-	EnumManager::Init();
-
-	// Initialized all Member-Name collisions
-	MemberManager::Init();
+	////StructManager::Init();
+	////
+	////// Initialize EnumManager with all enums and their names
+	////EnumManager::Init();
+	////
+	////// Initialized all Member-Name collisions
+	////MemberManager::Init();
 }
 
 bool GeneratorRewrite::SetupDumperFolder()

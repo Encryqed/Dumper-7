@@ -55,10 +55,10 @@ public:
 
 		ULevelMembers =
 		{
-			PredefinedMember{ "void*", "StaticPtr", 0x00, 0x08, 0x01, 0x08, true, false, 0xFF },
-			PredefinedMember{ "TArray<class AActor*>", "Actors", Off::ULevel::Actors, 0x10, 0x01, 0x08, false ,false, 0xFF },
-			PredefinedMember{ "std::nullptr_t", "MadeUpShit", 0x140, 0x08, 0x03, 0x08, false ,false, 0xFF },
-			PredefinedMember{ "uint8", "bIsBitfield", 0x30, 0x01, 0x01, 0x01, false, true, 0x4 }
+			PredefinedMember{ "", "void*", "StaticPtr", 0x00, 0x08, 0x01, 0x08, true, false, false, 0xFF },
+			PredefinedMember{ "", "TArray<class AActor*>", "Actors", Off::ULevel::Actors, 0x10, 0x01, 0x08, false, false, false, 0xFF },
+			PredefinedMember{ "", "std::nullptr_t", "MadeUpShit", 0x140, 0x08, 0x03, 0x08, false, false, false, 0xFF },
+			PredefinedMember{ "", "uint8", "bIsBitfield", 0x30, 0x01, 0x01, 0x01, false, false, true, 0x4 }
 		};
 
 		std::sort(ULevelMembers.begin(), ULevelMembers.end(), ComparePredefinedMembers);
@@ -124,36 +124,46 @@ public:
 		APawnFunctions = {
 			PredefinedFunction {
 				"// Function tells if if this pawn is reel",
+				"",
 				"bool",
 				"IsReelPawn(bool bIsGuaranteedToBePawn)",
+				"",
 				"\t{\n\t\treturn bIsGuaranteedToBePawn + 4;\n\t}"
 				, false, false, false
 		},
 			PredefinedFunction {
 				"/* Gets a bunch of actors or smoething, idk */",
+				"",
 				"TArray<class AActor*>*",
 				"GetActors(int a1)",
+				"",
 				"\t{\n\t\treturn reinterpret_cast<TArray<class AActor*>*>(&a2);\n\t}"
 				, true, false, false
 		},
 			PredefinedFunction {
 				"",
+				"",
 				"std::nullptr_t",
 				"GetNullPtr()",
+				"",
 				"\t{\n\t\treturn nullptr;\n\t}"
 				, false, false, true
 		},
 			PredefinedFunction {
 				"",
+				"",
 				"std::nullptr_t",
 				"GetNullPtrConst()",
+				"",
 				"\t{\n\t\treturn nullptr;\n\t}"
 				, false, true, true
 		},
 			PredefinedFunction {
 				"",
+				"",
 				"void",
 				"StaticTestFunc(bool* bIsGuaranteedToBePawn)",
+				"",
 				"\t{\n\t\t*bIsGuaranteedToBePawn = true;\n\t}"
 				, true, false, true
 		}
