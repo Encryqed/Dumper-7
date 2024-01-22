@@ -299,6 +299,17 @@ void PackageManager::InitNames()
 	}
 }
 
+void PackageManager::HandleCycles()
+{
+	FindCycleCallbackType OnCycleFoundCallback = [](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
+	{
+		UEObject CurrentPackage = ObjectArray::GetByIndex(NewParams.RequiredPackge);
+		UEObject PreviousPackage = ObjectArray::GetByIndex(NewParams.PrevPackage);
+	};
+
+	FindCycle(OnCycleFoundCallback);
+}
+
 void PackageManager::Init()
 {
 	if (bIsInitialized)
@@ -310,6 +321,7 @@ void PackageManager::Init()
 
 	InitDependencies();
 	InitNames();
+	HandleCycles();
 }
 
 void PackageManager::IterateSingleDependencyImplementation(SingleDependencyIterationParamsInternal& Params, bool bCheckForCycle)

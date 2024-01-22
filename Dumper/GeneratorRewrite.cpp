@@ -61,7 +61,7 @@ bool GeneratorRewrite::SetupDumperFolder()
 			fs::rename(DumperFolder, Old);
 		}
 
-		fs::create_directory(DumperFolder);
+		fs::create_directories(DumperFolder);
 	}
 	catch (const std::filesystem::filesystem_error& fe)
 	{
@@ -99,10 +99,10 @@ bool GeneratorRewrite::SetupFolders(std::string& FolderName, fs::path& OutFolder
 			fs::rename(OutFolder, Old);
 		}
 
-		fs::create_directory(OutFolder);
+		fs::create_directories(OutFolder);
 
 		if (!SubfolderName.empty())
-			fs::create_directory(OutSubFolder);
+			fs::create_directories(OutSubFolder);
 	}
 	catch (const std::filesystem::filesystem_error& fe)
 	{

@@ -215,6 +215,7 @@ private:
 private:
 	static void InitDependencies();
 	static void InitNames();
+	static void HandleCycles();
 
 public:
 	static void Init();
