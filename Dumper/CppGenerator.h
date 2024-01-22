@@ -59,6 +59,8 @@ private:
 
         PropertyFixup,
         SdkHpp,
+
+        DebugAssertions,
     };
 
 private:
@@ -107,6 +109,7 @@ private: /* utility functions */
 private:
     static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);
     static void GeneratePropertyFixupFile(StreamType& PropertyFixup);
+    static void GenerateDebugAssertions(StreamType& AssertionStream);
     static void WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment = "", const std::string& CustomIncludes = "");
     static void WriteFileEnd(StreamType& File, EFileType Type);
 

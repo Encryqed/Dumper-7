@@ -1059,6 +1059,60 @@ void CppGenerator::GeneratePropertyFixupFile(StreamType& PropertyFixup)
 	WriteFileEnd(PropertyFixup, EFileType::PropertyFixup);
 }
 
+void CppGenerator::GenerateDebugAssertions(StreamType& AssertionStream)
+{
+	WriteFileHead(AssertionStream, nullptr, EFileType::DebugAssertions, "Debug assertions to verify member-offsets and struct-sizes");
+
+	for (PackageInfoHandle Package : PackageManager::IterateOverPackageInfos())
+	{
+		DependencyManager::IncludeFunctionType GenerateStructAssertionsCallback = [&AssertionStream](int32 Index) -> void
+		{
+			StructWrapper Struct = ObjectArray::GetByIndex<UEStruct>(Index);
+
+			std::string UniquePrefixedName = GetStructPrefixedName(Struct);
+
+			AssertionStream << std::format("// {} {}\n", (Struct.IsClass() ? "class" : "struct"), UniquePrefixedName);
+
+			// Alignment assertions
+			AssertionStream << std::format("static_assert(alignof({}) == 0x{:06X});\n", UniquePrefixedName, Struct.GetAlignment());
+
+			// Size assertions
+			AssertionStream << std::format("static_assert(sizeof({}) == 0x{:06X});\n", UniquePrefixedName, Struct.GetSize());
+
+			AssertionStream << "\n";
+
+			// Member offset assertions
+			MemberManager Members = Struct.GetMembers();
+
+			for (const PropertyWrapper& Member : Members.IterateMembers())
+			{
+				if (Member.IsStatic() || Member.IsZeroSizedMember())
+					continue;
+
+				AssertionStream << std::format("static_assert(offsetof({}, {}) == 0x{:06X});\n", UniquePrefixedName, Member.GetName(), Member.GetOffset());
+			}
+
+			AssertionStream << "\n\n";
+		};
+
+		if (Package.HasStructs())
+		{
+			const DependencyManager& Structs = Package.GetSortedStructs();
+
+			Structs.VisitAllNodesWithCallback(GenerateStructAssertionsCallback);
+		}
+
+		if (Package.HasClasses())
+		{
+			const DependencyManager& Classes = Package.GetSortedClasses();
+
+			Classes.VisitAllNodesWithCallback(GenerateStructAssertionsCallback);
+		}
+	}
+
+	WriteFileEnd(AssertionStream, EFileType::DebugAssertions);
+}
+
 void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
 {
 	WriteFileHead(SdkHpp, nullptr, EFileType::SdkHpp, "Includes the entire SDK, include files directly for faster compilation!");
@@ -1103,11 +1157,14 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	if (!CustomIncludes.empty())
 		File << CustomIncludes + "\n";
 
-	if (Type != EFileType::BasicHpp && Type != EFileType::NameCollisionsInl && Type != EFileType::PropertyFixup && Type != EFileType::SdkHpp)
+	if (Type != EFileType::BasicHpp && Type != EFileType::NameCollisionsInl && Type != EFileType::PropertyFixup && Type != EFileType::SdkHpp && Type != EFileType::DebugAssertions)
 		File << "#include \"Basic.hpp\"\n";
 
 	if (Type == EFileType::SdkHpp)
 		File << "#include \"SDK/Basic.hpp\"\n";
+
+	if (Type == EFileType::DebugAssertions)
+		File << "#include \"SDK.hpp\"\n";
 
 	if (Type == EFileType::BasicHpp)
 	{
@@ -1217,7 +1274,15 @@ void CppGenerator::Generate()
 	StreamType BasicCpp(Subfolder / "Basic.cpp");
 	GenerateBasicFiles(BasicHpp, BasicCpp);
 
-	// Generate one package, open streams
+
+	if constexpr (SettingsRewrite::Debug::bGenerateAssertionFile)
+	{
+		// Generate Assertions.inl file containing assertions on struct-size, struct-align and member offsets
+		StreamType DebugAssertions(MainFolder / "Assertions.inl");
+		GenerateDebugAssertions(DebugAssertions);
+	}
+
+	// Generates all packages and writes them to files
 	for (PackageInfoHandle Package : PackageManager::IterateOverPackageInfos())
 	{
 		if (Package.IsEmpty())

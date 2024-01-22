@@ -46,7 +46,7 @@ R"(
 )";
 	}
 
-	/* Not implemented */
+	/* Partially implemented (assertions for all packages) */
 	namespace Debug
 	{
 		inline constexpr bool bGenerateAssertionFile = false;
