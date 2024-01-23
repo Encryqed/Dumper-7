@@ -1002,7 +1002,7 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 
 		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Enum.GetPackageIndex()];
 
-		ForwardDeclarations += std::format("\t{} {};\n", "eunum class", Enum.GetEnumPrefixedName());
+		ForwardDeclarations += std::format("\t{} {};\n", "enum class", Enum.GetEnumPrefixedName());
 		Count++;
 	}
 
