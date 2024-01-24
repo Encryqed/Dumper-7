@@ -1002,7 +1002,7 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 
 		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Enum.GetPackageIndex()];
 
-		ForwardDeclarations += std::format("\t{} {};\n", "eunum class", Enum.GetEnumPrefixedName());
+		ForwardDeclarations += std::format("\teunum class {} : {};\n", Enum.GetEnumPrefixedName(), GetTypeFromSize(EnumInfoHandle(Info).GetUnderlyingTypeSize()));
 		Count++;
 	}
 
@@ -1086,7 +1086,7 @@ void CppGenerator::GenerateDebugAssertions(StreamType& AssertionStream)
 
 			for (const PropertyWrapper& Member : Members.IterateMembers())
 			{
-				if (Member.IsStatic() || Member.IsZeroSizedMember())
+				if (Member.IsStatic() || Member.IsZeroSizedMember() || Member.IsBitField())
 					continue;
 
 				AssertionStream << std::format("static_assert(offsetof({}, {}) == 0x{:06X});\n", UniquePrefixedName, Member.GetName(), Member.GetOffset());
