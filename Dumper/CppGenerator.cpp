@@ -3453,6 +3453,26 @@ public:
 	if (Settings::Internal::bIsWeakObjectPtrWithoutTag)
 		TPersistentObjectPtr.Properties.erase(TPersistentObjectPtr.Properties.begin() + 1); // TagAtLast
 
+	TPersistentObjectPtr.Functions =
+	{
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "class UObject*", .NameWithParams = "Get()", .Body =
+R"({
+	return WeakPtr.Get();
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "class UObject*", .NameWithParams = "operator->()", .Body =
+R"({
+	return WeakPtr.Get();
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+	};
+
 	GenerateStruct(&TPersistentObjectPtr, BasicHpp, BasicCpp, BasicHpp);
 
 
