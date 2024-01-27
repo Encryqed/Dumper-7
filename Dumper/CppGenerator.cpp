@@ -2144,11 +2144,220 @@ R"({
 		},
 	};
 
+	UEStruct Vector = ObjectArray::FindObjectFast<UEStruct>("Vector");
+
+	const bool bUseDoublesForVector = Vector.GetStructSize() > 0xC;
+
+	PredefinedElements& FVectorPredefs = PredefinedMembers[Vector.GetIndex()];
+
+	FVectorPredefs.Members.push_back(PredefinedMember{
+		PredefinedMember{
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = std::format("using UnderlayingType = {}", (bUseDoublesForVector ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF,
+		}
+	});
+
+	FVectorPredefs.Functions =
+	{
+		/* const operators */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector", .NameWithParams = "operator +(const FVector& Other)", .Body =
+R"({
+	return { X + Other.X, Y + Other.Y, Z + Other.Z };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector", .NameWithParams = "operator -(const FVector& Other)", .Body =
+R"({
+	return { X - Other.X, Y - Other.Y, Z - Other.Z };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector", .NameWithParams = "operator *(float Scalar)", .Body =
+R"({
+	return { X * Scalar, Y * Scalar, Z * Scalar };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector", .NameWithParams = "operator *(const FVector& Other)", .Body =
+R"({
+	return { X * Other.X, Y * Other.Y, Z * Other.Z };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector", .NameWithParams = "operator /(float Scalar)", .Body =
+R"({
+	if (Scalar == 0.0f)
+		return *this;
+
+	return { X / Scalar, Y / Scalar, Z / Scalar };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector", .NameWithParams = "operator /(const FVector& Other)", .Body =
+R"({
+	if (Other.X == 0.0f || Other.Y == 0.0f ||Other.Z == 0.0f)
+		return *this;
+
+	return { X / Other.X, Y / Other.Y, Z / Other.Z };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator==(const FVector& Other)", .Body =
+R"({
+	return X == Other.X && Y == Other.Y && Z == Other.Z;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator!=(const FVector& Other)", .Body =
+R"({
+	return X != Other.X || Y != Other.Y || Z != Other.Z;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+
+		/* Non-const operators */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector&", .NameWithParams = "operator +=(const FVector& Other)", .Body =
+R"({
+	*this = *this + Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector&", .NameWithParams = "operator -=(const FVector& Other)", .Body =
+R"({
+	*this = *this - Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector&", .NameWithParams = "operator *=(float Scalar)", .Body =
+R"({
+	*this = *this * Scalar;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector&", .NameWithParams = "operator *=(const FVector& Other)", .Body =
+R"({
+	*this = *this * Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector&", .NameWithParams = "operator /=(float Scalar)", .Body =
+R"({
+	*this = *this / Scalar;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector&", .NameWithParams = "operator /=(const FVector& Other)", .Body =
+R"({
+	*this = *this / Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+
+		/* Const functions */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "IsZero()", .Body =
+R"({
+	return X == 0.0 && Y == 0.0 && Z == 0.0;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "UnderlayingType", .NameWithParams = "Dot(const FVector& Other)", .Body =
+R"({
+	return (X * Other.X) + (Y * Other.Y) + (Z * Other.Z);
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "UnderlayingType", .NameWithParams = "Magnitude()", .Body =
+R"({
+	return std::sqrt((X * X) + (Y * Y) + (Z * Z));
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "FVector", .NameWithParams = "GetNormalized()", .Body =
+R"({
+	return *this / Magnitude();
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceTo(const FVector& Other)", .Body =
+R"({
+	FVector DiffVector = Other - *this;
+	return DiffVector.Magnitude();
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceToInMeters(const FVector& Other)", .Body =
+R"({
+	return GetDistanceTo(Other) * 0.01;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+
+
+		/* Non-const functions */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "FVector&", .NameWithParams = "Normalize()", .Body =
+R"({
+	*this /= Magnitude();
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+	};
+
 	SortFunctions(UObjectPredefs.Functions);
 	SortFunctions(UClassPredefs.Functions);
 	SortFunctions(UEnginePredefs.Functions);
 	SortFunctions(UGameEnginePredefs.Functions);
 	SortFunctions(UWorldPredefs.Functions);
+	SortFunctions(FVectorPredefs.Functions);
 }
 
 
@@ -3461,7 +3670,7 @@ public:
 R"({
 	return WeakPtr.Get();
 })",
-			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 		PredefinedFunction {
 			.CustomComment = "",
@@ -3469,7 +3678,7 @@ R"({
 R"({
 	return WeakPtr.Get();
 })",
-			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 	};
 
