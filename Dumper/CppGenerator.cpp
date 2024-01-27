@@ -2163,7 +2163,7 @@ R"({
 		/* const operators */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator +(const FVector& Other)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator+(const FVector& Other)", .Body =
 R"({
 	return { X + Other.X, Y + Other.Y, Z + Other.Z };
 })",
@@ -2171,7 +2171,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator -(const FVector& Other)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator-(const FVector& Other)", .Body =
 R"({
 	return { X - Other.X, Y - Other.Y, Z - Other.Z };
 })",
@@ -2179,7 +2179,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator *(float Scalar)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator*(float Scalar)", .Body =
 R"({
 	return { X * Scalar, Y * Scalar, Z * Scalar };
 })",
@@ -2187,7 +2187,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator *(const FVector& Other)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator*(const FVector& Other)", .Body =
 R"({
 	return { X * Other.X, Y * Other.Y, Z * Other.Z };
 })",
@@ -2195,7 +2195,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator /(float Scalar)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator/(float Scalar)", .Body =
 R"({
 	if (Scalar == 0.0f)
 		return *this;
@@ -2206,7 +2206,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator /(const FVector& Other)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator/(const FVector& Other)", .Body =
 R"({
 	if (Other.X == 0.0f || Other.Y == 0.0f ||Other.Z == 0.0f)
 		return *this;
@@ -2235,7 +2235,7 @@ R"({
 		/* Non-const operators */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator +=(const FVector& Other)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator+=(const FVector& Other)", .Body =
 R"({
 	*this = *this + Other;
 	return *this;
@@ -2244,7 +2244,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator -=(const FVector& Other)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator-=(const FVector& Other)", .Body =
 R"({
 	*this = *this - Other;
 	return *this;
@@ -2253,7 +2253,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator *=(float Scalar)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator*=(float Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
 	return *this;
@@ -2262,7 +2262,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator *=(const FVector& Other)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator*=(const FVector& Other)", .Body =
 R"({
 	*this = *this * Other;
 	return *this;
@@ -2271,7 +2271,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator /=(float Scalar)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator/=(float Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
 	return *this;
@@ -2280,7 +2280,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator /=(const FVector& Other)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator/=(const FVector& Other)", .Body =
 R"({
 	*this = *this / Other;
 	return *this;
