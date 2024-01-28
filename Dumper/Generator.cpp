@@ -1104,12 +1104,12 @@ R"(
 			},
 
 		// Functions
-{ "\tinline bool FVector::IsValid() const", "", R"(
+{ "\tinline bool FVector::IsZero() const", "", R"(
 	{
 		return X == 0.0f && Y == 0.0f && Z == 0.0f;
 	})"
 			},
-{ "\tvoid FVector::Normalize360();", "\tvoid FVector::Normalize360()", R"(
+{ "\tvoid FVector::Clamp360();", "\tvoid FVector::Clamp360()", R"(
 	{
 		const float maxX1 = 80.f;
 
@@ -1145,7 +1145,7 @@ R"(
 	}
 )"
 			},
-{ "\tFVector FVector::Unit() const;", "\tFVector FVector::Unit()", R"(
+{ "\tFVector FVector::GetNormalized() const;", "\tFVector FVector::GetNormalized()", R"(
 	{
 		const float fMagnitude = Magnitude();
 		return FVector(X / fMagnitude, Y / fMagnitude, Z / fMagnitude);
