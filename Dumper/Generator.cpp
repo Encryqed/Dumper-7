@@ -528,6 +528,7 @@ void Generator::GenerateSDKHeader(const fs::path& SdkPath, int32 BiggestPackageI
 	HeaderStream << std::format("// {}\n\n", Settings::GameVersion);
 	HeaderStream << std::format("// Main-package: {}\n\n", ObjectArray::GetByIndex(BiggestPackageIdx).GetValidName());
 
+	HeaderStream << "#include <cmath>\n";
 	HeaderStream << "#include <string>\n";
 	HeaderStream << "#include <Windows.h>\n";
 	HeaderStream << "#include <iostream>\n";
@@ -991,6 +992,7 @@ R"(
 
 	PredefinedFunctions["FVector"] =
 	{
+		//constructors
 		"CoreUObject",
 		{
 { "\tinline FVector()", "", R"(
@@ -1008,6 +1010,18 @@ R"(
 	{
 	})"
 			},
+
+		//Operators = (non-const)
+{ "\tFVector& operator=(const FVector& Other);", "\tFVector& FVector::operator=(const FVector& Other) const", R"(
+	{
+		X = Other.X;
+		Y = Other.Y;
+		Z = Other.Z;
+		return *this;
+	}
+)"
+			},
+		//const operators (equal is exception to non-const)
 { "\tinline bool operator==(const FVector& Other) const", "", R"(
 	{
 		return X == Other.X && Y == Other.Y && Z == Other.Z;
@@ -1030,9 +1044,24 @@ R"(
 	}
 )"
 			},
+{ "\tFVector operator/(const FVector& Other) const;", "\tFVector FVector::operator/(const FVector& Other) const", R"(
+	{
+		if (Other.X == 0.0f || Other.Y == 0.0f || other.Z == 0.0f)
+			return FVector();
+
+		return FVector(X / Other.X, Y / Other.Y, Z / Other.Z);
+	}
+)"
+		},
 { "\tFVector operator*(decltype(X) Scalar) const;", "\tFVector FVector::operator*(decltype(X) Scalar) const", R"(
 	{
 		return { X * Scalar, Y * Scalar, Z * Scalar };
+	}
+)"
+			},
+{ "\tFVector operator*(const FVector& Other) const;", "\tFVector operator*(const FVector& Other) const", R"(
+	{
+		return FVector(X * Other.X, Y * Other.Y, Z * Other.Z);
 	}
 )"
 			},
@@ -1044,7 +1073,85 @@ R"(
 		return { X / Scalar, Y / Scalar, Z / Scalar };
 	}
 )"
-			}
+			},
+		//non-const operators
+{ "\tFVector& operator+=(const FVector& Other);", "\tFVector& operator+=(const FVector& Other) const", R"(
+	{
+		X += Other.X;
+		Y += Other.Y;
+		Z += Other.Z;
+		return *this;
+	}
+)"
+			},
+{ "\tFVector& operator-=(const FVector& Other);", "\tFVector& operator-=(const FVector& Other) const", R"(
+	{
+		X -= Other.X;
+		Y -= Other.Y;
+		Z -= Other.Z;
+		return *this;
+	}
+)"
+			},
+{ "\tFVector& operator*=(const decltype(X) Scalar);", "\tFVector& operator*=(const decltype(X) Scalar) const", R"(
+	{
+		X *= Scalar;
+		Y *= Scalar;
+		Z *= Scalar;
+		return *this;
+	}
+)"
+			},
+
+		// Functions
+{ "\tinline bool FVector::IsValid() const", "", R"(
+	{
+		return X == 0.0f && Y == 0.0f && Z == 0.0f;
+	})"
+			},
+{ "\tvoid FVector::Normalize360();", "\tvoid FVector::Normalize360()", R"(
+	{
+		const float maxX1 = 80.f;
+
+		while (X > maxX1)
+			X -= 180.f;
+		
+		while (X < -maxX1)
+			X += 180.f;
+		
+		while (Y > 180.f)
+			Y -= 360.f;
+		
+		while (Y < -180.f)
+			Y += 360.f;
+	}
+)"
+			},
+{ "\tfloat Dot(const FVector& Other) const;", "\tfloat Dot(const FVector& Other)", R"(
+	{
+		return (X * Other.X) + (Y * Other.Y) + (Z * Other.Z);
+	}
+)"
+			},
+{ "\tfloat FVector::MagnitudeSqr() const;", "\tfloat FVector::MagnitudeSqr()", R"(
+	{
+		return Dot(*this);
+	}
+)"
+			},
+{ "\tfloat FVector::Magnitude() const;", "\tfloat FVector::Magnitude()", R"(
+	{
+		return std::sqrtf(MagnitudeSqr());
+	}
+)"
+			},
+{ "\tFVector FVector::Unit() const;", "\tFVector FVector::Unit()", R"(
+	{
+		const float fMagnitude = Magnitude();
+		return FVector(X / fMagnitude, Y / fMagnitude, Z / fMagnitude);
+	}
+)"
+			},
 		}
 	};
 
@@ -1280,7 +1387,28 @@ R"(
 		return { X / Scalar, Y / Scalar, Z / Scalar, W / Scalar };
 	}
 )"
-			}
+			},
+{ "\tFRotator FVector::ToRotator() const;", "\tFRotator FVector::ToRotator()", R"(
+	{
+		static constexpr float PI = 3.14159265359f;
+	
+		// Pitch, Yaw, Roll
+		return FRotator(std::asinf(Z / Magnitude()) * 180.0f / PI, std::atan2f(Y, X) * 180.0f / PI, 0.0f);
+	}
+)"
+			},
+{ "\tfloat FVector::Distance(const FVector& v) const;", "\tfloat FVector::Distance(const FVector& v)", R"(
+	{
+		return float(std::sqrtf(powf(v.X - X, 2.0) + std::powf(v.Y - Y, 2.0) + std::powf(v.Z - Z, 2.0)));
+	}
+)"
+			},
+{ "\tfloat FVector::DistanceMeter(FVector& v) const;", "\tfloat FVector::DistanceMeter(FVector& v)", R"(
+	{
+		return Distance(v) * 0.01f;
+	}
+)"
+			},
 		}
 	};
 
