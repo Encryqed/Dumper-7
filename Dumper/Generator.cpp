@@ -52,8 +52,8 @@ void Generator::Init()
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
 
 	ObjectArray::Init();
-	//FName::Init();
-	FName::Init(0x10D2598);
+	FName::Init();
+	//FName::Init(0x10D2598);
 	Off::Init();
 	Off::InSDK::ProcessEvent::InitPE(); //Must here, relies on offsets initialized in Off::Init()
 
