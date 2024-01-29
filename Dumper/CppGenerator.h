@@ -84,7 +84,7 @@ public: /* DEBUG */
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
     static std::string GenerateBitPadding(uint8 UnderlayingSizeBytes, const int32 Offset, const int32 PadSize, std::string&& Reason);
 
-    static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize);
+    static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 PackageIndex = -1);
     static std::string GenerateFunctionInHeader(const MemberManager& Members);
     static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func);
 
@@ -92,17 +92,19 @@ public: /* DEBUG */
     static std::string GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile);
     static std::string GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile);
 
-    static void GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile);
+    static void GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile, int32 PackageIndex = -1);
 
     static void GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile);
 
 private: /* utility functions */
-    static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper, bool bAllowForConstPtrMembers = false /* const USomeClass* Member; */);
-    static std::string GetMemberTypeString(UEProperty Member, bool bAllowForConstPtrMembers = false);
-    static std::string GetMemberTypeStringWithoutConst(UEProperty Member);
+    static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false /* const USomeClass* Member; */);
+    static std::string GetMemberTypeString(UEProperty Member, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false);
+    static std::string GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex = -1);
 
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
+
+    static std::string GetCycleFixupType(const StructWrapper& Struct, bool bIsForInheritance);
 
     static std::unordered_map<std::string /* Name */, int32 /* Size */> GetUnknownProperties();
 

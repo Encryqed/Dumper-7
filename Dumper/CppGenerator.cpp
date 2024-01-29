@@ -47,7 +47,7 @@ std::string CppGenerator::GenerateBitPadding(uint8 UnderlayingSizeBytes, const i
 	return MakeMemberString(GetTypeFromSize(UnderlayingSizeBytes), std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, UnderlayingSizeBytes, std::move(Reason)));
 }
 
-std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize)
+std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 PackageIndex)
 {
 	constexpr uint64 EstimatedCharactersPerLine = 0x80;
 
@@ -159,11 +159,11 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		/* using directives */
 		if (Member.IsZeroSizedMember()) [[unlikely]]
 		{
-			OutMembers += MakeMemberStringWithoutName(GetMemberTypeString(Member, bAllowForConstPtrMembers), std::move(Comment));
+			OutMembers += MakeMemberStringWithoutName(GetMemberTypeString(Member, PackageIndex, bAllowForConstPtrMembers), std::move(Comment));
 		}
 		else [[likely]]
 		{
-			OutMembers += MakeMemberString(GetMemberTypeString(Member, bAllowForConstPtrMembers), MemberName, std::move(Comment));
+			OutMembers += MakeMemberString(GetMemberTypeString(Member, PackageIndex, bAllowForConstPtrMembers), MemberName, std::move(Comment));
 		}
 	}
 
@@ -634,7 +634,7 @@ R"({{
 	return InHeaderFunctionText;
 }
 
-void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile)
+void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile, int32 PackageIndex)
 {
 	if (!Struct.IsValid())
 		return;
@@ -651,6 +651,9 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	{
 		UniqueSuperName = GetStructPrefixedName(Super);
 		SuperSize = Super.GetSize();
+
+		if (Super.IsCyclicWithPackage(PackageIndex)) [[unlikely]]
+			UniqueSuperName = GetCycleFixupType(Super, true);
 	}
 
 	const int32 StructSizeWithoutSuper = StructSize - SuperSize;
@@ -770,7 +773,40 @@ std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 	return PackageManager::GetName(Enum.GetUnrealEnum().GetPackageIndex()) + "::" + ValidName;
 }
 
-std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapper, bool bAllowForConstPtrMembers)
+std::string CppGenerator::GetCycleFixupType(const StructWrapper& Struct, bool bIsForInheritance)
+{
+	static int32 UObjectSize = 0x0;
+	static int32 AActorSize = 0x0;
+
+	if (UObjectSize == 0x0 || AActorSize == 0x0)
+	{
+		UObjectSize = StructWrapper(ObjectArray::FindClassFast("Object")).GetSize();
+		AActorSize = StructWrapper(ObjectArray::FindClassFast("Actor")).GetSize();
+	}
+
+	/* Predefined structs can not be cyclic, unless you did something horribly wrong when defining the predefined struct! */
+	if (!Struct.IsUnrealStruct())
+		return "Invalid+Fixup+Type";
+
+	/* ToDo: find out if we need to differ between using Unaligned-/Aligned-Size on Inheritance/Members */
+	const int32 OwnSize = Struct.GetUnalignedSize();
+	const int32 Align = Struct.GetAlignment();
+
+	std::string Name = GetStructPrefixedName(Struct);
+
+	/* For structs the fixup is always the same, so we handle them before classes */
+	if (!Struct.IsClass())
+		return std::format("TStructCycleFixup<struct {}, 0x{:04X}, 0x{:02X}>", Name, OwnSize, Align);
+
+	const bool bIsActor = Struct.GetUnrealStruct().IsA(EClassCastFlags::Actor);
+
+	if (bIsActor)
+		return std::format("TActorBasedCycleFixup<class {}, 0x{:04X}, 0x{:02X}>", Name, (OwnSize - AActorSize), Align);
+
+	return std::format("TObjectBasedCycleFixup<class {}, 0x{:04X}, 0x{:02X}>", Name, (OwnSize - UObjectSize), Align);
+}
+
+std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapper, int32 PackageIndex, bool bAllowForConstPtrMembers)
 {
 	if (!MemberWrapper.IsUnrealProperty())
 	{
@@ -783,7 +819,7 @@ std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapp
 	return GetMemberTypeString(MemberWrapper.GetUnrealProperty(), bAllowForConstPtrMembers);
 }
 
-std::string CppGenerator::GetMemberTypeString(UEProperty Member, bool bAllowForConstPtrMembers)
+std::string CppGenerator::GetMemberTypeString(UEProperty Member, int32 PackageIndex, bool bAllowForConstPtrMembers)
 {
 	static auto IsMemberPtr = [](UEProperty Mem) -> bool
 	{
@@ -794,12 +830,12 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member, bool bAllowForC
 	};
 
 	if (bAllowForConstPtrMembers && Member.HasPropertyFlags(EPropertyFlags::ConstParm) && IsMemberPtr(Member))
-		return "const " + GetMemberTypeStringWithoutConst(Member);
+		return "const " + GetMemberTypeStringWithoutConst(Member, PackageIndex);
 
-	return GetMemberTypeStringWithoutConst(Member);
+	return GetMemberTypeStringWithoutConst(Member, PackageIndex);
 }
 
-std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member)
+std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex)
 {
 	auto [Class, FieldClass] = Member.GetClass();
 
@@ -873,11 +909,16 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member)
 	}
 	else if (Flags & EClassCastFlags::StructProperty)
 	{
-		return std::format("struct {}", GetStructPrefixedName(Member.Cast<UEStructProperty>().GetUnderlayingStruct()));
+		const StructWrapper& UnderlayingStruct = Member.Cast<UEStructProperty>().GetUnderlayingStruct();
+
+		if (UnderlayingStruct.IsCyclicWithPackage(PackageIndex)) [[unlikely]]
+			return std::format("struct {}", GetCycleFixupType(UnderlayingStruct, false));
+
+		return std::format("struct {}", GetStructPrefixedName(UnderlayingStruct));
 	}
 	else if (Flags & EClassCastFlags::ArrayProperty)
 	{
-		return std::format("TArray<{}>", GetMemberTypeStringWithoutConst(Member.Cast<UEArrayProperty>().GetInnerProperty()));
+		return std::format("TArray<{}>", GetMemberTypeStringWithoutConst(Member.Cast<UEArrayProperty>().GetInnerProperty(), PackageIndex));
 	}
 	else if (Flags & EClassCastFlags::WeakObjectProperty)
 	{
@@ -918,18 +959,18 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member)
 	{
 		UEMapProperty MemberAsMapProperty = Member.Cast<UEMapProperty>();
 
-		return std::format("TMap<{}, {}>", GetMemberTypeStringWithoutConst(MemberAsMapProperty.GetKeyProperty()), GetMemberTypeStringWithoutConst(MemberAsMapProperty.GetValueProperty()));
+		return std::format("TMap<{}, {}>", GetMemberTypeStringWithoutConst(MemberAsMapProperty.GetKeyProperty(), PackageIndex), GetMemberTypeStringWithoutConst(MemberAsMapProperty.GetValueProperty(), PackageIndex));
 	}
 	else if (Flags & EClassCastFlags::SetProperty)
 	{
-		return std::format("TSet<{}>", GetMemberTypeStringWithoutConst(Member.Cast<UESetProperty>().GetElementProperty()));
+		return std::format("TSet<{}>", GetMemberTypeStringWithoutConst(Member.Cast<UESetProperty>().GetElementProperty(), PackageIndex));
 	}
 	else if (Flags & EClassCastFlags::EnumProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEEnumProperty>().GetEnum())
 			return Enum.GetEnumTypeAsStr();
 
-		return GetMemberTypeStringWithoutConst(Member.Cast<UEEnumProperty>().GetUnderlayingProperty());
+		return GetMemberTypeStringWithoutConst(Member.Cast<UEEnumProperty>().GetUnderlayingProperty(), PackageIndex);
 	}
 	else if (Flags & EClassCastFlags::InterfaceProperty)
 	{
@@ -957,7 +998,7 @@ std::unordered_map<std::string /* Name */, int32 /* Size */> CppGenerator::GetUn
 
 		for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
 		{
-			std::string TypeName = GetMemberTypeString(Prop, true);
+			std::string TypeName = GetMemberTypeString(Prop, -1, true);
 
 			/* Relies on unknown names being post-fixed with an underscore by 'GetMemberTypeString()' */
 			if (TypeName.back() == '_')
@@ -1065,7 +1106,7 @@ void CppGenerator::GenerateDebugAssertions(StreamType& AssertionStream)
 
 	for (PackageInfoHandle Package : PackageManager::IterateOverPackageInfos())
 	{
-		DependencyManager::IncludeFunctionType GenerateStructAssertionsCallback = [&AssertionStream](int32 Index) -> void
+		DependencyManager::OnVisitCallbackType GenerateStructAssertionsCallback = [&AssertionStream](int32 Index) -> void
 		{
 			StructWrapper Struct = ObjectArray::GetByIndex<UEStruct>(Index);
 
@@ -1320,6 +1361,7 @@ void CppGenerator::Generate()
 			WriteFileHead(FunctionsFile, Package, EFileType::Functions);
 		}
 
+		const int32 PackageIndex = Package.GetIndex();
 
 		/* 
 		* Generate classes/structs/enums/functions directly into the respective files
@@ -1335,9 +1377,9 @@ void CppGenerator::Generate()
 		{
 			const DependencyManager& Structs = Package.GetSortedStructs();
 
-			DependencyManager::IncludeFunctionType GenerateStructCallback = [&](int32 Index) -> void
+			DependencyManager::OnVisitCallbackType GenerateStructCallback = [&](int32 Index) -> void
 			{
-				GenerateStruct(ObjectArray::GetByIndex<UEStruct>(Index), StructsFile, FunctionsFile, ParametersFile);
+				GenerateStruct(ObjectArray::GetByIndex<UEStruct>(Index), StructsFile, FunctionsFile, ParametersFile, PackageIndex);
 			};
 
 			Structs.VisitAllNodesWithCallback(GenerateStructCallback);
@@ -1347,9 +1389,9 @@ void CppGenerator::Generate()
 		{
 			const DependencyManager& Classes = Package.GetSortedClasses();
 
-			DependencyManager::IncludeFunctionType GenerateClassCallback = [&](int32 Index) -> void
+			DependencyManager::OnVisitCallbackType GenerateClassCallback = [&](int32 Index) -> void
 			{
-				GenerateStruct(ObjectArray::GetByIndex<UEStruct>(Index), ClassesFile, FunctionsFile, ParametersFile);
+				GenerateStruct(ObjectArray::GetByIndex<UEStruct>(Index), ClassesFile, FunctionsFile, ParametersFile, PackageIndex);
 			};
 
 			Classes.VisitAllNodesWithCallback(GenerateClassCallback);
@@ -4143,5 +4185,70 @@ UE_ENUM_OPERATORS(EPropertyFlags);
 
 	WriteFileEnd(BasicHpp, EFileType::BasicHpp);
 	WriteFileEnd(BasicCpp, EFileType::BasicCpp);
+
+
+
+	/* Cyclic dependencies-fixing helper classes */
+
+	// Start Namespace 'CyclicDependencyFixupImplementation'
+	BasicHpp <<
+		R"(
+namespace CyclicDependencyFixupImplementation
+{
+)";
+
+	/*
+	* Implemenation node:
+	*	Maybe: when inheriting form TCylicStructFixup/TCyclicClassFixup use the aligned size, else use UnalignedSize
+	*/
+
+	/* TStructOrderFixup */
+	BasicHpp << R"(
+/*
+* A wrapper for a Byte-Array of padding, that allows for casting to the actual underlaiyng type. Used for undefined structs in cylic headers.
+*/
+template<typename UnderlayingStructType, int32 Size, int32 Align>
+struct alignas(Align) TCylicStructFixup
+{
+private:
+	uint8 Pad[Size];
+
+public:
+	      UnderlayingStructType& GetTyped()       { return reinterpret_cast<      UnderlayingStructType&>(*this); }
+	const UnderlayingStructType& GetTyped() const { return reinterpret_cast<const UnderlayingStructType&>(*this); }
+};
+)";
+	BasicHpp << R"(
+/*
+* A wrapper for a Byte-Array of padding, that inherited from UObject allows for casting to the actual underlaiyng type and access to basic UObject functionality. For cyclic classes.
+*/
+template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8, class BaseClassType = class UObject>
+struct alignas(Align) TCyclicClassFixup : public BaseClassType
+{
+private:
+	uint8 Pad[Size];
+
+public:
+	UnderlayingClassType*       GetTyped()       { return reinterpret_cast<      UnderlayingClassType*>(this); }
+	const UnderlayingClassType* GetTyped() const { return reinterpret_cast<const UnderlayingClassType*>(this); }
+};
+
+)";
+
+	BasicHpp << "}\n\n";
+	// End Namespace 'CyclicDependencyFixupImplementation'
+
+
+	BasicHpp << R"(
+template<typename UnderlayingStructType, int32 Size, int32 Align>
+using TStructCycleFixup = TCylicStructFixup<UnderlayingClassType, Size, Align>;
+
+
+template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8>
+using TObjectBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<UnderlayingClassType, Size, Align, class UObject>;
+
+template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8>
+using TActorBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<UnderlayingClassType, Size, Align, class AActor>;
+)";
 }
 

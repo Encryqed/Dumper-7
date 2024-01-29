@@ -11,7 +11,7 @@
 class DependencyManager
 {
 public:
-	using IncludeFunctionType = std::function<void(int32 Index)>;
+	using OnVisitCallbackType = std::function<void(int32 Index)>;
 
 private:
 	struct IndexDependencyInfo
@@ -36,7 +36,7 @@ public:
 	DependencyManager(int32 ObjectToTrack);
 
 private:
-	void VisitIndexAndDependencies(int32 Index, IncludeFunctionType Callback) const;
+	void VisitIndexAndDependencies(int32 Index, OnVisitCallbackType Callback) const;
 
 public:
 	void SetExists(const int32 DepedantIdx);
@@ -47,8 +47,8 @@ public:
 
 	size_t GetNumEntries() const;
 
-	void VisitIndexAndDependenciesWithCallback(int32 Index, IncludeFunctionType Callback) const;
-	void VisitAllNodesWithCallback(IncludeFunctionType Callback) const;
+	void VisitIndexAndDependenciesWithCallback(int32 Index, OnVisitCallbackType Callback) const;
+	void VisitAllNodesWithCallback(OnVisitCallbackType Callback) const;
 
 public:
 	const auto DEBUG_DependencyMap() const

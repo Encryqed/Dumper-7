@@ -29,7 +29,7 @@ void GeneratorRewrite::InitEngineCore()
 
 void GeneratorRewrite::InitInternal()
 {
-	// Initialize StructManager with all packages, their names, structs, classes enums, functions and dependencies
+	// Initialize PackageManager with all packages, their names, structs, classes enums, functions and dependencies
 	PackageManager::Init();
 
 	// Initialize StructManager with all structs and their names
@@ -40,6 +40,9 @@ void GeneratorRewrite::InitInternal()
 	
 	// Initialized all Member-Name collisions
 	MemberManager::Init();
+
+	// Post-Initialize PackageManager after StructManager has been initialized. 'PostInit()' handles Cyclic-Dependencies detection
+	PackageManager::PostInit();
 }
 
 bool GeneratorRewrite::SetupDumperFolder()

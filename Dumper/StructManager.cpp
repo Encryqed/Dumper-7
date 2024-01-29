@@ -11,6 +11,11 @@ int32 StructInfoHandle::GetSize() const
 	return Align(Info->Size, Info->Alignment);
 }
 
+int32 StructInfoHandle::GetUnalignedSize() const
+{
+	return Info->Size;
+}
+
 int32 StructInfoHandle::GetAlignment() const
 {
 	return Info->Alignment;
@@ -29,6 +34,11 @@ const StringEntry& StructInfoHandle::GetName() const
 bool StructInfoHandle::IsFinal() const
 {
 	return Info->bIsFinal;
+}
+
+bool StructInfoHandle::IsPartOfCyclicPackage() const
+{
+	return Info->bIsPartOfCyclicPackage;
 }
 
 void StructManager::InitAlignmentsAndNames()

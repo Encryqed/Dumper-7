@@ -1,49 +1,29 @@
 #pragma once
 #include <unordered_map>
+#include <unordered_set>
 #include "HashStringTable.h"
 #include "UnrealObjects.h"
 
-
-/*
-struct Struct1
-{
-	int a;
-	int b;
-	int c;
-	uint8 Pad[0x10];
-	int d;
-	int e;
-	int f;
-};
-
-Struct1_PredefinedMembers: {
-	"void*", "Something", 0x10, 0x8
-}
-
-Result:
-struct Struct1
-{
-public:
-	int32                 a;                              // 0x0000(0x0004)
-	int32                 b;                              // 0x0004(0x0004)
-	int32                 c;                              // 0x0008(0x0004)
-	uint8                 Pad_0[0x4];                     // 0x000C(0x0004)
-	void*                 Something;                      // 0x0010(0x0008)
-	uint8                 Pad_1[0x4];                     // 0x0018(0x0004)
-	int32                 e;                              // 0x001C(0x0004)
-	int32                 f;                              // 0x0020(0x0004)
-};
-*/
 
 struct StructInfo
 {
 	HashStringTableIndex Name;
 
+	/* Unaligned size of this struct */
 	int32 Size = INT_MAX;
+
+	/* Alignment of this struct for alignas(Alignment), might be implicit */
 	int32 Alignment = 0x1;
 
-	bool bUseExplicitAlignment; // whether alignment should be specified with 'alignas(Alignment)'
-	bool bIsFinal = true; // wheter this class is ever inherited from. set to false when this struct is found to be another structs super
+
+	/* Whether alignment should be explicitly specified with 'alignas(Alignment)' */
+	bool bUseExplicitAlignment;
+
+	/* Wheter this class is ever inherited from. Set to false when this struct is found to be another structs super */
+	bool bIsFinal = true;
+
+	/* Whether this struct is in a package that has cyclic dependencies. Actual index of cyclic package is stored in StructManager::CyclicStructsAndPackages */
+	bool bIsPartOfCyclicPackage;
 };
 
 class StructManager;
@@ -59,10 +39,13 @@ public:
 
 public:
 	int32 GetSize() const;
+	int32 GetUnalignedSize() const;
 	int32 GetAlignment() const;
 	bool ShouldUseExplicitAlignment() const;
 	const StringEntry& GetName() const;
 	bool IsFinal() const;
+
+	bool IsPartOfCyclicPackage() const;
 };
 
 class StructManager
@@ -73,6 +56,7 @@ private:
 
 public:
 	using OverrideMaptType = std::unordered_map<int32 /*StructIdx*/, StructInfo>;
+	using CycleInfoListType = std::unordered_map<int32 /*StructIdx*/, std::unordered_set<int32 /* Packages cyclic with this structs' package */>>;
 
 private:
 	/* NameTable containing names of all structs/classes as well as information on name-collisions */
@@ -80,6 +64,9 @@ private:
 
 	/* Map containing infos on all structs/classes. Implemented due to bugs/inconsistencies in Unreal's reflection system */
 	static inline OverrideMaptType StructInfoOverrides;
+
+	/* Map containing infos on all structs/classes that are within a packages that has cyclic dependencies */
+	static inline CycleInfoListType CyclicStructsAndPackages;
 
 	static inline bool bIsInitialized = false;
 
@@ -118,10 +105,31 @@ public:
 		if (!Struct)
 			return {};
 
-		//if (Struct.IsA(EClassCastFlags::Function))
-		//	return {};
-
 		return StructInfoOverrides.at(Struct.GetIndex());
+	}
+
+	static inline bool IsStructCyclicWithPackage(int32 StructIndex, int32 PackageIndex)
+	{
+		auto It = CyclicStructsAndPackages.find(StructIndex);
+		if (It != CyclicStructsAndPackages.end())
+			return It->second.contains(PackageIndex);
+
+		return false;
+	}
+
+	/* 
+	* Utility function for PackageManager::PostInit to handle the initialization of our list of cyclic structs and their respective packages
+	* 
+	* Marks StructInfo as 'bIsPartOfCyclicPackage = true' and adds struct to 'CyclicStructsAndPackages'
+	*/
+	static inline void PackageManagerSetCycleForStruct(int32 StructIndex, int32 PackageIndex)
+	{
+		StructInfo& Info = StructInfoOverrides.at(StructIndex);
+
+		Info.bIsPartOfCyclicPackage = true;
+
+
+		CyclicStructsAndPackages[StructIndex].insert(PackageIndex);
 	}
 };
 

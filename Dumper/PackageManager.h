@@ -65,6 +65,8 @@ private:
 	friend class PackageManagerTest;
 
 private:
+	int32 PackageIndex;
+
 	/* Name of this Package*/
 	HashStringTableIndex Name = HashStringTableIndex::FromInt(-1);
 
@@ -96,6 +98,8 @@ public:
 	inline bool IsValidHandle() { return Info != nullptr; }
 
 public:
+	int32 GetIndex() const;
+
 	/* Returns a pair of name and CollisionCount */
 	std::string GetName() const;
 	const StringEntry& GetNameEntry() const;
@@ -211,6 +215,7 @@ private:
 	static inline uint64 CurrentIterationHitCount = 0x0;
 
 	static inline bool bIsInitialized = false;
+	static inline bool bIsPostInitialized = false;
 
 private:
 	static void InitDependencies();
@@ -219,6 +224,7 @@ private:
 
 public:
 	static void Init();
+	static void PostInit();
 
 private:
 	static inline const StringEntry& GetPackageName(const PackageInfo& Info)

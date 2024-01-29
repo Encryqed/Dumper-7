@@ -61,6 +61,11 @@ int32 StructWrapper::GetSize() const
     return bIsUnrealStruct ? InfoHandle.GetSize() : Align(PredefStruct->Size, PredefStruct->Alignment);
 }
 
+int32 StructWrapper::GetUnalignedSize() const
+{
+    return bIsUnrealStruct ? InfoHandle.GetUnalignedSize() : PredefStruct->Size;
+}
+
 bool StructWrapper::ShouldUseExplicitAlignment() const
 {
     return bIsUnrealStruct ? InfoHandle.ShouldUseExplicitAlignment() : PredefStruct->bUseExplictAlignment;
@@ -96,6 +101,17 @@ bool StructWrapper::IsValid() const
 bool StructWrapper::IsUnrealStruct() const
 {
     return bIsUnrealStruct;
+}
+
+bool StructWrapper::IsCyclicWithPackage(int32 PackageIndex) const
+{
+    if (!bIsUnrealStruct || PackageIndex == -1)
+        return false;
+
+    if (!InfoHandle.IsPartOfCyclicPackage())
+        return false;
+
+    return StructManager::IsStructCyclicWithPackage(Struct.GetIndex(), PackageIndex);
 }
 
 bool StructWrapper::HasCustomTemplateText() const

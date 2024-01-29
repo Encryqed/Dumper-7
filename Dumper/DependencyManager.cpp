@@ -26,7 +26,7 @@ size_t DependencyManager::GetNumEntries() const
 	return AllDependencies.size();
 }
 
-void DependencyManager::VisitIndexAndDependencies(int32 Index, IncludeFunctionType Callback) const
+void DependencyManager::VisitIndexAndDependencies(int32 Index, OnVisitCallbackType Callback) const
 {
 	auto& [IterationHitCounter, Dependencies] = AllDependencies.at(Index);
 
@@ -43,14 +43,14 @@ void DependencyManager::VisitIndexAndDependencies(int32 Index, IncludeFunctionTy
 	Callback(Index);
 }
 
-void DependencyManager::VisitIndexAndDependenciesWithCallback(int32 Index, IncludeFunctionType Callback) const
+void DependencyManager::VisitIndexAndDependenciesWithCallback(int32 Index, OnVisitCallbackType Callback) const
 {
 	CurrentIterationHitCount++;
 
 	VisitIndexAndDependencies(Index, Callback);
 }
 
-void DependencyManager::VisitAllNodesWithCallback(IncludeFunctionType Callback) const
+void DependencyManager::VisitAllNodesWithCallback(OnVisitCallbackType Callback) const
 {
 	CurrentIterationHitCount++;
 

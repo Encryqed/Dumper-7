@@ -1,6 +1,8 @@
 #include "PackageManager.h"
 #include "ObjectArray.h"
 
+/* Required for marking cyclic-headers in the StructManager */
+#include "StructManager.h"
 
 inline void BooleanOrEqual(bool& b1, bool b2)
 {
@@ -20,6 +22,11 @@ PackageInfoHandle::PackageInfoHandle(const PackageInfo& InInfo)
 const StringEntry& PackageInfoHandle::GetNameEntry() const
 {
 	return PackageManager::GetPackageName(*Info);
+}
+
+int32 PackageInfoHandle::GetIndex() const
+{
+	return Info->PackageIndex;
 }
 
 std::string PackageInfoHandle::GetName() const
@@ -220,6 +227,7 @@ void PackageManager::InitDependencies()
 		if (bIsStruct && !bIsFunction)
 		{
 			PackageInfo& Info = PackageInfos[CurrentPackageIdx];
+			Info.PackageIndex = CurrentPackageIdx;
 
 			UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
 
@@ -279,6 +287,7 @@ void PackageManager::InitDependencies()
 		else if (bIsEnum)
 		{
 			PackageInfo& Info = PackageInfos[CurrentPackageIdx];
+			Info.PackageIndex = CurrentPackageIdx;
 
 			Info.Enums.push_back(Obj.GetIndex());
 		}
@@ -299,12 +308,27 @@ void PackageManager::InitNames()
 	}
 }
 
+/* Safe to use StructManager, initialization is guaranteed to have been finished */
 void PackageManager::HandleCycles()
 {
 	FindCycleCallbackType OnCycleFoundCallback = [](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
 	{
 		UEObject CurrentPackage = ObjectArray::GetByIndex(NewParams.RequiredPackge);
 		UEObject PreviousPackage = ObjectArray::GetByIndex(NewParams.PrevPackage);
+
+		/*
+		* Example-cycle: a -> b -> c -> a
+		* 
+		* 1. Get all structs | classes from this package (GetInfo().StructDependencies)
+		* 2. Find all structs/classes from 'c' that are used in 'a'
+		* 3. Mark them as StructInfo::bIsPartOfCyclicDependencies = true;
+		* 4. Add them to StructInfo::CyclicStructsAndPackages[StructIdx] = 'c.PackageIndex'
+		*/
+
+
+
+		const PackageInfoHandle Info = GetInfo(NewParams.RequiredPackge);
+		const DependencyManager& StructsOrClasses = bIsStruct ? Info.GetSortedStructs() : Info.GetSortedClasses();
 	};
 
 	FindCycle(OnCycleFoundCallback);
@@ -321,6 +345,18 @@ void PackageManager::Init()
 
 	InitDependencies();
 	InitNames();
+	HandleCycles();
+}
+
+void PackageManager::PostInit()
+{
+	if (bIsPostInitialized)
+		return;
+
+	bIsPostInitialized = true;
+
+	StructManager::Init();
+
 	HandleCycles();
 }
 

@@ -41,6 +41,7 @@ public:
     std::pair<std::string, bool> GetUniqueName() const;
     int32 GetAlignment() const;
     int32 GetSize() const;
+    int32 GetUnalignedSize() const;
 
     bool ShouldUseExplicitAlignment() const;
     bool IsFinal() const;
@@ -51,6 +52,8 @@ public:
 
     bool IsValid() const;
     bool IsUnrealStruct() const;
+
+    bool IsCyclicWithPackage(int32 PackageIndex) const;
 
     bool HasCustomTemplateText() const;
     std::string GetCustomTemplateText() const;
