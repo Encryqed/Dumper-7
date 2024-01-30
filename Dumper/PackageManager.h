@@ -81,7 +81,8 @@ private:
 	std::vector<int32> Functions;
 	std::vector<int32> Enums;
 
-	DependencyInfo PackageDependencies;
+	/* mutable to allow PackageManager to erase cyclic dependencies */
+	mutable DependencyInfo PackageDependencies;
 };
 
 class PackageInfoHandle
@@ -120,9 +121,12 @@ public:
 	const std::vector<int32>& GetEnums() const;
 
 	const DependencyInfo& GetPackageDependencies() const;
+
+	void ErasePackageDependencyFromStructs(int32 Package) const;
+	void ErasePackageDependencyFromClasses(int32 Package) const;
 };
 
-using PackageManagerOverrideMapType = std::unordered_map<int32 /* PackageIndex */, PackageInfo>;;
+using PackageManagerOverrideMapType = std::unordered_map<int32 /* PackageIndex */, PackageInfo>;
 
 struct PackageInfoIterator
 {

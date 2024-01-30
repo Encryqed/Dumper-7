@@ -4183,17 +4183,13 @@ UE_ENUM_OPERATORS(EPropertyFlags);
 		GenerateStruct(&Predefined, BasicHpp, BasicCpp, BasicHpp);
 	}
 
-	WriteFileEnd(BasicHpp, EFileType::BasicHpp);
-	WriteFileEnd(BasicCpp, EFileType::BasicCpp);
-
-
 
 	/* Cyclic dependencies-fixing helper classes */
 
-	// Start Namespace 'CyclicDependencyFixupImplementation'
+	// Start Namespace 'CyclicDependencyFixupImpl'
 	BasicHpp <<
 		R"(
-namespace CyclicDependencyFixupImplementation
+namespace CyclicDependencyFixupImpl
 {
 )";
 
@@ -4236,12 +4232,12 @@ public:
 )";
 
 	BasicHpp << "}\n\n";
-	// End Namespace 'CyclicDependencyFixupImplementation'
+	// End Namespace 'CyclicDependencyFixupImpl'
 
 
 	BasicHpp << R"(
 template<typename UnderlayingStructType, int32 Size, int32 Align>
-using TStructCycleFixup = TCylicStructFixup<UnderlayingClassType, Size, Align>;
+using TStructCycleFixup = CyclicDependencyFixupImpl::TCylicStructFixup<UnderlayingStructType, Size, Align>;
 
 
 template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8>
@@ -4250,5 +4246,9 @@ using TObjectBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<Unde
 template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8>
 using TActorBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<UnderlayingClassType, Size, Align, class AActor>;
 )";
+
+
+	WriteFileEnd(BasicHpp, EFileType::BasicHpp);
+	WriteFileEnd(BasicCpp, EFileType::BasicCpp);
 }
 

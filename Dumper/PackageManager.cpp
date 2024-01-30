@@ -105,6 +105,16 @@ const DependencyInfo& PackageInfoHandle::GetPackageDependencies() const
 	return Info->PackageDependencies;
 }
 
+void PackageInfoHandle::ErasePackageDependencyFromStructs(int32 Package) const
+{
+	Info->PackageDependencies.StructsDependencies.erase(Package);
+}
+
+void PackageInfoHandle::ErasePackageDependencyFromClasses(int32 Package) const
+{
+	Info->PackageDependencies.ClassesDependencies.erase(Package);
+}
+
 
 namespace PackageManagerUtils
 {
@@ -313,8 +323,8 @@ void PackageManager::HandleCycles()
 {
 	FindCycleCallbackType OnCycleFoundCallback = [](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
 	{
-		UEObject CurrentPackage = ObjectArray::GetByIndex(NewParams.RequiredPackge);
-		UEObject PreviousPackage = ObjectArray::GetByIndex(NewParams.PrevPackage);
+		const int32 CurrentPackageIndex = NewParams.RequiredPackge;
+		const int32 PreviousPackageIndex = NewParams.PrevPackage;
 
 		/*
 		* Example-cycle: a -> b -> c -> a
@@ -325,13 +335,102 @@ void PackageManager::HandleCycles()
 		* 4. Add them to StructInfo::CyclicStructsAndPackages[StructIdx] = 'c.PackageIndex'
 		*/
 
+		const PackageInfoHandle CurrentPackageInfo = GetInfo(CurrentPackageIndex);
+		const PackageInfoHandle PreviousPackageInfo = GetInfo(PreviousPackageIndex);
+
+		const DependencyManager& CurrentStructsOrClasses = bIsStruct ? CurrentPackageInfo.GetSortedStructs() : CurrentPackageInfo.GetSortedClasses();
+		const DependencyManager& PreviousStructsOrClasses = bIsStruct ? PreviousPackageInfo.GetSortedStructs() : PreviousPackageInfo.GetSortedClasses();
+
+		int32 OutCount = 0x0;
+		int32 PackageIndexToCheckOccurences = PreviousPackageIndex;
+
+		DependencyManager::OnVisitCallbackType CountDependencies = [&OutCount, &PackageIndexToCheckOccurences](int32 Index) -> void
+		{
+			/*
+			* WRONG ---> GET THE STRUCT AND GET THE DEPDENDENCIES FROM THAT STRUCT MANUALLY
+			* 
+			* if (Struct.getsuper().getpackage() == previouspackageindex)
+			* {
+			*		count++;
+			*		StructManager::PackageManagerSetCycleForStruct(Struct.getsuper().index, previouspackageindex)
+			* }
+			* 
+			* if (!Struct.isstructnotclass)
+			*	return/continue;
+			* 
+			* for (child : Struct)
+			* {
+			*	if (child == structproperty && child.struct.getpackage() == previouspackageindex)
+			*	{
+			*		count++;
+			*		StructManager::PackageManagerSetCycleForStruct(child.struct.index, previouspackageindex)
+			*	}
+			* }
+			*/
+
+			if (ObjectArray::GetByIndex(Index).GetPackageIndex() == PackageIndexToCheckOccurences)
+				OutCount++;
+		};
+
+		CurrentStructsOrClasses.VisitAllNodesWithCallback(CountDependencies);
+		std::cout << "Count: 0x" << OutCount << std::endl;
+		/* Number of structs from PreviousPackage required by CurrentPackage */
+		const int32 NumStructsRequiredByCurrent = OutCount;
+
+		OutCount = 0x0;
+		PackageIndexToCheckOccurences = CurrentPackageIndex;
+		CurrentStructsOrClasses.VisitAllNodesWithCallback(CountDependencies);
+		std::cout << "Count: 0x" << OutCount << std::endl;
+
+		OutCount = 0x0;
+		PackageIndexToCheckOccurences = CurrentPackageIndex;
+		PreviousStructsOrClasses.VisitAllNodesWithCallback(CountDependencies);
+
+		/* Number of structs from CurrentPackage required by CurrentPackage PreviousPackage */
+		const int32 NumStructsRequiredByPrevious = OutCount;
 
 
-		const PackageInfoHandle Info = GetInfo(NewParams.RequiredPackge);
-		const DependencyManager& StructsOrClasses = bIsStruct ? Info.GetSortedStructs() : Info.GetSortedClasses();
+		std::string CurrentName = ObjectArray::GetByIndex(CurrentPackageIndex).GetValidName();
+		std::string PreviousName = ObjectArray::GetByIndex(PreviousPackageIndex).GetValidName();
+
+		std::cout << std::format("'{}' requires '0x{:04X} {}' from '{}'\n", CurrentName, NumStructsRequiredByCurrent, (bIsStruct ? "structs" : "classes"), PreviousName);
+		std::cout << std::format("'{}' requires '0x{:04X} {}' from '{}'\n", PreviousName, NumStructsRequiredByPrevious, (bIsStruct ? "structs" : "classes"), CurrentName);
+
+
+		/* Which of the two cyclic packages requires less structs from the other package. */
+		const bool bCurrentHasMoreDependencies = NumStructsRequiredByCurrent > NumStructsRequiredByPrevious;
+
+		const int32 PackageIndexToLookFor = bCurrentHasMoreDependencies ? PreviousPackageIndex : CurrentPackageIndex;
+		const int32 PackageIndexToMarkCyclicWith = bCurrentHasMoreDependencies ? CurrentPackageIndex : PreviousPackageIndex;
+
+		DependencyManager::OnVisitCallbackType SetCycleCallback = [PackageIndexToLookFor, PackageIndexToMarkCyclicWith](int32 Index) -> void
+		{
+			if (ObjectArray::GetByIndex(Index).GetPackageIndex() == PackageIndexToLookFor)
+				StructManager::PackageManagerSetCycleForStruct(Index, PackageIndexToMarkCyclicWith);
+		};
+
+		PreviousStructsOrClasses.VisitAllNodesWithCallback(SetCycleCallback);
+
+		if (bIsStruct) {
+			CurrentPackageInfo.ErasePackageDependencyFromStructs(PreviousPackageIndex);
+			PreviousPackageInfo.ErasePackageDependencyFromStructs(CurrentPackageIndex);
+		}
+		else {
+			CurrentPackageInfo.ErasePackageDependencyFromClasses(PreviousPackageIndex);
+			PreviousPackageInfo.ErasePackageDependencyFromClasses(CurrentPackageIndex);
+		}
+	};
+
+	FindCycleCallbackType OnCycleFoundPrintCallback = [](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
+	{
+		std::string PrevName = ObjectArray::GetByIndex(NewParams.PrevPackage).GetValidName() + (NewParams.bWasPrevNodeStructs ? "_structs" : "_classes");
+		std::string CurrName = ObjectArray::GetByIndex(NewParams.RequiredPackge).GetValidName() + (bIsStruct ? "_structs" : "_classes");
+
+		std::cout << std::format("Cycle between: Current - '{}' and Previous - '{}'\n", CurrName, PrevName);
 	};
 
 	FindCycle(OnCycleFoundCallback);
+	//FindCycle(OnCycleFoundPrintCallback);
 }
 
 void PackageManager::Init()
@@ -345,7 +444,6 @@ void PackageManager::Init()
 
 	InitDependencies();
 	InitNames();
-	HandleCycles();
 }
 
 void PackageManager::PostInit()

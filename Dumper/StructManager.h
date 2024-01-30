@@ -3,7 +3,7 @@
 #include <unordered_set>
 #include "HashStringTable.h"
 #include "UnrealObjects.h"
-
+#include "ObjectArray.h" /* for debug print */
 
 struct StructInfo
 {
@@ -124,6 +124,8 @@ public:
 	*/
 	static inline void PackageManagerSetCycleForStruct(int32 StructIndex, int32 PackageIndex)
 	{
+		std::cout << "Set struct as cyclic: '" << ObjectArray::GetByIndex(StructIndex).GetFullName() << "'\n";
+
 		StructInfo& Info = StructInfoOverrides.at(StructIndex);
 
 		Info.bIsPartOfCyclicPackage = true;
