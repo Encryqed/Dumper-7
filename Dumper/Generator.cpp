@@ -55,7 +55,7 @@ void Generator::Init()
 
 
 	FName::Init();
-	//FName::Init(0xEFEFEFEFEFEFEFEFEFEF);
+	//FName::Init(0x108EB00);
 	Off::Init();
 	Off::InSDK::ProcessEvent::InitPE(); //Must here, relies on offsets initialized in Off::Init()
 

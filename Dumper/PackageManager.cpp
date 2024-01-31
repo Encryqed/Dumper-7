@@ -318,13 +318,87 @@ void PackageManager::InitNames()
 	}
 }
 
+void PackageManager::HelperMarkStructDependenciesOfPackage(UEStruct Struct, int32 OwnPackageIdx, int32 RequiredPackageIdx, bool bIsClass)
+{
+	if (UEStruct Super = Struct.GetSuper())
+	{
+		if (Super.GetPackageIndex() == RequiredPackageIdx)
+			StructManager::PackageManagerSetCycleForStruct(Struct.GetIndex(), OwnPackageIdx);
+	}
+
+	if (bIsClass)
+		return;
+
+	for (UEProperty Child : Struct.GetProperties())
+	{
+		if (!Child.IsA(EClassCastFlags::StructProperty))
+			continue;
+
+		const int32 UnderlayingStructPackageIdx = Child.Cast<UEStructProperty>().GetUnderlayingStruct().GetPackageIndex();
+
+		if (UnderlayingStructPackageIdx == RequiredPackageIdx)
+			StructManager::PackageManagerSetCycleForStruct(Struct.GetIndex(), OwnPackageIdx);
+	}
+}
+
+int32 PackageManager::HelperCountStructDependenciesOfPackage(UEStruct Struct, int32 RequiredPackageIdx, bool bIsClass)
+{
+	int32 RetCount = 0x0;
+
+	if (UEStruct Super = Struct.GetSuper())
+	{
+		if (Super.GetPackageIndex() == RequiredPackageIdx)
+			RetCount++;
+	}
+
+	if (bIsClass)
+		return RetCount;
+
+	for (UEProperty Child : Struct.GetProperties())
+	{
+		if (!Child.IsA(EClassCastFlags::StructProperty))
+			continue;
+
+		const int32 UnderlayingStructPackageIdx = Child.Cast<UEStructProperty>().GetUnderlayingStruct().GetPackageIndex();
+
+		if (UnderlayingStructPackageIdx == RequiredPackageIdx)
+			RetCount++;
+	}
+
+	return RetCount;
+}
+
 /* Safe to use StructManager, initialization is guaranteed to have been finished */
 void PackageManager::HandleCycles()
 {
-	FindCycleCallbackType OnCycleFoundCallback = [](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
+	struct CycleInfo
+	{
+		int32 CurrentPackage;
+		int32 PreviousPacakge;
+
+		bool bAreStructsCyclic;
+		bool bAreclassesCyclic;
+	};
+
+	std::vector<CycleInfo> HandledPackages;
+
+	FindCycleCallbackType OnCycleFoundCallback = [&HandledPackages](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
 	{
 		const int32 CurrentPackageIndex = NewParams.RequiredPackge;
 		const int32 PreviousPackageIndex = NewParams.PrevPackage;
+
+		/* Check if this pacakge was handled before, return if true */
+		for (const CycleInfo& Cycle : HandledPackages)
+		{
+			if (((Cycle.CurrentPackage == CurrentPackageIndex && Cycle.PreviousPacakge == PreviousPackageIndex)
+				|| (Cycle.CurrentPackage == PreviousPackageIndex && Cycle.PreviousPacakge == CurrentPackageIndex))
+				&& (Cycle.bAreStructsCyclic == bIsStruct || Cycle.bAreclassesCyclic == !bIsStruct))
+			{
+				return;
+			}
+		}
+
+		/* Current cyclic packages will be added to 'HandledPackages' later on in this function */
 
 		/*
 		* Example-cycle: a -> b -> c -> a
@@ -344,32 +418,31 @@ void PackageManager::HandleCycles()
 		int32 OutCount = 0x0;
 		int32 PackageIndexToCheckOccurences = PreviousPackageIndex;
 
-		DependencyManager::OnVisitCallbackType CountDependencies = [&OutCount, &PackageIndexToCheckOccurences](int32 Index) -> void
-		{
-			/*
-			* WRONG ---> GET THE STRUCT AND GET THE DEPDENDENCIES FROM THAT STRUCT MANUALLY
-			* 
-			* if (Struct.getsuper().getpackage() == previouspackageindex)
-			* {
-			*		count++;
-			*		StructManager::PackageManagerSetCycleForStruct(Struct.getsuper().index, previouspackageindex)
-			* }
-			* 
-			* if (!Struct.isstructnotclass)
-			*	return/continue;
-			* 
-			* for (child : Struct)
-			* {
-			*	if (child == structproperty && child.struct.getpackage() == previouspackageindex)
-			*	{
-			*		count++;
-			*		StructManager::PackageManagerSetCycleForStruct(child.struct.index, previouspackageindex)
-			*	}
-			* }
-			*/
+		/*
+		* WRONG ---> GET THE STRUCT AND GET THE DEPDENDENCIES FROM THAT STRUCT MANUALLY
+		*
+		* if (Struct.getsuper().getpackage() == previouspackageindex)
+		* {
+		*		count++;
+		*		StructManager::PackageManagerSetCycleForStruct(Struct.getsuper().index, previouspackageindex)
+		* }
+		*
+		* if (!Struct.isstructnotclass)
+		*	return/continue;
+		*
+		* for (child : Struct)
+		* {
+		*	if (child == structproperty && child.struct.getpackage() == previouspackageindex)
+		*	{
+		*		count++;
+		*		StructManager::PackageManagerSetCycleForStruct(child.struct.index, previouspackageindex)
+		*	}
+		* }
+		*/
 
-			if (ObjectArray::GetByIndex(Index).GetPackageIndex() == PackageIndexToCheckOccurences)
-				OutCount++;
+		DependencyManager::OnVisitCallbackType CountDependencies = [&OutCount, &PackageIndexToCheckOccurences, &bIsStruct](int32 Index) -> void
+		{
+			OutCount += HelperCountStructDependenciesOfPackage(ObjectArray::GetByIndex<UEStruct>(Index), PackageIndexToCheckOccurences, !bIsStruct);
 		};
 
 		CurrentStructsOrClasses.VisitAllNodesWithCallback(CountDependencies);
@@ -400,25 +473,19 @@ void PackageManager::HandleCycles()
 		/* Which of the two cyclic packages requires less structs from the other package. */
 		const bool bCurrentHasMoreDependencies = NumStructsRequiredByCurrent > NumStructsRequiredByPrevious;
 
-		const int32 PackageIndexToLookFor = bCurrentHasMoreDependencies ? PreviousPackageIndex : CurrentPackageIndex;
+		/* Add both Current -> Previous and Previous -> Current */
+
+		const int32 PackageIndexWithLeastDependencies = bCurrentHasMoreDependencies ? PreviousPackageIndex : CurrentPackageIndex;
 		const int32 PackageIndexToMarkCyclicWith = bCurrentHasMoreDependencies ? CurrentPackageIndex : PreviousPackageIndex;
 
-		DependencyManager::OnVisitCallbackType SetCycleCallback = [PackageIndexToLookFor, PackageIndexToMarkCyclicWith](int32 Index) -> void
+		HandledPackages.push_back({ PackageIndexWithLeastDependencies, PackageIndexToMarkCyclicWith, bIsStruct, !bIsStruct });
+
+		DependencyManager::OnVisitCallbackType SetCycleCallback = [PackageIndexWithLeastDependencies, PackageIndexToMarkCyclicWith, bIsStruct](int32 Index) -> void
 		{
-			if (ObjectArray::GetByIndex(Index).GetPackageIndex() == PackageIndexToLookFor)
-				StructManager::PackageManagerSetCycleForStruct(Index, PackageIndexToMarkCyclicWith);
+			HelperMarkStructDependenciesOfPackage(ObjectArray::GetByIndex<UEStruct>(Index), PackageIndexToMarkCyclicWith, PackageIndexWithLeastDependencies, !bIsStruct);
 		};
 
 		PreviousStructsOrClasses.VisitAllNodesWithCallback(SetCycleCallback);
-
-		if (bIsStruct) {
-			CurrentPackageInfo.ErasePackageDependencyFromStructs(PreviousPackageIndex);
-			PreviousPackageInfo.ErasePackageDependencyFromStructs(CurrentPackageIndex);
-		}
-		else {
-			CurrentPackageInfo.ErasePackageDependencyFromClasses(PreviousPackageIndex);
-			PreviousPackageInfo.ErasePackageDependencyFromClasses(CurrentPackageIndex);
-		}
 	};
 
 	FindCycleCallbackType OnCycleFoundPrintCallback = [](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
@@ -430,6 +497,47 @@ void PackageManager::HandleCycles()
 	};
 
 	FindCycle(OnCycleFoundCallback);
+
+	for (const CycleInfo& Cycle : HandledPackages)
+	{
+		const PackageInfoHandle CurrentPackageInfo = GetInfo(Cycle.CurrentPackage);
+		const PackageInfoHandle PreviousPackageInfo = GetInfo(Cycle.PreviousPacakge);
+
+		if (Cycle.bAreStructsCyclic) {
+			CurrentPackageInfo.ErasePackageDependencyFromStructs(Cycle.PreviousPacakge);
+			//PreviousPackageInfo.ErasePackageDependencyFromStructs(Cycle.CurrentPackage);
+		}
+		else {
+			/* check if some_classe.hpp could need somecyclic_structs.hpp, which is legal */
+			const RequirementInfo& CurrentRequirements = CurrentPackageInfo.GetPackageDependencies().ClassesDependencies.at(Cycle.PreviousPacakge);
+			const RequirementInfo& PreviousRequirements = PreviousPackageInfo.GetPackageDependencies().ClassesDependencies.at(Cycle.CurrentPackage);
+
+			/* Mark classes as 'do not include' when this package is cyclic but can still require _structs.hpp */
+			if (CurrentRequirements.bShouldIncludeStructs) {
+				const_cast<RequirementInfo&>(CurrentRequirements).bShouldIncludeClasses = false;
+			}
+			else {
+				CurrentPackageInfo.ErasePackageDependencyFromClasses(Cycle.PreviousPacakge);
+			}
+
+			//if (PreviousRequirements.bShouldIncludeStructs) {
+			//	const_cast<RequirementInfo&>(PreviousRequirements).bShouldIncludeClasses = false;
+			//}
+			//else {
+			//	CurrentPackageInfo.ErasePackageDependencyFromClasses(Cycle.CurrentPackage);
+			//}
+		}
+	}
+	/*
+		if (bIsStruct) {
+			CurrentPackageInfo.ErasePackageDependencyFromStructs(PreviousPackageIndex);
+			PreviousPackageInfo.ErasePackageDependencyFromStructs(CurrentPackageIndex);
+		}
+		else {
+			CurrentPackageInfo.ErasePackageDependencyFromClasses(PreviousPackageIndex);
+			PreviousPackageInfo.ErasePackageDependencyFromClasses(CurrentPackageIndex);
+		}
+	*/
 	//FindCycle(OnCycleFoundPrintCallback);
 }
 

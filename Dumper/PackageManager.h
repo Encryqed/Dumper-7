@@ -226,6 +226,10 @@ private:
 	static void InitNames();
 	static void HandleCycles();
 
+private:
+	static void HelperMarkStructDependenciesOfPackage(UEStruct Struct, int32 OwnPackageIdx, int32 RequiredPackageIdx, bool bIsClass);
+	static int32 HelperCountStructDependenciesOfPackage(UEStruct Struct, int32 OwnPackageIdx, bool bIsClass);
+
 public:
 	static void Init();
 	static void PostInit();
