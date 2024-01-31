@@ -82,7 +82,7 @@ DWORD MainThread(HMODULE Module)
 	//MemberManagerTest::TestAll<true>();
 
 	//PackageManagerTest::TestAll<true>();
-	PackageManagerTest::TestFindCyclidDependencies<true>();
+	//PackageManagerTest::TestFindCyclidDependencies<true>();
 	//PackageManagerTest::TestCyclicDependencyDetection<true>();
 
 

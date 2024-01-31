@@ -124,8 +124,6 @@ public:
 	*/
 	static inline void PackageManagerSetCycleForStruct(int32 StructIndex, int32 PackageIndex)
 	{
-		std::cout << "Set struct as cyclic: '" << ObjectArray::GetByIndex(StructIndex).GetFullName() << "'\n";
-
 		StructInfo& Info = StructInfoOverrides.at(StructIndex);
 
 		Info.bIsPartOfCyclicPackage = true;
