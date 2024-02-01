@@ -103,10 +103,14 @@ private: /* utility functions */
 
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
+    static std::string GetEnumUnderlayingType(const EnumWrapper& Enm);
 
     static std::string GetCycleFixupType(const StructWrapper& Struct, bool bIsForInheritance);
 
     static std::unordered_map<std::string /* Name */, int32 /* Size */> GetUnknownProperties();
+
+private:
+    static void GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, PackageInfoHandle Package, bool bIsClassFile);
 
 private:
     static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);

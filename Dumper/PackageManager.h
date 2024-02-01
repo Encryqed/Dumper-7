@@ -81,6 +81,9 @@ private:
 	std::vector<int32> Functions;
 	std::vector<int32> Enums;
 
+	/* Pair<Index, bIsClass>. Forward declarations for enums, mostly for enums from packages with cyclic dependencies */
+	std::unordered_map<int32, bool> EnumForwardDeclarations;
+
 	/* mutable to allow PackageManager to erase cyclic dependencies */
 	mutable DependencyInfo PackageDependencies;
 };
@@ -119,6 +122,8 @@ public:
 
 	const std::vector<int32>& GetFunctions() const;
 	const std::vector<int32>& GetEnums() const;
+
+	const std::unordered_map<int32, bool>& GetEnumForwardDeclarations() const;
 
 	const DependencyInfo& GetPackageDependencies() const;
 
@@ -229,6 +234,10 @@ private:
 private:
 	static void HelperMarkStructDependenciesOfPackage(UEStruct Struct, int32 OwnPackageIdx, int32 RequiredPackageIdx, bool bIsClass);
 	static int32 HelperCountStructDependenciesOfPackage(UEStruct Struct, int32 OwnPackageIdx, bool bIsClass);
+
+	static void HelperAddEnumsFromPacakgeToFwdDeclarations(UEStruct Struct, std::unordered_map<int32, bool>& EnumsToForwardDeclare, int32 RequiredPackageIdx, bool bMarkAsClass);
+
+	static void HelperInitEnumFwdDeclarationsForPackage(int32 PackageForFwdDeclarations, int32 RequiredPackage, bool bIsClass);
 
 public:
 	static void Init();

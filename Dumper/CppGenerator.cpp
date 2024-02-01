@@ -706,17 +706,6 @@ void CppGenerator::GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile)
 	if (!Enum.IsValid())
 		return;
 
-	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
-		"uint8",
-		"uint16",
-		"InvalidEnumSize",
-		"uint32",
-		"InvalidEnumSize",
-		"InvalidEnumSize",
-		"InvalidEnumSize",
-		"uint64"
-	};
-
 	CollisionInfoIterator EnumValueIterator = Enum.GetMembers();
 
 	int32 NumValues = 0x0;
@@ -731,8 +720,6 @@ void CppGenerator::GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile)
 	if (!MemberString.empty()) [[likely]]
 		MemberString.pop_back();
 
-	std::string UnderlayingType = Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlayingTypesBySize[static_cast<size_t>(Enum.GetUnderlyingTypeSize()) - 1] : "uint8";
-
 	StructFile << std::format(R"(
 // {}
 // NumValues: 0x{:04X}
@@ -743,7 +730,7 @@ enum class {} : {}
 )", Enum.GetFullName()
   , NumValues
   , GetEnumPrefixedName(Enum)
-  , UnderlayingType
+  , GetEnumUnderlayingType(Enum)
   , MemberString);
 }
 
@@ -771,6 +758,22 @@ std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 
 	/* Package::ESomeEnum */
 	return PackageManager::GetName(Enum.GetUnrealEnum().GetPackageIndex()) + "::" + ValidName;
+}
+
+std::string CppGenerator::GetEnumUnderlayingType(const EnumWrapper& Enum)
+{
+	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
+		"uint8",
+		"uint16",
+		"InvalidEnumSize",
+		"uint32",
+		"InvalidEnumSize",
+		"InvalidEnumSize",
+		"InvalidEnumSize",
+		"uint64"
+	};
+
+	return Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlayingTypesBySize[static_cast<size_t>(Enum.GetUnderlyingTypeSize()) - 1] : "uint8";
 }
 
 std::string CppGenerator::GetCycleFixupType(const StructWrapper& Struct, bool bIsForInheritance)
@@ -1009,6 +1012,21 @@ std::unordered_map<std::string /* Name */, int32 /* Size */> CppGenerator::GetUn
 	return RetMap;
 }
 
+void CppGenerator::GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, PackageInfoHandle Package, bool bIsClassFile)
+{
+	const std::unordered_map<int32, bool>& FwdDeclarations = Package.GetEnumForwardDeclarations();
+
+	for (const auto [EnumIndex, bIsForClassFile] : FwdDeclarations)
+	{
+		if (bIsForClassFile != bIsClassFile)
+			continue;
+
+		EnumWrapper Enum = EnumWrapper(ObjectArray::GetByIndex<UEEnum>(EnumIndex));
+
+		ClassOrStructFile << std::format("enum class {} : {};\n", GetEnumPrefixedName(Enum), GetEnumUnderlayingType(Enum));
+	}
+}
+
 void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 {
 	namespace CppSettings = SettingsRewrite::CppGenerator;
@@ -1043,7 +1061,7 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 
 		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Enum.GetPackageIndex()];
 
-		ForwardDeclarations += std::format("\tenum class {} : {};\n", Enum.GetEnumPrefixedName(), GetTypeFromSize(EnumInfoHandle(Info).GetUnderlyingTypeSize()));
+		ForwardDeclarations += std::format("\tenum class {} : {};\n", Enum.GetEnumPrefixedName(), GetEnumUnderlayingType(Enum));
 		Count++;
 	}
 
@@ -1341,12 +1359,18 @@ void CppGenerator::Generate()
 		{
 			ClassesFile = StreamType(Subfolder / (FileName + "_classes.hpp"));
 			WriteFileHead(ClassesFile, Package, EFileType::Classes);
+
+			/* Write enum foward declarations before all of the classes */
+			GenerateEnumFwdDeclarations(ClassesFile, Package, true);
 		}
 
 		if (Package.HasStructs() || Package.HasEnums())
 		{
 			StructsFile = StreamType(Subfolder / (FileName + "_structs.hpp"));
 			WriteFileHead(StructsFile, Package, EFileType::Structs);
+
+			/* Write enum foward declarations before all of the structs */
+			GenerateEnumFwdDeclarations(StructsFile, Package, false);
 		}
 
 		if (Package.HasParameterStructs())

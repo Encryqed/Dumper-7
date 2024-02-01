@@ -100,6 +100,11 @@ const std::vector<int32>& PackageInfoHandle::GetEnums() const
 	return Info->Enums;
 }
 
+const std::unordered_map<int32, bool>& PackageInfoHandle::GetEnumForwardDeclarations() const
+{
+	return Info->EnumForwardDeclarations;
+}
+
 const DependencyInfo& PackageInfoHandle::GetPackageDependencies() const
 {
 	return Info->PackageDependencies;
@@ -368,6 +373,41 @@ int32 PackageManager::HelperCountStructDependenciesOfPackage(UEStruct Struct, in
 	return RetCount;
 }
 
+void PackageManager::HelperAddEnumsFromPacakgeToFwdDeclarations(UEStruct Struct, std::unordered_map<int32, bool>& EnumsToForwardDeclare, int32 RequiredPackageIdx, bool bMarkAsClass)
+{
+	for (UEProperty Child : Struct.GetProperties())
+	{
+		if (!Child.IsA(EClassCastFlags::EnumProperty))
+			continue;
+
+		const UEObject UnderlayingEnum = Child.Cast<UEEnumProperty>().GetEnum();
+
+		if (UnderlayingEnum && UnderlayingEnum.GetPackageIndex() == RequiredPackageIdx)
+			EnumsToForwardDeclare.emplace(UnderlayingEnum.GetIndex(), bMarkAsClass);
+	}
+}
+
+void PackageManager::HelperInitEnumFwdDeclarationsForPackage(int32 PackageForFwdDeclarations, int32 RequiredPackage, bool bIsClass)
+{
+	PackageInfo& Info = PackageInfos.at(PackageForFwdDeclarations);
+
+	std::unordered_map<int32, bool>& EnumsToForwardDeclare = Info.EnumForwardDeclarations;
+
+	DependencyManager::OnVisitCallbackType CheckForEnumsToForwardDeclareCallback = [&EnumsToForwardDeclare, RequiredPackage, bIsClass](int32 Index) -> void
+	{
+		HelperAddEnumsFromPacakgeToFwdDeclarations(ObjectArray::GetByIndex<UEStruct>(Index), EnumsToForwardDeclare, RequiredPackage, bIsClass);
+	};
+
+	DependencyManager& Manager = bIsClass ? Info.ClassesSorted : Info.StructsSorted;
+	Manager.VisitAllNodesWithCallback(CheckForEnumsToForwardDeclareCallback);
+
+	/* Enums used in functions are required by classes too, due to the declaration of functions being in the classes-header */
+	for (const int32 FuncIdx : Info.Functions)
+	{
+		HelperAddEnumsFromPacakgeToFwdDeclarations(ObjectArray::GetByIndex<UEFunction>(FuncIdx), EnumsToForwardDeclare, RequiredPackage, true);
+	}
+}
+
 /* Safe to use StructManager, initialization is guaranteed to have been finished */
 void PackageManager::HandleCycles()
 {
@@ -461,8 +501,6 @@ void PackageManager::HandleCycles()
 				HelperMarkStructDependenciesOfPackage(ObjectArray::GetByIndex<UEStruct>(Index), PackageIndexToMarkCyclicWith, PackageIndexWithLeastDependencies, !bIsStruct);
 			};
 
-			const DependencyManager& DependencyManagerToMarkStructsCyclic = bCurrentHasMoreDependencies ? PreviousStructsOrClasses : CurrentStructsOrClasses;
-
 			PreviousStructsOrClasses.VisitAllNodesWithCallback(SetCycleCallback);
 		}
 		else /* Just mark structs|classes from the previous package as cyclic */
@@ -478,38 +516,34 @@ void PackageManager::HandleCycles()
 		}
 	};
 
-	FindCycleCallbackType OnCycleFoundPrintCallback = [](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
-	{
-		std::string PrevName = ObjectArray::GetByIndex(NewParams.PrevPackage).GetValidName() + (NewParams.bWasPrevNodeStructs ? "_structs" : "_classes");
-		std::string CurrName = ObjectArray::GetByIndex(NewParams.RequiredPackge).GetValidName() + (bIsStruct ? "_structs" : "_classes");
-
-		std::cout << std::format("Cycle between: Current - '{}' and Previous - '{}'\n", CurrName, PrevName);
-	};
-
 	FindCycle(CleanedUpOnCycleFoundCallback);
 
+
+	/* Actually remove the cycle form our dependency-graph. Couldn't be done before as it would've invalidated the iterator */
 	for (const CycleInfo& Cycle : HandledPackages)
 	{
 		const PackageInfoHandle CurrentPackageInfo = GetInfo(Cycle.CurrentPackage);
 		const PackageInfoHandle PreviousPackageInfo = GetInfo(Cycle.PreviousPacakge);
 
-		if (Cycle.bAreStructsCyclic) {
-			CurrentPackageInfo.ErasePackageDependencyFromStructs(Cycle.PreviousPacakge);
-			//PreviousPackageInfo.ErasePackageDependencyFromStructs(Cycle.CurrentPackage);
-		}
-		else {
-			/* check if some_classe.hpp could need somecyclic_structs.hpp, which is legal */
-			const RequirementInfo& CurrentRequirements = CurrentPackageInfo.GetPackageDependencies().ClassesDependencies.at(Cycle.CurrentPackage);
-			const RequirementInfo& PreviousRequirements = PreviousPackageInfo.GetPackageDependencies().ClassesDependencies.at(Cycle.PreviousPacakge);
+		/* Add enum forward declarations to the package from which we remove the dependency, as enums are not considered by those dependencies */
+		HelperInitEnumFwdDeclarationsForPackage(Cycle.CurrentPackage, Cycle.PreviousPacakge, Cycle.bAreStructsCyclic);
 
-			/* Mark classes as 'do not include' when this package is cyclic but can still require _structs.hpp */
-			if (CurrentRequirements.bShouldIncludeStructs) {
-				const_cast<RequirementInfo&>(CurrentRequirements).bShouldIncludeClasses = false;
-			}
-			else {
-				//PreviousPackageInfo.ErasePackageDependencyFromClasses(Cycle.PreviousPacakge);
-				CurrentPackageInfo.ErasePackageDependencyFromClasses(Cycle.PreviousPacakge);
-			}
+		if (Cycle.bAreStructsCyclic)
+		{
+			CurrentPackageInfo.ErasePackageDependencyFromStructs(Cycle.PreviousPacakge);
+			continue;
+		}
+
+		const RequirementInfo& CurrentRequirements = CurrentPackageInfo.GetPackageDependencies().ClassesDependencies.at(Cycle.CurrentPackage);
+
+		/* Mark classes as 'do not include' when this package is cyclic but can still require _structs.hpp */
+		if (CurrentRequirements.bShouldIncludeStructs)
+		{
+			const_cast<RequirementInfo&>(CurrentRequirements).bShouldIncludeClasses = false;
+		}
+		else
+		{
+			CurrentPackageInfo.ErasePackageDependencyFromClasses(Cycle.PreviousPacakge);
 		}
 	}
 }
