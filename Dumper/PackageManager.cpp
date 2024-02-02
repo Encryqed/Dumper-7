@@ -100,7 +100,7 @@ const std::vector<int32>& PackageInfoHandle::GetEnums() const
 	return Info->Enums;
 }
 
-const std::unordered_map<int32, bool>& PackageInfoHandle::GetEnumForwardDeclarations() const
+const std::vector<std::pair<int32, bool>>& PackageInfoHandle::GetEnumForwardDeclarations() const
 {
 	return Info->EnumForwardDeclarations;
 }
@@ -373,17 +373,20 @@ int32 PackageManager::HelperCountStructDependenciesOfPackage(UEStruct Struct, in
 	return RetCount;
 }
 
-void PackageManager::HelperAddEnumsFromPacakgeToFwdDeclarations(UEStruct Struct, std::unordered_map<int32, bool>& EnumsToForwardDeclare, int32 RequiredPackageIdx, bool bMarkAsClass)
+void PackageManager::HelperAddEnumsFromPacakgeToFwdDeclarations(UEStruct Struct, std::vector<std::pair<int32, bool>>& EnumsToForwardDeclare, int32 RequiredPackageIdx, bool bMarkAsClass)
 {
 	for (UEProperty Child : Struct.GetProperties())
 	{
-		if (!Child.IsA(EClassCastFlags::EnumProperty))
+		const bool bIsEnumPrperty = Child.IsA(EClassCastFlags::EnumProperty);
+		const bool bIsBytePrperty = Child.IsA(EClassCastFlags::ByteProperty);
+
+		if (!bIsEnumPrperty && !bIsBytePrperty)
 			continue;
 
-		const UEObject UnderlayingEnum = Child.Cast<UEEnumProperty>().GetEnum();
+		const UEObject UnderlayingEnum = bIsEnumPrperty ? Child.Cast<UEEnumProperty>().GetEnum() : Child.Cast<UEByteProperty>().GetEnum();
 
 		if (UnderlayingEnum && UnderlayingEnum.GetPackageIndex() == RequiredPackageIdx)
-			EnumsToForwardDeclare.emplace(UnderlayingEnum.GetIndex(), bMarkAsClass);
+			EnumsToForwardDeclare.emplace_back(UnderlayingEnum.GetIndex(), bMarkAsClass);
 	}
 }
 
@@ -391,7 +394,7 @@ void PackageManager::HelperInitEnumFwdDeclarationsForPackage(int32 PackageForFwd
 {
 	PackageInfo& Info = PackageInfos.at(PackageForFwdDeclarations);
 
-	std::unordered_map<int32, bool>& EnumsToForwardDeclare = Info.EnumForwardDeclarations;
+	std::vector<std::pair<int32, bool>>& EnumsToForwardDeclare = Info.EnumForwardDeclarations;
 
 	DependencyManager::OnVisitCallbackType CheckForEnumsToForwardDeclareCallback = [&EnumsToForwardDeclare, RequiredPackage, bIsClass](int32 Index) -> void
 	{
@@ -406,6 +409,9 @@ void PackageManager::HelperInitEnumFwdDeclarationsForPackage(int32 PackageForFwd
 	{
 		HelperAddEnumsFromPacakgeToFwdDeclarations(ObjectArray::GetByIndex<UEFunction>(FuncIdx), EnumsToForwardDeclare, RequiredPackage, true);
 	}
+
+	std::sort(EnumsToForwardDeclare.begin(), EnumsToForwardDeclare.end());
+	EnumsToForwardDeclare.erase(std::unique(EnumsToForwardDeclare.begin(), EnumsToForwardDeclare.end()), EnumsToForwardDeclare.end());
 }
 
 /* Safe to use StructManager, initialization is guaranteed to have been finished */

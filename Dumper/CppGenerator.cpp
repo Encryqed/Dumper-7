@@ -1014,7 +1014,7 @@ std::unordered_map<std::string /* Name */, int32 /* Size */> CppGenerator::GetUn
 
 void CppGenerator::GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, PackageInfoHandle Package, bool bIsClassFile)
 {
-	const std::unordered_map<int32, bool>& FwdDeclarations = Package.GetEnumForwardDeclarations();
+	const std::vector<std::pair<int32, bool>>& FwdDeclarations = Package.GetEnumForwardDeclarations();
 
 	for (const auto [EnumIndex, bIsForClassFile] : FwdDeclarations)
 	{
