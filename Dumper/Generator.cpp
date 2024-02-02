@@ -33,7 +33,7 @@ inline void InitSettings()
 	constexpr int32 OldUnrealAssetPtrSize = 0x10;
 	const int32 SizeOfSoftObjectPath = SoftObjectPath ? SoftObjectPath.GetStructSize() : OldUnrealAssetPtrSize;
 
-	Settings::Internal::bIsWeakObjectPtrWithoutTag = Asset.GetSize() < (SizeOfSoftObjectPath + SizeOfFFWeakObjectPtr);
+	Settings::Internal::bIsWeakObjectPtrWithoutTag = Asset.GetSize() <= (SizeOfSoftObjectPath + SizeOfFFWeakObjectPtr);
 
 	std::cout << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
 }

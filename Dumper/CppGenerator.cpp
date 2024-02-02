@@ -3241,7 +3241,7 @@ R"({
 		},
 	};
 
-	if (Off::FName::Number != 0x0)
+	if (!Settings::Internal::bUseUoutlineNumberName)
 	{
 		FName.Properties.push_back(PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",

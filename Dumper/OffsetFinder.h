@@ -159,9 +159,20 @@ namespace OffsetFinder
 			return NamesWithNumberOneToFour;
 		};
 
+		/*
+		* Games without FNAME_OUTLINE_NUMBER have a min. percentage of 6% of all object-names for which FName::Number is in a [1...4] range
+		* On games with FNAME_OUTLINE_NUMBER the (random) integer after FName::ComparisonIndex is in the range from [1...4] about 2% (or less) of times.
+		* 
+		* The minimum percentage of names is set to 3% to give both normal names, as well as outline-numer names a buffer-zone.
+		*/
+		constexpr float MinPercentage = 0.03f;
+
+		/* Minimum required ammount of names for which FName::Number is in a [1...4] range */
+		const int32 FNameNumberThreashold = (ObjectArray::Num() * MinPercentage);
+
 		Off::FName::CompIdx = 0x0;
 
-		if (FNameSize == 0x8 && FNameFirstInt == FNameSecondInt) /* WITH_CASE_PRESERVING_NAME + FNAME_OUTLINE_NUMBER*/
+		if (FNameSize == 0x8 && FNameFirstInt == FNameSecondInt) /* WITH_CASE_PRESERVING_NAME + FNAME_OUTLINE_NUMBER */
 		{
 			Settings::Internal::bUseCasePreservingName = true;
 			Settings::Internal::bUseUoutlineNumberName = true;
@@ -177,7 +188,7 @@ namespace OffsetFinder
 
 			Off::InSDK::Name::FNameSize = 0xC;
 		}
-		else if (GetNumNamesWithNumberOneToFour() < 0x3A) /* FNAME_OUTLINE_NUMBER*/
+		else if (GetNumNamesWithNumberOneToFour() < FNameNumberThreashold) /* FNAME_OUTLINE_NUMBER */
 		{
 			Settings::Internal::bUseUoutlineNumberName = true;
 
