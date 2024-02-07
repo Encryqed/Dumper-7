@@ -1059,7 +1059,7 @@ R"(
 	}
 )"
 			},
-{ "\tFVector operator*(const FVector& Other) const;", "\tFVector operator*(const FVector& Other) const", R"(
+{ "\tFVector operator*(const FVector& Other) const;", "\tFVector FVector::operator*(const FVector& Other) const", R"(
 	{
 		return FVector(X * Other.X, Y * Other.Y, Z * Other.Z);
 	}
