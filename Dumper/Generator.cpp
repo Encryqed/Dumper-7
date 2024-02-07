@@ -1046,7 +1046,7 @@ R"(
 			},
 { "\tFVector operator/(const FVector& Other) const;", "\tFVector FVector::operator/(const FVector& Other) const", R"(
 	{
-		if (Other.X == 0.0f || Other.Y == 0.0f || other.Z == 0.0f)
+		if (Other.X == 0.0f || Other.Y == 0.0f || Other.Z == 0.0f)
 			return FVector();
 
 		return FVector(X / Other.X, Y / Other.Y, Z / Other.Z);
