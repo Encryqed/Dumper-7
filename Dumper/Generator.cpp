@@ -1012,7 +1012,7 @@ R"(
 			},
 
 		//Operators = (non-const)
-{ "\tFVector& operator=(const FVector& Other);", "\tFVector& FVector::operator=(const FVector& Other) const", R"(
+{ "\tFVector& operator=(const FVector& Other);", "\tFVector& FVector::operator=(const FVector& Other)", R"(
 	{
 		X = Other.X;
 		Y = Other.Y;
@@ -1075,7 +1075,7 @@ R"(
 )"
 			},
 		//non-const operators
-{ "\tFVector& operator+=(const FVector& Other);", "\tFVector& operator+=(const FVector& Other) const", R"(
+{ "\tFVector& operator+=(const FVector& Other);", "\tFVector& operator+=(const FVector& Other)", R"(
 	{
 		X += Other.X;
 		Y += Other.Y;
@@ -1084,7 +1084,7 @@ R"(
 	}
 )"
 			},
-{ "\tFVector& operator-=(const FVector& Other);", "\tFVector& operator-=(const FVector& Other) const", R"(
+{ "\tFVector& operator-=(const FVector& Other);", "\tFVector& operator-=(const FVector& Other)", R"(
 	{
 		X -= Other.X;
 		Y -= Other.Y;
@@ -1093,7 +1093,7 @@ R"(
 	}
 )"
 			},
-{ "\tFVector& operator*=(const decltype(X) Scalar);", "\tFVector& operator*=(const decltype(X) Scalar) const", R"(
+{ "\tFVector& operator*=(const decltype(X) Scalar);", "\tFVector& operator*=(const decltype(X) Scalar)", R"(
 	{
 		X *= Scalar;
 		Y *= Scalar;
@@ -1127,25 +1127,25 @@ R"(
 	}
 )"
 			},
-{ "\tfloat Dot(const FVector& Other) const;", "\tfloat FVector::Dot(const FVector& Other)", R"(
+{ "\tfloat Dot(const FVector& Other) const;", "\tfloat FVector::Dot(const FVector& Other) const", R"(
 	{
 		return (X * Other.X) + (Y * Other.Y) + (Z * Other.Z);
 	}
 )"
 			},
-{ "\tfloat MagnitudeSqr() const;", "\tfloat FVector::MagnitudeSqr()", R"(
+{ "\tfloat MagnitudeSqr() const;", "\tfloat FVector::MagnitudeSqr() const", R"(
 	{
 		return Dot(*this);
 	}
 )"
 			},
-{ "\tfloat Magnitude() const;", "\tfloat FVector::Magnitude()", R"(
+{ "\tfloat Magnitude() const;", "\tfloat FVector::Magnitude() const", R"(
 	{
 		return std::sqrtf(MagnitudeSqr());
 	}
 )"
 			},
-{ "\tFVector GetNormalized() const;", "\tFVector FVector::GetNormalized()", R"(
+{ "\tFVector GetNormalized() const;", "\tFVector FVector::GetNormalized() const", R"(
 	{
 		const float fMagnitude = Magnitude();
 		return FVector(X / fMagnitude, Y / fMagnitude, Z / fMagnitude);
