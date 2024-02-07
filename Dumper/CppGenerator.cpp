@@ -47,7 +47,7 @@ std::string CppGenerator::GenerateBitPadding(uint8 UnderlayingSizeBytes, const i
 	return MakeMemberString(GetTypeFromSize(UnderlayingSizeBytes), std::format("BitPad_{:X} : {:X}", BitPadNum++, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, UnderlayingSizeBytes, std::move(Reason)));
 }
 
-std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 PackageIndex)
+std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex)
 {
 	constexpr uint64 EstimatedCharactersPerLine = 0x80;
 
@@ -81,13 +81,16 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 	bool bLastPropertyWasBitField = false;
 
-	int PrevPropertyEnd = SuperSize;
-	int PrevBitPropertyEnd = 0;
-	int PrevBitPropertyEndBit = 1;
+	int32 PrevPropertyEnd = SuperSize;
+	int32 PrevBitPropertyEnd = 0;
+	int32 PrevBitPropertyEndBit = 1;
 
 	uint8 PrevBitPropertySize = 0x1;
 	uint8 PrevBitPropertyOffset = 0x0;
 	uint64 PrevMaxIndexInUnderlayingType = 0x8;
+
+	const int32 SuperTrailingPaddingSize = SuperSize - SuperLastMemberEnd;
+	bool bIsFirstSizedMember = true;
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
@@ -100,6 +103,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 		std::string Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, Member.GetFlagsOrCustomComment());
 
+
 		const bool bIsBitField = Member.IsBitField();
 
 		/* Padding between two bitfields at different byte-offsets */
@@ -111,6 +115,8 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 		if (MemberOffset > PrevPropertyEnd && !bIsUnion)
 			OutMembers += GenerateBytePadding(PrevPropertyEnd, MemberOffset - PrevPropertyEnd, "Fixing Size After Last Property [ Dumper-7 ]");
+
+		bIsFirstSizedMember = Member.IsZeroSizedMember() || Member.IsStatic();
 
 		if (bIsBitField)
 		{
@@ -167,9 +173,9 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		}
 	}
 
-	const int32 MissingByteCount = Struct.GetSize() - PrevPropertyEnd;
+	const int32 MissingByteCount = Struct.GetUnalignedSize() - PrevPropertyEnd;
 
-	if (MissingByteCount >= Struct.GetAlignment())
+	if (MissingByteCount > 0x0 /* >=Struct.GetAlignment()*/)
 		OutMembers += GenerateBytePadding(PrevPropertyEnd, MissingByteCount, "Fixing Struct Size After Last Property [ Dumper-7 ]");
 
 	return OutMembers;
@@ -644,13 +650,23 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	const int32 StructSize = Struct.GetSize();
 	int32 SuperSize = 0x0;
+	int32 UnalignedSuperSize = 0x0;
+	int32 SuperAlignment = 0x0;
+	int32 SuperLastMemberEnd = 0x0;
+	bool bIsReusingTrailingPaddingFromSuper = false;
 
 	StructWrapper Super = Struct.GetSuper();
 
-	if (Super.IsValid())
+	/* Ignore UFunctions with a valid Super field, parameter structs are not supposed inherit from eachother. */
+	if (Super.IsValid() && !Struct.IsFunction())
 	{
 		UniqueSuperName = GetStructPrefixedName(Super);
 		SuperSize = Super.GetSize();
+		UnalignedSuperSize = Super.GetUnalignedSize();
+		SuperAlignment = Super.GetAlignment();
+		SuperLastMemberEnd = Super.GetLastMemberEnd();
+
+		bIsReusingTrailingPaddingFromSuper = Super.HasReusedTrailingPadding();
 
 		if (Super.IsCyclicWithPackage(PackageIndex)) [[unlikely]]
 			UniqueSuperName = GetCycleFixupType(Super, true);
@@ -661,18 +677,22 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	const bool bIsClass = Struct.IsClass();
 	const bool bIsUnion = Struct.IsUnion();
 
+	const bool bHasReusedTrailingPadding = Struct.HasReusedTrailingPadding();
+
+
 	StructFile << std::format(R"(
 // {}
 // 0x{:04X} (0x{:04X} - 0x{:04X})
-{}{} {}{}{}{}
+{}{}{} {}{}{}{}
 {{
 )", Struct.GetFullName()
   , StructSizeWithoutSuper
   , StructSize
   , SuperSize
+  , bHasReusedTrailingPadding ? "#pragma pack(push, 0x1)\n" : ""
   , Struct.HasCustomTemplateText() ? (Struct.GetCustomTemplateText() + "\n") : ""
   , bIsClass ? "class" : (bIsUnion ? "union" : "struct")
-  , Struct.ShouldUseExplicitAlignment() ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
+  , Struct.ShouldUseExplicitAlignment() || bHasReusedTrailingPadding ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
   , UniqueName
   , Struct.IsFinal() ? " final " : ""
   , Super.IsValid() ? (" : public " + UniqueSuperName) : "");
@@ -689,7 +709,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	if (bHasMembers)
 	{
-		StructFile << GenerateMembers(Struct, Members, SuperSize);
+		StructFile << GenerateMembers(Struct, Members, bIsReusingTrailingPaddingFromSuper ? UnalignedSuperSize : SuperSize, SuperLastMemberEnd, SuperAlignment, PackageIndex);
 
 		if (bHasFunctions)
 			StructFile << "\npublic:\n";
@@ -699,6 +719,40 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 		StructFile << GenerateFunctions(Struct, Members, UniqueName, FunctionFile, ParamFile);
 
 	StructFile << "};\n";
+
+	if (bHasReusedTrailingPadding)
+		StructFile << "#pragma pack(pop)\n";
+
+	if constexpr (SettingsRewrite::Debug::bGenerateInlineAssertionsForStructSize)
+	{
+		if (Struct.HasCustomTemplateText())
+			return;
+
+		std::string UniquePrefixedName = GetStructPrefixedName(Struct);
+
+		const int32 StructSize = Struct.GetSize();
+
+		// Alignment assertions
+		StructFile << std::format("static_assert(alignof({}) == 0x{:06X}, \"Wrong alinment on {}\");\n", UniquePrefixedName, Struct.GetAlignment(), UniquePrefixedName);
+
+		// Size assertions
+		StructFile << std::format("static_assert(sizeof({}) == 0x{:06X}, \"Wrong size on {}\");\n", UniquePrefixedName, (StructSize > 0x0 ? StructSize : 0x1), UniquePrefixedName);
+	}
+
+
+	if constexpr (SettingsRewrite::Debug::bGenerateInlineAssertionsForStructMembers)
+	{
+		for (const PropertyWrapper& Member : Members.IterateMembers())
+		{
+			if (Member.IsBitField() || Member.IsZeroSizedMember() || Member.IsStatic())
+				continue;
+
+			std::string StructName = GetStructPrefixedName(Struct);
+			std::string MemberName = Member.GetName();
+
+			StructFile << std::format("static_assert(offsetof({}, {}) == 0x{:06X}, \"Member '{}::{}' has a wrong offset!\");\n", StructName, MemberName, Member.GetOffset(), StructName, MemberName);
+		}
+	}
 }
 
 void CppGenerator::GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile)
@@ -982,6 +1036,10 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 
 		return "TScriptInterface<class IInterface>";
 	}
+	else if (Flags & EClassCastFlags::OptionalProperty)
+	{
+
+	}
 	else
 	{
 		/* When changing this also change 'GetUnknownProperties()' */
@@ -1135,8 +1193,10 @@ void CppGenerator::GenerateDebugAssertions(StreamType& AssertionStream)
 			// Alignment assertions
 			AssertionStream << std::format("static_assert(alignof({}) == 0x{:06X});\n", UniquePrefixedName, Struct.GetAlignment());
 
+			const int32 StructSize = Struct.GetSize();
+
 			// Size assertions
-			AssertionStream << std::format("static_assert(sizeof({}) == 0x{:06X});\n", UniquePrefixedName, Struct.GetSize());
+			AssertionStream << std::format("static_assert(sizeof({}) == 0x{:06X});\n", UniquePrefixedName, (StructSize > 0x0 ? StructSize : 0x1));
 
 			AssertionStream << "\n";
 
@@ -1277,10 +1337,13 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 			File << "\n";
 	}
 
-	File << "\n";
-
 	if (Type == EFileType::SdkHpp)
-		return; /* No namespace in SDK.hpp */
+		return; /* No namespace or packing in SDK.hpp */
+
+	//if (Type <= EFileType::Functions)
+	//	File << "#pragma pack(push, 0x1)\n";
+
+	File << "\n";
 
 	if constexpr (CppSettings::SDKNamespaceName)
 	{
@@ -1303,7 +1366,7 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 	namespace CppSettings = SettingsRewrite::CppGenerator;
 
 	if (Type == EFileType::SdkHpp)
-		return; /* No namespace in SDK.hpp */
+		return; /* No namespace or packing in SDK.hpp */
 
 	if constexpr (CppSettings::SDKNamespaceName || CppSettings::ParamNamespaceName)
 	{
@@ -1312,6 +1375,9 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 
 		File << "}\n\n";
 	}
+
+	//if (Type <= EFileType::Functions)
+	//	File << "#pragma pack(pop)\n";
 }
 
 void CppGenerator::Generate()
@@ -3556,7 +3622,7 @@ R"({
 	BasicHpp <<
 		R"(
 template<typename ElementType>
-class TSet
+class alignas(0x8) TSet
 {
 	uint8 ComingWithUnrealContainersUpdate[0x50];
 };
@@ -3565,7 +3631,7 @@ class TSet
 	BasicHpp <<
 		R"(
 template<typename KeyType, typename ValueType>
-class TMap
+class alignas(0x8) TMap
 {
 	uint8 ComingWithUnrealContainersUpdate[0x50];
 };
@@ -3575,7 +3641,7 @@ class TMap
 
 	/* class FWeakObjectPtr */
 	PredefinedStruct FWeakObjectPtr = PredefinedStruct{
-		.UniqueName = "FWeakObjectPtr", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "FWeakObjectPtr", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	FWeakObjectPtr.Properties =
@@ -3668,7 +3734,7 @@ public:
 
 	/* class FUniqueObjectGuid */
 	PredefinedStruct FUniqueObjectGuid = PredefinedStruct{
-		.UniqueName = "FUniqueObjectGuid", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "FUniqueObjectGuid", .Size = 0x10, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	FUniqueObjectGuid.Properties =
@@ -4198,8 +4264,6 @@ UE_ENUM_OPERATORS(EPropertyFlags);
 )";
 
 
-	if (!PredefinedStructs.empty())
-		BasicHpp << "\n\n";
 
 	/* Write Predefined Structs into Basic.hpp */
 	for (const PredefinedStruct& Predefined : PredefinedStructs)

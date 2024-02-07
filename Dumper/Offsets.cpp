@@ -211,6 +211,9 @@ void Off::Init()
 		
 		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
 		std::cout << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
+
+		Off::FField::Flags = Off::FField::Name + Off::InSDK::Name::FNameSize;
+		std::cout << std::format("Off::FField::Flags: 0x{:X}\n", Off::FField::Flags);
 	}
 
 	Off::UClass::ClassDefaultObject = OffsetFinder::FindDefaultObjectOffset();

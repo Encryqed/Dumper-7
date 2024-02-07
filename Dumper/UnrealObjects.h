@@ -266,6 +266,8 @@ public:
 	EMappingsTypeFlags GetMappingType() const;
 	bool HasPropertyFlags(EPropertyFlags PropertyFlag) const;
 
+	int32 GetAlignment() const;
+
 	std::string GetName() const;
 	std::string GetValidName() const;
 
@@ -419,3 +421,14 @@ public:
 
 	std::string GetCppType() const;
 };
+
+class UEOptionalProperty : public UEProperty
+{
+	using UEProperty::UEProperty;
+
+public:
+	UEProperty GetUnderlayingProperty() const;
+
+	std::string GetCppType() const;
+};
+

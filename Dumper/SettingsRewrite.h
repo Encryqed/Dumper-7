@@ -46,13 +46,21 @@ R"(
 )";
 	}
 
-	/* Partially implemented (assertions for all packages) */
+	/* Partially implemented  */
 	namespace Debug
 	{
 		inline constexpr bool bGenerateAssertionFile = false;
+
+		/* Adds static_assert for struct-size, as well as struct-alignment */
+		inline constexpr bool bGenerateInlineAssertionsForStructSize = true;
+
+		/* Adds static_assert for member-offsets */
+		inline constexpr bool bGenerateInlineAssertionsForStructMembers = true;
+
+		/* Not implemented */
 		inline constexpr bool bLimitAssertionsToEngienPackage = true;
 
-		// Recommended
+		/* Not implemented */
 		inline constexpr bool bGenerateAssertionsForPredefinedMembers = true;
 	}
 

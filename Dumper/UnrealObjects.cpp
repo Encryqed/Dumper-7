@@ -771,8 +771,122 @@ std::string UEProperty::GetName() const
 }
 
 std::string UEProperty::GetValidName() const
- {
+{
 	return Base ? GetFName().ToValidString() : "None";
+}
+
+int32 UEProperty::GetAlignment() const
+{
+	EClassCastFlags TypeFlags = (GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags());
+
+	if (TypeFlags & EClassCastFlags::ByteProperty)
+	{
+		return alignof(uint8); // 0x1
+	}
+	else if (TypeFlags & EClassCastFlags::UInt16Property)
+	{
+		return alignof(uint16); // 0x2
+	}
+	else if (TypeFlags & EClassCastFlags::UInt32Property)
+	{
+		return alignof(uint32); // 0x4
+	}
+	else if (TypeFlags & EClassCastFlags::UInt64Property)
+	{
+		return alignof(uint64); // 0x8
+	}
+	else if (TypeFlags & EClassCastFlags::Int8Property)
+	{
+		return alignof(int8); // 0x1
+	}
+	else if (TypeFlags & EClassCastFlags::Int16Property)
+	{
+		return alignof(int16); // 0x2
+	}
+	else if (TypeFlags & EClassCastFlags::IntProperty)
+	{
+		return alignof(int32); // 0x4
+	}
+	else if (TypeFlags & EClassCastFlags::Int64Property)
+	{
+		return alignof(int64); // 0x8
+	}
+	else if (TypeFlags & EClassCastFlags::FloatProperty)
+	{
+		return alignof(float); // 0x4
+	}
+	else if (TypeFlags & EClassCastFlags::DoubleProperty)
+	{
+		return alignof(double); // 0x8
+	}
+	else if (TypeFlags & EClassCastFlags::ClassProperty)
+	{
+		return alignof(void*); // 0x8
+	}
+	else if (TypeFlags & EClassCastFlags::NameProperty)
+	{
+		return 0x4; // FName is a bunch of int32s
+	}
+	else if (TypeFlags & EClassCastFlags::StrProperty)
+	{
+		return alignof(FString); // 0x8
+	}
+	else if (TypeFlags & EClassCastFlags::TextProperty)
+	{
+		return 0x8; // alignof member FString
+	}
+	else if (TypeFlags & EClassCastFlags::BoolProperty)
+	{
+		return alignof(bool); // 0x1
+	}
+	else if (TypeFlags & EClassCastFlags::StructProperty)
+	{
+		return Cast<UEStructProperty>().GetUnderlayingStruct().GetMinAlignment();
+	}
+	else if (TypeFlags & EClassCastFlags::ArrayProperty)
+	{
+		return alignof(TArray<int>); // 0x8
+	}
+	else if (TypeFlags & EClassCastFlags::WeakObjectProperty)
+	{
+		return 0x4; // TWeakObjectPtr is a bunch of int32s
+	}
+	else if (TypeFlags & EClassCastFlags::LazyObjectProperty)
+	{
+		return 0x4; // TLazyObjectPtr is a bunch of int32s
+	}
+	else if (TypeFlags & EClassCastFlags::SoftClassProperty)
+	{
+		return 0x8; // alignof member FString
+	}
+	else if (TypeFlags & EClassCastFlags::SoftObjectProperty)
+	{
+		return 0x8; // alignof member FString
+	}
+	else if (TypeFlags & EClassCastFlags::ObjectProperty)
+	{
+		return alignof(void*); // 0x8
+	}
+	else if (TypeFlags & EClassCastFlags::MapProperty)
+	{
+		return alignof(TArray<int>); // 0x8, TMap contains a TArray
+	}
+	else if (TypeFlags & EClassCastFlags::SetProperty)
+	{
+		return alignof(TArray<int>); // 0x8, TSet contains a TArray
+	}
+	else if (TypeFlags & EClassCastFlags::EnumProperty)
+	{
+		UEProperty P = Cast<UEEnumProperty>().GetUnderlayingProperty();
+
+		return P ? P.GetAlignment(): 0x1;
+	}
+	else if (TypeFlags & EClassCastFlags::InterfaceProperty)
+	{
+		return alignof(void*); // 0x8
+	}
+
+	return 0x1;
 }
 
 std::string UEProperty::GetCppType() const
@@ -1049,6 +1163,16 @@ std::string UEEnumProperty::GetCppType() const
 		return GetEnum().GetEnumTypeAsStr();
 
 	return GetUnderlayingProperty().GetCppType();
+}
+
+UEProperty UEEnumProperty::GetUnderlayingProperty() const
+{
+
+}
+
+std::string UEEnumProperty::GetCppType() const
+{
+	return std::format("TOptional<{}>", GetUnderlayingProperty().GetCppType());
 }
 
 /*

@@ -84,7 +84,7 @@ public: /* DEBUG */
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
     static std::string GenerateBitPadding(uint8 UnderlayingSizeBytes, const int32 Offset, const int32 PadSize, std::string&& Reason);
 
-    static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 PackageIndex = -1);
+    static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex = -1);
     static std::string GenerateFunctionInHeader(const MemberManager& Members);
     static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func);
 

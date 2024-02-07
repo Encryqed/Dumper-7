@@ -5,9 +5,28 @@
 #include "UnrealObjects.h"
 #include "ObjectArray.h" /* for debug print */
 
+/*
+struct alignas(0x08) Parent
+{
+	uint8 DeltaFlags;                              // Offset: 0x0, Size: 0x1
+	//uint8 CompilerGeneratedTrailingPadding[0x7]; // 0x7 byte padding to achieve 0x8 alignment (size is always a multiple of alignment)
+};
+
+struct Child : Parent
+{
+	// This EXPLICITE padding replaces the implicite padding of the Parent class. However, this isn't done concistently by the compiler.
+	uint8 Pad_idk[0x7];          // Offset: 0x1, Size: 0x7
+};
+// static_assert(sizeof(Parent) == 0x8); // true
+// static_assert(sizeof(Child) == 0x8);  // true
+*/
+
 struct StructInfo
 {
 	HashStringTableIndex Name;
+
+	/* End of the last member-variable of this struct, used to calculate implicit trailing padding */
+	int32 LastMemberEnd = 0x0;
 
 	/* Unaligned size of this struct */
 	int32 Size = INT_MAX;
@@ -18,6 +37,9 @@ struct StructInfo
 
 	/* Whether alignment should be explicitly specified with 'alignas(Alignment)' */
 	bool bUseExplicitAlignment;
+
+	/* Whether this struct has child-structs for which the compiler places members in this structs' trailing padding, see example above (line 9) */
+	bool bHasReusedTrailingPadding = false;
 
 	/* Wheter this class is ever inherited from. Set to false when this struct is found to be another structs super */
 	bool bIsFinal = true;
@@ -38,12 +60,14 @@ public:
 	StructInfoHandle(const StructInfo& InInfo);
 
 public:
+	int32 GetLastMemberEnd() const;
 	int32 GetSize() const;
 	int32 GetUnalignedSize() const;
 	int32 GetAlignment() const;
 	bool ShouldUseExplicitAlignment() const;
 	const StringEntry& GetName() const;
 	bool IsFinal() const;
+	bool HasReusedTrailingPadding() const;
 
 	bool IsPartOfCyclicPackage() const;
 };

@@ -51,6 +51,11 @@ std::pair<std::string, bool> StructWrapper::GetUniqueName() const
     return { bIsUnrealStruct ? InfoHandle.GetName().GetName() : PredefStruct->UniqueName, bIsUnrealStruct ? InfoHandle.GetName().IsUnique() : true };
 }
 
+int32 StructWrapper::GetLastMemberEnd() const
+{
+    return bIsUnrealStruct ? InfoHandle.GetLastMemberEnd() : 0x0;
+}
+
 int32 StructWrapper::GetAlignment() const
 {
     return bIsUnrealStruct ? InfoHandle.GetAlignment() : PredefStruct->Alignment;
@@ -69,6 +74,11 @@ int32 StructWrapper::GetUnalignedSize() const
 bool StructWrapper::ShouldUseExplicitAlignment() const
 {
     return bIsUnrealStruct ? InfoHandle.ShouldUseExplicitAlignment() : PredefStruct->bUseExplictAlignment;
+}
+
+bool StructWrapper::HasReusedTrailingPadding() const
+{
+    return bIsUnrealStruct && InfoHandle.HasReusedTrailingPadding();
 }
 
 bool StructWrapper::IsFinal() const

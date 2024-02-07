@@ -39,11 +39,13 @@ public:
 
     /* Name, bIsUnique */
     std::pair<std::string, bool> GetUniqueName() const;
+    int32 GetLastMemberEnd() const;
     int32 GetAlignment() const;
     int32 GetSize() const;
     int32 GetUnalignedSize() const;
 
     bool ShouldUseExplicitAlignment() const;
+    bool HasReusedTrailingPadding() const;
     bool IsFinal() const;
 
     bool IsClass() const;

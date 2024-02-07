@@ -279,11 +279,15 @@ enum class EClassCastFlags : uint64
 	ObjectPtrProperty					= 0x0020000000000000,
 	ClassPtrProperty					= 0x0040000000000000,
 	LargeWorldCoordinatesRealProperty	= 0x0080000000000000,
+	OptionalProperty					= 0x0100000000000000,
+	VValueProperty						= 0x0200000000000000,
+	VerseVMClass						= 0x0400000000000000,
+	VRestValueProperty					= 0x0800000000000000,
 };
 
 enum class EClassFlags
 {
-	CLASS_None					= 0x00000000u,
+	None						= 0x00000000u,
 	Abstract					= 0x00000001u,
 	DefaultConfig				= 0x00000002u,
 	Config						= 0x00000004u,

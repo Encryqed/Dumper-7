@@ -6,6 +6,11 @@ StructInfoHandle::StructInfoHandle(const StructInfo& InInfo)
 {
 }
 
+int32 StructInfoHandle::GetLastMemberEnd() const
+{
+	return Info->LastMemberEnd;
+}
+
 int32 StructInfoHandle::GetSize() const
 {
 	return Align(Info->Size, Info->Alignment);
@@ -36,6 +41,11 @@ bool StructInfoHandle::IsFinal() const
 	return Info->bIsFinal;
 }
 
+bool StructInfoHandle::HasReusedTrailingPadding() const
+{
+	return Info->bHasReusedTrailingPadding;
+}
+
 bool StructInfoHandle::IsPartOfCyclicPackage() const
 {
 	return Info->bIsPartOfCyclicPackage;
@@ -47,7 +57,7 @@ void StructManager::InitAlignmentsAndNames()
 
 	for (auto Obj : ObjectArray())
 	{
-		if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function))
+		if (!Obj.IsA(EClassCastFlags::Struct) /* || Obj.IsA(EClassCastFlags::Function)*/)
 			continue;
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
@@ -59,18 +69,15 @@ void StructManager::InitAlignmentsAndNames()
 		UEStruct Super = ObjAsStruct.GetSuper();
 
 		int32 MinAlignment = ObjAsStruct.GetMinAlignment();
-		int32 HighestMemberAlignment = 0x8;
+		int32 HighestMemberAlignment = 0x1; // starting at 0x1 when checking **all**, not just struct-properties
 
 		// Find member with the highest alignment
 		for (UEProperty Property : ObjAsStruct.GetProperties())
 		{
-			if (!Property.IsA(EClassCastFlags::StructProperty))
-				continue;
+			int32 CurrentPropertyAlignment = Property.GetAlignment();
 
-			int32 UnderlayingStructAlignment = Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetMinAlignment();
-
-			if (UnderlayingStructAlignment > HighestMemberAlignment)
-				HighestMemberAlignment = UnderlayingStructAlignment;
+			if (CurrentPropertyAlignment > HighestMemberAlignment)
+				HighestMemberAlignment = CurrentPropertyAlignment;
 		}
 
 		// if Class alignment is below pointer-alignment (0x8), use pointer-alignment instead, else use whichever, MinAlignment or HighestAlignment, is bigger
@@ -129,7 +136,7 @@ void StructManager::InitSizesAndIsFinal()
 {
 	for (auto Obj : ObjectArray())
 	{
-		if (!Obj.IsA(EClassCastFlags::Struct)/* || Obj.IsA(EClassCastFlags::Function)*/)
+		if (!Obj.IsA(EClassCastFlags::Struct))
 			continue;
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
@@ -137,23 +144,33 @@ void StructManager::InitSizesAndIsFinal()
 		StructInfo& NewOrExistingInfo = StructInfoOverrides[Obj.GetIndex()];
 
 		// Initialize struct-size if it wasn't set already
-		if (NewOrExistingInfo.Size >= ObjAsStruct.GetStructSize())
+		if (NewOrExistingInfo.Size > ObjAsStruct.GetStructSize())
 			NewOrExistingInfo.Size = ObjAsStruct.GetStructSize();
 
 		UEStruct Super = ObjAsStruct.GetSuper();
 
-		if (!Super)
-			continue;
-
+		int32 LastMemberEnd = 0x0;
 		int32 LowestOffset = INT_MAX;
 		int32 HighestAlignment = 0x0;
 
 		// Find member with the lowest offset
 		for (UEProperty Property : ObjAsStruct.GetProperties())
 		{
-			if (Property.Cast<UEProperty>().GetOffset() < LowestOffset)
-				LowestOffset = Property.Cast<UEProperty>().GetOffset();
+			const int32 PropertyOffset = Property.GetOffset();
+			const int32 PropertySize = Property.GetSize();
+
+			if (PropertyOffset < LowestOffset)
+				LowestOffset = PropertyOffset;
+
+			if ((PropertyOffset + PropertySize) > LastMemberEnd)
+				LastMemberEnd = PropertyOffset + PropertySize;
 		}
+
+		/* No need to check any other structs, as finding the LastMemberEnd only involves this struct */
+		NewOrExistingInfo.LastMemberEnd = LastMemberEnd;
+
+		if (!Super || Obj.IsA(EClassCastFlags::Function))
+			continue;
 
 		// Loop all super-structs and set their struct-size to the lowest offset we found. Sets this size on the direct Super and all higher *empty* supers
 		for (UEStruct S = Super; S; S = S.GetSuper())
@@ -164,12 +181,15 @@ void StructManager::InitSizesAndIsFinal()
 			{
 				StructInfo& Info = It->second;
 
-				// Struct is not final, as it is another struct's super
+				// Struct is not final, as it is another structs' super
 				Info.bIsFinal = false;
 
 				// Only change lowest offset if it's lower than the already found lowest offset
 				if (Info.Size > LowestOffset)
+				{
 					Info.Size = LowestOffset;
+					Info.bHasReusedTrailingPadding = LowestOffset < S.GetStructSize();
+				}
 			}
 			else
 			{
@@ -179,7 +199,15 @@ void StructManager::InitSizesAndIsFinal()
 				Info.bIsFinal = false;
 
 				// Only add lowest offset if it's lower than the size ofthe struct
-				Info.Size = LowestOffset < S.GetStructSize() ? LowestOffset : S.GetStructSize();
+				if (LowestOffset < S.GetStructSize())
+				{
+					Info.Size = LowestOffset;
+					Info.bHasReusedTrailingPadding = true;
+				}
+				else
+				{
+					Info.Size = S.GetStructSize();
+				}
 			}
 
 			if (S.HasMembers())
