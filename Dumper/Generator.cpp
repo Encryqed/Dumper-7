@@ -1075,7 +1075,7 @@ R"(
 )"
 			},
 		//non-const operators
-{ "\tFVector& operator+=(const FVector& Other);", "\tFVector& operator+=(const FVector& Other)", R"(
+{ "\tFVector& operator+=(const FVector& Other);", "\tFVector& tFVector::operator+=(const FVector& Other)", R"(
 	{
 		X += Other.X;
 		Y += Other.Y;
@@ -1084,7 +1084,7 @@ R"(
 	}
 )"
 			},
-{ "\tFVector& operator-=(const FVector& Other);", "\tFVector& operator-=(const FVector& Other)", R"(
+{ "\tFVector& operator-=(const FVector& Other);", "\tFVector& FVector::operator-=(const FVector& Other)", R"(
 	{
 		X -= Other.X;
 		Y -= Other.Y;
@@ -1093,7 +1093,7 @@ R"(
 	}
 )"
 			},
-{ "\tFVector& operator*=(const decltype(X) Scalar);", "\tFVector& operator*=(const decltype(X) Scalar)", R"(
+{ "\tFVector& operator*=(const decltype(X) Scalar);", "\tFVector& FVector::operator*=(const decltype(X) Scalar)", R"(
 	{
 		X *= Scalar;
 		Y *= Scalar;
