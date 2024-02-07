@@ -1104,12 +1104,12 @@ R"(
 			},
 
 		// Functions
-{ "\tinline bool FVector::IsZero() const", "", R"(
+{ "\tinline bool IsZero() const", "\tinline bool FVector::IsZero() const", R"(
 	{
 		return X == 0.0f && Y == 0.0f && Z == 0.0f;
 	})"
 			},
-{ "\tvoid FVector::Clamp360();", "\tvoid FVector::Clamp360()", R"(
+{ "\tvoid Clamp360();", "\tvoid FVector::Clamp360()", R"(
 	{
 		const float maxX1 = 80.f;
 
@@ -1127,25 +1127,25 @@ R"(
 	}
 )"
 			},
-{ "\tfloat Dot(const FVector& Other) const;", "\tfloat Dot(const FVector& Other)", R"(
+{ "\tfloat Dot(const FVector& Other) const;", "\tfloat FVector::Dot(const FVector& Other)", R"(
 	{
 		return (X * Other.X) + (Y * Other.Y) + (Z * Other.Z);
 	}
 )"
 			},
-{ "\tfloat FVector::MagnitudeSqr() const;", "\tfloat FVector::MagnitudeSqr()", R"(
+{ "\tfloat MagnitudeSqr() const;", "\tfloat FVector::MagnitudeSqr()", R"(
 	{
 		return Dot(*this);
 	}
 )"
 			},
-{ "\tfloat FVector::Magnitude() const;", "\tfloat FVector::Magnitude()", R"(
+{ "\tfloat Magnitude() const;", "\tfloat FVector::Magnitude()", R"(
 	{
 		return std::sqrtf(MagnitudeSqr());
 	}
 )"
 			},
-{ "\tFVector FVector::GetNormalized() const;", "\tFVector FVector::GetNormalized()", R"(
+{ "\tFVector GetNormalized() const;", "\tFVector FVector::GetNormalized()", R"(
 	{
 		const float fMagnitude = Magnitude();
 		return FVector(X / fMagnitude, Y / fMagnitude, Z / fMagnitude);
