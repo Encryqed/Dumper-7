@@ -1388,7 +1388,7 @@ R"(
 	}
 )"
 			},
-{ "\tFRotator FVector::ToRotator() const;", "\tFRotator FVector::ToRotator()", R"(
+{ "\tstruct FRotator ToRotator() const;", "\tFRotator FVector::ToRotator()", R"(
 	{
 		static constexpr float PI = 3.14159265359f;
 	
@@ -1397,15 +1397,15 @@ R"(
 	}
 )"
 			},
-{ "\tfloat FVector::Distance(const FVector& v) const;", "\tfloat FVector::Distance(const FVector& v)", R"(
+{ "\tfloat DistanceTo(const FVector& Other) const;", "\tfloat FVector::DistanceTo(const FVector& Other)", R"(
 	{
-		return float(std::sqrtf(powf(v.X - X, 2.0) + std::powf(v.Y - Y, 2.0) + std::powf(v.Z - Z, 2.0)));
+		return (*this - Other).Magnitude();
 	}
 )"
 			},
-{ "\tfloat FVector::DistanceMeter(FVector& v) const;", "\tfloat FVector::DistanceMeter(FVector& v)", R"(
+{ "\tfloat DistanceToInMeters(FVector& Other) const;", "\tfloat FVector::DistanceToInMeters(FVector& Other)", R"(
 	{
-		return Distance(v) * 0.01f;
+		return DistanceTo(Other) * 0.01f;
 	}
 )"
 			},
