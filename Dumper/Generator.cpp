@@ -1104,7 +1104,7 @@ R"(
 			},
 
 		// Functions
-{ "\tinline bool IsZero() const", "\tinline bool FVector::IsZero() const", R"(
+{ "\tinline bool IsZero() const;", "\tinline bool FVector::IsZero() const", R"(
 	{
 		return X == 0.0f && Y == 0.0f && Z == 0.0f;
 	})"
