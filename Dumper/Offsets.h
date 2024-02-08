@@ -156,7 +156,7 @@ namespace Off
 		inline int32 ClassDefaultObject;
 	}
 
-	namespace UProperty
+	namespace Property
 	{
 		inline int32 ArrayDim;
 		inline int32 ElementSize;
@@ -164,12 +164,12 @@ namespace Off
 		inline int32 Offset_Internal;
 	}
 
-	namespace UByteProperty
+	namespace ByteProperty
 	{
 		inline int32 Enum;
 	}
 
-	namespace UBoolProperty
+	namespace BoolProperty
 	{
 		struct UBoolPropertyBase
 		{
@@ -182,51 +182,56 @@ namespace Off
 		inline int32 Base;
 	}
 
-	namespace UObjectProperty
+	namespace ObjectProperty
 	{
 		inline int32 PropertyClass;
 	}
 
-	namespace UClassProperty
+	namespace ClassProperty
 	{
 		inline int32 MetaClass;
 	}
 
-	namespace UStructProperty
+	namespace StructProperty
 	{
 		inline int32 Struct;
 	}
 
-	namespace UArrayProperty
+	namespace ArrayProperty
 	{
 		inline int32 Inner;
 	}
 
-	namespace UMapProperty
+	namespace MapProperty
 	{
 		struct UMapPropertyBase
 		{
-			class UProperty* KeyProperty;
-			class UProperty* ValueProperty;
+			void* KeyProperty;
+			void* ValueProperty;
 		};
 
 		inline int32 Base;
 	}
 
-	namespace USetProperty
+	namespace SetProperty
 	{
 		inline int32 ElementProp;
 	}
 
-	namespace UEnumProperty
+	namespace EnumProperty
 	{
 		struct UEnumPropertyBase
 		{
-			class UProperty* UnderlayingProperty;
+			void* UnderlayingProperty;
 			class UEnum* Enum;
 		};
 
 		inline int32 Base;
+	}
+
+	namespace OptionalProperty
+	{
+		inline int32 ValueProperty;
 	}
 
 	namespace ULevel

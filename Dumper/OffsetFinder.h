@@ -435,7 +435,7 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
-	/* UProperty */
+	/* Property */
 	inline int32_t FindElementSizeOffset()
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
@@ -459,8 +459,8 @@ namespace OffsetFinder
 		Infos.push_back({ Guid.FindMember("B").GetAddress(), 0x01 });
 		Infos.push_back({ Guid.FindMember("C").GetAddress(), 0x01 });
 
-		const int32_t MinOffset = Off::UProperty::ElementSize - 0x10;
-		const int32_t MaxOffset = Off::UProperty::ElementSize + 0x10;
+		const int32_t MinOffset = Off::Property::ElementSize - 0x10;
+		const int32_t MaxOffset = Off::Property::ElementSize + 0x10;
 
 		return FindOffset(Infos, MinOffset, MaxOffset);
 	}
@@ -499,7 +499,7 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
-	/* UByteProperty */
+	/* ByteProperty */
 	inline int32_t FindEnumOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
@@ -513,7 +513,7 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
-	/* UBoolProperty */
+	/* BoolProperty */
 	inline int32_t FindBoolPropertyBaseOffset()
 	{
 		std::vector<std::pair<void*, uint8_t>> Infos;
@@ -521,7 +521,7 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindClassFast("Engine").FindMember("bIsOverridingSelectedColor").GetAddress(), 0xFF });
 		Infos.push_back({ ObjectArray::FindClassFast("PlayerController").FindMember("bAutoManageActiveCameraTarget").GetAddress(), 0xFF });
 
-		return (FindOffset<1>(Infos, Off::UProperty::Offset_Internal) - 0x3);
+		return (FindOffset<1>(Infos, Off::Property::Offset_Internal) - 0x3);
 	}
 
 	/* UObjectPropertyBase */
@@ -536,7 +536,7 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
-	/* UClassProperty */
+	/* ClassProperty */
 	inline int32_t FindMetaClassOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
@@ -549,7 +549,7 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 	
-	/* UStructProperty */
+	/* StructProperty */
 	inline int32_t FindStructTypeOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;
@@ -563,7 +563,7 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
-	/* UArrayProperty */
+	/* ArrayProperty */
 	inline int32_t FindInnerTypeOffset(const int32 PropertySize)
 	{
 		if (!Settings::Internal::bUseFProperty)
@@ -580,7 +580,7 @@ namespace OffsetFinder
 		return PropertySize;
 	}
 
-	/* USetProperty */
+	/* SetProperty */
 	inline int32_t FindSetPropertyBaseOffset(const int32 PropertySize)
 	{
 		if (!Settings::Internal::bUseFProperty)
@@ -597,7 +597,7 @@ namespace OffsetFinder
 		return PropertySize;
 	}
 
-	/* UMapProperty */
+	/* MapProperty */
 	inline int32_t FindMapPropertyBaseOffset(const int32 PropertySize)
 	{
 		if (!Settings::Internal::bUseFProperty)
@@ -614,7 +614,7 @@ namespace OffsetFinder
 		return PropertySize;
 	}
 
-	/* UEnumProperty */
+	/* EnumProperty */
 	inline int32_t FindEnumPropertyBaseOffset()
 	{
 		std::vector<std::pair<void*, void*>> Infos;

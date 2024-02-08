@@ -183,7 +183,7 @@ void Off::Init()
 	std::cout << std::format("Off::UStruct::Children: 0x{:X}\n", Off::UStruct::Children);
 
 	Off::UField::Next = OffsetFinder::FindUFieldNextOffset();
-	std::cout << std::format("Off::UField::Next: 0x{:X}\n", Off::UField::Next);
+	std::cout << std::format("Off::Field::Next: 0x{:X}\n", Off::UField::Next);
 
 	Off::UStruct::SuperStruct = OffsetFinder::FindSuperOffset();
 	std::cout << std::format("Off::UStruct::SuperStruct: 0x{:X}\n", Off::UStruct::SuperStruct);
@@ -228,38 +228,39 @@ void Off::Init()
 	Off::UFunction::ExecFunction = OffsetFinder::FindFunctionNativeFuncOffset();
 	std::cout << std::format("Off::UFunction::ExecFunction: 0x{:X}\n", Off::UFunction::ExecFunction) << std::endl;
 
-	Off::UProperty::ElementSize = OffsetFinder::FindElementSizeOffset();
-	std::cout << std::format("Off::UProperty::ElementSize: 0x{:X}\n", Off::UProperty::ElementSize);
+	Off::Property::ElementSize = OffsetFinder::FindElementSizeOffset();
+	std::cout << std::format("Off::Property::ElementSize: 0x{:X}\n", Off::Property::ElementSize);
 
-	Off::UProperty::ArrayDim = OffsetFinder::FindArrayDimOffset();
-	std::cout << std::format("Off::UProperty::ArrayDim: 0x{:X}\n", Off::UProperty::ArrayDim);
+	Off::Property::ArrayDim = OffsetFinder::FindArrayDimOffset();
+	std::cout << std::format("Off::Property::ArrayDim: 0x{:X}\n", Off::Property::ArrayDim);
 
-	Off::UProperty::Offset_Internal = OffsetFinder::FindOffsetInternalOffset();
-	std::cout << std::format("Off::UProperty::Offset_Internal: 0x{:X}\n", Off::UProperty::Offset_Internal);
+	Off::Property::Offset_Internal = OffsetFinder::FindOffsetInternalOffset();
+	std::cout << std::format("Off::Property::Offset_Internal: 0x{:X}\n", Off::Property::Offset_Internal);
 
-	Off::UProperty::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
-	std::cout << std::format("Off::UProperty::PropertyFlags: 0x{:X}\n", Off::UProperty::PropertyFlags);
+	Off::Property::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
+	std::cout << std::format("Off::Property::PropertyFlags: 0x{:X}\n", Off::Property::PropertyFlags);
 
 	Off::InSDK::Properties::PropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
 	std::cout << std::format("UPropertySize: 0x{:X}\n", Off::InSDK::Properties::PropertySize) << std::endl;
 
-	Off::UArrayProperty::Inner = OffsetFinder::FindInnerTypeOffset(Off::InSDK::Properties::PropertySize);
-	std::cout << std::format("Off::UArrayProperty::Inner: 0x{:X}\n", Off::UArrayProperty::Inner);
+	Off::ArrayProperty::Inner = OffsetFinder::FindInnerTypeOffset(Off::InSDK::Properties::PropertySize);
+	std::cout << std::format("Off::ArrayProperty::Inner: 0x{:X}\n", Off::ArrayProperty::Inner);
 	
-	Off::USetProperty::ElementProp = OffsetFinder::FindSetPropertyBaseOffset(Off::InSDK::Properties::PropertySize);
-	std::cout << std::format("Off::USetProperty::ElementProp: 0x{:X}\n", Off::USetProperty::ElementProp);
+	Off::SetProperty::ElementProp = OffsetFinder::FindSetPropertyBaseOffset(Off::InSDK::Properties::PropertySize);
+	std::cout << std::format("Off::SetProperty::ElementProp: 0x{:X}\n", Off::SetProperty::ElementProp);
 	
-	Off::UMapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(Off::InSDK::Properties::PropertySize);
-	std::cout << std::format("Off::UMapProperty::Base: 0x{:X}\n", Off::UMapProperty::Base) << std::endl;
+	Off::MapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(Off::InSDK::Properties::PropertySize);
+	std::cout << std::format("Off::MapProperty::Base: 0x{:X}\n", Off::MapProperty::Base) << std::endl;
 
 	Off::ULevel::Actors = OffsetFinder::FindLevelActorsOffset();
 	std::cout << std::format("Off::ULevel::Actors: 0x{:X}\n", Off::ULevel::Actors) << std::endl;
 
-	Off::UByteProperty::Enum = Off::InSDK::Properties::PropertySize;
-	Off::UBoolProperty::Base = Off::InSDK::Properties::PropertySize;
-	Off::UObjectProperty::PropertyClass = Off::InSDK::Properties::PropertySize;
-	Off::UStructProperty::Struct = Off::InSDK::Properties::PropertySize;
-	Off::UEnumProperty::Base = Off::InSDK::Properties::PropertySize;
+	Off::ByteProperty::Enum = Off::InSDK::Properties::PropertySize;
+	Off::BoolProperty::Base = Off::InSDK::Properties::PropertySize;
+	Off::ObjectProperty::PropertyClass = Off::InSDK::Properties::PropertySize;
+	Off::StructProperty::Struct = Off::InSDK::Properties::PropertySize;
+	Off::EnumProperty::Base = Off::InSDK::Properties::PropertySize;
+	Off::OptionalProperty::ValueProperty = Off::InSDK::Properties::PropertySize;
 
-	Off::UClassProperty::MetaClass = Off::InSDK::Properties::PropertySize + 0x8; //0x8 inheritance from UObjectProperty
+	Off::ClassProperty::MetaClass = Off::InSDK::Properties::PropertySize + 0x8; //0x8 inheritance from ObjectProperty
 }

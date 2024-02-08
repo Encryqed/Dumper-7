@@ -427,7 +427,7 @@ class UEOptionalProperty : public UEProperty
 	using UEProperty::UEProperty;
 
 public:
-	UEProperty GetUnderlayingProperty() const;
+	UEProperty GetValueProperty() const;
 
 	std::string GetCppType() const;
 };

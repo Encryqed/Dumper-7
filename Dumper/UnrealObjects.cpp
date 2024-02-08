@@ -735,22 +735,22 @@ FName UEProperty::GetFName() const
 
 int32 UEProperty::GetArrayDim() const
 {
-	return *reinterpret_cast<int32*>(Base + Off::UProperty::ArrayDim);
+	return *reinterpret_cast<int32*>(Base + Off::Property::ArrayDim);
 }
 
 int32 UEProperty::GetSize() const
 {
-	return *reinterpret_cast<int32*>(Base + Off::UProperty::ElementSize);
+	return *reinterpret_cast<int32*>(Base + Off::Property::ElementSize);
 }
 
 int32 UEProperty::GetOffset() const
 {
-	return *reinterpret_cast<int32*>(Base + Off::UProperty::Offset_Internal);
+	return *reinterpret_cast<int32*>(Base + Off::Property::Offset_Internal);
 }
 
 EPropertyFlags UEProperty::GetPropertyFlags() const
 {
-	return *reinterpret_cast<EPropertyFlags*>(Base + Off::UProperty::PropertyFlags);
+	return *reinterpret_cast<EPropertyFlags*>(Base + Off::Property::PropertyFlags);
 }
 
 EMappingsTypeFlags UEProperty::GetMappingType() const
@@ -1010,7 +1010,7 @@ std::string UEProperty::StringifyFlags() const
 
 UEEnum UEByteProperty::GetEnum() const
 {
-	return UEEnum(*reinterpret_cast<void**>(Base + Off::UByteProperty::Enum));
+	return UEEnum(*reinterpret_cast<void**>(Base + Off::ByteProperty::Enum));
 }
 
 std::string UEByteProperty::GetCppType() const
@@ -1025,7 +1025,7 @@ std::string UEByteProperty::GetCppType() const
 
 uint8 UEBoolProperty::GetFieldMask() const
 {
-	return reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Base + Off::UBoolProperty::Base)->FieldMask;
+	return reinterpret_cast<Off::BoolProperty::UBoolPropertyBase*>(Base + Off::BoolProperty::Base)->FieldMask;
 }
 
 uint8 UEBoolProperty::GetBitIndex() const
@@ -1049,7 +1049,7 @@ uint8 UEBoolProperty::GetBitIndex() const
 
 bool UEBoolProperty::IsNativeBool() const
 {
-	return reinterpret_cast<Off::UBoolProperty::UBoolPropertyBase*>(Base + Off::UBoolProperty::Base)->FieldMask == 0xFF;
+	return reinterpret_cast<Off::BoolProperty::UBoolPropertyBase*>(Base + Off::BoolProperty::Base)->FieldMask == 0xFF;
 }
 
 std::string UEBoolProperty::GetCppType() const
@@ -1059,7 +1059,7 @@ std::string UEBoolProperty::GetCppType() const
 
 UEClass UEObjectProperty::GetPropertyClass() const
 {
-	return UEClass(*reinterpret_cast<void**>(Base + Off::UObjectProperty::PropertyClass));
+	return UEClass(*reinterpret_cast<void**>(Base + Off::ObjectProperty::PropertyClass));
 }
 
 std::string UEObjectProperty::GetCppType() const
@@ -1069,7 +1069,7 @@ std::string UEObjectProperty::GetCppType() const
 
 UEClass UEClassProperty::GetMetaClass() const
 {
-	return UEClass(*reinterpret_cast<void**>(Base + Off::UClassProperty::MetaClass));
+	return UEClass(*reinterpret_cast<void**>(Base + Off::ClassProperty::MetaClass));
 }
 
 std::string UEClassProperty::GetCppType() const
@@ -1104,7 +1104,7 @@ std::string UEInterfaceProperty::GetCppType() const
 
 UEStruct UEStructProperty::GetUnderlayingStruct() const
 {
-	return UEStruct(*reinterpret_cast<void**>(Base + Off::UStructProperty::Struct));
+	return UEStruct(*reinterpret_cast<void**>(Base + Off::StructProperty::Struct));
 }
 
 std::string UEStructProperty::GetCppType() const
@@ -1114,7 +1114,7 @@ std::string UEStructProperty::GetCppType() const
 
 UEProperty UEArrayProperty::GetInnerProperty() const
 {
-	return UEProperty(*reinterpret_cast<void**>(Base + Off::UArrayProperty::Inner));
+	return UEProperty(*reinterpret_cast<void**>(Base + Off::ArrayProperty::Inner));
 }
 
 std::string UEArrayProperty::GetCppType() const
@@ -1124,12 +1124,12 @@ std::string UEArrayProperty::GetCppType() const
 
 UEProperty UEMapProperty::GetKeyProperty() const
 {
-	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Base + Off::UMapProperty::Base)->KeyProperty);
+	return UEProperty(reinterpret_cast<Off::MapProperty::UMapPropertyBase*>(Base + Off::MapProperty::Base)->KeyProperty);
 }
 
 UEProperty UEMapProperty::GetValueProperty() const
 {
-	return UEProperty(reinterpret_cast<Off::UMapProperty::UMapPropertyBase*>(Base + Off::UMapProperty::Base)->ValueProperty);
+	return UEProperty(reinterpret_cast<Off::MapProperty::UMapPropertyBase*>(Base + Off::MapProperty::Base)->ValueProperty);
 }
 
 std::string UEMapProperty::GetCppType() const
@@ -1139,7 +1139,7 @@ std::string UEMapProperty::GetCppType() const
 
 UEProperty UESetProperty::GetElementProperty() const
 {
-	return UEProperty(*reinterpret_cast<void**>(Base + Off::USetProperty::ElementProp));
+	return UEProperty(*reinterpret_cast<void**>(Base + Off::SetProperty::ElementProp));
 }
 
 std::string UESetProperty::GetCppType() const
@@ -1149,12 +1149,12 @@ std::string UESetProperty::GetCppType() const
 
 UEProperty UEEnumProperty::GetUnderlayingProperty() const
 {
-	return UEProperty(reinterpret_cast<Off::UEnumProperty::UEnumPropertyBase*>(Base + Off::UEnumProperty::Base)->UnderlayingProperty);
+	return UEProperty(reinterpret_cast<Off::EnumProperty::UEnumPropertyBase*>(Base + Off::EnumProperty::Base)->UnderlayingProperty);
 }
 
 UEEnum UEEnumProperty::GetEnum() const
 {
-	return UEEnum(reinterpret_cast<Off::UEnumProperty::UEnumPropertyBase*>(Base + Off::UEnumProperty::Base)->Enum);
+	return UEEnum(reinterpret_cast<Off::EnumProperty::UEnumPropertyBase*>(Base + Off::EnumProperty::Base)->Enum);
 }
 
 std::string UEEnumProperty::GetCppType() const
@@ -1165,14 +1165,14 @@ std::string UEEnumProperty::GetCppType() const
 	return GetUnderlayingProperty().GetCppType();
 }
 
-UEProperty UEEnumProperty::GetUnderlayingProperty() const
+UEProperty UEOptionalProperty::GetValueProperty() const
 {
-
+	return UEProperty(*reinterpret_cast<void**>(Base + Off::OptionalProperty::ValueProperty));
 }
 
-std::string UEEnumProperty::GetCppType() const
+std::string UEOptionalProperty::GetCppType() const
 {
-	return std::format("TOptional<{}>", GetUnderlayingProperty().GetCppType());
+	return std::format("TOptional<{}>", GetValueProperty().GetCppType());
 }
 
 /*

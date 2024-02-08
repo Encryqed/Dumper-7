@@ -54,8 +54,8 @@ void Generator::Init()
 	ObjectArray::Init();
 
 
-	//FName::Init();
-	FName::Init(0x3CD5824);
+	FName::Init();
+	//FName::Init(0x3CD5824);
 	Off::Init();
 	Off::InSDK::ProcessEvent::InitPE(); //Must here, relies on offsets initialized in Off::Init()
 
@@ -752,62 +752,62 @@ void Generator::InitPredefinedMembers()
 
 	PredefinedMembers[PrefixPropertyName("Property")] =
 	{
-		{ "int32", "ArrayDim", Off::UProperty::ArrayDim, 0x04 },
-		{ "int32", "ElementSize", Off::UProperty::ElementSize, 0x04 },
-		{ "uint64", "PropertyFlags", Off::UProperty::PropertyFlags, 0x08 },
-		{ "int32", "Offset", Off::UProperty::Offset_Internal, 0x04 }
+		{ "int32", "ArrayDim", Off::Property::ArrayDim, 0x04 },
+		{ "int32", "ElementSize", Off::Property::ElementSize, 0x04 },
+		{ "uint64", "PropertyFlags", Off::Property::PropertyFlags, 0x08 },
+		{ "int32", "Offset", Off::Property::Offset_Internal, 0x04 }
 	};
 
 	PredefinedMembers[PrefixPropertyName("ByteProperty")] =
 	{
-		{ "class UEnum*", "Enum", Off::UByteProperty::Enum, 0x08 }
+		{ "class UEnum*", "Enum", Off::ByteProperty::Enum, 0x08 }
 	};
 
 	PredefinedMembers[PrefixPropertyName("BoolProperty")] =
 	{
-		{ "uint8", "FieldSize", Off::UBoolProperty::Base, 0x01 },
-		{ "uint8", "ByteOffset", Off::UBoolProperty::Base + 0x1, 0x01 },
-		{ "uint8", "ByteMask", Off::UBoolProperty::Base + 0x2, 0x01 },
-		{ "uint8", "FieldMask", Off::UBoolProperty::Base + 0x3, 0x01 }
+		{ "uint8", "FieldSize", Off::BoolProperty::Base, 0x01 },
+		{ "uint8", "ByteOffset", Off::BoolProperty::Base + 0x1, 0x01 },
+		{ "uint8", "ByteMask", Off::BoolProperty::Base + 0x2, 0x01 },
+		{ "uint8", "FieldMask", Off::BoolProperty::Base + 0x3, 0x01 }
 	};
 
 	PredefinedMembers[PrefixPropertyName("ObjectPropertyBase")] =
 	{
-		{ "class UClass*", "PropertyClass", Off::UObjectProperty::PropertyClass, 0x08 }
+		{ "class UClass*", "PropertyClass", Off::ObjectProperty::PropertyClass, 0x08 }
 	};
 
 	PredefinedMembers[PrefixPropertyName("ClassProperty")] =
 	{
-		{ "class UClass*", "MetaClass", Off::UClassProperty::MetaClass, 0x08 }
+		{ "class UClass*", "MetaClass", Off::ClassProperty::MetaClass, 0x08 }
 	};
 
 	PredefinedMembers[PrefixPropertyName("StructProperty")] =
 	{
-		{ "class UStruct*", "Struct", Off::UStructProperty::Struct, 0x08 }
+		{ "class UStruct*", "Struct", Off::StructProperty::Struct, 0x08 }
 	};
 
 	std::string PrefixedPropertyPtr = std::format("class {}*", PrefixPropertyName("Property"));
 
 	PredefinedMembers[PrefixPropertyName("ArrayProperty")] =
 	{
-		{ PrefixedPropertyPtr, "InnerProperty", Off::UArrayProperty::Inner, 0x08}
+		{ PrefixedPropertyPtr, "InnerProperty", Off::ArrayProperty::Inner, 0x08}
 	};
 
 	PredefinedMembers[PrefixPropertyName("MapProperty")] =
 	{
-		{ PrefixedPropertyPtr, "KeyProperty", Off::UMapProperty::Base, 0x08 },
-		{ PrefixedPropertyPtr, "ValueProperty", Off::UMapProperty::Base + 0x08, 0x08 }
+		{ PrefixedPropertyPtr, "KeyProperty", Off::MapProperty::Base, 0x08 },
+		{ PrefixedPropertyPtr, "ValueProperty", Off::MapProperty::Base + 0x08, 0x08 }
 	};
 
 	PredefinedMembers[PrefixPropertyName("SetProperty")] =
 	{
-		{ PrefixedPropertyPtr, "ElementProperty", Off::USetProperty::ElementProp, 0x08 }
+		{ PrefixedPropertyPtr, "ElementProperty", Off::SetProperty::ElementProp, 0x08 }
 	};
 
 	PredefinedMembers[PrefixPropertyName("EnumProperty")] =
 	{
-		{ PrefixedPropertyPtr, "UnderlayingProperty", Off::UEnumProperty::Base, 0x08 },
-		{ "class UEnum*", "Enum", Off::UEnumProperty::Base + 0x08, 0x08 }
+		{ PrefixedPropertyPtr, "UnderlayingProperty", Off::EnumProperty::Base, 0x08 },
+		{ "class UEnum*", "Enum", Off::EnumProperty::Base + 0x08, 0x08 }
 	};
 
 	if (!Settings::Internal::bUseFProperty)
