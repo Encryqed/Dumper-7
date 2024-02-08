@@ -276,8 +276,6 @@ enum class EClassCastFlags : uint64
 	MulticastInlineDelegateProperty		= 0x0004000000000000,
 	MulticastSparseDelegateProperty		= 0x0008000000000000,
 	FieldPathProperty					= 0x0010000000000000,
-	ObjectPtrProperty					= 0x0020000000000000,
-	ClassPtrProperty					= 0x0040000000000000,
 	LargeWorldCoordinatesRealProperty	= 0x0080000000000000,
 	OptionalProperty					= 0x0100000000000000,
 	VValueProperty						= 0x0200000000000000,
@@ -552,9 +550,11 @@ static std::string StringifyClassCastFlags(EClassCastFlags CastFlags)
 	if (CastFlags & EClassCastFlags::MulticastInlineDelegateProperty) { RetFlags += "MulticastInlineDelegateProperty, "; }
 	if (CastFlags & EClassCastFlags::MulticastSparseDelegateProperty) { RetFlags += "MulticastSparseDelegateProperty, "; }
 	if (CastFlags & EClassCastFlags::FieldPathProperty) { RetFlags += "MarkAsFieldPathPropertyRootSet, "; }
-	if (CastFlags & EClassCastFlags::ObjectPtrProperty) { RetFlags += "ObjectPtrProperty, "; }
-	if (CastFlags & EClassCastFlags::ClassPtrProperty) { RetFlags += "ClassPtrProperty, "; }
 	if (CastFlags & EClassCastFlags::LargeWorldCoordinatesRealProperty) { RetFlags += "LargeWorldCoordinatesRealProperty, "; }
+	if (CastFlags & EClassCastFlags::OptionalProperty) { RetFlags += "OptionalProperty, "; }
+	if (CastFlags & EClassCastFlags::VValueProperty) { RetFlags += "VValueProperty, "; }
+	if (CastFlags & EClassCastFlags::VerseVMClass) { RetFlags += "VerseVMClass, "; }
+	if (CastFlags & EClassCastFlags::VRestValueProperty) { RetFlags += "VRestValueProperty, "; }
 
 	return RetFlags.size() > 2 ? RetFlags.erase(RetFlags.size() - 2) : RetFlags;
 }
@@ -563,9 +563,7 @@ static EMappingsTypeFlags EPropertyFlagsToMappingFlags(EClassCastFlags Flags)
 {
 	
 	if (Flags & EClassCastFlags::ObjectProperty 
-	|| Flags & EClassCastFlags::ClassProperty 
-	|| Flags & EClassCastFlags::ObjectPtrProperty
-	|| Flags & EClassCastFlags::ClassPtrProperty)
+	|| Flags & EClassCastFlags::ClassProperty)
 	{
 		return EMappingsTypeFlags::ObjectProperty;
 	}

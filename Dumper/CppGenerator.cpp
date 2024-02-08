@@ -87,7 +87,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 	uint8 PrevBitPropertySize = 0x1;
 	uint8 PrevBitPropertyOffset = 0x0;
-	uint64 PrevMaxIndexInUnderlayingType = 0x8;
+	uint64 PrevNumBitsInUnderlayingType = 0x8;
 
 	const int32 SuperTrailingPaddingSize = SuperSize - SuperLastMemberEnd;
 	bool bIsFirstSizedMember = true;
@@ -106,10 +106,22 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 		const bool bIsBitField = Member.IsBitField();
 
-		/* Padding between two bitfields at different byte-offsets */
-		if (CurrentPropertyEnd > PrevPropertyEnd && bLastPropertyWasBitField && bIsBitField && PrevBitPropertyEndBit < PrevMaxIndexInUnderlayingType && !bIsUnion)
+		if (Member.GetName() == "bNetworkSkipProxyPredictionOnNetUpdate")
 		{
-			OutMembers += GenerateBitPadding(PrevBitPropertySize, PrevBitPropertyOffset, (PrevMaxIndexInUnderlayingType + 1) - PrevBitPropertyEndBit, "Fixing Bit-Field Size For New Byte [ Dumper-7 ]");
+			std::cout << std::format(R"(
+CurrentPropertyEnd: 0x{:X}
+CurrentPropertyEnd: 0x{:X}
+bLastPropertyWasBitField: {}
+bIsBitField: {}
+PrevBitPropertyEndBit: 0x{:X}
+PrevNumBitsInUnderlayingType: 0x{:X}
+)", CurrentPropertyEnd, PrevPropertyEnd, bLastPropertyWasBitField, bIsBitField, PrevBitPropertyEndBit, PrevNumBitsInUnderlayingType);
+		}
+
+		/* Padding between two bitfields at different byte-offsets */
+		if (CurrentPropertyEnd > PrevPropertyEnd && bLastPropertyWasBitField && bIsBitField && PrevBitPropertyEndBit < PrevNumBitsInUnderlayingType && !bIsUnion)
+		{
+			OutMembers += GenerateBitPadding(PrevBitPropertySize, PrevBitPropertyOffset, PrevNumBitsInUnderlayingType - PrevBitPropertyEndBit, "Fixing Bit-Field Size For New Byte [ Dumper-7 ]");
 			PrevBitPropertyEndBit = 0;
 		}
 
@@ -122,6 +134,9 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		{
 			uint8 BitFieldIndex = Member.GetBitIndex();
 			uint8 BitSize = Member.GetBitCount();
+
+			if (CurrentPropertyEnd > PrevPropertyEnd)
+				PrevBitPropertyEndBit = 0x0;
 
 			std::string BitfieldInfoComment = std::format("BitIndex: 0x{:02X}, PropSize: 0x{:04X} ({})", BitFieldIndex, MemberSize, Member.GetFlagsOrCustomComment());
 			Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, BitfieldInfoComment);
@@ -138,7 +153,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 			PrevBitPropertySize = MemberSize;
 			PrevBitPropertyOffset = MemberOffset;
 
-			PrevMaxIndexInUnderlayingType = (MemberSize * 0x8) - 1;
+			PrevNumBitsInUnderlayingType = (MemberSize * 0x8);
 		}
 
 		bLastPropertyWasBitField = bIsBitField;
@@ -1041,10 +1056,10 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		UEProperty ValueProperty = Member.Cast<UEOptionalProperty>().GetValueProperty();
 
 		/* Check if there is an additional 'bool' flag in the TOptional to check if the value is set */
-		if (Member.GetSize() > ValueProperty.GetSize())
-			return std::format("TOptional<{}, true>", GetMemberTypeStringWithoutConst(ValueProperty, PackageIndex));
+		if (Member.GetSize() > ValueProperty.GetSize()) [[likely]]
+			return std::format("TOptional<{}>", GetMemberTypeStringWithoutConst(ValueProperty, PackageIndex));
 
-		return std::format("TOptional<{}>", GetMemberTypeStringWithoutConst(ValueProperty, PackageIndex));
+		return std::format("TOptional<{}, true>", GetMemberTypeStringWithoutConst(ValueProperty, PackageIndex));
 	}
 	else
 	{
@@ -3984,13 +3999,78 @@ R"({
 
 
 
+	// TOptional
+	BasicHpp << R"(
 
+template<typename OptionalType, bool bIsIntrusiveUnsetCheck = false>
+class TOptional
+{
+private:
+	template<int32 TypeSize>
+	struct OptionalWithBool
+	{
+		static_assert(TypeSize > 0x0, "TOptional can not store an empty type!");
+
+		uint8 Value[TypeSize];
+		bool bIsSet;
+	};
+
+private:
+	using ValueType = std::conditional_t<bIsIntrusiveUnsetCheck, uint8[sizeof(OptionalType)], OptionalWithBool<sizeof(OptionalType)>>;
+
+private:
+	alignas(OptionalType) ValueType StoredValue;
+
+private:
+	inline uint8* GetValueBytes()
+	{
+		if constexpr (!bIsIntrusiveUnsetCheck)
+			return StoredValue.Value;
+
+		return StoredValue;
+	}
+
+	inline const uint8* GetValueBytes() const
+	{
+		if constexpr (!bIsIntrusiveUnsetCheck)
+			return StoredValue.Value;
+
+		return StoredValue;
+	}
+public:
+
+	inline OptionalType& GetValueRef()
+	{
+		return *reinterpret_cast<OptionalType*>(GetValueBytes());
+	}
+
+	inline const OptionalType& GetValueRef() const
+	{
+		return *reinterpret_cast<const OptionalType*>(GetValueBytes());
+	}
+
+	inline bool IsSet() const
+	{
+		if constexpr (!bIsIntrusiveUnsetCheck)
+			return StoredValue.bIsSet;
+
+		constexpr char ZeroBytes[sizeof(OptionalType)];
+
+		return memcmp(GetValueBytes(), &ZeroBytes, sizeof(OptionalType)) == 0;
+	}
+
+	inline explicit operator bool() const
+	{
+		return IsSet();
+	}
+};
+
+)";
 
 
 
 	/* UE_ENUM_OPERATORS - enum flag operations */
 	BasicHpp <<
-
 		R"(
 #define UE_ENUM_OPERATORS(EEnumClass)																																	\
 																																										\
@@ -4195,13 +4275,11 @@ enum class EClassCastFlags : uint64
 	FMulticastInlineDelegateProperty	= 0x0004000000000000,
 	FMulticastSparseDelegateProperty	= 0x0008000000000000,
 	FFieldPathProperty					= 0x0010000000000000,
-	ObjectPtrProperty					= 0x0020000000000000,
-	ClassPtrProperty					= 0x0040000000000000,
-	LargeWorldCoordinatesRealProperty	= 0x0080000000000000,
-	OptionalProperty					= 0x0100000000000000,
-	VValueProperty						= 0x0200000000000000,
-	VerseVMClass						= 0x0400000000000000,
-	VRestValueProperty					= 0x0800000000000000,
+	FLargeWorldCoordinatesRealProperty	= 0x0080000000000000,
+	FOptionalProperty					= 0x0100000000000000,
+	FVValueProperty						= 0x0200000000000000,
+	UVerseVMClass						= 0x0400000000000000,
+	FVRestValueProperty					= 0x0800000000000000,
 };
 )";
 

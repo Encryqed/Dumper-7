@@ -151,7 +151,6 @@ void StructManager::InitSizesAndIsFinal()
 
 		int32 LastMemberEnd = 0x0;
 		int32 LowestOffset = INT_MAX;
-		int32 HighestAlignment = 0x0;
 
 		// Find member with the lowest offset
 		for (UEProperty Property : ObjAsStruct.GetProperties())
@@ -172,42 +171,34 @@ void StructManager::InitSizesAndIsFinal()
 		if (!Super || Obj.IsA(EClassCastFlags::Function))
 			continue;
 
-		// Loop all super-structs and set their struct-size to the lowest offset we found. Sets this size on the direct Super and all higher *empty* supers
+		/*
+		* Loop all super-structs and set their struct-size to the lowest offset we found. Sets this size on the direct Super and all higher *empty* supers
+		* 
+		* breaks out of the loop after encountering a super-struct which is not empty (aka. has member-variables)
+		*/
 		for (UEStruct S = Super; S; S = S.GetSuper())
 		{
 			auto It = StructInfoOverrides.find(S.GetIndex());
 
-			if (It != StructInfoOverrides.end())
+			if (It == StructInfoOverrides.end())
 			{
-				StructInfo& Info = It->second;
-
-				// Struct is not final, as it is another structs' super
-				Info.bIsFinal = false;
-
-				// Only change lowest offset if it's lower than the already found lowest offset
-				if (Info.Size > LowestOffset)
-				{
-					Info.Size = LowestOffset;
-					Info.bHasReusedTrailingPadding = LowestOffset < S.GetStructSize();
-				}
+				std::cout << "\n\n\nDumper-7: Error, struct wasn't found in 'StructInfoOverrides'! Exiting...\n\n\n" << std::endl;
+				Sleep(10000);
+				exit(1);
 			}
-			else
+
+			StructInfo& Info = It->second;
+
+			// Struct is not final, as it is another structs' super
+			Info.bIsFinal = false;
+
+			// Only change lowest offset if it's lower than the already found lowest offset (by default: struct-size)
+			if (Align(Info.Size, Info.Alignment) > LowestOffset)
 			{
-				StructInfo& Info = StructInfoOverrides[S.GetIndex()];
-
-				// Struct is not final, as it is another struct's super
-				Info.bIsFinal = false;
-
-				// Only add lowest offset if it's lower than the size ofthe struct
-				if (LowestOffset < S.GetStructSize())
-				{
+				if (Info.Size > LowestOffset)
 					Info.Size = LowestOffset;
-					Info.bHasReusedTrailingPadding = true;
-				}
-				else
-				{
-					Info.Size = S.GetStructSize();
-				}
+
+				Info.bHasReusedTrailingPadding = true;
 			}
 
 			if (S.HasMembers())

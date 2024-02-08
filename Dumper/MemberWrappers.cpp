@@ -112,7 +112,11 @@ int32 PropertyWrapper::GetSize() const
         UEStruct UnderlayingStruct = nullptr;
 
         if (Property.IsA(EClassCastFlags::StructProperty) && (UnderlayingStruct = Property.Cast<UEStructProperty>().GetUnderlayingStruct()))
-            return StructManager::GetInfo(UnderlayingStruct).GetSize();
+        {
+            const int32 Size = StructManager::GetInfo(UnderlayingStruct).GetSize();
+
+            return Size > 0x0 ? Size : 0x1;
+        }
 
         return Property.GetSize();
     }

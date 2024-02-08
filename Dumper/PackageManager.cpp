@@ -152,6 +152,10 @@ namespace PackageManagerUtils
 			GetPropertyDependency(Prop.Cast<UEMapProperty>().GetKeyProperty(), Store);
 			GetPropertyDependency(Prop.Cast<UEMapProperty>().GetValueProperty(), Store);
 		}
+		else if (Prop.IsA(EClassCastFlags::OptionalProperty))
+		{
+			GetPropertyDependency(Prop.Cast<UEOptionalProperty>().GetValueProperty(), Store);
+		}
 	}
 
 	std::unordered_set<int32> GetDependencies(UEStruct Struct, int32 StructIndex)
