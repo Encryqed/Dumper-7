@@ -107,7 +107,7 @@ private: /* utility functions */
 
     static std::string GetCycleFixupType(const StructWrapper& Struct, bool bIsForInheritance);
 
-    static std::unordered_map<std::string /* Name */, int32 /* Size */> GetUnknownProperties();
+    static std::unordered_map<std::string, UEProperty> GetUnknownProperties();
 
 private:
     static void GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, PackageInfoHandle Package, bool bIsClassFile);

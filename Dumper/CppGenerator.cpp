@@ -1,3 +1,5 @@
+#include <vector>
+
 #include "CppGenerator.h"
 #include "ObjectArray.h"
 #include "MemberWrappers.h"
@@ -105,18 +107,6 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 
 		const bool bIsBitField = Member.IsBitField();
-
-		if (Member.GetName() == "bNetworkSkipProxyPredictionOnNetUpdate")
-		{
-			std::cout << std::format(R"(
-CurrentPropertyEnd: 0x{:X}
-CurrentPropertyEnd: 0x{:X}
-bLastPropertyWasBitField: {}
-bIsBitField: {}
-PrevBitPropertyEndBit: 0x{:X}
-PrevNumBitsInUnderlayingType: 0x{:X}
-)", CurrentPropertyEnd, PrevPropertyEnd, bLastPropertyWasBitField, bIsBitField, PrevBitPropertyEndBit, PrevNumBitsInUnderlayingType);
-		}
 
 		/* Padding between two bitfields at different byte-offsets */
 		if (CurrentPropertyEnd > PrevPropertyEnd && bLastPropertyWasBitField && bIsBitField && PrevBitPropertyEndBit < PrevNumBitsInUnderlayingType && !bIsUnion)
@@ -1069,9 +1059,9 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 }
 
 
-std::unordered_map<std::string /* Name */, int32 /* Size */> CppGenerator::GetUnknownProperties()
+std::unordered_map<std::string, UEProperty> CppGenerator::GetUnknownProperties()
 {
-	std::unordered_map<std::string, int32> RetMap;
+	std::unordered_map<std::string, UEProperty> PropertiesWithNames;
 
 	for (UEObject Obj : ObjectArray())
 	{
@@ -1080,15 +1070,31 @@ std::unordered_map<std::string /* Name */, int32 /* Size */> CppGenerator::GetUn
 
 		for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
 		{
-			std::string TypeName = GetMemberTypeString(Prop, -1, true);
+			std::string TypeName = GetMemberTypeString(Prop);
+
+			auto [Class, FieldClass] = Prop.GetClass();
 
 			/* Relies on unknown names being post-fixed with an underscore by 'GetMemberTypeString()' */
 			if (TypeName.back() == '_')
-				RetMap[TypeName] = Prop.GetSize();
+				PropertiesWithNames[TypeName] = Prop;
 		}
 	}
 
-	return RetMap;
+	return PropertiesWithNames;
+}
+
+void CppGenerator::GeneratePropertyFixupFile(StreamType& PropertyFixup)
+{
+	WriteFileHead(PropertyFixup, nullptr, EFileType::PropertyFixup, "PROPERTY-FIXUP");
+
+	std::unordered_map<std::string, UEProperty> UnknownProperties = GetUnknownProperties();
+
+	for (const auto& [Name, Property] : UnknownProperties)
+	{
+		PropertyFixup << std::format("\nclass alignas(0x{:02X}) {}\n{{\n\tunsigned __int8 Pad[0x{:X}];\n}};\n",Property.GetAlignment(), Name, Property.GetSize());
+	}
+
+	WriteFileEnd(PropertyFixup, EFileType::PropertyFixup);
 }
 
 void CppGenerator::GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, PackageInfoHandle Package, bool bIsClassFile)
@@ -1181,20 +1187,6 @@ namespace {}
 	}
 
 	WriteFileEnd(NameCollisionsFile, EFileType::NameCollisionsInl);
-}
-
-void CppGenerator::GeneratePropertyFixupFile(StreamType& PropertyFixup)
-{
-	WriteFileHead(PropertyFixup, nullptr, EFileType::PropertyFixup, "PROPERTY-FIXUP");
-
-	std::unordered_map<std::string, int32> UnknownProperties = GetUnknownProperties();
-
-	for (const auto& [Name, PropertySize] : UnknownProperties)
-	{
-		PropertyFixup << std::format("\nclass {}\n{{\n\tunsigned __int8 Pad[0x{:X}];\n}};\n", Name, PropertySize);
-	}
-	
-	WriteFileEnd(PropertyFixup, EFileType::PropertyFixup);
 }
 
 void CppGenerator::GenerateDebugAssertions(StreamType& AssertionStream)

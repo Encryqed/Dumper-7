@@ -885,6 +885,58 @@ int32 UEProperty::GetAlignment() const
 	{
 		return alignof(void*); // 0x8
 	}
+	else if (TypeFlags & EClassCastFlags::OptionalProperty)
+	{
+		UEProperty ValueProperty = Cast<UEOptionalProperty>().GetValueProperty();
+
+		/* If this check is true it means, that there is no bool in this TOptional to check if the value is set */
+		if (ValueProperty.GetSize() == GetSize()) [[unlikely]]
+			return ValueProperty.GetAlignment();
+
+		return  GetSize() - ValueProperty.GetSize();
+	}
+	
+	if (Settings::Internal::bUseFProperty)
+	{
+		static std::unordered_map<void*, int32> UnknownProperties;
+
+		static auto TryFindPropertyRefInOptionalToGetAlignment = [](std::unordered_map<void*, int32>& OutProperties, void* PropertyClass) -> int32
+		{
+			/* Search for a TOptionalProperty that contains an instance of this property */
+			for (UEObject Obj : ObjectArray())
+			{
+				if (!Obj.IsA(EClassCastFlags::Struct))
+					continue;
+
+				for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
+				{
+					if (!Prop.IsA(EClassCastFlags::OptionalProperty))
+						continue;
+
+					UEOptionalProperty Optional = Prop.Cast<UEOptionalProperty>();
+
+					/* Safe to use first member, as we're guaranteed to use FProperty */
+					if (Optional.GetValueProperty().GetClass().second.GetAddress() == PropertyClass)
+						return OutProperties.insert({ PropertyClass, Optional.GetAlignment() }).first->second;
+				}
+			}
+
+			return OutProperties.insert({ PropertyClass, 0x1 }).first->second;
+		};
+
+		auto It = UnknownProperties.find(GetClass().second.GetAddress());
+
+		/* Safe to use first member, as we're guaranteed to use FProperty */
+		if (It == UnknownProperties.end())
+			return TryFindPropertyRefInOptionalToGetAlignment(UnknownProperties, GetClass().second.GetAddress());
+
+		return It->second;
+	}
+	else
+	{
+		/* Safe to use first member, as we're guaranteed *not* to use FProperty */
+		return GetClass().first.GetMinAlignment();
+	}
 
 	return 0x1;
 }
