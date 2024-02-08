@@ -168,6 +168,9 @@ void StructManager::InitSizesAndIsFinal()
 		/* No need to check any other structs, as finding the LastMemberEnd only involves this struct */
 		NewOrExistingInfo.LastMemberEnd = LastMemberEnd;
 
+		if (Obj.GetCppName() == "FPROMAnimAttachAnimInstanceProxy")
+			std::cout << std::endl;
+
 		if (!Super || Obj.IsA(EClassCastFlags::Function))
 			continue;
 
@@ -192,8 +195,10 @@ void StructManager::InitSizesAndIsFinal()
 			// Struct is not final, as it is another structs' super
 			Info.bIsFinal = false;
 
+			const int32 SizeToCheck = Info.Size == INT_MAX ? S.GetStructSize() : Info.Size;
+
 			// Only change lowest offset if it's lower than the already found lowest offset (by default: struct-size)
-			if (Align(Info.Size, Info.Alignment) > LowestOffset)
+			if (Align(SizeToCheck, Info.Alignment) > LowestOffset)
 			{
 				if (Info.Size > LowestOffset)
 					Info.Size = LowestOffset;
