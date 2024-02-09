@@ -11,7 +11,6 @@ std::vector<std::future<void>> Generator::Futures;
 
 inline void InitSettings()
 {
-
 	UEStruct LoadAsset = ObjectArray::FindObjectFast<UEFunction>("LoadAsset", EClassCastFlags::Function);
 
 	if (!LoadAsset)
@@ -52,14 +51,11 @@ void Generator::Init()
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
 
 	ObjectArray::Init();
-
-
 	FName::Init();
-	//FName::Init(0x3CD5824);
 	Off::Init();
-	Off::InSDK::ProcessEvent::InitPE(); //Must here, relies on offsets initialized in Off::Init()
+	Off::InSDK::ProcessEvent::InitPE(); //Must be at this position, relies on offsets initialized in Off::Init()
 
-	Off::InSDK::Text::InitTextOffsets(); //Must here, relies on offsets initialized in Off::InitPE()
+	Off::InSDK::Text::InitTextOffsets(); //Must be at this position, relies on offsets initialized in Off::InitPE()
 
 	InitSettings();
 

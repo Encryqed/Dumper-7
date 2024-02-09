@@ -1,7 +1,8 @@
+#include <format>
+
 #include "UnrealTypes.h"
 #include "NameArray.h"
 
-void(*FName::AppendString)(void*, FString&) = nullptr;
 
 std::string MakeNameValid(std::string&& Name)
 {
@@ -115,28 +116,37 @@ void FName::Init()
 
 	Off::InSDK::Name::AppendNameToString = AppendString ? GetOffset(AppendString) : 0x0;
 
+	Off::InSDK::Name::bIsUsingAppendStringOverToString = AppendString != nullptr;
+
 	if (!AppendString)
 	{
-		NameArray::Init();
+		const bool bInitializedSuccessfully = NameArray::Init();
 
-		ToStr = [](void* Name) -> std::string
+		if (bInitializedSuccessfully)
 		{
-			if (!Settings::Internal::bUseUoutlineNumberName)
+			ToStr = [](void* Name) -> std::string
 			{
-				const int32 Number = FName(Name).GetNumber();
+				if (!Settings::Internal::bUseUoutlineNumberName)
+				{
+					const int32 Number = FName(Name).GetNumber();
 
-				if (Number > 0)
-					return NameArray::GetNameEntry(Name).GetString() + "_" + std::to_string(Number - 1);
-			}
+					if (Number > 0)
+						return NameArray::GetNameEntry(Name).GetString() + "_" + std::to_string(Number - 1);
+				}
 
-			return NameArray::GetNameEntry(Name).GetString();
-		};
+				return NameArray::GetNameEntry(Name).GetString();
+			};
 
-		return;
+			return;
+		}
+		else /* Attempt to find FName::ToString as a final fallback */
+		{
+			FName::InitFallback();
+		}
 	}
 
 
-	std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::Name::AppendNameToString << "\n\n";
+	std::cout << std::format("Found FName::{} at Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
 
 	ToStr = [](void* Name) -> std::string
 	{
@@ -151,11 +161,12 @@ void FName::Init()
 	};
 }
 
-void FName::Init(int32 AppendStringOffset)
+void FName::Init(int32 AppendStringOffset, bool bIsToString)
 {
 	AppendString = reinterpret_cast<void(*)(void*, FString&)>(GetImageBase() + AppendStringOffset);
 
 	Off::InSDK::Name::AppendNameToString = AppendStringOffset;
+	Off::InSDK::Name::bIsUsingAppendStringOverToString = !bIsToString;
 
 	ToStr = [](void* Name) -> std::string
 	{
@@ -169,7 +180,30 @@ void FName::Init(int32 AppendStringOffset)
 		return OutputString;
 	};
 
-	std::cout << "Found FName::AppendString at Offset 0x" << std::hex << Off::InSDK::Name::AppendNameToString << "\n\n";
+	std::cout << std::format("Manual-Override: FName::{} --> Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
+}
+
+void FName::InitFallback()
+{
+	Off::InSDK::Name::bIsUsingAppendStringOverToString = false;
+
+	MemAddress Conv_NameToStringAddress = FindUnrealExecFunctionByString("Conv_NameToString");
+
+	constexpr std::array<const char*, 3> PossibleSigs =
+	{
+		"89 44 ? ? 48 01 ? ? E8",
+		"48 89 ? ? 48 8D ? ? ? E8",
+		"48 89 ? ? ? 48 89 ? ? E8",
+	};
+
+	int i = 0;
+	while (!AppendString && i < PossibleSigs.size())
+	{
+		AppendString = reinterpret_cast<void(*)(void*, FString&)>(Conv_NameToStringAddress.RelativePattern(PossibleSigs[i], 0x90, -1 /* auto */));
+		i++;
+	}
+
+	Off::InSDK::Name::AppendNameToString = AppendString ? GetOffset(AppendString) : 0x0;
 }
 
 std::string FName::ToString()

@@ -481,6 +481,19 @@ inline MemAddress FindByWString(const wchar_t* RefStr)
 	return FindByString<const wchar_t*>(RefStr);
 }
 
+template<typename CharType>
+inline int32 StrlenHelper(const CharType* Str)
+{
+	if constexpr (std::is_same<CharType, char>())
+	{
+		return strlen(Str);
+	}
+	else
+	{
+		return wcslen(Str);
+	}
+}
+
 /* Slower than FindByString */
 template<typename Type = const char*>
 inline MemAddress FindByStringInAllSections(Type RefStr, void* StartAddress = nullptr)
@@ -494,35 +507,103 @@ inline MemAddress FindByStringInAllSections(Type RefStr, void* StartAddress = nu
 	uint8_t* SearchStart = StartAddress ? reinterpret_cast<uint8_t*>(StartAddress) : reinterpret_cast<uint8_t*>(ImageBase);
 	DWORD SearchRange = SizeOfImage;
 
-	for (int i = 0; i < SearchRange; i++)
+	const int32 RefStrLen = StrlenHelper(RefStr);
+
+	for (uintptr_t i = 0; i < SearchRange; i++)
 	{
 		// opcode: lea
 		if ((SearchStart[i] == uint8_t(0x4C) || SearchStart[i] == uint8_t(0x48)) && SearchStart[i + 1] == uint8_t(0x8D))
 		{
-			const uint8_t* StrPtr = *(int32_t*)(SearchStart + i + 3) + 7 + SearchStart + i;
+			const uint8_t* StrPtr = *reinterpret_cast<int32_t*>(SearchStart + i + 3) + 7 + SearchStart + i;
 
-			if (!IsInProcessRange((uintptr_t)StrPtr))
+			if (!IsInProcessRange(reinterpret_cast<uintptr_t>(StrPtr)))
 				continue;
 
 			if constexpr (std::is_same<Type, const char*>())
 			{
-				if (strcmp((const char*)RefStr, (const char*)StrPtr) == 0)
+				if (strncmp(reinterpret_cast<const char*>(RefStr), reinterpret_cast<const char*>(StrPtr), RefStrLen) == 0)
 				{
-					//std::cout << "FoundStr ref: " << (const char*)(SearchStart + i) << "\n";
+					// std::cout << "FoundStr ref: " << (const char*)(SearchStart + i) << "\n";
 
 					return { SearchStart + i };
 				}
 			}
 			else
 			{
-				auto a = std::wstring((const wchar_t*)StrPtr);
-
-				if (wcscmp((const wchar_t*)RefStr, (const wchar_t*)StrPtr) == 0) 
+				if (wcsncmp(reinterpret_cast<const wchar_t*>(RefStr), reinterpret_cast<const wchar_t*>(StrPtr), RefStrLen) == 0)
 				{
-					//std::wcout << L"FoundStr wref: " << (const wchar_t*)(SearchStart + i) << L"\n";
+					// std::wcout << L"FoundStr wref: " << (const wchar_t*)(SearchStart + i) << L"\n";
 
 					return { SearchStart + i };
 				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+template<typename Type = const char*>
+inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress = nullptr)
+{
+	uintptr_t ImageBase = GetImageBase();
+	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
+	PIMAGE_NT_HEADERS NtHeader = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
+
+	const DWORD SizeOfImage = NtHeader->OptionalHeader.SizeOfImage;
+
+	uint8_t* SearchStart = StartAddress ? reinterpret_cast<uint8_t*>(StartAddress) : reinterpret_cast<uint8_t*>(ImageBase);
+	DWORD SearchRange = SizeOfImage;
+
+	const int32 RefStrLen = StrlenHelper(RefStr);
+
+	static auto IsValidExecFunctionNotSetupFunc = [](uintptr_t Address) -> bool
+	{
+		/* 
+		* UFuntion construction functions setting up exec functions always start with these asm instructions:
+		* sub rsp, 28h
+		* 
+		* In opcode bytes: 48 83 EC 28
+		*/
+		if (*reinterpret_cast<int32*>(Address) == 0x284883EC || *reinterpret_cast<int32*>(Address) == 0x4883EC28)
+			return false;
+
+		MemAddress AsAddress(Address);
+
+		/* A signature specifically made for construction functions */
+		if (AsAddress.RelativePattern("48 8B 05 ? ? ? ? 48 85 C0 75 ? 48 8D 15", 0x28) != nullptr)
+			return false;
+
+		return true;
+	};
+
+	for (uintptr_t i = 0; i < (SearchRange - 0x8); i += sizeof(void*))
+	{
+		const uintptr_t PossibleStringAddress = *reinterpret_cast<uintptr_t*>(SearchStart + i);
+		const uintptr_t PossibleExecFuncAddress = *reinterpret_cast<uintptr_t*>(SearchStart + i + sizeof(void*));
+
+		if (PossibleStringAddress == PossibleExecFuncAddress)
+			continue;
+
+		if (!IsInProcessRange(PossibleStringAddress) || !IsInProcessRange(PossibleExecFuncAddress))
+			continue;
+
+		if constexpr (std::is_same<Type, const char*>())
+		{
+			if (strncmp(reinterpret_cast<const char*>(RefStr), reinterpret_cast<const char*>(PossibleStringAddress), RefStrLen) == 0 && IsValidExecFunctionNotSetupFunc(PossibleExecFuncAddress))
+			{
+				// std::cout << "FoundStr ref: " << reinterpret_cast<const char*>(PossibleStringAddress) << "\n";
+
+				return { PossibleExecFuncAddress };
+			}
+		}
+		else
+		{
+			if (wcsncmp(reinterpret_cast<const wchar_t*>(RefStr), reinterpret_cast<const wchar_t*>(PossibleStringAddress), RefStrLen) == 0 && IsValidExecFunctionNotSetupFunc(PossibleExecFuncAddress))
+			{
+				// std::wcout << L"FoundStr wref: " << reinterpret_cast<const wchar_t*>(PossibleStringAddress) << L"\n";
+
+				return { PossibleExecFuncAddress };
 			}
 		}
 	}
@@ -535,6 +616,4 @@ inline MemAddress FindByWStringInAllSections(const wchar_t* RefStr)
 {
 	return FindByStringInAllSections<const wchar_t*>(RefStr);
 }
-
-
 

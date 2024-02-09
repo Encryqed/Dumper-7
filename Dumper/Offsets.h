@@ -28,6 +28,8 @@ namespace Off
 
 		namespace Name
 		{
+			/* Whether we're using FName::AppendString or, in an edge case, FName::ToString */
+			inline bool bIsUsingAppendStringOverToString = true;
 			inline int32 AppendNameToString;
 			inline int32 FNameSize;
 		}

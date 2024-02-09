@@ -64,16 +64,6 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
 
 
-	// FName is the same for both UOnlineEngineInterfaceImpls
-	std::cout << std::endl;
-	for (UEObject Obj : ObjectArray())
-	{
-		if (Obj.IsA(EClassCastFlags::Class) && Obj.GetCppName() == "UOnlineEngineInterfaceImpl")
-			std::cout << "UOnlineEngineInterfaceImpl: " << Obj.GetAddress() << std::endl;
-	}
-	std::cout << std::endl;
-
-
 	//CppGeneratorTest::TestAll<true>();
 	//HashStringTableTest::TestAll<true>();
 	//StructManagerTest::TestAll<true>();

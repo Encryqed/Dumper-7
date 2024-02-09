@@ -35,7 +35,9 @@ void FNameEntry::Init(uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 
 		uint16 BytePropertyHeader = *reinterpret_cast<uint16*>(*reinterpret_cast<uint8**>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen);
 
-		while (BytePropertyHeader != BytePropertyStrLen)
+		constexpr int32 MaxAllowedShiftCount = 0xFF;
+
+		while (BytePropertyHeader != BytePropertyStrLen && FNameEntryLengthShiftCount < MaxAllowedShiftCount)
 		{			
 			FNameEntryLengthShiftCount++;
 			BytePropertyHeader >>= 1;
@@ -213,7 +215,9 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 	uint8_t* CoreUObjectFNameEntry = nullptr;
 	int64 FNameEntryHeaderSize = 0x0;
 
-	for (int i = 0; i < 0x1000; i++)
+	constexpr int32 LoopLimit = 0x1000;
+
+	for (int i = 0; i < LoopLimit; i++)
 	{
 		if (*reinterpret_cast<uint32*>(*ChunkPtr + i) == NoneAsUint32 && FNameEntryHeaderSize == 0)
 		{
@@ -223,6 +227,11 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 		{
 			CoreUObjectFNameEntry = *ChunkPtr + static_cast<uint64>(i) + (CoreUObjectStringLength + FNameEntryHeaderSize);
 			break;
+		}
+		else if (i == (LoopLimit - 1))
+		{
+			/* It seems GNames isn't valid and we need to abort the initialization while it's still safe */
+			return false;
 		}
 	}
 
@@ -250,7 +259,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 	return true;
 }
 
-void NameArray::Init()
+bool NameArray::Init()
 {
 	uintptr_t ImageBase = GetImageBase();
 
@@ -278,8 +287,8 @@ void NameArray::Init()
 
 	if (!GNamesAddress)
 	{
-		std::cout << "\nGNames couldn't be found\n\n" << std::endl;
-		exit(1);
+		std::cout << "GNames couldn't be found\n\n" << std::endl;
+		return false;
 	}
 
 	Off::InSDK::NameArray::GNames = uintptr_t(GNamesAddress) - ImageBase;
@@ -290,7 +299,7 @@ void NameArray::Init()
 		Settings::Internal::bUseNamePool = false;
 		FNameEntry::Init();
 		std::cout << "Found NameArray at offset: 0x" << std::hex << (reinterpret_cast<uintptr_t>(GNamesAddress) - ImageBase) << "\n" << std::endl;
-		return;
+		return true;
 	}
 	else if (NameArray::InitializeNamePool(reinterpret_cast<uint8_t*>(GNamesAddress)))
 	{
@@ -298,10 +307,16 @@ void NameArray::Init()
 		Settings::Internal::bUseNamePool = true;
 		std::cout << "Found NamePool at offset: 0x" << std::hex << (reinterpret_cast<uintptr_t>(GNamesAddress) - ImageBase) << "\n" << std::endl;
 		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
-		return;
+		return true;
 	}
 
-	std::cout << "\nGNames couldn't be found!\n\n\n";
+	GNames = nullptr;
+	Off::InSDK::NameArray::GNames = 0x0;
+	Settings::Internal::bUseNamePool = false;
+
+	std::cout << "GNames couldn't be found!\n\n";
+
+	return false;
 }
 
 void NameArray::PostInit()

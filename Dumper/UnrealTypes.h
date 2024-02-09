@@ -148,7 +148,7 @@ public:
 class FName
 {
 private:
-	static void(*AppendString)(void*, FString&);
+	inline static void(*AppendString)(void*, FString&) = nullptr;
 
 	inline static std::string(*ToStr)(void* Name) = nullptr;
 
@@ -162,8 +162,9 @@ public:
 
 public:
 	static void Init();
+	static void InitFallback();
 
-	static void Init(int32 AppendStringOffset);
+	static void Init(int32 AppendStringOffset, bool bIsToString = false);
 
 public:
 	inline const void* GetAddress() const { return Address; }

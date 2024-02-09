@@ -48,7 +48,7 @@ private:
 	static bool InitializeNamePool(uint8_t* NamePool);
 
 public:
-	static void Init();
+	static bool Init();
 	static void PostInit();
 
 	static void Init(int32 GNamesOffset, bool bIsNamePool);
