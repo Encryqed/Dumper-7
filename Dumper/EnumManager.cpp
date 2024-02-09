@@ -60,6 +60,11 @@ const StringEntry& EnumInfoHandle::GetName() const
 	return EnumManager::GetEnumName(*Info);
 }
 
+int32 EnumInfoHandle::GetNumMembers() const
+{
+	return Info->MemberInfos.size();
+}
+
 CollisionInfoIterator EnumInfoHandle::GetMemberCollisionInfoIterator() const
 {
 	return CollisionInfoIterator(Info->MemberInfos);

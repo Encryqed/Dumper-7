@@ -662,8 +662,10 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	StructWrapper Super = Struct.GetSuper();
 
+	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction();
+
 	/* Ignore UFunctions with a valid Super field, parameter structs are not supposed inherit from eachother. */
-	if (Super.IsValid() && !Struct.IsFunction())
+	if (bHasValidSuper)
 	{
 		UniqueSuperName = GetStructPrefixedName(Super);
 		SuperSize = Super.GetSize();
@@ -700,7 +702,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
   , Struct.ShouldUseExplicitAlignment() || bHasReusedTrailingPadding ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
   , UniqueName
   , Struct.IsFinal() ? " final " : ""
-  , Super.IsValid() ? (" : public " + UniqueSuperName) : "");
+  , bHasValidSuper ? (" : public " + UniqueSuperName) : "");
 
 	MemberManager Members = Struct.GetMembers();
 
@@ -2776,13 +2778,16 @@ public:
 
 	inline class UObject* GetByIndex(const int32 Index) const
 	{{
-		if (Index < 0 || Index > NumElements)
-			return nullptr;
-
 		const int32 ChunkIndex = Index / ElementsPerChunk;
 		const int32 InChunkIdx = Index % ElementsPerChunk;
 
-		return GetDecrytedObjPtr()[ChunkIndex][InChunkIdx].Object;
+		if (ChunkIndex >= NumChunks || Index >= NumElements)
+			return nullptr;
+	
+		FUObjectItem* ChunkPtr = GetDecrytedObjPtr()[ChunkIndex];
+		if (!ChunkPtr) return nullptr;
+
+		return ChunkPtr[InChunkIdx].Object;
 	}}
 }};
 )", Off::InSDK::ObjArray::ChunkSize, DecryptionStrToUse, Off::FUObjectArray::Ptr == 0 ? MemmberString : MemberStringWeirdLayout);

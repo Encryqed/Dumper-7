@@ -33,6 +33,11 @@ uint8 EnumWrapper::GetUnderlyingTypeSize() const
     return InfoHandle.GetUnderlyingTypeSize();
 }
 
+int32 EnumWrapper::GetNumMemebers() const
+{
+    return InfoHandle.GetNumMembers();
+}
+
 CollisionInfoIterator EnumWrapper::GetMembers() const
 {
     return InfoHandle.GetMemberCollisionInfoIterator();

@@ -4,18 +4,7 @@
 #include "EnumManager.h"
 #include "MemberManager.h"
 #include "PackageManager.h"
-
-namespace FileNameHelper
-{
-	inline void MakeValidFileName(std::string& InOutName)
-	{
-		for (char& c : InOutName)
-		{
-			if (c == '<' || c == '>' || c == ':' || c == '\"' || c == '/' || c == '\\' || c == '|' || c == '?' || c == '*')
-				c = '_';
-		}
-	}
-}
+#include "Utils.h"
 
 void GeneratorRewrite::InitEngineCore()
 {

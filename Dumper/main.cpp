@@ -4,6 +4,7 @@
 #include <fstream>
 #include "Generator.h"
 #include "CppGenerator.h"
+#include "MappingGenerator.h"
 
 #include "StructManager.h"
 #include "EnumManager.h"
@@ -77,6 +78,7 @@ DWORD MainThread(HMODULE Module)
 
 
 	GeneratorRewrite::Generate<CppGenerator>();
+	//GeneratorRewrite::Generate<MappingGenerator>();
 
 
 	//Generator::GenerateSDK();

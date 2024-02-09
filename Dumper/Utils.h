@@ -617,3 +617,15 @@ inline MemAddress FindByWStringInAllSections(const wchar_t* RefStr)
 	return FindByStringInAllSections<const wchar_t*>(RefStr);
 }
 
+
+namespace FileNameHelper
+{
+	inline void MakeValidFileName(std::string& InOutName)
+	{
+		for (char& c : InOutName)
+		{
+			if (c == '<' || c == '>' || c == ':' || c == '\"' || c == '/' || c == '\\' || c == '|' || c == '?' || c == '*')
+				c = '_';
+		}
+	}
+}

@@ -20,6 +20,8 @@ public:
     std::pair<std::string, bool> GetUniqueName() const;
     uint8 GetUnderlyingTypeSize() const;
 
+    int32 GetNumMemebers() const;
+
     CollisionInfoIterator GetMembers() const;
 
     bool IsValid() const;

@@ -75,6 +75,8 @@ public:
 	uint8 GetUnderlyingTypeSize() const;
 	const StringEntry& GetName() const;
 
+	int32 GetNumMembers() const;
+
 	CollisionInfoIterator GetMemberCollisionInfoIterator() const;
 };
 
