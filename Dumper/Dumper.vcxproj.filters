@@ -65,6 +65,9 @@
     <ClCompile Include="PackageManager.cpp">
       <Filter>GeneratorRewrite\Private\Managers</Filter>
     </ClCompile>
+    <ClCompile Include="MappingGenerator.cpp">
+      <Filter>GeneratorRewrite\Private\Generators</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -227,6 +230,9 @@
     </ClInclude>
     <ClInclude Include="SettingsRewrite.h">
       <Filter>GeneratorRewrite</Filter>
+    </ClInclude>
+    <ClInclude Include="MappingGenerator.h">
+      <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -1041,6 +1041,10 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 
 		return "TScriptInterface<class IInterface>";
 	}
+	else if (Flags & EClassCastFlags::FieldPathProperty)
+	{
+		return std::format("TFieldPath<struct {}>", Member.Cast<UEFieldPathProperty>().GetFielClass().GetCppName());
+	}
 	else if (Flags & EClassCastFlags::OptionalProperty)
 	{
 		UEProperty ValueProperty = Member.Cast<UEOptionalProperty>().GetValueProperty();
@@ -3320,7 +3324,7 @@ R"({
 		},
 	};
 
-	/* Add an error message to FName if ToString is used*/
+	/* Add an error message to FName if ToString is used */
 	if (!Off::InSDK::Name::bIsUsingAppendStringOverToString)
 	{
 		FName.Properties.insert(FName.Properties.begin(), {
@@ -3693,10 +3697,11 @@ class alignas(0x8) TMap
 )";
 
 
+	constexpr int32 FWeakObjectPtrSize = 0x8;
 
 	/* class FWeakObjectPtr */
 	PredefinedStruct FWeakObjectPtr = PredefinedStruct{
-		.UniqueName = "FWeakObjectPtr", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "FWeakObjectPtr", .Size = FWeakObjectPtrSize, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	FWeakObjectPtr.Properties =
@@ -4032,9 +4037,48 @@ R"({
 	GenerateStruct(&TScriptInterface, BasicHpp, BasicCpp, BasicHpp);
 
 
+	if (Settings::Internal::bUseFProperty)
+	{
+		const int32 FieldPathSize = (0x8 + FWeakObjectPtrSize + 0x10);
 
-	// TOptional
-	BasicHpp << R"(
+		/* class FFieldPath */
+		PredefinedStruct FFieldPath = PredefinedStruct{
+			.UniqueName = "FFieldPath", .Size = FieldPathSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		};
+
+		FFieldPath.Properties =
+		{
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "class FField*", .Name = "ResolvedField", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "TWeakObjectPtr<class UStruct>", .Name = "ResolvedOwner", .Offset = 0x8, .Size = 0x8, .ArrayDim = 0x1, .Alignment = 0x4,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "TArray<FName>", .Name = "Path", .Offset = 0x10, .Size = 0x10, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+		};
+
+		GenerateStruct(&FFieldPath, BasicHpp, BasicCpp, BasicHpp);
+
+		/* class TFieldPath */
+		PredefinedStruct TFieldPath = PredefinedStruct{
+			.CustomTemplateText = "template<class PropertyType>",
+			.UniqueName = "TFieldPath", .Size = FieldPathSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = &FFieldPath
+		};
+
+		GenerateStruct(&TFieldPath, BasicHpp, BasicCpp, BasicHpp);
+
+
+
+		// TOptional
+		BasicHpp << R"(
 
 template<typename OptionalType, bool bIsIntrusiveUnsetCheck = false>
 class TOptional
@@ -4100,6 +4144,7 @@ public:
 };
 
 )";
+	} /* End 'if (Settings::Internal::bUseFProperty)' */
 
 
 

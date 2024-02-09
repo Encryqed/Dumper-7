@@ -422,6 +422,16 @@ public:
 	std::string GetCppType() const;
 };
 
+class UEFieldPathProperty : public UEProperty
+{
+	using UEProperty::UEProperty;
+
+public:
+	UEFFieldClass GetFielClass() const;
+
+	std::string GetCppType() const;
+};
+
 class UEOptionalProperty : public UEProperty
 {
 	using UEProperty::UEProperty;

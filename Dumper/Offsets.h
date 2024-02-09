@@ -231,6 +231,11 @@ namespace Off
 		inline int32 Base;
 	}
 
+	namespace FieldPathProperty
+	{
+		inline int32 FieldClass;
+	}
+
 	namespace OptionalProperty
 	{
 		inline int32 ValueProperty;

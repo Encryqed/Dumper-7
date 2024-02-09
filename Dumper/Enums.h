@@ -350,9 +350,11 @@ enum class EMappingsTypeFlags : uint8
 	SetProperty,
 	EnumProperty,
 	FieldPathProperty,
+	OptionalProperty,
 
 	Unknown = 0xFF
 };
+
 
 ENUM_OPERATORS(EObjectFlags);
 ENUM_OPERATORS(EFunctionFlags);

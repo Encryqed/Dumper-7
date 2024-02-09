@@ -885,6 +885,10 @@ int32 UEProperty::GetAlignment() const
 	{
 		return alignof(void*); // 0x8
 	}
+	else if (TypeFlags & EClassCastFlags::FieldPathProperty)
+	{
+		return 0x8; // alignof member TArray<FName>;
+	}
 	else if (TypeFlags & EClassCastFlags::OptionalProperty)
 	{
 		UEProperty ValueProperty = Cast<UEOptionalProperty>().GetValueProperty();
@@ -1217,6 +1221,16 @@ std::string UEEnumProperty::GetCppType() const
 	return GetUnderlayingProperty().GetCppType();
 }
 
+UEFFieldClass UEFieldPathProperty::GetFielClass() const
+{
+	return UEFFieldClass(*reinterpret_cast<void**>(Base + Off::FieldPathProperty::FieldClass));
+}
+
+std::string UEFieldPathProperty::GetCppType() const
+{
+	return std::format("TFieldPath<struct {}>", GetFielClass().GetCppName());
+}
+
 UEProperty UEOptionalProperty::GetValueProperty() const
 {
 	return UEProperty(*reinterpret_cast<void**>(Base + Off::OptionalProperty::ValueProperty));
@@ -1256,6 +1270,7 @@ std::string UEOptionalProperty::GetCppType() const
 	FDummy.Cast<UEEnumProperty>();
 	FDummy.Cast<UEInterfaceProperty>();
 	FDummy.Cast<UEOptionalProperty>();
+	FDummy.Cast<UEFieldPathProperty>();
 
 	FDummy.Cast<UEFField&>();
 	FDummy.Cast<UEProperty&>();
@@ -1270,6 +1285,7 @@ std::string UEOptionalProperty::GetCppType() const
 	FDummy.Cast<UEEnumProperty&>();
 	FDummy.Cast<UEInterfaceProperty&>();
 	FDummy.Cast<UEOptionalProperty&>();
+	FDummy.Cast<UEFieldPathProperty&>();
 
 	PDummy.Cast<UEFField>();
 	PDummy.Cast<UEProperty>();
@@ -1288,6 +1304,7 @@ std::string UEOptionalProperty::GetCppType() const
 	PDummy.Cast<UESoftClassProperty>();
 	PDummy.Cast<UEWeakObjectProperty>();
 	PDummy.Cast<UEOptionalProperty>();
+	PDummy.Cast<UEFieldPathProperty>();
 
 	PDummy.Cast<UEFField&>();
 	PDummy.Cast<UEProperty&>();
@@ -1302,6 +1319,7 @@ std::string UEOptionalProperty::GetCppType() const
 	PDummy.Cast<UEEnumProperty&>();
 	PDummy.Cast<UEInterfaceProperty&>();
 	PDummy.Cast<UEOptionalProperty&>();
+	PDummy.Cast<UEFieldPathProperty&>();
 
 	Dummy.Cast<UEFField>();
 
@@ -1323,6 +1341,7 @@ std::string UEOptionalProperty::GetCppType() const
 	Dummy.Cast<UEEnumProperty>();
 	Dummy.Cast<UEInterfaceProperty>();
 	Dummy.Cast<UEOptionalProperty>();
+	Dummy.Cast<UEFieldPathProperty>();
 
 	Dummy.Cast<UEObject&>();
 	Dummy.Cast<UEField&>();
@@ -1342,6 +1361,7 @@ std::string UEOptionalProperty::GetCppType() const
 	Dummy.Cast<UEEnumProperty&>();
 	Dummy.Cast<UEInterfaceProperty&>();
 	Dummy.Cast<UEOptionalProperty&>();
+	Dummy.Cast<UEFieldPathProperty&>();
 
 
 	CPDummy.Cast<UEObject>();
@@ -1364,6 +1384,7 @@ std::string UEOptionalProperty::GetCppType() const
 	CFDummy.Cast<UEEnumProperty>();
 	CFDummy.Cast<UEInterfaceProperty>();
 	CFDummy.Cast<UEOptionalProperty>();
+	CFDummy.Cast<UEFieldPathProperty>();
 
 	CFDummy.Cast<UEFField&>();
 	CFDummy.Cast<UEProperty&>();
@@ -1378,6 +1399,7 @@ std::string UEOptionalProperty::GetCppType() const
 	CFDummy.Cast<UEEnumProperty&>();
 	CFDummy.Cast<UEInterfaceProperty&>();
 	CFDummy.Cast<UEOptionalProperty&>();
+	CFDummy.Cast<UEFieldPathProperty&>();
 
 	CDummy.Cast<UEFField>();
 
@@ -1399,6 +1421,7 @@ std::string UEOptionalProperty::GetCppType() const
 	CDummy.Cast<UEEnumProperty>();
 	CDummy.Cast<UEInterfaceProperty>();
 	CDummy.Cast<UEOptionalProperty>();
+	CDummy.Cast<UEFieldPathProperty>();
 
 	CDummy.Cast<UEObject&>();
 	CDummy.Cast<UEField&>();
@@ -1418,4 +1441,5 @@ std::string UEOptionalProperty::GetCppType() const
 	CDummy.Cast<UEEnumProperty&>();
 	CDummy.Cast<UEInterfaceProperty&>();
 	CDummy.Cast<UEOptionalProperty&>();
+	CDummy.Cast<UEFieldPathProperty&>();
 }
