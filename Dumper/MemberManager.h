@@ -216,6 +216,26 @@ public:
 		PredefinedMemberLookup = Lookup;
 	}
 
+	/* Add special names like "Class", "Flags, "Parms", etc. to avoid collisions on them */
+	static inline void InitReservedNames()
+	{
+		/* UObject reserved names */
+		MemberNames.AddReservedName("Flags", false);
+		MemberNames.AddReservedName("Index", false);
+		MemberNames.AddReservedName("Class", false);
+		MemberNames.AddReservedName("Name", false);
+		MemberNames.AddReservedName("Outer", false);
+
+		/* UFunction reserved names */
+		MemberNames.AddReservedName("FunctionFlags", false);
+
+		/* Function-body reserved names */
+		MemberNames.AddReservedName("Func", true);
+		MemberNames.AddReservedName("Parms", true);
+		MemberNames.AddReservedName("Params", true);
+		MemberNames.AddReservedName("Flgs", true);
+	}
+
 	static inline void Init()
 	{
 		static bool bInitialized = false;
@@ -225,14 +245,14 @@ public:
 
 		bInitialized = true;
 
+		/* Adds special names first, to avoid name-collisions with predefined members */
+		InitReservedNames();
+
 		/* Initialize member-name collisions  */
 		for (auto Obj : ObjectArray())
 		{
 			if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function))
 				continue;
-
-			if (Obj.GetName() == "PropertyBag_8288bbedc6ee022")
-				std::cout << std::endl;
 
 			AddStructToNameContainer(Obj.Cast<UEStruct>());
 		}

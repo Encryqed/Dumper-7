@@ -88,11 +88,16 @@ private:
 	/* Map to translation from UEProperty/UEFunction to Index in NameContainer */
 	CollisionManager::TranslationMapType TranslationMap;
 
+	/* Names reserved for predefined members or local variables in function-bodies. Eg. "Class", "Parms", etc. */
+	NameContainer ReservedNames;
+
 private:
 	/* Returns index of NameInfo inside of the NameContainer it was added to */
 	uint64 AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr);
 
 public:
+	/* For external use by 'MemberManager::InitReservedNames()' */
+	void AddReservedName(const std::string& Name, bool bIsParameterOrLocalVariable);
 	void AddStructToNameContainer(UEStruct ObjAsStruct);
 
 	std::string StringifyName(UEStruct Struct, NameInfo Info);

@@ -120,6 +120,10 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 
 		if (AddCollidingName(*FuncParamNames, FuncParamNames, NameIdx, CurrentType, false))
 			return FuncParamNames->size() - 1;
+
+		/* Serach ReservedNames last, just in case there was a property which also collided with a reserved name already */
+		if (AddCollidingName(ReservedNames, FuncParamNames, NameIdx, CurrentType, false))
+			return FuncParamNames->size() - 1;
 	}
 
 	NameContainer* TargetNameContainer = bIsParameter ? FuncParamNames : &StructNames;
@@ -135,6 +139,10 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 			return TargetNameContainer->size() - 1;
 	}
 
+	/* Serach ReservedNames last, just in case there was a property in the struct or parent struct, which also collided with a reserved name already */
+	if (AddCollidingName(ReservedNames, TargetNameContainer, NameIdx, CurrentType, false))
+		return TargetNameContainer->size() - 1;
+
 	// Create new empty NameInfo
 	if (bIsParameter && FuncParamNames)
 	{
@@ -146,6 +154,16 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 		StructNames.emplace_back(NameIdx, CurrentType);
 		return StructNames.size() - 1;
 	}
+}
+
+void CollisionManager::AddReservedName(const std::string& Name, bool bIsParameterOrLocalVariable)
+{
+	NameInfo NewInfo;
+	NewInfo.Name = MemberNames.FindOrAdd(Name).first;
+	NewInfo.CollisionData = 0x0;
+	NewInfo.OwnType = static_cast<uint8>(bIsParameterOrLocalVariable ? ECollisionType::ParameterName : ECollisionType::SuperMemberName);
+
+	ReservedNames.push_back(NewInfo);
 }
 
 void CollisionManager::AddStructToNameContainer(UEStruct Struct)
