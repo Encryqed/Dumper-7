@@ -9,7 +9,7 @@
 * uint16 magic;
 * uint8 version;
 * if (version >= Packaging)
-*     bool bHasVersionInfo;
+*     int32 bHasVersionInfo;
 *     if (bHasVersionInfo)
 *         int32 FileVersionUE4;
 *         int32 FileVersionUE5;
@@ -112,7 +112,8 @@ private:
     template<typename InStreamType>
     static void WriteToStream(InStreamType& InStream, const std::stringstream& Data)
     {
-        InStream.write(reinterpret_cast<const char*>(Data.rdbuf()), Data.str().length());
+        InStream << Data.rdbuf();
+        //InStream.write(reinterpret_cast<const char*>(Data.rdbuf()), Data.str().length());
     }
 
 private:
@@ -122,7 +123,7 @@ private:
 
 private:
     static void GeneratePropertyType(UEProperty Property, std::stringstream& Data, std::stringstream& NameTable);
-    static void GeneratePropertyInfo(const PropertyWrapper& Property, std::stringstream& Data, std::stringstream& NameTable, int32 Index);
+    static void GeneratePropertyInfo(const PropertyWrapper& Property, std::stringstream& Data, std::stringstream& NameTable, int32& Index);
 
     static void GenerateStruct(const StructWrapper& Struct, std::stringstream& Data, std::stringstream& NameTable);
     static void GenerateEnum(const EnumWrapper& Enum, std::stringstream& Data, std::stringstream& NameTable);

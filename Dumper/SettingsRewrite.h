@@ -57,11 +57,9 @@ R"(
 		/* Adds static_assert for member-offsets */
 		inline constexpr bool bGenerateInlineAssertionsForStructMembers = true;
 
-		/* Not implemented */
-		inline constexpr bool bLimitAssertionsToEngienPackage = true;
 
-		/* Not implemented */
-		inline constexpr bool bGenerateAssertionsForPredefinedMembers = true;
+		/* Prints debug information during Mapping-Generation */
+		inline constexpr bool bShouldPrintMappingDebugData = true;
 	}
 
 	//* * * * * * * * * * * * * * * * * * * * *// 

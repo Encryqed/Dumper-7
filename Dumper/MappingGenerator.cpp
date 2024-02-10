@@ -1,5 +1,6 @@
 #include "MappingGenerator.h"
 #include "PackageManager.h"
+#include "SettingsRewrite.h"
 
 #include "Utils.h"
 
@@ -123,7 +124,7 @@ EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 
 int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::string& Name)
 {
-	NameTable << static_cast<uint16>(Name.length());
+	WriteToStream(NameTable, static_cast<uint16>(Name.length()));
 	NameTable.write(Name.c_str(), Name.length());
 
 	return NameCounter++;
@@ -149,8 +150,8 @@ void MappingGenerator::GeneratePropertyType(UEProperty Property, std::stringstre
 	}
 	else if (MappingType == EMappingsTypeFlags::StructProperty)
 	{
-		const int32 EnumNameIdx = AddNameToData(NameTable, Property.GetName());
-		WriteToStream(Data, EnumNameIdx);
+		const int32 StructNameIdx = AddNameToData(NameTable, Property.Cast<UEStructProperty>().GetUnderlayingStruct().GetName());
+		WriteToStream(Data, StructNameIdx);
 	}
 	else if (MappingType == EMappingsTypeFlags::SetProperty)
 	{
@@ -172,7 +173,7 @@ void MappingGenerator::GeneratePropertyType(UEProperty Property, std::stringstre
 	}
 }
 
-void MappingGenerator::GeneratePropertyInfo(const PropertyWrapper& Property, std::stringstream& Data, std::stringstream& NameTable, int32 Index)
+void MappingGenerator::GeneratePropertyInfo(const PropertyWrapper& Property, std::stringstream& Data, std::stringstream& NameTable, int32& Index)
 {
 	if (!Property.IsUnrealProperty())
 	{
@@ -183,15 +184,17 @@ void MappingGenerator::GeneratePropertyInfo(const PropertyWrapper& Property, std
 	WriteToStream(Data, static_cast<uint16>(Index));
 	WriteToStream(Data, static_cast<uint8>(Property.GetArrayDim()));
 
-	const int32 MemberNameIdx = AddNameToData(NameTable, Property.GetName());
+	const int32 MemberNameIdx = AddNameToData(NameTable, Property.GetUnrealProperty().GetName());
 	WriteToStream(Data, MemberNameIdx);
 
 	GeneratePropertyType(Property.GetUnrealProperty(), Data, NameTable);
+
+	Index += Property.GetArrayDim();
 }
 
 void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringstream& Data, std::stringstream& NameTable)
 {
-	const int32 StructNameIndex = AddNameToData(NameTable, Struct.GetUniqueName().first);
+	const int32 StructNameIndex = AddNameToData(NameTable, Struct.GetRawName());
 	WriteToStream(Data, StructNameIndex);
 
 	StructWrapper Super = Struct.GetSuper();
@@ -199,8 +202,12 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 	if (Super.IsValid())
 	{
 		/* Most likely adds a duplicate to the name-table. Find a better solution later! */
-		const int32 SuperNameIndex = AddNameToData(NameTable, Struct.GetUniqueName().first);
+		const int32 SuperNameIndex = AddNameToData(NameTable, Super.GetRawName());
 		WriteToStream(Data, SuperNameIndex);
+	}
+	else
+	{
+		WriteToStream(Data, static_cast<int32>(-1));
 	}
 
 	MemberManager Members = Struct.GetMembers();
@@ -215,10 +222,11 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 	WriteToStream(Data, PropertyCount);
 	WriteToStream(Data, SerializablePropertyCount);
 
-	int32 Index = 0x0;
+	/* Incremented by 'Property->ArrayDim' inside 'GeneratePropertyInfo()' */
+	int32 IndexIncrementedByFunction = 0x0;
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
-		GeneratePropertyInfo(Member, Data, NameTable, Index++);
+		GeneratePropertyInfo(Member, Data, NameTable, IndexIncrementedByFunction);
 }
 
 void MappingGenerator::GenerateEnum(const EnumWrapper& Enum, std::stringstream& Data, std::stringstream& NameTable)
@@ -242,8 +250,8 @@ std::stringstream MappingGenerator::GenerateFileData()
 	std::stringstream StructData;
 	std::stringstream EnumData;
 
-	uint32 NumStructsAndClasse = 0x0;
 	uint32 NumEnums = 0x0;
+	uint32 NumStructsAndClasse = 0x0;
 
 	/* Handle all Enums first */
 	for (PackageInfoHandle Package : PackageManager::IterateOverPackageInfos())
@@ -275,7 +283,7 @@ std::stringstream MappingGenerator::GenerateFileData()
 		DependencyManager::OnVisitCallbackType GenerateStructCallback = [&](int32 Index) -> void
 		{
 			GenerateStruct(ObjectArray::GetByIndex<UEStruct>(Index), StructData, NameData);
-			NumEnums++;
+			NumStructsAndClasse++;
 		};
 
 		if (Package.HasStructs())
@@ -298,13 +306,22 @@ std::stringstream MappingGenerator::GenerateFileData()
 	WriteToStream(ReturnBuffer, static_cast<uint32>(NameCounter));
 	WriteToStream(ReturnBuffer, NameData);
 
+	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)
+		std::cout << std::format("MappingGeneration: NameCounter = 0x{0:X} (Dec: {0})\n", static_cast<uint32>(NameCounter));
+
 	/* Write Enum-count and enums */
 	WriteToStream(ReturnBuffer, static_cast<uint32>(NumEnums));
 	WriteToStream(ReturnBuffer, EnumData);
 
+	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)
+		std::cout << std::format("MappingGeneration: NumEnums = 0x{0:X} (Dec: {0})\n", static_cast<uint32>(NumEnums));
+
 	/* Write Struct-count and enums */
 	WriteToStream(ReturnBuffer, static_cast<uint32>(NumStructsAndClasse));
 	WriteToStream(ReturnBuffer, StructData);
+
+	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)
+		std::cout << std::format("MappingGeneration: NumStructsAndClasse = 0x{0:X} (Dec: {0})\n\n", static_cast<uint32>(NumStructsAndClasse));
 
 	return ReturnBuffer;
 }
@@ -318,16 +335,27 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	/* Version: LongFName, as games like Fortnite contain names exceeding 255 characters */
 	WriteToStream(InUsmap, EUsmapVersion::LongFName);
 
-	/* We're on 'LongFName' version, we need to write bool bHasVersioning. (NoVersioning = false) -> no [int32 UE4Version, int32 UE5Version] and no [uint32 NetCL] */
-	WriteToStream(InUsmap, false);
+	/* We're on 'LongFName' version, we need to write 'bool' (aka int32) bHasVersioning. (NoVersioning = false) -> no [int32 UE4Version, int32 UE5Version] and no [uint32 NetCL] */
+	WriteToStream(InUsmap, static_cast<int32>(false));
 
 	/* We're not supporting compression as of now, so no need for a compression enum. Write 'None' to the compression byte */
 	WriteToStream(InUsmap, static_cast<uint8>(0));
 
+	const uint32 Size = static_cast<uint32>(Data.str().length());
+
+	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)
+	{
+		std::cout << std::format("MappingGeneration: CompressedSize = 0x{0:X} (Dec: {0})\n", Size);
+		std::cout << std::format("MappingGeneration: DecompressedSize = 0x{0:X} (Dec: {0})\n\n", Size);
+	}
+
 	/* Write compressed size (same as decompressed size as of now) */
-	WriteToStream(InUsmap, static_cast<uint32>(Data.str().length()));
+	WriteToStream(InUsmap, Size);
 
 	/* Write decompressed size (same as compressed size as of now) */
+	WriteToStream(InUsmap, Size);
+
+	/* Header is done, now write the payload to the file */
 	WriteToStream(InUsmap, Data);
 }
 
@@ -339,9 +367,10 @@ void MappingGenerator::Generate()
 
 	FileNameHelper::MakeValidFileName(MappingsFileName);
 
-	std::ofstream UsmapFile(MainFolder / MappingsFileName);
+	/* Open the stream as binary data, else ofstream will add \r after numbers that can be interpreted as \n. */
+	std::ofstream UsmapFile(MainFolder / MappingsFileName, std::ios::binary);
 
-	/* Generate the payload of the file, containing all of the names, enums and structs */
+	/* Generate the payload of the file, containing all of the names, enums and structs. */
 	std::stringstream FileData = GenerateFileData();
 
 	/* Generate the header, and write both header and payload into the file. */

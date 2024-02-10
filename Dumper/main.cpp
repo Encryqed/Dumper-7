@@ -77,8 +77,8 @@ DWORD MainThread(HMODULE Module)
 	//PackageManagerTest::TestCyclicDependencyDetection<true>();
 
 
-	GeneratorRewrite::Generate<CppGenerator>();
-	//GeneratorRewrite::Generate<MappingGenerator>();
+	//GeneratorRewrite::Generate<CppGenerator>();
+	GeneratorRewrite::Generate<MappingGenerator>();
 
 
 	//Generator::GenerateSDK();
