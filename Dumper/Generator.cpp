@@ -1075,7 +1075,7 @@ R"(
 )"
 			},
 		//non-const operators
-{ "\tFVector& operator+=(const FVector& Other);", "\tFVector& tFVector::operator+=(const FVector& Other)", R"(
+{ "\tFVector& operator+=(const FVector& Other);", "\tFVector& FVector::operator+=(const FVector& Other)", R"(
 	{
 		X += Other.X;
 		Y += Other.Y;
