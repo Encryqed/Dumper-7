@@ -370,7 +370,7 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	}
 
 	/* Write compressed size */
-	WriteToStream(InUsmap, CompressedSize);
+	WriteToStream(InUsmap, static_cast<uint32>(CompressedSize));
 
 	/* Write uncompressed size */
 	WriteToStream(InUsmap, UncompressedSize);
