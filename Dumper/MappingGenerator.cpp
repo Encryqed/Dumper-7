@@ -1,12 +1,22 @@
 #include "MappingGenerator.h"
 #include "PackageManager.h"
 #include "SettingsRewrite.h"
+#include "CompressionLibs/zstd/lib/zstd.h"
 
 #include "Utils.h"
 
 #include <iostream>
 #include <string>
 #include <format>
+
+enum class EUsmapCompressionMethod : uint8
+{
+	None,
+	Oodle,
+	Brotli,
+	ZStandard,
+	Unknown = 0xFF
+};
 
 EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 {
@@ -338,25 +348,47 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	/* We're on 'LongFName' version, we need to write 'bool' (aka int32) bHasVersioning. (NoVersioning = false) -> no [int32 UE4Version, int32 UE5Version] and no [uint32 NetCL] */
 	WriteToStream(InUsmap, static_cast<int32>(false));
 
-	/* We're not supporting compression as of now, so no need for a compression enum. Write 'None' to the compression byte */
-	WriteToStream(InUsmap, static_cast<uint8>(0));
+	const uint32 UncompressedSize = static_cast<uint32>(Data.str().length());
+	EUsmapCompressionMethod CompressionMethod = EUsmapCompressionMethod::ZStandard; // Should be a configurable option
 
-	const uint32 Size = static_cast<uint32>(Data.str().length());
+	/* Write 'CompressionMethod' to the compression byte */
+	WriteToStream(InUsmap, static_cast<uint8>(CompressionMethod));
+
+	size_t CompressedSize = UncompressedSize;
+	void* CompressedBuffer;
+
+	switch (CompressionMethod)
+	{
+	case EUsmapCompressionMethod::ZStandard:
+		{
+			CompressedSize = ZSTD_compressBound(UncompressedSize);
+			CompressedBuffer = malloc(CompressedSize);
+			CompressedSize = ZSTD_compress(CompressedBuffer, CompressedSize, Data.str().data(), UncompressedSize, ZSTD_lazy);
+			break;
+		}
+	case EUsmapCompressionMethod::None:
+	default:
+		{
+			CompressedBuffer = malloc(CompressedSize);
+			memcpy(CompressedBuffer, Data.str().data(), CompressedSize);
+			break;
+		}
+	}
 
 	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)
 	{
-		std::cout << std::format("MappingGeneration: CompressedSize = 0x{0:X} (Dec: {0})\n", Size);
-		std::cout << std::format("MappingGeneration: DecompressedSize = 0x{0:X} (Dec: {0})\n\n", Size);
+		std::cout << std::format("MappingGeneration: CompressedSize = 0x{0:X} (Dec: {0})\n", CompressedSize);
+		std::cout << std::format("MappingGeneration: DecompressedSize = 0x{0:X} (Dec: {0})\n\n", UncompressedSize);
 	}
 
-	/* Write compressed size (same as decompressed size as of now) */
-	WriteToStream(InUsmap, Size);
+	/* Write compressed size */
+	WriteToStream(InUsmap, CompressedSize);
 
-	/* Write decompressed size (same as compressed size as of now) */
-	WriteToStream(InUsmap, Size);
+	/* Write uncompressed size */
+	WriteToStream(InUsmap, UncompressedSize);
 
 	/* Header is done, now write the payload to the file */
-	WriteToStream(InUsmap, Data);
+	InUsmap.write(static_cast<const char*>(CompressedBuffer), static_cast<uint32>(CompressedSize));
 }
 
 void MappingGenerator::Generate()
