@@ -16,25 +16,25 @@ namespace SettingsRewrite
 
 	namespace CppGenerator
 	{
-		//No prefix for files -> FilePrefix = ""
+		/* No prefix for files->FilePrefix = "" */
 		constexpr const char* FilePrefix = "";
 
-		//No seperate namespace for SDK -> SDKNamespaceName = nullptr
+		/* No seperate namespace for SDK -> SDKNamespaceName = nullptr */
 		constexpr const char* SDKNamespaceName = "SDK";
 
-		//No seperate namespace for Params -> ParamNamespaceName = nullptr
+		/* No seperate namespace for Params -> ParamNamespaceName = nullptr */
 		constexpr const char* ParamNamespaceName = "Params";
 
-		//Do not XOR strings -> XORString = nullptr
+		/* Do not XOR strings -> XORString = nullptr */
 		constexpr const char* XORString = nullptr;
 
-		//Customizable part of Cpp code to allow for a custom 'uintptr_t InSDKUtils::GetImageBase()' function
+		/* Customizable part of Cpp code to allow for a custom 'uintptr_t InSDKUtils::GetImageBase()' function */
 		constexpr const char* GetImageBaseFuncBody = 
 R"(	{
 		return reinterpret_cast<uintptr_t>(GetModuleHandle(0));
 	}
 )";
-		//Customizable part of Cpp code to allow for a custom 'InSDKUtils::CallGameFunction' function
+		//Customizable part of Cpp code to allow for a custom 'InSDKUtils::CallGameFunction' function */
 		constexpr const char* CallGameFunction =
 R"(
 	template<typename FuncType, typename... ParamTypes>
@@ -44,6 +44,12 @@ R"(
 		return Function(std::forward<ParamTypes>(Args)...);
 	}
 )";
+	}
+
+	namespace MappingGenerator
+	{
+		/* Whether the MappingGenerator should check if a name was written to the nametable before. Exists to reduce mapping size. */
+		constexpr bool bShouldCheckForDuplicatedNames = true;
 	}
 
 	/* Partially implemented  */

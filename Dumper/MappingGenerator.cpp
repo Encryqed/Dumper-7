@@ -125,6 +125,23 @@ EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 
 int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::string& Name)
 {
+	if constexpr (SettingsRewrite::MappingGenerator::bShouldCheckForDuplicatedNames)
+	{
+		static std::unordered_map<std::string, int32> NameMap;
+		
+		auto [It, bInserted] = NameMap.insert({ Name, NameCounter });
+
+		/* The name didn't occure yet, write it to the NameTable */
+		if (bInserted)
+		{
+			WriteToStream(NameTable, static_cast<uint16>(Name.length()));
+			NameTable.write(Name.c_str(), Name.length());
+			return NameCounter++;
+		}
+
+		return It->second;
+	}
+
 	WriteToStream(NameTable, static_cast<uint16>(Name.length()));
 	NameTable.write(Name.c_str(), Name.length());
 
