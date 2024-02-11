@@ -209,9 +209,14 @@ void FileWriter::SetFileType(FileType& Type)
 
 void FileWriter::SetFileHeader()
 {
-	FileStream << R"(#pragma once
+	if (CurrentFile.substr(CurrentFile.size() - 3, 3) == "hpp")
+	{
+		FileStream << R"(#pragma once
 
-// Dumped with Dumper-7!
+)";
+	}
+
+	FileStream << R"(// Dumped with Dumper-7!
 
 
 )";
