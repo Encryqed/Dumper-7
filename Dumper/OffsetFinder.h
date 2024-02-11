@@ -518,7 +518,9 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, uint8_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindClassFast("Engine").FindMember("bIsOverridingSelectedColor").GetAddress(), 0xFF });
+		UEClass Engine = ObjectArray::FindClassFast("Engine");
+		Infos.push_back({ Engine.FindMember("bIsOverridingSelectedColor").GetAddress(), 0xFF }); 
+		Infos.push_back({ Engine.FindMember("bEnableOnScreenDebugMessagesDisplay").GetAddress(), 0b00000010 });
 		Infos.push_back({ ObjectArray::FindClassFast("PlayerController").FindMember("bAutoManageActiveCameraTarget").GetAddress(), 0xFF });
 
 		return (FindOffset<1>(Infos, Off::Property::Offset_Internal) - 0x3);

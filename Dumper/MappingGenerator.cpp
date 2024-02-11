@@ -9,15 +9,6 @@
 #include <string>
 #include <format>
 
-enum class EUsmapCompressionMethod : uint8
-{
-	None,
-	Oodle,
-	Brotli,
-	ZStandard,
-	Unknown = 0xFF
-};
-
 EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 {
 	auto [Class, FieldClass] = Property.GetClass();
@@ -349,30 +340,27 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	WriteToStream(InUsmap, static_cast<int32>(false));
 
 	const uint32 UncompressedSize = static_cast<uint32>(Data.str().length());
-	EUsmapCompressionMethod CompressionMethod = EUsmapCompressionMethod::ZStandard; // Should be a configurable option
+
+	/* Should be a configurable option */
+	EUsmapCompressionMethod CompressionMethod = EUsmapCompressionMethod::ZStandard;
 
 	/* Write 'CompressionMethod' to the compression byte */
 	WriteToStream(InUsmap, static_cast<uint8>(CompressionMethod));
 
 	size_t CompressedSize = UncompressedSize;
-	void* CompressedBuffer;
+	void* CompressedBuffer = nullptr;
 
 	switch (CompressionMethod)
 	{
 	case EUsmapCompressionMethod::ZStandard:
-		{
-			CompressedSize = ZSTD_compressBound(UncompressedSize);
-			CompressedBuffer = malloc(CompressedSize);
-			CompressedSize = ZSTD_compress(CompressedBuffer, CompressedSize, Data.str().data(), UncompressedSize, ZSTD_maxCLevel());
-			break;
-		}
-	case EUsmapCompressionMethod::None:
+		CompressedSize = ZSTD_compressBound(UncompressedSize);
+		CompressedBuffer = malloc(CompressedSize);
+		CompressedSize = ZSTD_compress(CompressedBuffer, CompressedSize, Data.str().data(), UncompressedSize, ZSTD_maxCLevel());
+		break;
 	default:
-		{
-			CompressedBuffer = malloc(CompressedSize);
-			memcpy(CompressedBuffer, Data.str().data(), CompressedSize);
-			break;
-		}
+		CompressedBuffer = malloc(CompressedSize);
+		memcpy(CompressedBuffer, Data.str().data(), CompressedSize);
+		break;
 	}
 
 	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)

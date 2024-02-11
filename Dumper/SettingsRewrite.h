@@ -59,7 +59,7 @@ R"(
 
 
 		/* Prints debug information during Mapping-Generation */
-		inline constexpr bool bShouldPrintMappingDebugData = true;
+		inline constexpr bool bShouldPrintMappingDebugData = false;
 	}
 
 	//* * * * * * * * * * * * * * * * * * * * *// 

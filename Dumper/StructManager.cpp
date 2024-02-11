@@ -168,9 +168,6 @@ void StructManager::InitSizesAndIsFinal()
 		/* No need to check any other structs, as finding the LastMemberEnd only involves this struct */
 		NewOrExistingInfo.LastMemberEnd = LastMemberEnd;
 
-		if (Obj.GetCppName() == "FPROMAnimAttachAnimInstanceProxy")
-			std::cout << std::endl;
-
 		if (!Super || Obj.IsA(EClassCastFlags::Function))
 			continue;
 

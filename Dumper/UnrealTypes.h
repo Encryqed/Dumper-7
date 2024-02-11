@@ -140,7 +140,9 @@ public:
 
 	~FFreableString()
 	{
-		FreeArray();
+		/* If we're using FName::ToString the allocation comes from the engine and we can not free it. Just leak those 2048 bytes. */
+		if (Off::InSDK::Name::bIsUsingAppendStringOverToString)
+			FreeArray();
 	}
 };
 

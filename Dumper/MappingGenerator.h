@@ -77,6 +77,15 @@ private:
         LatestPlusOne,
     };
 
+    enum class EUsmapCompressionMethod : uint8
+    {
+        None,
+        Oodle,
+        Brotli,
+        ZStandard,
+        Unknown = 0xFF
+    };
+
     struct FileData
     {
         std::stringstream DataBuffer;
