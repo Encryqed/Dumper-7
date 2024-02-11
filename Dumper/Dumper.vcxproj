@@ -142,6 +142,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CompressionLibs\zstd\lib\zstd.c" />
     <ClCompile Include="CppGenerator.cpp" />
     <ClCompile Include="DependencyManager.cpp" />
     <ClCompile Include="EnumManager.cpp" />
@@ -167,6 +168,7 @@
     <ClCompile Include="StructWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CompressionLibs\zstd\lib\zstd.h" />
     <ClInclude Include="CppGenerator.h" />
     <ClInclude Include="CppGeneratorTest.h" />
     <ClInclude Include="DependencyManager.h" />
