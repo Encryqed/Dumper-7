@@ -363,7 +363,7 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 		{
 			CompressedSize = ZSTD_compressBound(UncompressedSize);
 			CompressedBuffer = malloc(CompressedSize);
-			CompressedSize = ZSTD_compress(CompressedBuffer, CompressedSize, Data.str().data(), UncompressedSize, 10);
+			CompressedSize = ZSTD_compress(CompressedBuffer, CompressedSize, Data.str().data(), UncompressedSize, ZSTD_maxCLevel());
 			break;
 		}
 	case EUsmapCompressionMethod::None:
