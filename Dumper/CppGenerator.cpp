@@ -908,7 +908,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	if (Flags & EClassCastFlags::ByteProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEByteProperty>().GetEnum())
-			return Enum.GetEnumTypeAsStr();
+			return GetEnumPrefixedName(Enum);
 
 		return "uint8";
 	}
@@ -1032,7 +1032,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	else if (Flags & EClassCastFlags::EnumProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEEnumProperty>().GetEnum())
-			return Enum.GetEnumTypeAsStr();
+			return GetEnumPrefixedName(Enum);
 
 		return GetMemberTypeStringWithoutConst(Member.Cast<UEEnumProperty>().GetUnderlayingProperty(), PackageIndex);
 	}
@@ -1136,6 +1136,9 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 			continue;
 
 		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
+
+		if (Struct.IsA(EClassCastFlags::Function))
+			continue;
 
 		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Struct.GetPackageIndex()];
 
@@ -1307,7 +1310,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	if (Type == EFileType::BasicHpp)
 	{
 		File << "#include \"../NameCollisions.inl\"\n";
-		File << "#include \"../PropertyFixup.hpp\"\n";
+		//File << "#include \"../PropertyFixup.hpp\"\n";
 	}
 
 	if (Type == EFileType::BasicCpp)
@@ -2546,6 +2549,7 @@ typedef unsigned __int32 uint32;
 typedef unsigned __int64 uint64;
 )";
 
+	BasicHpp << "\n#include \"../NameCollisions.inl\"\n";
 
 	/* Offsets and disclaimer */
 	BasicHpp << std::format(R"(
