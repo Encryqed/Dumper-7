@@ -270,7 +270,7 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 
 void MappingGenerator::GenerateEnum(const EnumWrapper& Enum, std::stringstream& Data, std::stringstream& NameTable)
 {
-	const int32 EnumNameIndex = AddNameToData(NameTable, Enum.GetName());
+	const int32 EnumNameIndex = AddNameToData(NameTable, Enum.GetRawName());
 	WriteToStream(Data, EnumNameIndex);
 
 	WriteToStream(Data, static_cast<uint8>(Enum.GetNumMemebers()));

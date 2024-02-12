@@ -16,6 +16,11 @@ std::string EnumWrapper::GetName() const
     return Enum.GetEnumPrefixedName();
 }
 
+std::string EnumWrapper::GetRawName() const
+{
+    return Enum.GetName();
+}
+
 std::string EnumWrapper::GetFullName() const
 {
     return Enum.GetFullName();

@@ -15,6 +15,7 @@ public:
 
 public:
     std::string GetName() const;
+    std::string GetRawName() const;
     std::string GetFullName() const;
 
     std::pair<std::string, bool> GetUniqueName() const;

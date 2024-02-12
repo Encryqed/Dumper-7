@@ -373,7 +373,7 @@ public:
 				{
 					uint8_t* CallAddr = Address + i + j;
 
-					void* Func = CallAddr + *reinterpret_cast<int32*>(CallAddr + 1) + 5; /*Addr + Offset + 5*/
+					void* Func = CallAddr + *reinterpret_cast<int32_t*>(CallAddr + 1) + 5; /*Addr + Offset + 5*/
 
 					if ((uint64_t(Func) % 0x4) != 0x0)
 						continue;
@@ -482,7 +482,7 @@ inline MemAddress FindByWString(const wchar_t* RefStr)
 }
 
 template<typename CharType>
-inline int32 StrlenHelper(const CharType* Str)
+inline int32_t StrlenHelper(const CharType* Str)
 {
 	if constexpr (std::is_same<CharType, char>())
 	{
@@ -507,7 +507,7 @@ inline MemAddress FindByStringInAllSections(Type RefStr, void* StartAddress = nu
 	uint8_t* SearchStart = StartAddress ? reinterpret_cast<uint8_t*>(StartAddress) : reinterpret_cast<uint8_t*>(ImageBase);
 	DWORD SearchRange = SizeOfImage;
 
-	const int32 RefStrLen = StrlenHelper(RefStr);
+	const int32_t RefStrLen = StrlenHelper(RefStr);
 
 	for (uintptr_t i = 0; i < SearchRange; i++)
 	{
@@ -555,7 +555,7 @@ inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress
 	uint8_t* SearchStart = StartAddress ? reinterpret_cast<uint8_t*>(StartAddress) : reinterpret_cast<uint8_t*>(ImageBase);
 	DWORD SearchRange = SizeOfImage;
 
-	const int32 RefStrLen = StrlenHelper(RefStr);
+	const int32_t RefStrLen = StrlenHelper(RefStr);
 
 	static auto IsValidExecFunctionNotSetupFunc = [](uintptr_t Address) -> bool
 	{
@@ -565,7 +565,7 @@ inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress
 		* 
 		* In opcode bytes: 48 83 EC 28
 		*/
-		if (*reinterpret_cast<int32*>(Address) == 0x284883EC || *reinterpret_cast<int32*>(Address) == 0x4883EC28)
+		if (*reinterpret_cast<int32_t*>(Address) == 0x284883EC || *reinterpret_cast<int32_t*>(Address) == 0x4883EC28)
 			return false;
 
 		MemAddress AsAddress(Address);
