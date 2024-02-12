@@ -1309,8 +1309,8 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	if (Type == EFileType::BasicHpp)
 	{
-		File << "#include \"../NameCollisions.inl\"\n";
-		//File << "#include \"../PropertyFixup.hpp\"\n";
+		//File << "#include \"../NameCollisions.inl\"\n";
+		File << "#include \"../PropertyFixup.hpp\"\n";
 	}
 
 	if (Type == EFileType::BasicCpp)
@@ -1359,8 +1359,8 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 			File << "\n";
 	}
 
-	if (Type == EFileType::SdkHpp)
-		return; /* No namespace or packing in SDK.hpp */
+	if (Type == EFileType::SdkHpp || Type == EFileType::NameCollisionsInl)
+		return; /* No namespace or packing in SDK.hpp or NameCollisions.inl */
 
 	//if (Type <= EFileType::Functions)
 	//	File << "#pragma pack(push, 0x1)\n";
@@ -1387,8 +1387,8 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 {
 	namespace CppSettings = SettingsRewrite::CppGenerator;
 
-	if (Type == EFileType::SdkHpp)
-		return; /* No namespace or packing in SDK.hpp */
+	if (Type == EFileType::SdkHpp || Type == EFileType::NameCollisionsInl)
+		return; /* No namespace or packing in SDK.hpp or NameCollisions.inl */
 
 	if constexpr (CppSettings::SDKNamespaceName || CppSettings::ParamNamespaceName)
 	{
