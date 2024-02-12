@@ -157,13 +157,26 @@ void MappingGenerator::GeneratePropertyType(UEProperty Property, std::stringstre
 	}
 
 	EMappingsTypeFlags MappingType = GetMappingType(Property);
-	WriteToStream(Data, static_cast<uint8>(MappingType));
+
+	/* Serialize ByteProperty as an EnumProperty with 'UnderlayingType == uint8' if the inner enum is valid */
+	const bool bIsFakeEnumProperty = MappingType == EMappingsTypeFlags::ByteProperty && Property.Cast<UEByteProperty>().GetEnum();
+
+	WriteToStream(Data, static_cast<uint8>(!bIsFakeEnumProperty ? MappingType : EMappingsTypeFlags::EnumProperty));
+
+	/* Write ByteProperty as the fake EnumProperty's underlaying type */
+	if (bIsFakeEnumProperty)
+		WriteToStream(Data, static_cast<uint8>(EMappingsTypeFlags::ByteProperty));
 
 	if (MappingType == EMappingsTypeFlags::EnumProperty)
 	{
 		GeneratePropertyType(Property.Cast<UEEnumProperty>().GetUnderlayingProperty(), Data, NameTable);
 
-		const int32 EnumNameIdx = AddNameToData(NameTable, Property.GetName());
+		const int32 EnumNameIdx = AddNameToData(NameTable, Property.Cast<UEEnumProperty>().GetEnum().GetName());
+		WriteToStream(Data, EnumNameIdx);
+	}
+	else if (bIsFakeEnumProperty)
+	{
+		const int32 EnumNameIdx = AddNameToData(NameTable, Property.Cast<UEByteProperty>().GetEnum().GetName());
 		WriteToStream(Data, EnumNameIdx);
 	}
 	else if (MappingType == EMappingsTypeFlags::StructProperty)

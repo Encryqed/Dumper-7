@@ -43,8 +43,8 @@
 *         uint16 Index;                                    // <-- START ParsePropertyInfo
 *         uint8 ArrayDim;
 *         int32 PropertyNameIdx;
-*         uint8 MappingsTypeEnum;                          // <-- START ParsePropertyType
-*         if (MappingsTypeEnum == EnumProperty)
+*         uint8 MappingsTypeEnum;                         // <-- START ParsePropertyType      [[ByteProperty might need to be written as EnumProperty if it has an underlaying Enum]]
+*         if (MappingsTypeEnum == EnumProperty || (MappingsTypeEnum == ByteProperty && UnderlayingEnum != null))
 *             CALL ParsePropertyType;
 *             int32 EnumName;
 *         else if (MappingsTypeEnum == StructProperty)
