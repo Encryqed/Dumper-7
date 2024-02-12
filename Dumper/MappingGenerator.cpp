@@ -119,6 +119,14 @@ EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 	{
 		return EMappingsTypeFlags::OptionalProperty;
 	}
+	else if (Flags & EClassCastFlags::MulticastDelegateProperty)
+	{
+		return EMappingsTypeFlags::MulticastDelegateProperty;
+	}
+	else if (Flags & EClassCastFlags::DelegateProperty)
+	{
+		return EMappingsTypeFlags::DelegateProperty;
+	}
 	
 	return EMappingsTypeFlags::Unknown;
 }
