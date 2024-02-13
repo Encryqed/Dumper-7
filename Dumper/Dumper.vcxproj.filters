@@ -68,9 +68,11 @@
     <ClCompile Include="MappingGenerator.cpp">
       <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="CompressionLibs\zstd\lib\zstd.c" />
     <ClCompile Include="IDAMappingGenerator.cpp">
       <Filter>GeneratorRewrite\Public\Managers</Filter>
+    </ClCompile>
+    <ClCompile Include="CompressionLibs\zstd\lib\zstd.c">
+      <Filter>Utils\Compression</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -124,6 +126,9 @@
     </Filter>
     <Filter Include="GeneratorRewrite\Public\Generators">
       <UniqueIdentifier>{de34ddb1-4f8d-4224-8d8e-a7cd966d3d86}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utils\Compression">
+      <UniqueIdentifier>{586453ff-9ea9-4e66-a54c-30654e0e6113}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -238,9 +243,11 @@
     <ClInclude Include="MappingGenerator.h">
       <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="CompressionLibs\zstd\lib\zstd.h" />
     <ClInclude Include="IDAMappingGenerator.h">
       <Filter>GeneratorRewrite\Public\Generators</Filter>
+    </ClInclude>
+    <ClInclude Include="CompressionLibs\zstd\lib\zstd.h">
+      <Filter>Utils\Compression</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
