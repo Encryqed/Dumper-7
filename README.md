@@ -7,7 +7,7 @@ SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and
 
 - Compile the dll in x64-Release
 - Inject the dll into your target game
-- The SDK is generated into the path specified by `Settings::SDKGenerationPath`
+- The SDK is generated into the path specified by `Settings::SDKGenerationPath`, by default this is `C:\\Dumper-7`
 ## Overriding Offsets
 
 - ### Only override any offsets if the generator doesn't find them by itself
@@ -31,14 +31,19 @@ SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and
   ```
 ## Notes
 
-- Be aware, that the calls to ProcessEvent in `Main.cpp` may crash on debug configuration
-- In the SDK, initialize `UObject::GObjects` by calling the function `SDK::InitGObjects()`
-- In the SDK, functions from classes as `UKismetSystemLibrary` or `UGameplayStatics` may only be called on their default-objects
+
 ## Issues
 
 If you have any issues using the Dumper, please create an Issue on this repository\
 and explain the problem **in detail**.
-## TODO
 
-- Fix mapping-file generation
-- Fix cyclic dependencies of packages
+- Should your game be crashing, attach Visual Studios' debugger to the game and inject the Dumper-7.dll in debug-configuration.
+Then include screenshots of the exception causing the crash, as well as a screenshot of the callstack.
+
+- Should there be any compiler-errors in the SDK please send screenshots of them. Please note that **only build errors** are considered errors, as Intellisense often reports false positives.
+Make sure to always send screenshots of the code causing the first error, as it's likely to cause a chain-reaction of one error causing hundreads.
+
+- Should your own dll-project crash, verify your code thoroughly to make sure the error actually lies within the generated SDK.
+
+## TODO
+- Add support for IDA-Mappings generation to this branch
