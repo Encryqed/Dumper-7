@@ -170,6 +170,8 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 
 	Off::NameArray::ChunksStart = 0x10;
 
+	bool bWasMaxChunkIndexFound = false;
+
 	for (int i = 0x0; i < 0x20; i += 4)
 	{
 		const int32 PossibleMaxChunkIdx = *reinterpret_cast<int32*>(NamePool + i);
@@ -200,9 +202,13 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 		{
 			Off::NameArray::MaxChunkIndex = i;
 			Off::NameArray::ByteCursor = i + 4;
+			bWasMaxChunkIndexFound = true;
 			break;
 		}
 	}
+
+	if (!bWasMaxChunkIndexFound)
+		return false;
 
 	constexpr uint64 CoreUObjAsUint64 = 0x726F432F74706972; // little endian "ript/Cor" ["/Script/CoreUObject"]
 	constexpr uint32 NoneAsUint32 = 0x656E6F4E; // little endian "None"

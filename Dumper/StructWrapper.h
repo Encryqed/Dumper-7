@@ -52,6 +52,8 @@ public:
     bool IsUnion() const;
     bool IsFunction() const;
 
+    bool IsAClassWithType(UEClass TypeClass) const;
+
     bool IsValid() const;
     bool IsUnrealStruct() const;
 

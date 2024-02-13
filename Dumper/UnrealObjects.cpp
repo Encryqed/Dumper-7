@@ -257,6 +257,20 @@ bool UEObject::IsA(EClassCastFlags TypeFlags) const
 	return (TypeFlags != EClassCastFlags::None ? GetClass().IsType(TypeFlags) : true);
 }
 
+bool UEObject::IsA(UEClass Class) const
+{
+	if (!Class)
+		return false;
+
+	for (UEClass Clss = GetClass(); Clss; Class = Clss.GetSuper().Cast<UEClass>())
+	{
+		if (Clss == Class)
+			return true;
+	}
+
+	return false;
+}
+
 UEObject UEObject::GetOutermost() const
 {
 	UEObject Outermost = *this;

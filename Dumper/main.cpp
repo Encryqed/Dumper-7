@@ -84,10 +84,6 @@ DWORD MainThread(HMODULE Module)
 	GeneratorRewrite::Generate<IDAMappingGenerator>();
 
 
-	//Generator::GenerateSDK();
-	//Generator::GenerateMappings();
-	//Generator::GenerateIDAMappings();
-
 	auto t_C = high_resolution_clock::now();
 	
 	auto ms_int_ = duration_cast<milliseconds>(t_C - t_1);

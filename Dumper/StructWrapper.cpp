@@ -101,6 +101,11 @@ bool StructWrapper::IsFunction() const
     return bIsUnrealStruct && Struct.IsA(EClassCastFlags::Function);
 }
 
+bool StructWrapper::IsAClassWithType(UEClass TypeClass) const
+{
+    return IsUnrealStruct() && IsClass() && Struct.Cast<UEClass>().IsA(TypeClass);
+}
+
 
 bool StructWrapper::IsValid() const
 {

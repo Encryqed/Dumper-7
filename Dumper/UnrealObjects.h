@@ -130,6 +130,7 @@ public:
 	const UEType Cast() const;
 
 	bool IsA(EClassCastFlags TypeFlags) const;
+	bool IsA(UEClass Class) const;
 
 	UEObject GetOutermost() const;
 

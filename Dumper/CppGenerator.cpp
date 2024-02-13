@@ -624,13 +624,37 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 
 	std::string Name = !bIsNameUnique ? Struct.GetFullName() : Struct.GetRawName();
 	std::string NameText = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Name) : std::format("\"{}\"", Name);
+	
 
-	/* Set class-specific parts of 'StaticClass' and 'GetDefaultObj' */
+	static UEClass BPGeneratedClass = nullptr;
+	
+	if (BPGeneratedClass == nullptr)
+		BPGeneratedClass = ObjectArray::FindClassFast("BlueprintGeneratedClass");
+
+
+	const char* StaticClassImplFunctionName = "StaticClassImpl";
+
+	std::string NonFullName;
+
+	const bool bIsBPStaticClass = Struct.IsAClassWithType(BPGeneratedClass);
+
+	/* BPGenerated classes are loaded/unloaded dynamically, so a static pointer to the UClass will eventually be invalidated */
+	if (bIsBPStaticClass)
+	{
+		StaticClassImplFunctionName = "StaticBPGeneratedClassImpl";
+
+		if (!bIsNameUnique)
+			NonFullName = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Struct.GetRawName()) : std::format("\"{}\"", Struct.GetRawName());
+	}
+	
+
+	/* Use the default implementation of 'StaticClass' */
 	StaticClass.Body = std::format(
-R"({{
-	return StaticClassImpl<{}{}>();
-}})", NameText, (!bIsNameUnique ? ", true" : ""));
+			R"({{
+	return {}<{}{}{}>();
+}})", StaticClassImplFunctionName, NameText, (!bIsNameUnique ? ", true" : ""), (bIsBPStaticClass && !bIsNameUnique ? ", " + NonFullName : ""));
 
+	/* Set class-specific parts of 'GetDefaultObj' */
 	GetDefaultObj.ReturnType = std::format("class {}*", StructName);
 	GetDefaultObj.Body = std::format(
 R"({{
@@ -2149,6 +2173,9 @@ R"({
 			.CustomComment = "Checks a UObjects' type by Class",
 			.ReturnType = "bool", .NameWithParams = "IsA(class UClass* TypeClass)", .Body =
 R"({
+	if (!TypeClass)
+		return false;
+
 	for (UStruct* Super = Class; Super; Super = Super->Super)
 	{
 		if (Super == TypeClass)
@@ -2628,9 +2655,14 @@ class UObject;
 	BasicHpp << R"(
 namespace StaticClassHelper
 {
-	// Helper functions for StaticClassImpl
+	// Helper functions for StaticClassImpl and StaticBPGeneratedClassImpl
 	UClass* FindClassByName(const std::string& Name);
 	UClass* FindClassByFullName(const std::string& Name);
+
+	std::string GetObjectName(class UClass* Class);
+	int32 GetObjectIndex(class UClass* Class);
+
+	class UObject* GetObjectByIndex(int32 Index);
 }
 )";
 
@@ -2645,9 +2677,24 @@ class UClass* StaticClassHelper::FindClassByFullName(const std::string& Name)
 	return UObject::FindClass(Name);
 }
 
+std::string StaticClassHelper::GetObjectName(class UClass* Class)
+{
+	return Class->GetName();
+}
+
+int32 StaticClassHelper::GetObjectIndex(class UClass* Class)
+{
+	return Class->Index;
+}
+
+class UObject* StaticClassHelper::GetObjectByIndex(int32 Index)
+{
+	return UObject::GObjects->GetByIndex(Index);
+}
+
 )";
 
-	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-object local static */
+	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-class local static class-pointer */
 	BasicHpp << R"(
 template<StringLiteral Name, bool bIsFullName = false>
 class UClass* StaticClassImpl()
@@ -2665,6 +2712,52 @@ class UClass* StaticClassImpl()
 	}
 
 	return Clss;
+}
+)";
+
+	/* Implementation of 'UObject::StaticClass()' for 'BlueprintGeneratedClass', templated to allow for a per-class local static class-index */
+	BasicHpp << R"(
+template<StringLiteral Name, bool bIsFullName = false, StringLiteral NonFullName = "">
+class UClass* StaticBPGeneratedClassImpl()
+{
+	/* Could be external function, not really unique to this StaticClass functon */
+	static auto SetClassIndex = [](UClass* Class, int32& Index) -> UClass*
+	{
+		if (Class)
+			Index = StaticClassHelper::GetObjectIndex(Class);
+
+		return Class;
+	};
+
+	static int32 ClassIdx = 0x0;
+
+	/* Use the full name to find an object */
+	if constexpr (bIsFullName)
+	{
+		if (ClassIdx == 0x0)
+			return SetClassIndex(StaticClassHelper::FindClassByFullName(Name), ClassIdx);
+
+		UClass* ClassObj = static_cast<UClass*>(StaticClassHelper::GetObjectByIndex(ClassIdx));
+
+		/* Could use cast flags too to save some string comparisons */
+		if (!ClassObj || StaticClassHelper::GetObjectName(ClassObj) != static_cast<std::string>(Name))
+			return SetClassIndex(StaticClassHelper::FindClassByFullName(Name), ClassIdx);
+
+		return ClassObj;
+	}
+	else /* Default, use just the name to find an object*/
+	{
+		if (ClassIdx == 0x0)
+			return SetClassIndex(StaticClassHelper::FindClassByName(Name), ClassIdx);
+
+		UClass* ClassObj = static_cast<UClass*>(StaticClassHelper::GetObjectByIndex(ClassIdx));
+
+		/* Could use cast flags too to save some string comparisons */
+		if (!ClassObj || StaticClassHelper::GetObjectName(ClassObj) != static_cast<std::string>(Name))
+			return SetClassIndex(StaticClassHelper::FindClassByName(Name), ClassIdx);
+
+		return ClassObj;
+	}
 }
 )";
 
