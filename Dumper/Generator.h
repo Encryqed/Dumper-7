@@ -51,6 +51,7 @@ private:
 	static std::vector<std::future<void>> Futures;
 
 public:
+	[[deprecated("The legacy generator will be removed soon, use 'GeneratorRewrite::InitEngineCore()' instead.")]]
 	static void Init();
 
 private:

@@ -43,7 +43,7 @@
 *         uint16 Index;                                    // <-- START ParsePropertyInfo
 *         uint8 ArrayDim;
 *         int32 PropertyNameIdx;
-*         uint8 MappingsTypeEnum;                         // <-- START ParsePropertyType      [[ByteProperty might need to be written as EnumProperty if it has an underlaying Enum]]
+*         uint8 MappingsTypeEnum;                         // <-- START ParsePropertyType      [[ByteProperty needs to be written as EnumProperty if it has an underlaying Enum]]
 *         if (MappingsTypeEnum == EnumProperty || (MappingsTypeEnum == ByteProperty && UnderlayingEnum != null))
 *             CALL ParsePropertyType;
 *             int32 EnumName;
@@ -86,16 +86,6 @@ private:
         Unknown = 0xFF
     };
 
-    struct FileData
-    {
-        std::stringstream DataBuffer;
-        std::stringstream NameBuffer;
-        int32 DecompressedSize;
-        int32 CompressedSize;
-        int32 NumEnums;
-        int32 NumStructs;
-    };
-
 private:
     static constexpr uint16 UsmapFileMagic = 0x30C4;
 
@@ -122,7 +112,6 @@ private:
     static void WriteToStream(InStreamType& InStream, const std::stringstream& Data)
     {
         InStream << Data.rdbuf();
-        //InStream.write(reinterpret_cast<const char*>(Data.rdbuf()), Data.str().length());
     }
 
 private:
@@ -141,7 +130,7 @@ private:
     static void GenerateFileHeader(StreamType& InUsmap, const std::stringstream& Data);
 
 public:
-    static void Generate();// Empty for now
+    static void Generate();
 
     /* Always empty, there are no predefined members for mappings */
     static void InitPredefinedMembers() { }

@@ -6,14 +6,56 @@
 #include "PackageManager.h"
 #include "Utils.h"
 
+inline void InitSettings()
+{
+	UEStruct LoadAsset = ObjectArray::FindObjectFast<UEFunction>("LoadAsset", EClassCastFlags::Function);
+
+	if (!LoadAsset)
+	{
+		std::cout << "\nDumper-7: 'LoadAsset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
+		return;
+	}
+
+	UEProperty Asset = LoadAsset.FindMember("Asset", EClassCastFlags::SoftObjectProperty);
+	if (!Asset)
+	{
+		std::cout << "\nDumper-7: 'Asset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
+		return;
+	}
+
+	UEStruct SoftObjectPath = ObjectArray::FindObjectFast<UEStruct>("SoftObjectPath");
+
+	constexpr int32 SizeOfFFWeakObjectPtr = 0x08;
+	constexpr int32 OldUnrealAssetPtrSize = 0x10;
+	const int32 SizeOfSoftObjectPath = SoftObjectPath ? SoftObjectPath.GetStructSize() : OldUnrealAssetPtrSize;
+
+	Settings::Internal::bIsWeakObjectPtrWithoutTag = Asset.GetSize() <= (SizeOfSoftObjectPath + SizeOfFFWeakObjectPtr);
+
+	std::cout << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
+}
+
+
 void GeneratorRewrite::InitEngineCore()
 {
+	/* manual override */
+	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
+	//FName::Init(/*FName::AppendString*/);
+	//Off::InSDK::ProcessEvent::InitPE(/*PEIndex*/);
+
+	/* Back4Blood*/
+	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
+
+	/* Multiversus [Unsupported, weird GObjects-struct]*/
+	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
+
 	ObjectArray::Init();
 	FName::Init();
 	Off::Init();
-	Off::InSDK::ProcessEvent::InitPE(); //Must be last, relies on offsets initialized in Off::Init()
+	Off::InSDK::ProcessEvent::InitPE(); //Must be at this position, relies on offsets initialized in Off::Init()
 
-	Off::InSDK::Text::InitTextOffsets(); //Must here, relies on offsets initialized in Off::InitPE()
+	Off::InSDK::Text::InitTextOffsets(); //Must be at this position, relies on offsets initialized in Off::InitPE()
+
+	InitSettings();
 }
 
 void GeneratorRewrite::InitInternal()

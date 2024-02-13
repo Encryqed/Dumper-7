@@ -68,6 +68,10 @@
     <ClCompile Include="MappingGenerator.cpp">
       <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
+    <ClCompile Include="CompressionLibs\zstd\lib\zstd.c" />
+    <ClCompile Include="IDAMappingGenerator.cpp">
+      <Filter>GeneratorRewrite\Public\Managers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -232,6 +236,10 @@
       <Filter>GeneratorRewrite</Filter>
     </ClInclude>
     <ClInclude Include="MappingGenerator.h">
+      <Filter>GeneratorRewrite\Public\Generators</Filter>
+    </ClInclude>
+    <ClInclude Include="CompressionLibs\zstd\lib\zstd.h" />
+    <ClInclude Include="IDAMappingGenerator.h">
       <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
   </ItemGroup>

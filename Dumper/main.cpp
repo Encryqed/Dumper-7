@@ -2,9 +2,11 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
+
 #include "Generator.h"
 #include "CppGenerator.h"
 #include "MappingGenerator.h"
+#include "IDAMappingGenerator.h"
 
 #include "StructManager.h"
 #include "EnumManager.h"
@@ -41,8 +43,8 @@ DWORD MainThread(HMODULE Module)
 
 	std::cout << "Started Generation [Dumper-7]!\n";
   
-	Generator::Init();
-	//GeneratorRewrite::InitEngineCore();
+	//Generator::Init();
+	GeneratorRewrite::InitEngineCore();
 	GeneratorRewrite::InitInternal();
 
 	if (Settings::GameName.empty() && Settings::GameVersion.empty())
@@ -77,8 +79,9 @@ DWORD MainThread(HMODULE Module)
 	//PackageManagerTest::TestCyclicDependencyDetection<true>();
 
 
-	GeneratorRewrite::Generate<CppGenerator>();
-	GeneratorRewrite::Generate<MappingGenerator>();
+	//GeneratorRewrite::Generate<CppGenerator>();
+	//GeneratorRewrite::Generate<MappingGenerator>();
+	GeneratorRewrite::Generate<IDAMappingGenerator>();
 
 
 	//Generator::GenerateSDK();

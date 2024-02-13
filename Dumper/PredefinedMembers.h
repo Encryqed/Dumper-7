@@ -1,8 +1,10 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "Enums.h"
+#include "UnrealObjects.h"
 
 struct PredefinedMember
 {
