@@ -147,8 +147,6 @@
     <ClCompile Include="DependencyManager.cpp" />
     <ClCompile Include="EnumManager.cpp" />
     <ClCompile Include="EnumWrapper.cpp" />
-    <ClCompile Include="FileWriter.cpp" />
-    <ClCompile Include="Generator.cpp" />
     <ClCompile Include="GeneratorRewrite.cpp" />
     <ClCompile Include="HashStringTable.cpp" />
     <ClCompile Include="IDAMappingGenerator.cpp" />
@@ -158,11 +156,9 @@
     <ClCompile Include="CollisionManager.cpp" />
     <ClCompile Include="ObjectArray.cpp" />
     <ClCompile Include="Offsets.cpp" />
-    <ClCompile Include="Package.cpp" />
     <ClCompile Include="MemberManager.cpp" />
     <ClCompile Include="PackageManager.cpp" />
     <ClCompile Include="StructManager.cpp" />
-    <ClCompile Include="Types.cpp" />
     <ClCompile Include="NameArray.cpp" />
     <ClCompile Include="UnrealObjects.cpp" />
     <ClCompile Include="UnrealTypes.cpp" />
@@ -177,8 +173,6 @@
     <ClInclude Include="EnumManagerTest.h" />
     <ClInclude Include="Enums.h" />
     <ClInclude Include="EnumWrapper.h" />
-    <ClInclude Include="FileWriter.h" />
-    <ClInclude Include="Generator.h" />
     <ClInclude Include="GeneratorRewrite.h" />
     <ClInclude Include="GeneratorRewriteTest.h" />
     <ClInclude Include="HashStringTable.h" />
@@ -191,17 +185,14 @@
     <ClInclude Include="ObjectArray.h" />
     <ClInclude Include="OffsetFinder.h" />
     <ClInclude Include="Offsets.h" />
-    <ClInclude Include="Package.h" />
     <ClInclude Include="MemberManager.h" />
     <ClInclude Include="PackageManager.h" />
     <ClInclude Include="PackageManagerTest.h" />
     <ClInclude Include="PredefinedMembers.h" />
     <ClInclude Include="Settings.h" />
-    <ClInclude Include="SettingsRewrite.h" />
     <ClInclude Include="StructManager.h" />
     <ClInclude Include="StructManagerTest.h" />
     <ClInclude Include="TestBase.h" />
-    <ClInclude Include="Types.h" />
     <ClInclude Include="NameArray.h" />
     <ClInclude Include="CollisionManagerTest.h" />
     <ClInclude Include="UnrealObjects.h" />

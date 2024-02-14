@@ -5,7 +5,7 @@
 #include "MemberWrappers.h"
 #include "MemberManager.h"
 
-#include "SettingsRewrite.h"
+#include "Settings.h"
 
 constexpr std::string GetTypeFromSize(uint8 Size)
 {
@@ -383,7 +383,7 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 
 std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile)
 {
-	namespace CppSettings = SettingsRewrite::CppGenerator;
+	namespace CppSettings = Settings::CppGenerator;
 
 	std::string InHeaderFunctionText;
 
@@ -552,7 +552,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 
 std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile)
 {
-	namespace CppSettings = SettingsRewrite::CppGenerator;
+	namespace CppSettings = Settings::CppGenerator;
 
 	static PredefinedFunction StaticClass;
 	static PredefinedFunction GetDefaultObj;
@@ -754,7 +754,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	if (bHasReusedTrailingPadding)
 		StructFile << "#pragma pack(pop)\n";
 
-	if constexpr (SettingsRewrite::Debug::bGenerateInlineAssertionsForStructSize)
+	if constexpr (Settings::Debug::bGenerateInlineAssertionsForStructSize)
 	{
 		if (Struct.HasCustomTemplateText())
 			return;
@@ -771,7 +771,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	}
 
 
-	if constexpr (SettingsRewrite::Debug::bGenerateInlineAssertionsForStructMembers)
+	if constexpr (Settings::Debug::bGenerateInlineAssertionsForStructMembers)
 	{
 		for (const PropertyWrapper& Member : Members.IterateMembers())
 		{
@@ -1144,7 +1144,7 @@ void CppGenerator::GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, Pa
 
 void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 {
-	namespace CppSettings = SettingsRewrite::CppGenerator;
+	namespace CppSettings = Settings::CppGenerator;
 
 	WriteFileHead(NameCollisionsFile, nullptr, EFileType::NameCollisionsInl, "FORWARD DECLARATIONS");
 
@@ -1305,7 +1305,7 @@ void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
 
 void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment, const std::string& CustomIncludes)
 {
-	namespace CppSettings = SettingsRewrite::CppGenerator;
+	namespace CppSettings = Settings::CppGenerator;
 
 	File << std::format(R"(#pragma once
 
@@ -1409,7 +1409,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 {
-	namespace CppSettings = SettingsRewrite::CppGenerator;
+	namespace CppSettings = Settings::CppGenerator;
 
 	if (Type == EFileType::SdkHpp || Type == EFileType::NameCollisionsInl)
 		return; /* No namespace or packing in SDK.hpp or NameCollisions.inl */
@@ -1446,7 +1446,7 @@ void CppGenerator::Generate()
 	GenerateBasicFiles(BasicHpp, BasicCpp);
 
 
-	if constexpr (SettingsRewrite::Debug::bGenerateAssertionFile)
+	if constexpr (Settings::Debug::bGenerateAssertionFile)
 	{
 		// Generate Assertions.inl file containing assertions on struct-size, struct-align and member offsets
 		StreamType DebugAssertions(MainFolder / "Assertions.inl");
@@ -1459,7 +1459,7 @@ void CppGenerator::Generate()
 		if (Package.IsEmpty())
 			continue;
 
-		std::string FileName = SettingsRewrite::CppGenerator::FilePrefix + Package.GetName();
+		std::string FileName = Settings::CppGenerator::FilePrefix + Package.GetName();
 
 		StreamType ClassesFile;
 		StreamType StructsFile;
@@ -2544,7 +2544,7 @@ R"({
 
 void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp)
 {
-	namespace CppSettings = SettingsRewrite::CppGenerator;
+	namespace CppSettings = Settings::CppGenerator;
 
 	static auto SortMembers = [](std::vector<PredefinedMember>& Members) -> void
 	{
@@ -3065,7 +3065,7 @@ public:
 
 	/* struct FStringData */
 	PredefinedStruct FStringData = PredefinedStruct{
-		.UniqueName = "FStringData", .Size = 0x800, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = true, .Super = nullptr
+		.UniqueName = "FStringData", .Size = 0x800, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = true, .Super = nullptr
 	};
 
 	FStringData.Properties =
@@ -3077,7 +3077,7 @@ public:
 		},
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "wchar_t", .Name = "WideName", .Offset = 0x08, .Size = 0x02, .ArrayDim = 0x400, .Alignment = 0x8,
+			.Type = "wchar_t", .Name = "WideName", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x400, .Alignment = 0x8,
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
@@ -3099,7 +3099,7 @@ public:
 			},
 			PredefinedMember {
 				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "struct FStringData", .Name = "Name", .Offset = Off::FNameEntry::NameArray::StringOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.Type = "union FStringData", .Name = "Name", .Offset = Off::FNameEntry::NameArray::StringOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			},
 		};

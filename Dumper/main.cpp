@@ -3,7 +3,6 @@
 #include <chrono>
 #include <fstream>
 
-#include "Generator.h"
 #include "CppGenerator.h"
 #include "MappingGenerator.h"
 #include "IDAMappingGenerator.h"
@@ -39,15 +38,14 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONOUT$", "w", stdout);
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
-	auto t_1 = high_resolution_clock::now();
+	auto t_1 = std::chrono::high_resolution_clock::now();
 
 	std::cout << "Started Generation [Dumper-7]!\n";
   
-	//Generator::Init();
 	GeneratorRewrite::InitEngineCore();
 	GeneratorRewrite::InitInternal();
 
-	if (Settings::GameName.empty() && Settings::GameVersion.empty())
+	if (Settings::Generator::GameName.empty() && Settings::Generator::GameVersion.empty())
 	{
 		// Only Possible in Main()
 		FString Name;
@@ -59,12 +57,12 @@ DWORD MainThread(HMODULE Module)
 		Kismet.ProcessEvent(GetGameName, &Name);
 		Kismet.ProcessEvent(GetEngineVersion, &Version);
 
-		Settings::GameName = Name.ToString();
-		Settings::GameVersion = Version.ToString();
+		Settings::Generator::GameName = Name.ToString();
+		Settings::Generator::GameVersion = Version.ToString();
 	}
 
-	std::cout << "GameName: " << Settings::GameName << "\n";
-	std::cout << "GameVersion: " << Settings::GameVersion << "\n\n";
+	std::cout << "GameName: " << Settings::Generator::GameName << "\n";
+	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
 
 	//CppGeneratorTest::TestAll<true>();
@@ -84,10 +82,10 @@ DWORD MainThread(HMODULE Module)
 	GeneratorRewrite::Generate<IDAMappingGenerator>();
 
 
-	auto t_C = high_resolution_clock::now();
+	auto t_C = std::chrono::high_resolution_clock::now();
 	
-	auto ms_int_ = duration_cast<milliseconds>(t_C - t_1);
-	duration<double, std::milli> ms_double_ = t_C - t_1;
+	auto ms_int_ = std::chrono::duration_cast<std::chrono::milliseconds>(t_C - t_1);
+	std::chrono::duration<double, std::milli> ms_double_ = t_C - t_1;
 	
 	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 

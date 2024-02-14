@@ -70,7 +70,7 @@ void IDAMappingGenerator::GenerateClassFunctions(StreamType& IdmapFile, UEClass 
 
 void IDAMappingGenerator::Generate()
 {
-	std::string IdaMappingFileName = (Settings::GameVersion + '-' + Settings::GameName + ".idmap");
+	std::string IdaMappingFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".idmap");
 
 	FileNameHelper::MakeValidFileName(IdaMappingFileName);
 

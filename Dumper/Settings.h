@@ -1,43 +1,75 @@
 #pragma once
+#include <string>
 
 
 namespace Settings
 {
-	//Auto generated if no override is provided
-	inline std::string GameName = "";
-	inline std::string GameVersion = "";
+	namespace Generator
+	{
+		//Auto generated if no override is provided
+		inline std::string GameName = "";
+		inline std::string GameVersion = "";
 
+		inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
+	}
 
-	inline constexpr const char* SDKGenerationPath = "C:/Dumper-7";
+	namespace CppGenerator
+	{
+		/* No prefix for files->FilePrefix = "" */
+		constexpr const char* FilePrefix = "";
 
+		/* No seperate namespace for SDK -> SDKNamespaceName = nullptr */
+		constexpr const char* SDKNamespaceName = "SDK";
 
-	//includes only packages required for the games main package (the package with the most structs/classes/enums)
-	inline constexpr const bool bIncludeOnlyRelevantPackages = false;
+		/* No seperate namespace for Params -> ParamNamespaceName = nullptr */
+		constexpr const char* ParamNamespaceName = "Params";
 
+		/* Do not XOR strings -> XORString = nullptr */
+		constexpr const char* XORString = nullptr;
 
-	//No prefix for files -> FilePrefix = nullptr
-	inline constexpr const char* FilePrefix = nullptr;
+		/* Customizable part of Cpp code to allow for a custom 'uintptr_t InSDKUtils::GetImageBase()' function */
+		constexpr const char* GetImageBaseFuncBody = 
+R"(	{
+		return reinterpret_cast<uintptr_t>(GetModuleHandle(0));
+	}
+)";
+		//Customizable part of Cpp code to allow for a custom 'InSDKUtils::CallGameFunction' function */
+		constexpr const char* CallGameFunction =
+R"(
+	template<typename FuncType, typename... ParamTypes>
+	requires std::invocable<FuncType, ParamTypes...>
+	inline auto CallGameFunction(FuncType Function, ParamTypes&&... Args)
+	{
+		return Function(std::forward<ParamTypes>(Args)...);
+	}
+)";
+	}
 
-	//No seperate namespace for SDK -> SDKNamespaceName = nullptr
-	inline constexpr const char* SDKNamespaceName = "SDK";
+	namespace MappingGenerator
+	{
+		/* Whether the MappingGenerator should check if a name was written to the nametable before. Exists to reduce mapping size. */
+		constexpr bool bShouldCheckForDuplicatedNames = true;
+	}
 
-	//No seperate namespace for Params -> ParamNamespaceName = nullptr
-	inline constexpr const char* ParamNamespaceName = "Params";
-
-	//Do not XOR strings -> XORString = nullptr
-	inline constexpr const char* XORString = nullptr;
-
-
+	/* Partially implemented  */
 	namespace Debug
 	{
 		inline constexpr bool bGenerateAssertionFile = false;
-		inline constexpr bool bLimitAssertionsToEngienPackage = true;
 
-		// Recommended
-		inline constexpr bool bGenerateAssertionsForPredefinedMembers = true;
+		/* Adds static_assert for struct-size, as well as struct-alignment */
+		inline constexpr bool bGenerateInlineAssertionsForStructSize = true;
+
+		/* Adds static_assert for member-offsets */
+		inline constexpr bool bGenerateInlineAssertionsForStructMembers = true;
+
+
+		/* Prints debug information during Mapping-Generation */
+		inline constexpr bool bShouldPrintMappingDebugData = false;
 	}
 
-	/* Do **NOT** change any of these settings */
+	//* * * * * * * * * * * * * * * * * * * * *// 
+	// Do **NOT** change any of these settings //
+	//* * * * * * * * * * * * * * * * * * * * *//
 	namespace Internal
 	{
 		// UEEnum::Names

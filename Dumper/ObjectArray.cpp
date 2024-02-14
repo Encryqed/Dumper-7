@@ -340,7 +340,7 @@ void ObjectArray::DumpObjects(const fs::path& Path)
 	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
 	DumpStream << "Object dump by Dumper-7\n\n";
-	DumpStream << (!Settings::GameVersion.empty() && !Settings::GameName.empty() ? (Settings::GameVersion + '-' + Settings::GameName) + "\n\n" : "");
+	DumpStream << (!Settings::Generator::GameVersion.empty() && !Settings::Generator::GameName.empty() ? (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName) + "\n\n" : "");
 	DumpStream << "Count: " << Num() << "\n\n\n";
 
 	for (auto Object : ObjectArray())

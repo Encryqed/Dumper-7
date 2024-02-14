@@ -1,6 +1,6 @@
 #include "MappingGenerator.h"
 #include "PackageManager.h"
-#include "SettingsRewrite.h"
+#include "Settings.h"
 #include "CompressionLibs/zstd/lib/zstd.h"
 
 #include "Utils.h"
@@ -133,7 +133,7 @@ EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 
 int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::string& Name)
 {
-	if constexpr (SettingsRewrite::MappingGenerator::bShouldCheckForDuplicatedNames)
+	if constexpr (Settings::MappingGenerator::bShouldCheckForDuplicatedNames)
 	{
 		static std::unordered_map<std::string, int32> NameMap;
 		
@@ -345,21 +345,21 @@ std::stringstream MappingGenerator::GenerateFileData()
 	WriteToStream(ReturnBuffer, static_cast<uint32>(NameCounter));
 	WriteToStream(ReturnBuffer, NameData);
 
-	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)
+	if constexpr (Settings::Debug::bShouldPrintMappingDebugData)
 		std::cout << std::format("MappingGeneration: NameCounter = 0x{0:X} (Dec: {0})\n", static_cast<uint32>(NameCounter));
 
 	/* Write Enum-count and enums */
 	WriteToStream(ReturnBuffer, static_cast<uint32>(NumEnums));
 	WriteToStream(ReturnBuffer, EnumData);
 
-	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)
+	if constexpr (Settings::Debug::bShouldPrintMappingDebugData)
 		std::cout << std::format("MappingGeneration: NumEnums = 0x{0:X} (Dec: {0})\n", static_cast<uint32>(NumEnums));
 
 	/* Write Struct-count and enums */
 	WriteToStream(ReturnBuffer, static_cast<uint32>(NumStructsAndClasse));
 	WriteToStream(ReturnBuffer, StructData);
 
-	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)
+	if constexpr (Settings::Debug::bShouldPrintMappingDebugData)
 		std::cout << std::format("MappingGeneration: NumStructsAndClasse = 0x{0:X} (Dec: {0})\n\n", static_cast<uint32>(NumStructsAndClasse));
 
 	return ReturnBuffer;
@@ -401,7 +401,7 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 		break;
 	}
 
-	if constexpr (SettingsRewrite::Debug::bShouldPrintMappingDebugData)
+	if constexpr (Settings::Debug::bShouldPrintMappingDebugData)
 	{
 		std::cout << std::format("MappingGeneration: CompressedSize = 0x{0:X} (Dec: {0})\n", CompressedSize);
 		std::cout << std::format("MappingGeneration: DecompressedSize = 0x{0:X} (Dec: {0})\n\n", UncompressedSize);
@@ -421,7 +421,7 @@ void MappingGenerator::Generate()
 {
 	NameCounter = 0x0;
 
-	std::string MappingsFileName = (Settings::GameVersion + '-' + Settings::GameName + ".usmap");
+	std::string MappingsFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".usmap");
 
 	FileNameHelper::MakeValidFileName(MappingsFileName);
 
