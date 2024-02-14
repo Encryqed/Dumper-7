@@ -292,10 +292,10 @@ public:
     HashStringTableIndex Find(const CharType* Str, int32 Length, uint8 Hash);
 
     template<typename CharType>
-    std::pair<HashStringTableIndex, bool> FindOrAdd(const CharType* Str, int32 Length);
+    std::pair<HashStringTableIndex, bool> FindOrAdd(const CharType* Str, int32 Length, bool bShouldMarkAsDuplicated = true);
 
     /* returns pair<Index, bWasAdded> */
-    std::pair<HashStringTableIndex, bool> FindOrAdd(const std::string& String);
+    std::pair<HashStringTableIndex, bool> FindOrAdd(const std::string& String, bool bShouldMarkAsDuplicated = true);
 
     int32 GetTotalUsedSize() const;
 

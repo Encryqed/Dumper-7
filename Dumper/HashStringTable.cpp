@@ -161,7 +161,7 @@ HashStringTableIndex HashStringTable::Find(const CharType* Str, int32 Length, ui
 }
 
 template<typename CharType>
-inline std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const CharType* Str, int32 Length)
+inline std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const CharType* Str, int32 Length, bool bShouldMarkAsDuplicated)
 {
     constexpr bool bIsWChar = std::is_same_v<CharType, wchar_t>;
 
@@ -180,9 +180,13 @@ inline std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const Ch
     if (ExistingIndex != -1)
     {
         const StringEntry& Entry = GetStringEntry(ExistingIndex);
-        Entry.bIsUnique = false;
-        Entry.bIsUniqueTemp = false;
-        Entry.OptionalCollisionCount++;
+
+        if (bShouldMarkAsDuplicated)
+        {
+            Entry.bIsUnique = bShouldMarkAsDuplicated;
+            Entry.bIsUniqueTemp = false;
+            Entry.OptionalCollisionCount++;
+        }
 
         return { ExistingIndex, false };
     }
@@ -192,9 +196,9 @@ inline std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const Ch
 }
 
 /* returns pair<Index, bWasAdded> */
-std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const std::string& String)
+std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const std::string& String, bool bShouldMarkAsDuplicated)
 {
-    return FindOrAdd(String.c_str(), String.size());
+    return FindOrAdd(String.c_str(), String.size(), bShouldMarkAsDuplicated);
 }
 
 int32 HashStringTable::GetTotalUsedSize() const

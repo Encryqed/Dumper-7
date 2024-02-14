@@ -64,7 +64,7 @@ void StructManager::InitAlignmentsAndNames()
 
 		// Add name to override info
 		StructInfo& NewOrExistingInfo = StructInfoOverrides[Obj.GetIndex()];
-		NewOrExistingInfo.Name = UniqueNameTable.FindOrAdd(Obj.GetCppName()).first;
+		NewOrExistingInfo.Name = UniqueNameTable.FindOrAdd(Obj.GetCppName(), !Obj.IsA(EClassCastFlags::Function)).first;
 
 		UEStruct Super = ObjAsStruct.GetSuper();
 
