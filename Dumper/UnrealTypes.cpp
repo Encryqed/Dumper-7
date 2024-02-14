@@ -94,7 +94,7 @@ FName::FName(void* Ptr)
 {
 }
 
-void FName::Init()
+void FName::Init(bool bForceGNames)
 {
 	constexpr std::array<const char*, 5> PossibleSigs = 
 	{ 
@@ -114,9 +114,7 @@ void FName::Init()
 		i++;
 	}
 
-	Off::InSDK::Name::AppendNameToString = AppendString ? GetOffset(AppendString) : 0x0;
-
-	Off::InSDK::Name::bIsUsingAppendStringOverToString = AppendString != nullptr;
+	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? GetOffset(AppendString) : 0x0;
 
 	if (!AppendString)
 	{

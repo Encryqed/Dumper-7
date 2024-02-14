@@ -163,7 +163,7 @@ public:
 	FName(void* Ptr);
 
 public:
-	static void Init();
+	static void Init(bool bForceGNames = false);
 	static void InitFallback();
 
 	static void Init(int32 AppendStringOffset, bool bIsToString = false);
