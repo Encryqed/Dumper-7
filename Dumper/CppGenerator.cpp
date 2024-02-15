@@ -1069,7 +1069,10 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else if (Flags & EClassCastFlags::DelegateProperty)
 	{
-		return std::format("TDelegate<{}>", GetFunctionSignature(Member.Cast<UEDelegateProperty>().GetSignatureFunction()));
+		if (UEFunction SignatureFunc = Member.Cast<UEDelegateProperty>().GetSignatureFunction()) [[likely]]
+			return std::format("TDelegate<{}>", GetFunctionSignature(SignatureFunc));
+
+		return "TDelegate<void()>";
 	}
 	else if (Flags & EClassCastFlags::FieldPathProperty)
 	{
@@ -4348,6 +4351,17 @@ public:
 		.CustomTemplateText = "template<typename FunctionSignature>",
 		.UniqueName = "TDelegate", .Size = 0x0, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
+
+	TDelegate.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "struct InvalidUseOfTDelegate", .Name = "TemplateParamIsNotAFunctionSignature", .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x1,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+
 	GenerateStruct(&TDelegate, BasicHpp, BasicCpp, BasicHpp);
 
 	/* TDelegate<Ret(Args...> */
@@ -4371,7 +4385,6 @@ public:
 	};
 
 	GenerateStruct(&TDelegateSpezialiation, BasicHpp, BasicCpp, BasicHpp);
-
 
 
 	/* UE_ENUM_OPERATORS - enum flag operations */
