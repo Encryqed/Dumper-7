@@ -260,6 +260,7 @@ void Off::Init()
 	Off::ObjectProperty::PropertyClass = Off::InSDK::Properties::PropertySize;
 	Off::StructProperty::Struct = Off::InSDK::Properties::PropertySize;
 	Off::EnumProperty::Base = Off::InSDK::Properties::PropertySize;
+	Off::DelegateProperty::SignatureFunction =  Off::InSDK::Properties::PropertySize;
 	Off::FieldPathProperty::FieldClass = Off::InSDK::Properties::PropertySize;
 	Off::OptionalProperty::ValueProperty = Off::InSDK::Properties::PropertySize;
 

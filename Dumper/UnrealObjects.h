@@ -123,12 +123,6 @@ public:
 
 	bool HasAnyFlags(EObjectFlags Flags) const;
 
-	template<typename UEType>
-	UEType Cast();
-
-	template<typename UEType>
-	const UEType Cast() const;
-
 	bool IsA(EClassCastFlags TypeFlags) const;
 	bool IsA(UEClass Class) const;
 
@@ -148,6 +142,19 @@ public:
 	bool operator!=(const UEObject& Other) const;
 
 	void ProcessEvent(class UEFunction Func, void* Params);
+
+public:
+	template<typename UEType>
+	inline UEType Cast()
+	{
+		return UEType(Object);
+	}
+
+	template<typename UEType>
+	inline const UEType Cast() const
+	{
+		return UEType(Object);
+	}
 };
 
 class UEField : public UEObject
@@ -164,8 +171,6 @@ class UEEnum : public UEField
 	using UEField::UEField;
 
 public:
-	static std::unordered_map<int32, std::string> BigEnums; //ObjectArray::GetAllPackages()
-
 	std::vector<std::pair<FName, int64>> GetNameValuePairs() const;
 	std::string GetSingleName(int32 Index) const;
 	std::string GetEnumPrefixedName() const;
@@ -175,9 +180,6 @@ public:
 class UEStruct : public UEField
 {
 	using UEField::UEField;
-
-public:
-	static std::unordered_map<int32 /*StructIdx*/, uint32 /*RealSize*/> StructSizes;
 
 public:
 	UEStruct GetSuper() const;
@@ -231,8 +233,6 @@ protected:
 	uint8* Base;
 
 public:
-	static std::unordered_map<std::string /* Property Name */, uint32 /* Property Size */> UnknownProperties;
-
 	UEProperty() = default;
 	UEProperty(const UEProperty&) = default;
 
@@ -249,15 +249,7 @@ public:
 
 	operator bool() const;
 
-	template<typename UEType>
-	UEType Cast();
-
-	template<typename UEType>
-	const UEType Cast() const;
-
 	bool IsA(EClassCastFlags TypeFlags) const;
-
-	bool IsTypeSupported() const;
 
 	FName GetFName() const;
 	int32 GetArrayDim() const;
@@ -266,6 +258,7 @@ public:
 	EPropertyFlags GetPropertyFlags() const;
 	EMappingsTypeFlags GetMappingType() const;
 	bool HasPropertyFlags(EPropertyFlags PropertyFlag) const;
+	bool IsType(EClassCastFlags PossibleTypes) const;
 
 	int32 GetAlignment() const;
 
@@ -277,15 +270,16 @@ public:
 	std::string StringifyFlags() const;
 
 public:
-	static consteval EClassCastFlags GetSupportedProperties()
+	template<typename UEType>
+	UEType Cast()
 	{
-		return EClassCastFlags::ByteProperty | EClassCastFlags::UInt16Property | EClassCastFlags::UInt32Property | EClassCastFlags::UInt64Property
-			| EClassCastFlags::Int8Property | EClassCastFlags::Int16Property | EClassCastFlags::IntProperty | EClassCastFlags::Int64Property
-			| EClassCastFlags::FloatProperty | EClassCastFlags::DoubleProperty | EClassCastFlags::ClassProperty | EClassCastFlags::NameProperty
-			| EClassCastFlags::StrProperty | EClassCastFlags::TextProperty | EClassCastFlags::BoolProperty | EClassCastFlags::StructProperty
-			| EClassCastFlags::ArrayProperty | EClassCastFlags::WeakObjectProperty | EClassCastFlags::LazyObjectProperty | EClassCastFlags::SoftClassProperty
-			| EClassCastFlags::SoftObjectProperty | EClassCastFlags::ObjectProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty
-			| EClassCastFlags::EnumProperty | EClassCastFlags::InterfaceProperty;
+		return UEType(Base);
+	}
+
+	template<typename UEType>
+	const UEType Cast() const
+	{
+		return UEType(Base);
 	}
 };
 
@@ -387,6 +381,16 @@ class UEArrayProperty : public UEProperty
 
 public:
 	UEProperty GetInnerProperty() const;
+
+	std::string GetCppType() const;
+};
+
+class UEDelegateProperty : public UEProperty
+{
+	using UEProperty::UEProperty;
+
+public:
+	UEFunction GetSignatureFunction() const;
 
 	std::string GetCppType() const;
 };

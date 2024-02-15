@@ -204,6 +204,11 @@ namespace Off
 		inline int32 Inner;
 	}
 
+	namespace DelegateProperty
+	{
+		inline int32 SignatureFunction;
+	}
+
 	namespace MapProperty
 	{
 		struct UMapPropertyBase

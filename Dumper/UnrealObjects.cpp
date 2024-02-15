@@ -4,10 +4,6 @@
 #include "Offsets.h"
 #include "ObjectArray.h"
 
-std::unordered_map<int32, std::string> UEEnum::BigEnums;
-std::unordered_map<std::string, uint32> UEProperty::UnknownProperties;
-std::unordered_map<int32, uint32> UEStruct::StructSizes;
-
 
 void* UEFFieldClass::GetAddress()
 {
@@ -238,18 +234,6 @@ int32 UEObject::GetPackageIndex() const
 bool UEObject::HasAnyFlags(EObjectFlags Flags) const
 {
 	return GetFlags() & Flags;
-}
-
-template<typename UEType>
-UEType UEObject::Cast()
-{
-	return UEType(Object);
-}
-
-template<typename UEType>
-const UEType UEObject::Cast() const
-{
-	return UEType(Object);
 }
 
 bool UEObject::IsA(EClassCastFlags TypeFlags) const
@@ -710,17 +694,7 @@ UEProperty::operator bool() const
 	return Base != nullptr && ((Base + Off::UObject::Class) != nullptr || (Base + Off::FField::Class) != nullptr);
 }
 
-template<typename UEType>
-UEType UEProperty::Cast()
-{
-	return UEType(Base);
-}
 
-template<typename UEType>
-const UEType UEProperty::Cast() const
-{
-	return UEType(Base);
-}
 
 bool UEProperty::IsA(EClassCastFlags TypeFlags) const
 {
@@ -728,13 +702,6 @@ bool UEProperty::IsA(EClassCastFlags TypeFlags) const
 		return GetClass().first.IsType(TypeFlags);
 	
 	return GetClass().second.IsType(TypeFlags);
-}
-
-bool UEProperty::IsTypeSupported() const
-{
-	EClassCastFlags PropTypeFlags = (GetClass().first ? GetClass().first.GetCastFlags() : GetClass().second.GetCastFlags());
-
-	return static_cast<std::underlying_type_t<EClassCastFlags>>(PropTypeFlags) & static_cast<std::underlying_type_t<EClassCastFlags>>(GetSupportedProperties());
 }
 
 FName UEProperty::GetFName() const
@@ -777,6 +744,11 @@ EMappingsTypeFlags UEProperty::GetMappingType() const
 bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag) const
 {
 	return GetPropertyFlags() & PropertyFlag;
+}
+
+bool UEProperty::IsType(EClassCastFlags PossibleTypes) const
+{
+	return (static_cast<uint64>(GetCastFlags()) & static_cast<uint64>(PossibleTypes)) != 0;
 }
 
 std::string UEProperty::GetName() const
@@ -860,6 +832,10 @@ int32 UEProperty::GetAlignment() const
 	else if (TypeFlags & EClassCastFlags::ArrayProperty)
 	{
 		return alignof(TArray<int>); // 0x8
+	}
+	else if (TypeFlags & EClassCastFlags::DelegateProperty)
+	{
+		return alignof(int32); // 0x4
 	}
 	else if (TypeFlags & EClassCastFlags::WeakObjectProperty)
 	{
@@ -1067,6 +1043,18 @@ std::string UEProperty::GetCppType() const
 	{
 		return Cast<UEInterfaceProperty>().GetCppType();
 	}
+	else if (TypeFlags & EClassCastFlags::FieldPathProperty)
+	{
+		return Cast<UEFieldPathProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::DelegateProperty)
+	{
+		return Cast<UEDelegateProperty>().GetCppType();
+	}
+	else if (TypeFlags & EClassCastFlags::OptionalProperty)
+	{
+	return Cast<UEOptionalProperty>().GetCppType();
+	}
 	else
 	{
 		return (GetClass().first ? GetClass().first.GetCppName() : GetClass().second.GetCppName()) + "_";;
@@ -1190,6 +1178,16 @@ UEProperty UEArrayProperty::GetInnerProperty() const
 std::string UEArrayProperty::GetCppType() const
 {
 	return std::format("TArray<{}>", GetInnerProperty().GetCppType());
+}
+
+UEFunction UEDelegateProperty::GetSignatureFunction() const
+{
+	return UEFunction(*reinterpret_cast<void**>(Base + Off::DelegateProperty::SignatureFunction));
+}
+
+std::string UEDelegateProperty::GetCppType() const
+{
+	return "TDeleage<GetCppTypeIsNotImplementedForDelegates>";
 }
 
 UEProperty UEMapProperty::GetKeyProperty() const

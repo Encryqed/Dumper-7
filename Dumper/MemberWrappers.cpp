@@ -166,7 +166,7 @@ FunctionWrapper::FunctionWrapper(const std::shared_ptr<StructWrapper>& Str, cons
 }
 
 FunctionWrapper::FunctionWrapper(const std::shared_ptr<StructWrapper>& Str, UEFunction Func)
-    : Function(Func), Name(MemberManager::GetNameCollisionInfo(Str->GetUnrealStruct(), Func)), Struct(Str), bIsUnrealFunction(true)
+    : Function(Func), Name(Str ? MemberManager::GetNameCollisionInfo(Str->GetUnrealStruct(), Func) : NameInfo()), Struct(Str), bIsUnrealFunction(true)
 {
 }
 
@@ -177,7 +177,15 @@ StructWrapper FunctionWrapper::AsStruct() const
 
 std::string FunctionWrapper::GetName() const
 {
-    return bIsUnrealFunction ? MemberManager::StringifyName(Struct->GetUnrealStruct(), Name) : PredefFunction->NameWithParams.substr(0, PredefFunction->NameWithParams.find_first_of('('));
+    if (bIsUnrealFunction)
+    {
+        if (Struct) [[likely]]
+            return MemberManager::StringifyName(Struct->GetUnrealStruct(), Name);
+
+        return Function.GetValidName();
+    }
+
+    return PredefFunction->NameWithParams.substr(0, PredefFunction->NameWithParams.find_first_of('('));
 }
 
 NameInfo FunctionWrapper::GetNameCollisionInfo() const

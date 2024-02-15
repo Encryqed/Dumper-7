@@ -77,7 +77,7 @@ public:
 
     static inline std::vector<PredefinedStruct> PredefinedStructs;
 
-public: /* DEBUG */
+private:
     static std::string MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment);
     static std::string MakeMemberStringWithoutName(const std::string& Type, std::string&& Comment);
 
@@ -100,6 +100,8 @@ private: /* utility functions */
     static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false /* const USomeClass* Member; */);
     static std::string GetMemberTypeString(UEProperty Member, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false);
     static std::string GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex = -1);
+
+    static std::string GetFunctionSignature(UEFunction Func);
 
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);

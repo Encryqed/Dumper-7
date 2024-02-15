@@ -81,12 +81,25 @@ void EnumManager::InitInternal()
 
 			for (UEProperty Property : ObjAsStruct.GetProperties())
 			{
-				if (!Property.IsA(EClassCastFlags::EnumProperty))
+				if (!Property.IsA(EClassCastFlags::EnumProperty) && !Property.IsA(EClassCastFlags::ByteProperty))
 					continue;
 
-				UEEnum Enum = Property.Cast<UEEnumProperty>().GetEnum();
+				UEEnum Enum = nullptr;
+				UEProperty UnderlayingProperty = nullptr;
 
-				UEProperty UnderlayingProperty = Property.Cast<UEEnumProperty>().GetUnderlayingProperty();
+				if (Property.IsA(EClassCastFlags::EnumProperty))
+				{
+					Enum = Property.Cast<UEEnumProperty>().GetEnum();
+					UnderlayingProperty = Property.Cast<UEEnumProperty>().GetUnderlayingProperty();
+				}
+				else /* ByteProperty */
+				{
+					Enum = Property.Cast<UEByteProperty>().GetEnum();
+					UnderlayingProperty = Property;
+
+					if (!Enum)
+						continue;
+				}
 
 				if (!Enum && !UnderlayingProperty)
 					continue;
@@ -97,13 +110,13 @@ void EnumManager::InitInternal()
 				Info.UnderlyingTypeSize = 0x1;
 
 				/* Check if the size of this enums underlaying type is greater than the default size (0x1) */
-				if (Enum) [[unlikely]]
+				if (Enum)
 				{
-					Info.UnderlyingTypeSize = Property.Cast<UEEnumProperty>().GetSize();
+					Info.UnderlyingTypeSize = Property.GetSize();
 					continue;
 				}
 
-				if (UnderlayingProperty) [[unlikely]]
+				if (UnderlayingProperty)
 				{
 					Info.UnderlyingTypeSize = UnderlayingProperty.GetSize();
 					continue;

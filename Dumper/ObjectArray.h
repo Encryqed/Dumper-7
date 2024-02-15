@@ -40,8 +40,6 @@ public:
 
 	static void DumpObjects(const fs::path& Path);
 
-	static void GetAllPackages(std::unordered_map<int32_t, std::vector<int32_t>>& OutPackagesWithMembers);
-
 	static int32 Num();
 
 	template<typename UEType = UEObject>

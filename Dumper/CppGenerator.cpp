@@ -1067,6 +1067,10 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 
 		return "TScriptInterface<class IInterface>";
 	}
+	else if (Flags & EClassCastFlags::DelegateProperty)
+	{
+		return std::format("TDelegate<{}>", GetFunctionSignature(Member.Cast<UEDelegateProperty>().GetSignatureFunction()));
+	}
 	else if (Flags & EClassCastFlags::FieldPathProperty)
 	{
 		return std::format("TFieldPath<struct {}>", Member.Cast<UEFieldPathProperty>().GetFielClass().GetCppName());
@@ -1086,6 +1090,69 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		/* When changing this also change 'GetUnknownProperties()' */
 		return (Class ? Class.GetCppName() : FieldClass.GetCppName()) + "_";
 	}
+}
+
+std::string CppGenerator::GetFunctionSignature(UEFunction Func)
+{
+	std::string RetType = "void";
+
+	std::string OutParameters;
+
+	bool bIsFirstParam = true;
+
+	std::vector<UEProperty> Params = Func.GetProperties();
+	std::sort(Params.begin(), Params.end(), CompareUnrealProperties);
+
+	for (UEProperty Param : Params)
+	{
+		std::string Type = GetMemberTypeString(Param);
+
+		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
+
+		if (Param.HasPropertyFlags(EPropertyFlags::ReturnParm))
+		{
+			if (bIsConst)
+				RetType = "const " + Type;
+
+			continue;
+		}
+
+		bool bIsRef = false;
+		bool bIsOut = false;
+		bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
+
+		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
+		{
+			Type += "&";
+			bIsRef = true;
+			bIsOut = true;
+		}
+
+		if (!bIsRef && Param.HasPropertyFlags(EPropertyFlags::OutParm))
+		{
+			Type += "*";
+			bIsOut = true;
+		}
+
+		if (!bIsOut && !bIsRef && bIsMoveType)
+		{
+			Type += "&";
+
+			if (!bIsConst)
+				Type = "const " + Type;
+		}
+
+		std::string ParamName = Param.GetName();
+
+		if (!bIsFirstParam)
+			OutParameters += ", ";
+
+		OutParameters += Type + " " + ParamName;
+
+		bIsFirstParam = false;
+	}
+
+	return RetType + "(" + OutParameters + ")";
 }
 
 
@@ -2216,7 +2283,7 @@ R"({
 			.CustomComment = "Unreal Function to process all UFunction-calls",
 			.ReturnType = "void", .NameWithParams = "ProcessEvent(class UFunction* Function, void* Parms)", .Body =
 R"({
-	InSDKUtils::GetVirtualFunction<void(*)(const UObject*, class UFunction*, void*)>(this, Offsets::ProcessEventIdx)(this, Function, Parms);
+	InSDKUtils::CallGameFunction(InSDKUtils::GetVirtualFunction<void(*)(const UObject*, class UFunction*, void*)>(this, Offsets::ProcessEventIdx), this, Function, Parms);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
@@ -2650,10 +2717,13 @@ struct StringLiteral
 // Forward declarations because in-line forward declarations make the compiler think 'StaticClassImpl()' is a class template
 class UClass;
 class UObject;
+class UFunction;
+
+struct FName;
 )";
 
 	BasicHpp << R"(
-namespace StaticClassHelper
+namespace BasicFilesImpleUtils
 {
 	// Helper functions for StaticClassImpl and StaticBPGeneratedClassImpl
 	UClass* FindClassByName(const std::string& Name);
@@ -2662,34 +2732,52 @@ namespace StaticClassHelper
 	std::string GetObjectName(class UClass* Class);
 	int32 GetObjectIndex(class UClass* Class);
 
-	class UObject* GetObjectByIndex(int32 Index);
+	UObject* GetObjectByIndex(int32 Index);
+
+	UFunction* FindFunctionByFName(const FName* Name);
 }
 )";
 
 	BasicCpp << R"(
-class UClass* StaticClassHelper::FindClassByName(const std::string& Name)
+class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name)
 {
 	return UObject::FindClassFast(Name);
 }
 
-class UClass* StaticClassHelper::FindClassByFullName(const std::string& Name)
+class UClass* BasicFilesImpleUtils::FindClassByFullName(const std::string& Name)
 {
 	return UObject::FindClass(Name);
 }
 
-std::string StaticClassHelper::GetObjectName(class UClass* Class)
+std::string BasicFilesImpleUtils::GetObjectName(class UClass* Class)
 {
 	return Class->GetName();
 }
 
-int32 StaticClassHelper::GetObjectIndex(class UClass* Class)
+int32 BasicFilesImpleUtils::GetObjectIndex(class UClass* Class)
 {
 	return Class->Index;
 }
 
-class UObject* StaticClassHelper::GetObjectByIndex(int32 Index)
+class UObject* BasicFilesImpleUtils::GetObjectByIndex(int32 Index)
 {
 	return UObject::GObjects->GetByIndex(Index);
+}
+
+UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
+{
+	for (int i = 0; i < UObject::GObjects->Num(); ++i)
+	{
+		UObject* Object = UObject::GObjects->GetByIndex(i);
+
+		if (!Object)
+			continue;
+
+		if (Object->Name == *Name)
+			return static_cast<UFunction*>(Object);
+	}
+
+	return nullptr;
 }
 
 )";
@@ -2704,10 +2792,10 @@ class UClass* StaticClassImpl()
 	if (Clss == nullptr)
 	{
 		if constexpr (bIsFullName) {
-			Clss = StaticClassHelper::FindClassByFullName(Name);
+			Clss = BasicFilesImpleUtils::FindClassByFullName(Name);
 		}
 		else /* default */ {
-			Clss = StaticClassHelper::FindClassByName(Name);
+			Clss = BasicFilesImpleUtils::FindClassByName(Name);
 		}
 	}
 
@@ -2724,7 +2812,7 @@ class UClass* StaticBPGeneratedClassImpl()
 	static auto SetClassIndex = [](UClass* Class, int32& Index) -> UClass*
 	{
 		if (Class)
-			Index = StaticClassHelper::GetObjectIndex(Class);
+			Index = BasicFilesImpleUtils::GetObjectIndex(Class);
 
 		return Class;
 	};
@@ -2735,26 +2823,26 @@ class UClass* StaticBPGeneratedClassImpl()
 	if constexpr (bIsFullName)
 	{
 		if (ClassIdx == 0x0)
-			return SetClassIndex(StaticClassHelper::FindClassByFullName(Name), ClassIdx);
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx);
 
-		UClass* ClassObj = static_cast<UClass*>(StaticClassHelper::GetObjectByIndex(ClassIdx));
+		UClass* ClassObj = static_cast<UClass*>(BasicFilesImpleUtils::GetObjectByIndex(ClassIdx));
 
 		/* Could use cast flags too to save some string comparisons */
-		if (!ClassObj || StaticClassHelper::GetObjectName(ClassObj) != static_cast<std::string>(Name))
-			return SetClassIndex(StaticClassHelper::FindClassByFullName(Name), ClassIdx);
+		if (!ClassObj || BasicFilesImpleUtils::GetObjectName(ClassObj) != static_cast<std::string>(Name))
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx);
 
 		return ClassObj;
 	}
 	else /* Default, use just the name to find an object*/
 	{
 		if (ClassIdx == 0x0)
-			return SetClassIndex(StaticClassHelper::FindClassByName(Name), ClassIdx);
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx);
 
-		UClass* ClassObj = static_cast<UClass*>(StaticClassHelper::GetObjectByIndex(ClassIdx));
+		UClass* ClassObj = static_cast<UClass*>(BasicFilesImpleUtils::GetObjectByIndex(ClassIdx));
 
 		/* Could use cast flags too to save some string comparisons */
-		if (!ClassObj || StaticClassHelper::GetObjectName(ClassObj) != static_cast<std::string>(Name))
-			return SetClassIndex(StaticClassHelper::FindClassByName(Name), ClassIdx);
+		if (!ClassObj || BasicFilesImpleUtils::GetObjectName(ClassObj) != static_cast<std::string>(Name))
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx);
 
 		return ClassObj;
 	}
@@ -3557,7 +3645,7 @@ R"({
 			.ReturnType = "void", .NameWithParams = "InitInternal()", .Body =
 std::format(R"({{
 	{0} = {2}reinterpret_cast<{1}{2}>(InSDKUtils::GetImageBase() + Offsets::{0});
-}})", NameArrayName, NameArrayType, (!Settings::Internal::bUseNamePool ? "*" : "")),
+}})", NameArrayName, NameArrayType, (Off::InSDK::Name::AppendNameToString == 0 && !Settings::Internal::bUseNamePool ? "*" : "")),
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
 		},
 		PredefinedFunction {
@@ -4254,6 +4342,35 @@ public:
 
 )";
 	} /* End 'if (Settings::Internal::bUseFProperty)' */
+
+	/* TDelegate */
+	PredefinedStruct TDelegate = PredefinedStruct{
+		.CustomTemplateText = "template<typename FunctionSignature>",
+		.UniqueName = "TDelegate", .Size = 0x0, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+	};
+	GenerateStruct(&TDelegate, BasicHpp, BasicCpp, BasicHpp);
+
+	/* TDelegate<Ret(Args...> */
+	PredefinedStruct TDelegateSpezialiation = PredefinedStruct{
+		.CustomTemplateText = "template<typename Ret, typename... Args>",
+		.UniqueName = "TDelegate<Ret(Args...)>", .Size = 0x0, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+	};
+
+	TDelegateSpezialiation.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FWeakObjectPtr", .Name = "Object", .Offset = 0x0, .Size = FWeakObjectPtrSize, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FName", .Name = "FunctionName", .Offset = FWeakObjectPtrSize, .Size = Off::InSDK::Name::FNameSize, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	GenerateStruct(&TDelegateSpezialiation, BasicHpp, BasicCpp, BasicHpp);
 
 
 

@@ -78,9 +78,22 @@ DWORD MainThread(HMODULE Module)
 
 
 	GeneratorRewrite::Generate<CppGenerator>();
-	GeneratorRewrite::Generate<MappingGenerator>();
-	GeneratorRewrite::Generate<IDAMappingGenerator>();
+	//GeneratorRewrite::Generate<MappingGenerator>();
+	//GeneratorRewrite::Generate<IDAMappingGenerator>();
 
+	//or (UEObject Obj : ObjectArray())
+	//
+	//	if (!Obj.IsA(EClassCastFlags::Function))
+	//		continue;
+	//
+	//	if (Obj.GetName().ends_with("__DelegateSignature"))
+	//	{
+	//		std::cout << "__DelegateSignature: CastFlags = (" << Obj.GetClass().StringifyCastFlags() << ")" << std::endl;
+	//		
+	//		std::cout << "Name: " << Obj.GetFullName() << "\n" << std::endl;
+	//		//if (!Obj.IsA(EClassCastFlags::DelegateFunction))
+	//	}
+	//
 
 	auto t_C = std::chrono::high_resolution_clock::now();
 	
