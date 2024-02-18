@@ -46,4 +46,3 @@ Make sure to always send screenshots of the code causing the first error, as it'
 - Should your own dll-project crash, verify your code thoroughly to make sure the error actually lies within the generated SDK.
 
 ## TODO
-- Add support for IDA-Mappings generation to this branch
