@@ -69,7 +69,7 @@ uint64 KeyFunctions::GetKeyForCollisionInfo([[maybe_unused]] UEStruct Super, UEF
 	return Key;
 }
 
-uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func)
+uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, bool bShouldCheckReservedNames, UEFunction Func)
 {
 	static auto AddCollidingName = [](const NameContainer& SearchNames, NameContainer* OutTargetNames, HashStringTableIndex NameIdx, ECollisionType CurrentType, bool bIsSuper) -> bool
 	{
@@ -121,9 +121,12 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 		if (AddCollidingName(*FuncParamNames, FuncParamNames, NameIdx, CurrentType, false))
 			return FuncParamNames->size() - 1;
 
-		/* Serach ReservedNames last, just in case there was a property which also collided with a reserved name already */
-		if (AddCollidingName(ReservedNames, FuncParamNames, NameIdx, CurrentType, false))
-			return FuncParamNames->size() - 1;
+		if (bShouldCheckReservedNames)
+		{
+			/* Serach ReservedNames last, just in case there was a property which also collided with a reserved name already */
+			if (AddCollidingName(ReservedNames, FuncParamNames, NameIdx, CurrentType, false))
+				return FuncParamNames->size() - 1;
+		}
 	}
 
 	NameContainer* TargetNameContainer = bIsParameter ? FuncParamNames : &StructNames;
@@ -141,9 +144,12 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 			return TargetNameContainer->size() - 1;
 	}
 
-	/* Serach ReservedNames last, just in case there was a property in the struct or parent struct, which also collided with a reserved name already */
-	if (AddCollidingName(ReservedNames, TargetNameContainer, NameIdx, CurrentType, false))
-		return TargetNameContainer->size() - 1;
+	if (bShouldCheckReservedNames)
+	{
+		/* Serach ReservedNames last, just in case there was a property in the struct or parent struct, which also collided with a reserved name already */
+		if (AddCollidingName(ReservedNames, TargetNameContainer, NameIdx, CurrentType, false))
+			return TargetNameContainer->size() - 1;
+	}
 
 	/* Searching this structs' name list, the super's name list, as well as ReservedNames did not yield any results. No collision on this name, add it! */
 	if (bIsParameter && FuncParamNames)
@@ -168,12 +174,12 @@ void CollisionManager::AddReservedName(const std::string& Name, bool bIsParamete
 	ReservedNames.push_back(NewInfo);
 }
 
-void CollisionManager::AddStructToNameContainer(UEStruct Struct)
+void CollisionManager::AddStructToNameContainer(UEStruct Struct, bool bShouldCheckReservedNames)
 {
 	if (UEStruct Super = Struct.GetSuper())
 	{
 		if (NameInfos.find(Super.GetIndex()) == NameInfos.end())
-			AddStructToNameContainer(Super);
+			AddStructToNameContainer(Super, bShouldCheckReservedNames);
 	}
 
 	NameContainer& StructNames = NameInfos[Struct.GetIndex()];
@@ -181,9 +187,9 @@ void CollisionManager::AddStructToNameContainer(UEStruct Struct)
 	if (!StructNames.empty())
 		return;
 
-	auto AddToContainerAndTranslationMap = [&](auto Member, ECollisionType CollisionType, UEFunction Func = nullptr) -> void
+	auto AddToContainerAndTranslationMap = [&](auto Member, ECollisionType CollisionType, bool bShouldCheckReservedNames, UEFunction Func = nullptr) -> void
 	{
-		const uint64 Index = AddNameToContainer(StructNames, Struct, MemberNames.FindOrAdd(Member.GetValidName()), CollisionType, Func);
+		const uint64 Index = AddNameToContainer(StructNames, Struct, MemberNames.FindOrAdd(Member.GetValidName()), CollisionType, bShouldCheckReservedNames, Func);
 
 		const auto [It, bInserted] = TranslationMap.emplace(KeyFunctions::GetKeyForCollisionInfo(Struct, Member), Index);
 		
@@ -192,14 +198,14 @@ void CollisionManager::AddStructToNameContainer(UEStruct Struct)
 	};
 
 	for (UEProperty Prop : Struct.GetProperties())
-		AddToContainerAndTranslationMap(Prop, ECollisionType::MemberName);
+		AddToContainerAndTranslationMap(Prop, ECollisionType::MemberName, bShouldCheckReservedNames);
 
 	for (UEFunction Func : Struct.GetFunctions())
 	{
-		AddToContainerAndTranslationMap(Func, ECollisionType::FunctionName);
+		AddToContainerAndTranslationMap(Func, ECollisionType::FunctionName, bShouldCheckReservedNames);
 
 		for (UEProperty Prop : Func.GetProperties())
-			AddToContainerAndTranslationMap(Prop, ECollisionType::ParameterName, Func);
+			AddToContainerAndTranslationMap(Prop, ECollisionType::ParameterName, bShouldCheckReservedNames, Func);
 	}
 };
 

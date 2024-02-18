@@ -93,12 +93,12 @@ private:
 
 private:
 	/* Returns index of NameInfo inside of the NameContainer it was added to */
-	uint64 AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, UEFunction Func = nullptr);
+	uint64 AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, bool bShouldCheckReservedNames, UEFunction Func = nullptr);
 
 public:
 	/* For external use by 'MemberManager::InitReservedNames()' */
 	void AddReservedName(const std::string& Name, bool bIsParameterOrLocalVariable);
-	void AddStructToNameContainer(UEStruct ObjAsStruct);
+	void AddStructToNameContainer(UEStruct ObjAsStruct, bool bShouldCheckReservedNames);
 
 	std::string StringifyName(UEStruct Struct, NameInfo Info);
 

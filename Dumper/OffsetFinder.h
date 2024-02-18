@@ -469,16 +469,23 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, EPropertyFlags>> Infos;
 
-		Infos.push_back({ ObjectArray::FindClassFast("Actor").FindMember("bActorEnableCollision").GetAddress(), EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash | EPropertyFlags::NativeAccessSpecifierPrivate });
-		Infos.push_back({ ObjectArray::FindClassFast("PlayerController").FindMember("HiddenActors").GetAddress(), EPropertyFlags::ZeroConstructor | EPropertyFlags::NativeAccessSpecifierPublic });
+
+		UEStruct Guid = ObjectArray::FindObjectFast("Guid", EClassCastFlags::Struct).Cast<UEStruct>();
+		UEStruct Color = ObjectArray::FindObjectFast("Color", EClassCastFlags::Struct).Cast<UEStruct>();
+
+		constexpr EPropertyFlags GuidMemberFlags =  EPropertyFlags::Edit | EPropertyFlags::ZeroConstructor | EPropertyFlags::SaveGame | EPropertyFlags::IsPlainOldData | EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash;
+		constexpr EPropertyFlags ColorMemberFlags = EPropertyFlags::Edit | EPropertyFlags::BlueprintVisible | EPropertyFlags::ZeroConstructor | EPropertyFlags::SaveGame | EPropertyFlags::IsPlainOldData | EPropertyFlags::NoDestructor | EPropertyFlags::HasGetValueTypeHash;
+
+		Infos.push_back({ Guid.FindMember("A").GetAddress(), GuidMemberFlags });
+		Infos.push_back({ Color.FindMember("R").GetAddress(), ColorMemberFlags });
 
 		int FlagsOffset = FindOffset(Infos);
 
-		// Same flags without AccessSpecifier or Hashing flags
+		// Same flags without AccessSpecifier
 		if (FlagsOffset == OffsetNotFound)
 		{
-			Infos[1].second = EPropertyFlags::ZeroConstructor;
-			Infos[0].second = EPropertyFlags::NoDestructor;
+			Infos[0].second |= EPropertyFlags::NativeAccessSpecifierPublic;
+			Infos[1].second |= EPropertyFlags::NativeAccessSpecifierPublic;
 
 			FlagsOffset = FindOffset(Infos);
 		}

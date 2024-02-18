@@ -260,7 +260,7 @@ public:
 
 	static inline void AddStructToNameContainer(UEStruct Struct)
 	{
-		MemberNames.AddStructToNameContainer(Struct);
+		MemberNames.AddStructToNameContainer(Struct, (Struct.IsA(EClassCastFlags::Class) || Struct.IsA(EClassCastFlags::Function)));
 	}
 
 	template<typename UEType>
