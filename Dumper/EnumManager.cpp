@@ -35,6 +35,11 @@ std::string EnumCollisionInfo::GetUniqueName() const
 	return Name;
 }
 
+std::string EnumCollisionInfo::GetRawName() const
+{
+	return EnumManager::GetValueName(*this).GetName();
+}
+
 uint64 EnumCollisionInfo::GetValue() const
 {
 	return MemberValue;

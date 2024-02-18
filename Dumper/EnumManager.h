@@ -18,6 +18,7 @@ private:
 
 public:
 	std::string GetUniqueName() const;
+	std::string GetRawName() const;
 	uint64 GetValue() const;
 
 	uint8 GetCollisionCount() const;

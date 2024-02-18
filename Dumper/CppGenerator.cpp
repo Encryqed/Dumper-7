@@ -1874,6 +1874,15 @@ void CppGenerator::InitPredefinedMembers()
 		},
 	};
 
+	std::vector<PredefinedMember> DelegatePropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UFunction*", .Name = "SignatureFunction", .Offset = Off::DelegateProperty::SignatureFunction, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
 	std::vector<PredefinedMember> MapPropertyMembers =
 	{
 		PredefinedMember {
@@ -1911,6 +1920,24 @@ void CppGenerator::InitPredefinedMembers()
 		},
 	};
 
+	std::vector<PredefinedMember> FieldPathPropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class FFieldClass*", .Name = "FieldClass", .Offset = Off::FieldPathProperty::FieldClass, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> OptionalPropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = PropertyTypePtr, .Name = "ValueProperty", .Offset = Off::OptionalProperty::ValueProperty, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
 	SortMembers(PropertyMembers);
 	SortMembers(BytePropertyMembers);
 	SortMembers(BoolPropertyMembers);
@@ -1918,9 +1945,11 @@ void CppGenerator::InitPredefinedMembers()
 	SortMembers(ClassPropertyMembers);
 	SortMembers(StructPropertyMembers);
 	SortMembers(ArrayPropertyMembers);
+	SortMembers(DelegatePropertyMembers);
 	SortMembers(MapPropertyMembers);
 	SortMembers(SetPropertyMembers);
-	SortMembers(EnumPropertyMembers);
+	SortMembers(FieldPathPropertyMembers);
+	SortMembers(OptionalPropertyMembers);
 
 	if (!Settings::Internal::bUseFProperty)
 	{
@@ -1930,10 +1959,12 @@ void CppGenerator::InitPredefinedMembers()
 		PredefinedMembers[ObjectArray::FindClassFast("ObjectPropertyBase").GetIndex()].Members = ObjectPropertyBaseMembers;
 		PredefinedMembers[ObjectArray::FindClassFast("ClassProperty").GetIndex()].Members = ClassPropertyMembers;
 		PredefinedMembers[ObjectArray::FindClassFast("StructProperty").GetIndex()].Members = StructPropertyMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("ArrayProperty").GetIndex()].Members = ArrayPropertyMembers;
+		PredefinedMembers[ObjectArray::FindClassFast("DelegateProperty").GetIndex()].Members = ArrayPropertyMembers;
 		PredefinedMembers[ObjectArray::FindClassFast("MapProperty").GetIndex()].Members = MapPropertyMembers;
 		PredefinedMembers[ObjectArray::FindClassFast("SetProperty").GetIndex()].Members = SetPropertyMembers;
 		PredefinedMembers[ObjectArray::FindClassFast("EnumProperty").GetIndex()].Members = EnumPropertyMembers;
+
+		// FieldPathProperty and OptionalProperty don't exist in UE versions which are using UProperty
 	}
 	else
 	{
@@ -1972,6 +2003,9 @@ void CppGenerator::InitPredefinedMembers()
 		PredefinedStruct& FArrayProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FArrayProperty", .Size = 0x0, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
 		});
+		PredefinedStruct& FDelegateProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FDelegateProperty", .Size = 0x0, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
+		});
 		PredefinedStruct& FMapProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FMapProperty", .Size = 0x0, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
 		});
@@ -1980,6 +2014,12 @@ void CppGenerator::InitPredefinedMembers()
 		});
 		PredefinedStruct& FEnumProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FEnumProperty", .Size = 0x0, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
+		});
+		PredefinedStruct& FFieldPathProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FFieldPathProperty", .Size = 0x0, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
+		});
+		PredefinedStruct& FOptionalProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FOptionalProperty", .Size = 0x0, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
 		});
 
 		FFieldClass.Properties =
@@ -2083,9 +2123,12 @@ void CppGenerator::InitPredefinedMembers()
 		FClassProperty.Properties = ClassPropertyMembers;
 		FStructProperty.Properties = StructPropertyMembers;
 		FArrayProperty.Properties = ArrayPropertyMembers;
+		FDelegateProperty.Properties = DelegatePropertyMembers;
 		FMapProperty.Properties = MapPropertyMembers;
 		FSetProperty.Properties = SetPropertyMembers;
 		FEnumProperty.Properties = EnumPropertyMembers;
+		FFieldPathProperty.Properties = FieldPathPropertyMembers;
+		FOptionalProperty.Properties = OptionalPropertyMembers;
 
 		/* Init PredefindedStruct::Size **after** sorting the members */
 		InitStructSize(FFieldClass);
@@ -2100,9 +2143,12 @@ void CppGenerator::InitPredefinedMembers()
 		InitStructSize(FClassProperty);
 		InitStructSize(FStructProperty);
 		InitStructSize(FArrayProperty);
+		InitStructSize(FDelegateProperty);
 		InitStructSize(FMapProperty);
 		InitStructSize(FSetProperty);
 		InitStructSize(FEnumProperty);
+		InitStructSize(FFieldPathProperty);
+		InitStructSize(FOptionalProperty);
 	}
 
 	SortMembers(UObjectPredefs.Members);
