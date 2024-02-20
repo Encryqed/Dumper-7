@@ -164,6 +164,8 @@ namespace OffsetFinder
 		* On games with FNAME_OUTLINE_NUMBER the (random) integer after FName::ComparisonIndex is in the range from [1...4] about 2% (or less) of times.
 		* 
 		* The minimum percentage of names is set to 3% to give both normal names, as well as outline-numer names a buffer-zone.
+		* 
+		* This doesn't work on some very small UE template games, which is why PostInitFNameSettings() was added to fix the incorrect behavior of this function
 		*/
 		constexpr float MinPercentage = 0.03f;
 
@@ -200,6 +202,57 @@ namespace OffsetFinder
 		{
 			Off::FName::Number = 0x4;
 
+			Off::InSDK::Name::FNameSize = 0x8;
+		}
+	}
+
+	inline void PostInitFNameSettings()
+	{
+		UEClass PlayerStart = ObjectArray::FindClassFast("PlayerStart");
+
+		const int32 FNameSize = PlayerStart.FindMember("PlayerStartTag").GetSize();
+
+		/* Nothing to do for us, everything is fine! */
+		if (Off::InSDK::Name::FNameSize == FNameSize)
+			return;
+		
+		const uint8* NameAddress = static_cast<const uint8*>(PlayerStart.GetFName().GetAddress());
+
+		const int32 FNameFirstInt /* ComparisonIndex */ = *reinterpret_cast<const int32*>(NameAddress);
+		const int32 FNameSecondInt /* [Number/DisplayIndex] */ = *reinterpret_cast<const int32*>(NameAddress + 0x4);
+
+		if (FNameSize == 0x8 && FNameFirstInt == FNameSecondInt) /* WITH_CASE_PRESERVING_NAME + FNAME_OUTLINE_NUMBER */
+		{
+			Settings::Internal::bUseCasePreservingName = true;
+			Settings::Internal::bUseUoutlineNumberName = true;
+
+			Off::FName::Number = -0x1;
+			Off::InSDK::Name::FNameSize = 0x8;
+		}
+		else if (FNameSize > 0x8) /* WITH_CASE_PRESERVING_NAME */
+		{
+			Settings::Internal::bUseUoutlineNumberName = false;
+			Settings::Internal::bUseCasePreservingName = true;
+
+			Off::FName::Number = FNameFirstInt == FNameSecondInt ? 0x8 : 0x4;
+
+			Off::InSDK::Name::FNameSize = 0xC;
+		}
+		else if (FNameSize == 0x4) /* FNAME_OUTLINE_NUMBER */
+		{
+			Settings::Internal::bUseUoutlineNumberName = true;
+			Settings::Internal::bUseCasePreservingName = false;
+
+			Off::FName::Number = -0x1;
+
+			Off::InSDK::Name::FNameSize = 0x4;
+		}
+		else /* Default */
+		{
+			Settings::Internal::bUseUoutlineNumberName = false;
+			Settings::Internal::bUseCasePreservingName = false;
+
+			Off::FName::Number = 0x4;
 			Off::InSDK::Name::FNameSize = 0x8;
 		}
 	}

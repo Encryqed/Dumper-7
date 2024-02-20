@@ -255,6 +255,8 @@ void Off::Init()
 	Off::ULevel::Actors = OffsetFinder::FindLevelActorsOffset();
 	std::cout << std::format("Off::ULevel::Actors: 0x{:X}\n", Off::ULevel::Actors) << std::endl;
 
+	OffsetFinder::PostInitFNameSettings();
+
 	Off::ByteProperty::Enum = Off::InSDK::Properties::PropertySize;
 	Off::BoolProperty::Base = Off::InSDK::Properties::PropertySize;
 	Off::ObjectProperty::PropertyClass = Off::InSDK::Properties::PropertySize;
