@@ -1,5 +1,5 @@
 
-# Dumper 7
+# Dumper-7
 
 SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and UE5.
 
@@ -8,6 +8,11 @@ SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and
 - Compile the dll in x64-Release
 - Inject the dll into your target game
 - The SDK is generated into the path specified by `Settings::SDKGenerationPath`, by default this is `C:\\Dumper-7`
+- **See [UsingTheSDK](UsingTheSDK.md) for a guide to get started, or to migrate from an old SDK.**
+## Support Me
+
+KoFi: https://ko-fi.com/fischsalat \
+Patreon: https://patreon.com/user?u=119629245
 ## Changelog
 
 ### Summary:
@@ -20,6 +25,7 @@ SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and
 - Fixed incorrect size/alignment on classes
   
 You can  find the full changelog for the new GeneratorRewrite in [Changelog.md](Changelog.md).
+
 ## Overriding Offsets
 
 - ### Only override any offsets if the generator doesn't find them by itself
