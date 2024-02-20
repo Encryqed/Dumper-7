@@ -28,7 +28,7 @@
 8. If there are any static_asserts failing, or other errors occuring, during building, read the [Issue](README.md#issues) part of the [ReadMe](README.md)
 
 ## Using the SDK
-### 1. Retreiving instances of classes/structs to manipulate them
+### 1. Retrieving instances of classes/structs to manipulate them
    - FindObject, used to find an object by its' name
      ```c++
      SDK::UObject* Obj1 = SDK::UObject::FindObject("ClassName PackageName.Outer1.Outer2.ObjectName");
@@ -55,7 +55,7 @@
     /* static functions do not require an instance, they are automatically called using their DefaultObject */
     SDK::FName MyNewName = SDK::UKismetStringLibrary::Conv_StringToName("DemoNetDriver");
     ```
-### 3. Checking a UObjects' type
+### 3. Checking a UObject's type
   - With EClassCastFlags
     ```c++
     /* Limited to some few types, but fast */
@@ -108,7 +108,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
         return TRUE;
 }
 ```
-### Example program that enables the UnrealEngien console
+### Example program that enables the UnrealEngine console
 ```c++
 #include <Windows.h>
 #include <iostream>
@@ -116,7 +116,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 #include "SDK/Engine_classes.hpp"
 
 // Basic.cpp was added to the VS project
-// Engien_functions.cpp was added to the VS project
+// Engine_functions.cpp was added to the VS project
 
 DWORD MainThread(HMODULE Module)
 {
