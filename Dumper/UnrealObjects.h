@@ -256,7 +256,6 @@ public:
 	int32 GetSize() const;
 	int32 GetOffset() const;
 	EPropertyFlags GetPropertyFlags() const;
-	EMappingsTypeFlags GetMappingType() const;
 	bool HasPropertyFlags(EPropertyFlags PropertyFlag) const;
 	bool IsType(EClassCastFlags PossibleTypes) const;
 

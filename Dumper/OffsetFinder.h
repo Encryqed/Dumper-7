@@ -559,20 +559,6 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
-	/* ByteProperty */
-	inline int32_t FindEnumOffset()
-	{
-		std::vector<std::pair<void*, void*>> Infos;
-
-		void* ENetRoleObject = ObjectArray::FindObjectFast("ENetRole").GetAddress();
-		UEStruct Actor = ObjectArray::FindClassFast("Actor");
-
-		Infos.push_back({Actor.FindMember("RemoteRole").GetAddress(), ENetRoleObject });
-		Infos.push_back({Actor.FindMember("Role").GetAddress(), ENetRoleObject });
-
-		return FindOffset(Infos);
-	}
-
 	/* BoolProperty */
 	inline int32_t FindBoolPropertyBaseOffset()
 	{
@@ -584,45 +570,6 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindClassFast("PlayerController").FindMember("bAutoManageActiveCameraTarget").GetAddress(), 0xFF });
 
 		return (FindOffset<1>(Infos, Off::Property::Offset_Internal) - 0x3);
-	}
-
-	/* UObjectPropertyBase */
-	inline int32_t FindPropertyClassOffset()
-	{
-		std::vector<std::pair<void*, void*>> Infos;
-
-		// TODO (encryqed) : Gonna fix it later 
-		Infos.push_back({ ObjectArray::FindObjectFast("AuthorityGameMode").GetAddress(), ObjectArray::FindObjectFast("GameModeBase").GetAddress() });
-		Infos.push_back({ ObjectArray::FindObjectFast("NetworkManager").GetAddress(), ObjectArray::FindObjectFast("GameNetworkManager").GetAddress() });
-	
-		return FindOffset(Infos);
-	}
-
-	/* ClassProperty */
-	inline int32_t FindMetaClassOffset()
-	{
-		std::vector<std::pair<void*, void*>> Infos;
-
-		UEStruct GameModeBase = ObjectArray::FindObjectFast("GameModeBase", EClassCastFlags::Class).Cast<UEStruct>();
-
-		Infos.push_back({ GameModeBase.FindMember("GameSessionClass").GetAddress(), ObjectArray::FindObjectFast("GameSession").GetAddress() });
-		Infos.push_back({ GameModeBase.FindMember( "GameStateClass").GetAddress(), ObjectArray::FindObjectFast("GameStateBase").GetAddress() });
-
-		return FindOffset(Infos);
-	}
-	
-	/* StructProperty */
-	inline int32_t FindStructTypeOffset()
-	{
-		std::vector<std::pair<void*, void*>> Infos;
-
-		UEStruct Transform = ObjectArray::FindObjectFast("Transform", EClassCastFlags::Struct).Cast<UEStruct>();
-
-		void* VectorStruct = ObjectArray::FindObjectFast("Vector").GetAddress();
-		Infos.push_back({ Transform.FindMember("Scale3D").GetAddress(), VectorStruct });
-		Infos.push_back({ Transform.FindMember("Translation").GetAddress(), VectorStruct });
-
-		return FindOffset(Infos);
 	}
 
 	/* ArrayProperty */
@@ -674,18 +621,6 @@ namespace OffsetFinder
 		}
 
 		return PropertySize;
-	}
-
-	/* EnumProperty */
-	inline int32_t FindEnumPropertyBaseOffset()
-	{
-		std::vector<std::pair<void*, void*>> Infos;
-
-		// TODO (encryqed) : Gonna fix it later 
-		Infos.push_back({ ObjectArray::FindObjectFast("RuntimeGeneration").GetAddress(), ObjectArray::FindObjectFastInOuter("UnderlyingType", "RuntimeGeneration").GetAddress()});
-		Infos.push_back({ ObjectArray::FindObjectFast("AutoPossessAI").GetAddress(), ObjectArray::FindObjectFastInOuter("UnderlyingType", "AutoPossessAI").GetAddress()});
-
-		return FindOffset(Infos);
 	}
 
 	/* ULevel */
