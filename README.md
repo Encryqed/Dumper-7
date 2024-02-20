@@ -8,6 +8,7 @@ SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and
 - Compile the dll in x64-Release
 - Inject the dll into your target game
 - The SDK is generated into the path specified by `Settings::SDKGenerationPath`, by default this is `C:\\Dumper-7`
+- **See [UsingTheSDK](UsingTheSDK.md) for a guide to get started, or to migrate from an old SDK.**
 ## Support Me
 
 KoFi: https://ko-fi.com/fischsalat \
