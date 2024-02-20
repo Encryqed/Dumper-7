@@ -9,7 +9,7 @@
 #include "EnumWrapper.h"
 #include "PackageManager.h"
 
-#include "GeneratorRewrite.h"
+#include "Generator.h"
 
 namespace fs = std::filesystem;
 

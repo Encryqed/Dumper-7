@@ -11,7 +11,7 @@
 #include "EnumManager.h"
 
 #include "HashStringTableTest.h"
-#include "GeneratorRewriteTest.h"
+#include "GeneratorTest.h"
 #include "StructManagerTest.h"
 #include "CollisionManagerTest.h"
 #include "MemberManagerTest.h"
@@ -19,7 +19,7 @@
 #include "EnumManagerTest.h"
 #include "PackageManagerTest.h"
 
-#include "GeneratorRewrite.h"
+#include "Generator.h"
 
 //#include "StringTableTest.h"
 
@@ -42,8 +42,8 @@ DWORD MainThread(HMODULE Module)
 
 	std::cout << "Started Generation [Dumper-7]!\n";
   
-	GeneratorRewrite::InitEngineCore();
-	GeneratorRewrite::InitInternal();
+	Generator::InitEngineCore();
+	Generator::InitInternal();
 
 	if (Settings::Generator::GameName.empty() && Settings::Generator::GameVersion.empty())
 	{
@@ -77,9 +77,9 @@ DWORD MainThread(HMODULE Module)
 	//PackageManagerTest::TestCyclicDependencyDetection<true>();
 
 
-	GeneratorRewrite::Generate<CppGenerator>();
-	GeneratorRewrite::Generate<MappingGenerator>();
-	GeneratorRewrite::Generate<IDAMappingGenerator>();
+	Generator::Generate<CppGenerator>();
+	Generator::Generate<MappingGenerator>();
+	Generator::Generate<IDAMappingGenerator>();
 
 
 	auto t_C = std::chrono::high_resolution_clock::now();

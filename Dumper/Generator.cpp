@@ -1,4 +1,4 @@
-#include "GeneratorRewrite.h"
+#include "Generator.h"
 #include "HashStringTable.h"
 #include "StructManager.h"
 #include "EnumManager.h"
@@ -35,7 +35,7 @@ inline void InitSettings()
 }
 
 
-void GeneratorRewrite::InitEngineCore()
+void Generator::InitEngineCore()
 {
 	/* manual override */
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
@@ -58,7 +58,7 @@ void GeneratorRewrite::InitEngineCore()
 	InitSettings();
 }
 
-void GeneratorRewrite::InitInternal()
+void Generator::InitInternal()
 {
 	// Initialize PackageManager with all packages, their names, structs, classes enums, functions and dependencies
 	PackageManager::Init();
@@ -76,7 +76,7 @@ void GeneratorRewrite::InitInternal()
 	PackageManager::PostInit();
 }
 
-bool GeneratorRewrite::SetupDumperFolder()
+bool Generator::SetupDumperFolder()
 {
 	try
 	{
@@ -107,14 +107,14 @@ bool GeneratorRewrite::SetupDumperFolder()
 	return true;
 }
 
-bool GeneratorRewrite::SetupFolders(std::string& FolderName, fs::path& OutFolder)
+bool Generator::SetupFolders(std::string& FolderName, fs::path& OutFolder)
 {
 	fs::path Dummy;
 	std::string EmptyName = "";
 	return SetupFolders(FolderName, OutFolder, EmptyName, Dummy);
 }
 
-bool GeneratorRewrite::SetupFolders(std::string& FolderName, fs::path& OutFolder, std::string& SubfolderName, fs::path& OutSubFolder)
+bool Generator::SetupFolders(std::string& FolderName, fs::path& OutFolder, std::string& SubfolderName, fs::path& OutSubFolder)
 {
 	FileNameHelper::MakeValidFileName(FolderName);
 	FileNameHelper::MakeValidFileName(SubfolderName);

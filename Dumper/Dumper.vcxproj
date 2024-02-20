@@ -147,7 +147,7 @@
     <ClCompile Include="DependencyManager.cpp" />
     <ClCompile Include="EnumManager.cpp" />
     <ClCompile Include="EnumWrapper.cpp" />
-    <ClCompile Include="GeneratorRewrite.cpp" />
+    <ClCompile Include="Generator.cpp" />
     <ClCompile Include="HashStringTable.cpp" />
     <ClCompile Include="IDAMappingGenerator.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -173,8 +173,8 @@
     <ClInclude Include="EnumManagerTest.h" />
     <ClInclude Include="Enums.h" />
     <ClInclude Include="EnumWrapper.h" />
-    <ClInclude Include="GeneratorRewrite.h" />
-    <ClInclude Include="GeneratorRewriteTest.h" />
+    <ClInclude Include="Generator.h" />
+    <ClInclude Include="GeneratorTest.h" />
     <ClInclude Include="HashStringTable.h" />
     <ClInclude Include="HashStringTableTest.h" />
     <ClInclude Include="IDAMappingGenerator.h" />

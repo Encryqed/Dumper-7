@@ -33,10 +33,10 @@ concept GeneratorImplementation = requires(GeneratorType t)
     GeneratorType::InitPredefinedFunctions();
 };
 
-class GeneratorRewrite /* renamed to just 'Generator' once the legacy generator is removed */
+class Generator
 {
 private:
-    friend class GeneratorRewriteTest;
+    friend class GeneratorTest;
 
 private:
     static inline fs::path DumperFolder;

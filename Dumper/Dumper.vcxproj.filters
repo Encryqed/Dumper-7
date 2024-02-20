@@ -44,7 +44,7 @@
     <ClCompile Include="CppGenerator.cpp">
       <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratorRewrite.cpp">
+    <ClCompile Include="Generator.cpp">
       <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
     <ClCompile Include="HashStringTable.cpp">
@@ -56,11 +56,11 @@
     <ClCompile Include="MappingGenerator.cpp">
       <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="IDAMappingGenerator.cpp">
-      <Filter>GeneratorRewrite\Public\Managers</Filter>
-    </ClCompile>
     <ClCompile Include="CompressionLibs\zstd\lib\zstd.c">
       <Filter>Utils\Compression</Filter>
+    </ClCompile>
+    <ClCompile Include="IDAMappingGenerator.cpp">
+      <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -141,7 +141,7 @@
     <ClInclude Include="HashStringTableTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
-    <ClInclude Include="GeneratorRewriteTest.h">
+    <ClInclude Include="GeneratorTest.h">
       <Filter>Tests</Filter>
     </ClInclude>
     <ClInclude Include="StructManagerTest.h">
@@ -189,10 +189,7 @@
     <ClInclude Include="CppGenerator.h">
       <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="GeneratorRewrite.h">
-      <Filter>GeneratorRewrite\Public\Generators</Filter>
-    </ClInclude>
-    <ClInclude Include="PredefinedMembers.h">
+    <ClInclude Include="Generator.h">
       <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
     <ClInclude Include="PackageManagerTest.h">
@@ -212,6 +209,9 @@
     </ClInclude>
     <ClInclude Include="CompressionLibs\zstd\lib\zstd.h">
       <Filter>Utils\Compression</Filter>
+    </ClInclude>
+    <ClInclude Include="PredefinedMembers.h">
+      <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

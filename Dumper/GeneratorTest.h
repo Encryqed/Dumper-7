@@ -1,5 +1,5 @@
 #pragma once
-#include "GeneratorRewrite.h"
+#include "Generator.h"
 #include "HashStringTable.h"
 #include <cassert>
 
@@ -13,7 +13,7 @@ else \
 	std::cout << __FUNCTION__ << ": Everything is fine!" << std::endl; \
 }
 
-class GeneratorRewriteTest
+class GeneratorTest
 {
 public:
 	static inline void TestAll()

@@ -273,7 +273,7 @@ void MappingGenerator::GenerateEnum(const EnumWrapper& Enum, std::stringstream& 
 	const int32 EnumNameIndex = AddNameToData(NameTable, Enum.GetRawName());
 	WriteToStream(Data, EnumNameIndex);
 
-	WriteToStream(Data, static_cast<uint8>(Enum.GetNumMemebers()));
+	WriteToStream(Data, static_cast<uint8>(Enum.GetNumMembers()));
 
 	for (EnumCollisionInfo Member : Enum.GetMembers())
 	{
