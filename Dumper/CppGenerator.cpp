@@ -2695,17 +2695,18 @@ typedef unsigned __int64 uint64;
 /*
 * Disclaimer:
 *	- The 'GNames' is only a fallback and null by default, FName::AppendString is used
-*	- THe 'GWorld' offset is not found automatically, use the provided 'UWorld::GetWorld()' function instead
+*	- THe 'GWorld' offset is not used by the SDK, it's just there for "decoration", use the provided 'UWorld::GetWorld()' function instead
 */
 namespace Offsets
 {{
 	constexpr int32 GObjects          = 0x{:08X};
 	constexpr int32 AppendString      = 0x{:08X};
 	constexpr int32 GNames            = 0x{:08X};
+	constexpr int32 GWorld            = 0x{:08X};
 	constexpr int32 ProcessEvent      = 0x{:08X};
 	constexpr int32 ProcessEventIdx   = 0x{:08X};
 }}
-)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex);
+)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::World::GWorld, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex);
 
 
 

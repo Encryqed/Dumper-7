@@ -246,7 +246,7 @@ bool UEObject::IsA(UEClass Class) const
 	if (!Class)
 		return false;
 
-	for (UEClass Clss = GetClass(); Clss; Class = Clss.GetSuper().Cast<UEClass>())
+	for (UEClass Clss = GetClass(); Clss; Clss = Clss.GetSuper().Cast<UEClass>())
 	{
 		if (Clss == Class)
 			return true;

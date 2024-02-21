@@ -70,9 +70,34 @@ void Off::InSDK::ProcessEvent::InitPE(int32 Index)
 
 	Off::InSDK::ProcessEvent::PEOffset = uintptr_t(VFT[Off::InSDK::ProcessEvent::PEIndex]) - Imagebase;
 
-	std::cout << std::format("VFT-Offset: 0x{:X}", uintptr_t(VFT) - Imagebase);
+	std::cout << std::format("VFT-Offset: 0x{:X}\n", uintptr_t(VFT) - Imagebase);
 }
 
+/* UWorld */
+void Off::InSDK::World::InitGWorld()
+{
+	UEClass UWorld = ObjectArray::FindClassFast("World");
+
+	for (UEObject Obj : ObjectArray())
+	{
+		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject) || !Obj.IsA(UWorld))
+			continue;
+
+		/* Try to find a pointer to the word, aka UWorld** GWorld */
+		void* Result = FindAlignedElementInProcess(Obj.GetAddress());
+
+		/* Pointer to UWorld* couldn't be found */
+		if (Result)
+		{
+			Off::InSDK::World::GWorld = GetOffset(Result);
+			std::cout << std::format("GWorld-Offset: 0x{:X}\n\n", Off::InSDK::World::GWorld);
+			break;
+		}
+	}
+
+	if (Off::InSDK::World::GWorld == 0x0)
+		std::cout << std::format("\nGWorld WAS NOT FOUND!!!!!!!!!\n\n");
+}
 
 
 /* FText */

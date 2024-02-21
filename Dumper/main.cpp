@@ -65,18 +65,6 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
 
-	//CppGeneratorTest::TestAll<true>();
-	//HashStringTableTest::TestAll<true>();
-	//StructManagerTest::TestAll<true>();
-	//EnumManagerTest::TestAll<true>();
-	//CollisionManagerTest::TestAll<true>();
-	//MemberManagerTest::TestAll<true>();
-
-	//PackageManagerTest::TestAll<true>();
-	//PackageManagerTest::TestFindCyclidDependencies<true>();
-	//PackageManagerTest::TestCyclicDependencyDetection<true>();
-
-
 	Generator::Generate<CppGenerator>();
 	Generator::Generate<MappingGenerator>();
 	Generator::Generate<IDAMappingGenerator>();

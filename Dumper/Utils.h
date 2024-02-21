@@ -141,7 +141,7 @@ inline bool IsInProcessRange(uintptr_t Address)
 	return Address > ImageBase && Address < (NtHeader->OptionalHeader.SizeOfImage + ImageBase);
 }
 
-static bool IsBadReadPtr(void* p)
+inline bool IsBadReadPtr(void* p)
 {
 	MEMORY_BASIC_INFORMATION mbi;
 
@@ -158,7 +158,7 @@ static bool IsBadReadPtr(void* p)
 	return true;
 };
 
-static inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0, int SkipCount = 0)
+inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0, int SkipCount = 0)
 {
 	const auto PatternLength = Signature.size();
 	const auto PatternBytes = Signature.data();
@@ -199,7 +199,7 @@ static inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* St
 	return nullptr;
 }
 
-static inline void* FindPatternInRange(const char* Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0)
+inline void* FindPatternInRange(const char* Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0)
 {
 	static auto patternToByte = [](const char* pattern) -> std::vector<int>
 	{
@@ -223,7 +223,7 @@ static inline void* FindPatternInRange(const char* Signature, uint8_t* Start, ui
 	return FindPatternInRange(patternToByte(Signature), Start, Range, bRelative, Offset);
 }
 
-static inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearchAllSegments = false)
+inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearchAllSegments = false)
 {
 	uint8_t* ImageBase = (uint8_t*)GetImageBase();
 
@@ -256,6 +256,63 @@ static inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool
 	}
 
 	return FindPatternInRange(Signature, ImageBase, SizeOfImage, Offset != 0x0, Offset);
+}
+
+
+template<typename T>
+inline T* FindAlignedElementInProcessInRange(T Value, int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
+{
+	constexpr int32 ElementSize = sizeof(T);
+
+	for (uint32_t i = 0x0; i < Range; i += Alignment)
+	{
+		T* TypedPtr = reinterpret_cast<T*>(StartAddress + i);
+
+		if (*TypedPtr == Value)
+			return TypedPtr;
+	}
+
+	return nullptr;
+}
+
+template<typename T>
+inline T* FindAlignedElementInProcess(T Value, const std::string& Sectionname = ".data", int32_t Alignment = alignof(T), bool bSearchAllSegments = false)
+{
+	uint8_t* ImageBase = (uint8_t*)GetImageBase();
+
+	const auto DosHeader = (PIMAGE_DOS_HEADER)ImageBase;
+	const auto NtHeaders = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
+
+	const DWORD SizeOfImage = NtHeaders->OptionalHeader.SizeOfImage;
+
+	uint8_t* SearchStart = ImageBase;
+	DWORD SearchSize = SizeOfImage;
+
+	if (!bSearchAllSegments)
+	{
+		PIMAGE_SECTION_HEADER Sections = IMAGE_FIRST_SECTION(NtHeaders);
+
+		for (int i = 0; i < NtHeaders->FileHeader.NumberOfSections; i++)
+		{
+			IMAGE_SECTION_HEADER& CurrentSection = Sections[i];
+
+			std::string SectionName = (const char*)CurrentSection.Name;
+
+			if (SectionName == Sectionname)
+			{
+				SearchStart = (ImageBase + CurrentSection.VirtualAddress);
+				SearchSize = CurrentSection.Misc.VirtualSize;
+				break;
+			}
+		}
+	}
+
+	T* Result = FindAlignedElementInProcessInRange(Value, Alignment, reinterpret_cast<uintptr_t>(SearchStart), SearchSize);
+
+	if (!Result && SearchStart != ImageBase)
+		return FindAlignedElementInProcess(Value, Sectionname, Alignment, true);
+
+	return Result;
 }
 
 struct MemAddress

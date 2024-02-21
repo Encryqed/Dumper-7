@@ -18,6 +18,13 @@ namespace Off
 			void InitPE(int32 Index);
 		}
 
+		namespace World
+		{
+			inline int32 GWorld = 0x0;
+
+			void InitGWorld();
+		}
+
 		namespace ObjArray
 		{
 			inline int32 GObjects;
