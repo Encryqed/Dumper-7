@@ -273,7 +273,7 @@ void MappingGenerator::GenerateEnum(const EnumWrapper& Enum, std::stringstream& 
 	const int32 EnumNameIndex = AddNameToData(NameTable, Enum.GetRawName());
 	WriteToStream(Data, EnumNameIndex);
 
-	WriteToStream(Data, static_cast<uint8>(Enum.GetNumMembers()));
+	WriteToStream(Data, static_cast<uint16>(Enum.GetNumMembers()));
 
 	for (EnumCollisionInfo Member : Enum.GetMembers())
 	{
@@ -371,10 +371,10 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	/* Write 2bytes unsigned */
 	WriteToStream(InUsmap, UsmapFileMagic);
 
-	/* Version: LongFName, as games like Fortnite contain names exceeding 255 characters */
-	WriteToStream(InUsmap, EUsmapVersion::LongFName);
+	/* Version: LargeEnums, some games contain enums exceeding 255 values */
+	WriteToStream(InUsmap, EUsmapVersion::LargeEnums);
 
-	/* We're on 'LongFName' version, we need to write 'bool' (aka int32) bHasVersioning. (NoVersioning = false) -> no [int32 UE4Version, int32 UE5Version] and no [uint32 NetCL] */
+	/* We're on 'LargeEnums' version, we need to write 'bool' (aka int32) bHasVersioning. (NoVersioning = false) -> no [int32 UE4Version, int32 UE5Version] and no [uint32 NetCL] */
 	WriteToStream(InUsmap, static_cast<int32>(false));
 
 	const uint32 UncompressedSize = static_cast<uint32>(Data.str().length());
