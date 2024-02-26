@@ -100,9 +100,9 @@ void FName::Init(bool bForceGNames)
 
 	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? GetOffset(AppendString) : 0x0;
 
-	if (!AppendString)
+	if (!AppendString || bForceGNames)
 	{
-		const bool bInitializedSuccessfully = NameArray::Init();
+		const bool bInitializedSuccessfully = NameArray::TryInit();
 
 		if (bInitializedSuccessfully)
 		{

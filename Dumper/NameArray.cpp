@@ -210,7 +210,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 	if (!bWasMaxChunkIndexFound)
 		return false;
 
-	constexpr uint64 CoreUObjAsUint64 = 0x726F432F74706972; // little endian "ript/Cor" ["/Script/CoreUObject"]
+	constexpr uint64 CoreUObjAsUint64 = 0x6A624F5565726F43; // little endian "jbOUeroC" ["/Script/CoreUObject"]
 	constexpr uint32 NoneAsUint32 = 0x656E6F4E; // little endian "None"
 
 	constexpr int64 CoreUObjectStringLength = sizeof("/S");
@@ -218,7 +218,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 	uint8_t** ChunkPtr = reinterpret_cast<uint8_t**>(NamePool + Off::NameArray::ChunksStart);
 
 	// "/Script/CoreUObject"
-	uint8_t* CoreUObjectFNameEntry = nullptr;
+	bool bFoundCoreUObjectString = false;
 	int64 FNameEntryHeaderSize = 0x0;
 
 	constexpr int32 LoopLimit = 0x1000;
@@ -231,15 +231,13 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 		}
 		else if (*reinterpret_cast<uint64*>(*ChunkPtr + i) == CoreUObjAsUint64)
 		{
-			CoreUObjectFNameEntry = *ChunkPtr + static_cast<uint64>(i) + (CoreUObjectStringLength + FNameEntryHeaderSize);
+			bFoundCoreUObjectString = true;
 			break;
 		}
-		else if (i == (LoopLimit - 1))
-		{
-			/* It seems GNames isn't valid and we need to abort the initialization while it's still safe */
-			return false;
-		}
 	}
+
+	if (!bFoundCoreUObjectString)
+		return false;
 
 	NameEntryStride = FNameEntryHeaderSize == 2 ? 2 : 4;
 	Off::InSDK::NameArray::FNameEntryStride = NameEntryStride;
@@ -263,6 +261,238 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 	FNameEntry::Init(reinterpret_cast<uint8*>(ChunkPtr), FNameEntryHeaderSize);
 
 	return true;
+}
+
+
+/* 
+ * Finds a call to FName::GetNames, OR a reference to GNames directly, if the call has been inlined
+ * 
+ * returns { GetNames/GNames, bIsGNamesDirectly };
+*/
+inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriticalSectionAddress, uintptr_t StartAddress)
+{
+	/* 2 bytes operation + 4 bytes relative offset */
+	constexpr int32 ASMRelativeCallSizeBytes = 0x6;
+
+	/* Range from "ByteProperty" which we want to search upwards for "GetNames" call */
+	constexpr int32 GetNamesCallSearchRange = 0x150;
+
+	/* Find a reference to the string "ByteProperty" in 'FName::StaticInit' */
+	const uint8* BytePropertyStringAddress = static_cast<uint8*>(FindByStringInAllSections(L"ByteProperty", StartAddress));
+
+	/* Important to prevent infinite-recursion */
+	if (!BytePropertyStringAddress)
+		return { 0x0, false };
+
+	for (int i = 0; i < GetNamesCallSearchRange; i++)
+	{
+		/* Check upwards (yes negative indexing) for a relative call opcode */
+		if (BytePropertyStringAddress[-i] != 0xFF)
+			continue;
+
+		uintptr_t CallTarget = ASMUtils::Resolve32BitSectionRelativeCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
+
+		if (CallTarget != EnterCriticalSectionAddress)
+			continue;
+		
+		uintptr_t InstructionAfterCall = reinterpret_cast<uintptr_t>(BytePropertyStringAddress - (i - ASMRelativeCallSizeBytes));
+
+		/* Check if we're dealing with a 'call' opcode */
+		if (*reinterpret_cast<const uint8*>(InstructionAfterCall) == 0xE8)
+			return { ASMUtils::Resolve32BitRelativeCall(InstructionAfterCall), false };
+
+		return { ASMUtils::Resolve32BitRelativeMove(InstructionAfterCall), true };
+	}
+
+	/* Continue and search for another reference to "ByteProperty", safe because we're checking if another string-ref was found*/
+	return FindFNameGetNamesOrGNames(EnterCriticalSectionAddress, reinterpret_cast<uintptr_t>(BytePropertyStringAddress));
+};
+
+bool NameArray::TryFindNameArray()
+{
+	/* Type of 'static TNameEntryArray& FName::GetNames()' */
+	using GetNameType = void* (*)();
+
+	/* Range from 'FName::GetNames' which we want to search down for 'mov register, GNames' */
+	constexpr int32 GetNamesCallSearchRange = 0x100;
+
+	void* EnterCriticalSectionAddress = GetImportAddress(nullptr, "kernel32.dll", "EnterCriticalSection");
+
+	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), GetImageBase());
+
+	if (Address == 0x0)
+		return false;
+
+	if (bIsGNamesDirectly)
+	{
+		if (!IsInProcessRange(Address) || IsBadReadPtr(*reinterpret_cast<void**>(Address)))
+			return false;
+
+		Off::InSDK::NameArray::GNames = GetOffset(reinterpret_cast<void*>(Address));
+		return true;
+	}
+
+	/* Call GetNames to retreive the pointer to the allocation of the name-table, used for later comparison */
+	void* Names = reinterpret_cast<GetNameType>(Address)();
+
+	for (int i = 0; i < GetNamesCallSearchRange; i++)
+	{
+		/* Check upwards (yes negative indexing) for a relative call opcode */
+		if (*reinterpret_cast<const uint16*>(Address + i) != 0x8B48)
+			continue;
+
+		uintptr_t MoveTarget = ASMUtils::Resolve32BitRelativeMove(Address + i);
+
+		if (!IsInProcessRange(MoveTarget))
+			continue;
+
+		void* ValueOfMoveTargetAsPtr = *reinterpret_cast<void**>(MoveTarget);
+
+		if (IsBadReadPtr(ValueOfMoveTargetAsPtr) || ValueOfMoveTargetAsPtr != Names)
+			continue;
+
+		Off::InSDK::NameArray::GNames = GetOffset(reinterpret_cast<void*>(MoveTarget));
+		return true;
+	}
+	
+	return false;
+}
+
+bool NameArray::TryFindNamePool()
+{
+	/* Number of bytes we want to search for an indirect call to InitializeSRWLock */
+	constexpr int32 InitSRWLockSearchRange = 0x50;
+
+	/* Number of bytes we want to search for lea instruction loading the string "ByteProperty" */
+	constexpr int32 BytePropertySearchRange = 0x2A0;
+
+	/* FNamePool::FNamePool contains a call to InitializeSRWLock or RtlInitializeSRWLock, we're going to check for that later */
+	//uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(GetImportAddress(nullptr, "kernel32.dll", "InitializeSRWLock"));
+	uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "InitializeSRWLock"));
+	uintptr_t RtlInitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("ntdll.dll", "RtlInitializeSRWLock"));
+
+	/* Singleton instance of FNamePool, which is passed as a parameter to FNamePool::FNamePool */
+	void* NamePoolIntance = nullptr;
+
+	uintptr_t SigOccurrence = 0x0;;
+
+	uintptr_t Counter = 0x0;
+
+	while (!NamePoolIntance)
+	{
+		/* add 0x1 so we don't find the same occurence again and cause an infinite loop (20min. of debugging for that) */
+		if (SigOccurrence > 0x0)
+			SigOccurrence += 0x1;
+
+		/* Find the next occurence of this signature to see if that may be a call to the FNamePool constructor */
+		SigOccurrence = reinterpret_cast<uintptr_t>(FindPattern("48 8D 0D ? ? ? ? E8", 0x0, true, SigOccurrence));
+
+		if (SigOccurrence == 0x0)
+			break;
+
+		if (GetOffset(reinterpret_cast<void*>(SigOccurrence)) == 0x62FE44)
+			std::cout << "brek" << std::endl;
+
+		constexpr int32 SizeOfMovInstructionBytes = 0x7;
+
+		uintptr_t PossibleConstructorAddress = ASMUtils::Resolve32BitRelativeCall(SigOccurrence + SizeOfMovInstructionBytes);
+
+		if (!IsInProcessRange(PossibleConstructorAddress))
+			continue;
+
+		for (int i = 0; i < InitSRWLockSearchRange; i++)
+		{
+			/* Check for a relative call with the opcodes FF 15 00 00 00 00 */
+			if (*reinterpret_cast<uint16*>(PossibleConstructorAddress + i) != 0x15FF)
+				continue;
+
+			uintptr_t RelativeCallTarget = ASMUtils::Resolve32BitSectionRelativeCall(PossibleConstructorAddress + i);
+
+			if (!IsInProcessRange(RelativeCallTarget))
+				continue;
+
+			uintptr_t ValueOfCallTarget = *reinterpret_cast<uintptr_t*>(RelativeCallTarget);
+
+			if (ValueOfCallTarget != InitSRWLockAddress && ValueOfCallTarget != RtlInitSRWLockAddress)
+				continue;
+
+			/* Try to find the "ByteProperty" string, as it's always referenced in FNamePool::FNamePool, so we use it to verify that we got the right function */
+			void* StringRef = FindByStringInAllSections(L"ByteProperty", PossibleConstructorAddress, BytePropertySearchRange);
+
+			/* We couldn't find a wchar_t string L"ByteProperty", now see if we can find a char string "ByteProperty" */
+			if (!StringRef)
+				StringRef = FindByStringInAllSections("ByteProperty", PossibleConstructorAddress, BytePropertySearchRange);
+
+			if (StringRef)
+			{
+				NamePoolIntance = reinterpret_cast<void*>(ASMUtils::Resolve32BitRelativeMove(SigOccurrence));
+				break;
+			}
+		}
+	}
+
+	if (NamePoolIntance)
+	{
+		Off::InSDK::NameArray::GNames = GetOffset(NamePoolIntance);
+		return true;
+	}
+
+	return false;
+}
+
+bool NameArray::TryInit(bool bIsTestOnly)
+{
+	uintptr_t ImageBase = GetImageBase();
+
+	uint8* GNamesAddress = nullptr;
+
+	bool bFoundNameArray = false;
+	bool bFoundnamePool = false;
+
+	if (NameArray::TryFindNameArray())
+	{
+		std::cout << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		GNamesAddress = *reinterpret_cast<uint8**>(ImageBase + Off::InSDK::NameArray::GNames);// Derefernce
+		bFoundNameArray = true;
+	}
+	else if (NameArray::TryFindNamePool())
+	{
+		std::cout << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames); // No derefernce
+		bFoundnamePool = true;
+	}
+
+	if (!bFoundNameArray && !bFoundnamePool)
+	{
+		std::cout << "\n\nCould not find GNames!\n\n" << std::endl;
+		return false;
+	}
+
+	if (bIsTestOnly)
+		return false;
+
+	if (bFoundNameArray && NameArray::InitializeNameArray(GNamesAddress))
+	{
+		GNames = GNamesAddress;
+		Settings::Internal::bUseNamePool = false;
+		FNameEntry::Init();
+		return true;
+	}
+	else if (bFoundnamePool && NameArray::InitializeNamePool(reinterpret_cast<uint8_t*>(GNamesAddress)))
+	{
+		GNames = GNamesAddress;
+		Settings::Internal::bUseNamePool = true;
+		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
+		return true;
+	}
+
+	GNames = nullptr;
+	Off::InSDK::NameArray::GNames = 0x0;
+	Settings::Internal::bUseNamePool = false;
+
+	std::cout << "\n\nThe address that was found couldn't be used by the generator, this may be due to GNames-encryption.\n\n" << std::endl;
+
+	return false;
 }
 
 bool NameArray::Init()

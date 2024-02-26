@@ -106,10 +106,10 @@ public:
 	template<typename UEType>
 	inline NameInfo GetNameCollisionInfoUnchecked(UEStruct Struct, UEType Member)
 	{
-		CollisionManager::NameContainer& InfosForStruct = NameInfos[Struct.GetIndex()];
+		CollisionManager::NameContainer& InfosForStruct = NameInfos.at(Struct.GetIndex());
 		uint64 NameInfoIndex = TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Struct, Member)];
 
-		return InfosForStruct[NameInfoIndex];
+		return InfosForStruct.at(NameInfoIndex);
 	}
 };
 

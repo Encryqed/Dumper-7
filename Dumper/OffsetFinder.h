@@ -637,7 +637,9 @@ namespace OffsetFinder
 			break;
 		}
 
-
+		if (Lvl == 0x0)
+			return OffsetNotFound;
+		
 		/*
 		class ULevel : public UObject
 		{

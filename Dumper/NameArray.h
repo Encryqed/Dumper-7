@@ -48,10 +48,14 @@ private:
 	static bool InitializeNamePool(uint8_t* NamePool);
 
 public:
-	static bool Init();
-	static void PostInit();
+	/* Should be changed later and combined */
+	static bool TryFindNameArray();
+	static bool TryFindNamePool();
 
-	static void Init(int32 GNamesOffset, bool bIsNamePool);
+	static bool TryInit(bool bIsTestOnly = false);
+
+	[[deprecated]] static bool Init();
+	static void PostInit();
 	
 public:
 	static int32 GetNumChunks();

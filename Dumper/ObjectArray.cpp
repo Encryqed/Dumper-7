@@ -443,10 +443,13 @@ ObjectArray::ObjectsIterator& ObjectArray::ObjectsIterator::operator++()
 {
 	CurrentObject = ObjectArray::GetByIndex(++CurrentIndex);
 
-	while (!CurrentObject && CurrentIndex < ObjectArray::Num() - 1)
+	while (!CurrentObject && CurrentIndex < (ObjectArray::Num() - 1))
 	{
 		CurrentObject = ObjectArray::GetByIndex(++CurrentIndex);
 	}
+
+	if (!CurrentObject && CurrentIndex == (ObjectArray::Num() - 1)) [[unlikely]]
+		CurrentIndex++;
 
 	return *this;
 }

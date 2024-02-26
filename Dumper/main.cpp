@@ -21,7 +21,6 @@
 
 #include "Generator.h"
 
-//#include "StringTableTest.h"
 
 enum class EFortToastType : uint8
 {
@@ -63,7 +62,6 @@ DWORD MainThread(HMODULE Module)
 
 	std::cout << "GameName: " << Settings::Generator::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
-
 
 	Generator::Generate<CppGenerator>();
 	Generator::Generate<MappingGenerator>();

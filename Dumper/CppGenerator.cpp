@@ -1636,15 +1636,18 @@ void CppGenerator::InitPredefinedMembers()
 	};
 
 
-	PredefinedElements& ULevelPredefs = PredefinedMembers[ObjectArray::FindClassFast("Level").GetIndex()];
-	ULevelPredefs.Members =
+	if (Off::ULevel::Actors != -1)
 	{
-		PredefinedMember {
-			.Comment = "THIS IS THE ARRAY YOU'RE LOOKING FOR! [NOT AUTO-GENERATED PROPERTY]",
-			.Type = "class TArray<class AActor*>", .Name = "Actors", .Offset = Off::ULevel::Actors, .Size = 0x10, .ArrayDim = 0x1, .Alignment = 0x8,
-			.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
+		PredefinedElements& ULevelPredefs = PredefinedMembers[ObjectArray::FindClassFast("Level").GetIndex()];
+		ULevelPredefs.Members =
+		{
+			PredefinedMember {
+				.Comment = "THIS IS THE ARRAY YOU'RE LOOKING FOR! [NOT AUTO-GENERATED PROPERTY]",
+				.Type = "class TArray<class AActor*>", .Name = "Actors", .Offset = Off::ULevel::Actors, .Size = 0x10, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false,.bIsBitField = false, .BitIndex = 0xFF
+			},
+		};
+	}
 
 	PredefinedElements& UObjectPredefs = PredefinedMembers[ObjectArray::FindClassFast("Object").GetIndex()];
 	UObjectPredefs.Members = 
@@ -1706,7 +1709,12 @@ void CppGenerator::InitPredefinedMembers()
 		},
 	};
 
-	PredefinedElements& UStructPredefs = PredefinedMembers[ObjectArray::FindClassFast("Struct").GetIndex()];
+	UEObject UStruct = ObjectArray::FindClassFast("Struct");
+
+	if (UStruct == nullptr)
+		UStruct = ObjectArray::FindClassFast("struct");
+
+	PredefinedElements& UStructPredefs = PredefinedMembers[UStruct.GetIndex()];
 	UStructPredefs.Members =
 	{
 		PredefinedMember {
