@@ -390,9 +390,6 @@ bool NameArray::TryFindNamePool()
 		if (SigOccurrence == 0x0)
 			break;
 
-		if (GetOffset(reinterpret_cast<void*>(SigOccurrence)) == 0x62FE44)
-			std::cout << "brek" << std::endl;
-
 		constexpr int32 SizeOfMovInstructionBytes = 0x7;
 
 		uintptr_t PossibleConstructorAddress = ASMUtils::Resolve32BitRelativeCall(SigOccurrence + SizeOfMovInstructionBytes);
@@ -490,7 +487,7 @@ bool NameArray::TryInit(bool bIsTestOnly)
 	Off::InSDK::NameArray::GNames = 0x0;
 	Settings::Internal::bUseNamePool = false;
 
-	std::cout << "\n\nThe address that was found couldn't be used by the generator, this may be due to GNames-encryption.\n\n" << std::endl;
+	std::cout << "The address that was found couldn't be used by the generator, this may be due to GNames-encryption.\n\n" << std::endl;
 
 	return false;
 }
