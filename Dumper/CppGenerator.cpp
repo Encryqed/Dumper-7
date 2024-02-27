@@ -3123,27 +3123,27 @@ public:
 		return Data[Index];
 	}
 
-	inline int32 Num()
+	inline int32 Num() const
 	{
 		return NumElements;
 	}
 
-	inline int32 Max()
+	inline int32 Max() const
 	{
 		return MaxElements;
 	}
 
-	inline int32 GetSlack()
+	inline int32 GetSlack() const
 	{
 		return MaxElements - NumElements;
 	}
 
-	inline bool IsValid()
+	inline bool IsValid() const
 	{
 		return Data != nullptr;
 	}
 
-	inline bool IsValidIndex(int32 Index)
+	inline bool IsValidIndex(int32 Index) const
 	{
 		return Index >= 0 && Index < NumElements;
 	}
@@ -3178,7 +3178,7 @@ public:
 		return FString(Other);
 	}
 
-	inline std::wstring ToWString()
+	inline std::wstring ToWString() const
 	{
 		if (IsValid())
 		{
@@ -3188,7 +3188,7 @@ public:
 		return L"";
 	}
 
-	inline std::string ToString()
+	inline std::string ToString() const
 	{
 		if (IsValid())
 		{
