@@ -487,7 +487,7 @@ bool NameArray::TryInit(bool bIsTestOnly)
 	Off::InSDK::NameArray::GNames = 0x0;
 	Settings::Internal::bUseNamePool = false;
 
-	std::cout << "The address that was found couldn't be used by the generator, this may be due to GNames-encryption.\n\n" << std::endl;
+	std::cout << "The address that was found couldn't be used by the generator, this might be due to GNames-encryption.\n\n" << std::endl;
 
 	return false;
 }

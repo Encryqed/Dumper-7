@@ -764,7 +764,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 		const int32 StructSize = Struct.GetSize();
 
 		// Alignment assertions
-		StructFile << std::format("static_assert(alignof({}) == 0x{:06X}, \"Wrong alinment on {}\");\n", UniquePrefixedName, Struct.GetAlignment(), UniquePrefixedName);
+		StructFile << std::format("static_assert(alignof({}) == 0x{:06X}, \"Wrong alignment on {}\");\n", UniquePrefixedName, Struct.GetAlignment(), UniquePrefixedName);
 
 		// Size assertions
 		StructFile << std::format("static_assert(sizeof({}) == 0x{:06X}, \"Wrong size on {}\");\n", UniquePrefixedName, (StructSize > 0x0 ? StructSize : 0x1), UniquePrefixedName);

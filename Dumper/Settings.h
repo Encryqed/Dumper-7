@@ -94,7 +94,5 @@ R"(
 
 		/* Whether this games' engine version uses a contexpr flag to determine whether a FFieldVariant holds a UObject* or FField* */
 		inline bool bUseMaskForFieldOwner = false;
-
-		inline std::string MainGamePackageName;
 	}
 }
