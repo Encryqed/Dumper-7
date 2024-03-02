@@ -202,6 +202,8 @@ void EnumManager::InitIllegalNames()
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("TRUE").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("FALSE").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("PF_MAX").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("SW_MAX").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("MM_MAX").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("TRANSPARENT").first);
 }
 

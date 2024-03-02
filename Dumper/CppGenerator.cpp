@@ -456,7 +456,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 
 		if (PInfo.bIsOutPtr)
 		{
-			OutPtrAssignments += PInfo.bIsMoveParam ? std::format(R"(
+			OutPtrAssignments += !PInfo.bIsMoveParam ? std::format(R"(
 
 	if ({0} != nullptr)
 		*{0} = Parms.{0};)", PInfo.Name) : std::format(R"(
@@ -1942,6 +1942,13 @@ void CppGenerator::InitPredefinedMembers()
 		},
 	};
 
+	SortMembers(UObjectPredefs.Members);
+	SortMembers(UFieldPredefs.Members);
+	SortMembers(UEnumPredefs.Members);
+	SortMembers(UStructPredefs.Members);
+	SortMembers(UFunctionPredefs.Members);
+	SortMembers(UClassPredefs.Members);
+
 	SortMembers(PropertyMembers);
 	SortMembers(BytePropertyMembers);
 	SortMembers(BoolPropertyMembers);
@@ -1957,18 +1964,26 @@ void CppGenerator::InitPredefinedMembers()
 
 	if (!Settings::Internal::bUseFProperty)
 	{
-		PredefinedMembers[ObjectArray::FindClassFast("Property").GetIndex()].Members = PropertyMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("ByteProperty").GetIndex()].Members = BytePropertyMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("BoolProperty").GetIndex()].Members = BoolPropertyMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("ObjectPropertyBase").GetIndex()].Members = ObjectPropertyBaseMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("ClassProperty").GetIndex()].Members = ClassPropertyMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("StructProperty").GetIndex()].Members = StructPropertyMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("DelegateProperty").GetIndex()].Members = ArrayPropertyMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("MapProperty").GetIndex()].Members = MapPropertyMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("SetProperty").GetIndex()].Members = SetPropertyMembers;
-		PredefinedMembers[ObjectArray::FindClassFast("EnumProperty").GetIndex()].Members = EnumPropertyMembers;
+		auto AssignValueIfObjectIsFound = [](const std::string& ClassName, std::vector<PredefinedMember>&& Members) -> void
+		{
+			if (UEClass Class = ObjectArray::FindClassFast(ClassName))
+				PredefinedMembers[Class.GetIndex()].Members = std::move(Members);
+		};
+
+		AssignValueIfObjectIsFound("Property", std::move(PropertyMembers));
+		AssignValueIfObjectIsFound("ByteProperty", std::move(BytePropertyMembers));
+		AssignValueIfObjectIsFound("BoolProperty", std::move(BoolPropertyMembers));
+		AssignValueIfObjectIsFound("ObjectPropertyBase", std::move(ObjectPropertyBaseMembers));
+		AssignValueIfObjectIsFound("ClassProperty", std::move(ClassPropertyMembers));
+		AssignValueIfObjectIsFound("StructProperty", std::move(StructPropertyMembers));
+		AssignValueIfObjectIsFound("DelegateProperty", std::move(DelegatePropertyMembers));
+		AssignValueIfObjectIsFound("ArrayProperty", std::move(ArrayPropertyMembers));
+		AssignValueIfObjectIsFound("MapProperty", std::move(MapPropertyMembers));
+		AssignValueIfObjectIsFound("SetProperty", std::move(SetPropertyMembers));
+		AssignValueIfObjectIsFound("EnumProperty", std::move(EnumPropertyMembers));
 
 		// FieldPathProperty and OptionalProperty don't exist in UE versions which are using UProperty
+		return;
 	}
 	else
 	{
@@ -2154,13 +2169,6 @@ void CppGenerator::InitPredefinedMembers()
 		InitStructSize(FFieldPathProperty);
 		InitStructSize(FOptionalProperty);
 	}
-
-	SortMembers(UObjectPredefs.Members);
-	SortMembers(UFieldPredefs.Members);
-	SortMembers(UEnumPredefs.Members);
-	SortMembers(UStructPredefs.Members);
-	SortMembers(UFunctionPredefs.Members);
-	SortMembers(UClassPredefs.Members);
 }
 
 

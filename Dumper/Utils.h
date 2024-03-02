@@ -473,14 +473,14 @@ inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearc
 	if (StartAddress == 0x0)
 		StartAddress = SearchStart;
 
-	return FindPatternInRange(Signature, reinterpret_cast<uint8*>(StartAddress), SearchRange, Offset != 0x0, Offset);
+	return FindPatternInRange(Signature, reinterpret_cast<uint8_t*>(StartAddress), SearchRange, Offset != 0x0, Offset);
 }
 
 
 template<typename T>
 inline T* FindAlignedValueInProcessInRange(T Value, int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
 {
-	constexpr int32 ElementSize = sizeof(T);
+	constexpr int32_t ElementSize = sizeof(T);
 
 	for (uint32_t i = 0x0; i < Range; i += Alignment)
 	{
@@ -580,7 +580,7 @@ public:
 	{
 		return Address != nullptr;
 	}
-	explicit operator uint8*()
+	explicit operator uint8_t*()
 	{
 		return Address;
 	}

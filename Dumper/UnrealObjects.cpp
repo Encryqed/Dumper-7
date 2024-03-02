@@ -392,8 +392,8 @@ bool UEField::IsNextValid() const
 
 std::vector<std::pair<FName, int64>> UEEnum::GetNameValuePairs() const
 {
-	struct Name08Byte { uint8 Pad[0x08]; };
-	struct Name16Byte { uint8 Pad[0x10]; };
+	struct alignas(0x4) Name08Byte { uint8 Pad[0x08]; };
+	struct alignas(0x4) Name16Byte { uint8 Pad[0x10]; };
 
 	std::vector<std::pair<FName, int64>> Ret;
 
