@@ -156,6 +156,18 @@ namespace PackageManagerUtils
 		{
 			GetPropertyDependency(Prop.Cast<UEOptionalProperty>().GetValueProperty(), Store);
 		}
+		else if (Prop.IsA(EClassCastFlags::DelegateProperty))
+		{
+			UEFunction SignatureFunction = Prop.Cast<UEDelegateProperty>().GetSignatureFunction();
+
+			if (!SignatureFunction)
+				return;
+
+			for (UEProperty DelegateParam : SignatureFunction.GetProperties())
+			{
+				GetPropertyDependency(DelegateParam, Store);
+			}
+		}
 	}
 
 	std::unordered_set<int32> GetDependencies(UEStruct Struct, int32 StructIndex)
