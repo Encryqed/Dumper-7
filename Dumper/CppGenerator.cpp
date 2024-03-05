@@ -3758,40 +3758,6 @@ std::format(R"({{
 	};
 
 
-
-	PredefinedStruct FTestStruct = PredefinedStruct{
-		.UniqueName = "FTestStruct", .Size = 0x8, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
-	};
-	
-	FTestStruct.Properties =
-	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "uint16", .Name = "bIsWide", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x0, .BitCount = 1
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "uint16", .Name = "This4BitSize", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x1, .BitCount = 4
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "uint16", .Name = "SomeBigerField", .Offset = 0x0, .Size = 0x02, .ArrayDim = 0x1, .Alignment = 0x2,
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x8, .BitCount = 6
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "uint8", .Name = "thisisDefaultbeifeld", .Offset = 0x2, .Size = 0x01, .ArrayDim = 0x1, .Alignment = 0x1,
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = true, .BitIndex = 0x0, .BitCount = 1
-		},
-	};
-
-
-	GenerateStruct(&FName, BasicHpp, BasicCpp, BasicHpp);
-	GenerateStruct(&FTestStruct, BasicHpp, BasicCpp, BasicHpp);
-
-
 	BasicHpp <<
 		R"(
 template<typename ClassType>
