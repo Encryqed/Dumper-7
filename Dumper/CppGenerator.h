@@ -57,6 +57,8 @@ private:
         BasicHpp,
         BasicCpp,
 
+        UnrealContainers,
+
         PropertyFixup,
         SdkHpp,
 
@@ -124,6 +126,14 @@ private:
     static void GenerateSDKHeader(StreamType& SdkHpp);
 
     static void GenerateBasicFiles(StreamType& BasicH, StreamType& BasicCpp);
+
+    /*
+    * Creates the UnrealContainers.hpp file (without allocation code) for the SDK. 
+    * File contains the implementation of TArray, FString, TSparseArray, TSet, TMap and iterators for them
+    *
+    * See https://github.com/Fischsalat/UnrealContainers/blob/master/UnrealContainers/UnrealContainersNoAlloc.h 
+    */
+    static void GenerateUnrealContainers(StreamType& UEContainersHeader);
 
 public:
     static void Generate();
