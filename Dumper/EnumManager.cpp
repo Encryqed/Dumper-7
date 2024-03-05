@@ -199,6 +199,8 @@ void EnumManager::InitInternal()
 
 void EnumManager::InitIllegalNames()
 {
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("IN").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("OUT").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("TRUE").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("FALSE").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("PF_MAX").first);

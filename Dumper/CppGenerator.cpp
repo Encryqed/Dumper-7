@@ -3861,7 +3861,7 @@ public:
 	/* class TPair */
 	PredefinedStruct TPair = PredefinedStruct{
 		.CustomTemplateText = "template<typename ValueType, typename KeyType>",
-		.UniqueName = "TPair", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "TPair", .Size = 0x1, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	TPair.Properties =

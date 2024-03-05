@@ -234,6 +234,9 @@ public:
 		MemberNames.AddReservedName("Parms", true);
 		MemberNames.AddReservedName("Params", true);
 		MemberNames.AddReservedName("Flgs", true);
+
+		MemberNames.AddReservedName("IN", true);
+		MemberNames.AddReservedName("OUT", true);
 	}
 
 	static inline void Init()
