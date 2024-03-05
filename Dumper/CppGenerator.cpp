@@ -3490,7 +3490,7 @@ R"({
 			},
 			PredefinedMember {
 				.Comment = "",
-				.Type = "/*  1. Change \"thread_local FAllocatdString TempString(1024);\" to \"FString TempString;\"            */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
+				.Type = "/*  1. Change \"thread_local FAllocatedString TempString(1024);\" to \"FString TempString;\"            */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
 				.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
 			},
 			PredefinedMember {
@@ -3537,7 +3537,7 @@ R"({
 
 	constexpr const char* GetRawStringWithAppendString =
 		R"({
-	thread_local FAllocatdString TempString(1024);
+	thread_local FAllocatedString TempString(1024);
 
 	if (!AppendString)
 		InitInternal();
