@@ -14,7 +14,7 @@ StructWrapper::StructWrapper(const UEStruct Str)
 
 UEStruct StructWrapper::GetUnrealStruct() const
 {
-    assert(bIsUnrealStruct && "StructWrapper doesn't contian UnrealStruct. Illegal call to 'GetUnrealStruct()'.");
+    assert(bIsUnrealStruct && "StructWrapper doesn't contain UnrealStruct. Illegal call to 'GetUnrealStruct()'.");
 
     return bIsUnrealStruct ? Struct : nullptr;
 }
@@ -136,7 +136,7 @@ bool StructWrapper::HasCustomTemplateText() const
 
 std::string StructWrapper::GetCustomTemplateText() const
 {
-    assert(!IsUnrealStruct() && "StructWrapper doesn't contian PredefStruct. Illegal call to 'GetCustomTemplateText()'.");
+    assert(!IsUnrealStruct() && "StructWrapper doesn't contain PredefStruct. Illegal call to 'GetCustomTemplateText()'.");
 
     return PredefStruct->CustomTemplateText;
 }

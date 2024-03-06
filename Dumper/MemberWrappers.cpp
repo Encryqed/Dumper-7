@@ -18,14 +18,14 @@ std::string PropertyWrapper::GetName() const
 
 std::string PropertyWrapper::GetType() const
 {
-    assert(!bIsUnrealProperty && "PropertyWrapper doesn't contian UnrealProperty. Illegal call to 'GetNameCollisionInfo()'.");
+    assert(!bIsUnrealProperty && "PropertyWrapper doesn't contain UnrealProperty. Illegal call to 'GetNameCollisionInfo()'.");
 
     return PredefProperty->Type;
 }
 
 NameInfo PropertyWrapper::GetNameCollisionInfo() const
 {
-    assert(bIsUnrealProperty && "PropertyWrapper doesn't contian UnrealProperty. Illegal call to 'GetNameCollisionInfo()'.");
+    assert(bIsUnrealProperty && "PropertyWrapper doesn't contain UnrealProperty. Illegal call to 'GetNameCollisionInfo()'.");
 
     return Name;
 }
@@ -42,7 +42,7 @@ UEProperty PropertyWrapper::GetUnrealProperty() const
 
 std::string PropertyWrapper::GetDefaultValue() const
 {
-    assert(!bIsUnrealProperty && "PropertyWrapper doesn't contian PredefiendMember. Illegal call to 'GetDefaultValue()'.");
+    assert(!bIsUnrealProperty && "PropertyWrapper doesn't contain PredefiendMember. Illegal call to 'GetDefaultValue()'.");
 
     return PredefProperty->DefaultValue;
 }
@@ -190,7 +190,7 @@ std::string FunctionWrapper::GetName() const
 
 NameInfo FunctionWrapper::GetNameCollisionInfo() const
 {
-    assert(bIsUnrealFunction && "FunctionWrapper doesn't contian UnrealFunction. Illegal call to 'GetNameCollisionInfo()'.");
+    assert(bIsUnrealFunction && "FunctionWrapper doesn't contain UnrealFunction. Illegal call to 'GetNameCollisionInfo()'.");
 
     return Name;
 }
@@ -202,7 +202,7 @@ EFunctionFlags FunctionWrapper::GetFunctionFlags() const
 
 MemberManager FunctionWrapper::GetMembers() const
 {
-    assert(bIsUnrealFunction && "FunctionWrapper doesn't contian UnrealFunction. Illegal call to 'GetMembers()'.");
+    assert(bIsUnrealFunction && "FunctionWrapper doesn't contain UnrealFunction. Illegal call to 'GetMembers()'.");
 
     return MemberManager(Function);
 }
@@ -214,7 +214,7 @@ std::string FunctionWrapper::StringifyFlags() const
 
 std::string FunctionWrapper::GetParamStructName() const
 {
-    assert(bIsUnrealFunction && "FunctionWrapper doesn't contian UnrealFunction. Illegal call to 'GetParamStructName()'.");
+    assert(bIsUnrealFunction && "FunctionWrapper doesn't contain UnrealFunction. Illegal call to 'GetParamStructName()'.");
 
     return Function.GetOuter().GetValidName() + "_" + Function.GetValidName();
 }
@@ -226,49 +226,49 @@ int32  FunctionWrapper::GetParamStructSize() const
 
 std::string FunctionWrapper::GetPredefFunctionCustomComment() const
 {
-    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionCustomComment()'.");
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contain PredefinedFunction. Illegal call to 'GetPredefFunctionCustomComment()'.");
 
     return PredefFunction->CustomComment;
 }
 
 std::string FunctionWrapper::GetPredefFunctionCustomTemplateText() const
 {
-    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionCustomTemplateText()'.");
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contain PredefinedFunction. Illegal call to 'GetPredefFunctionCustomTemplateText()'.");
 
     return PredefFunction->CustomTemplateText;
 }
 
 std::string FunctionWrapper::GetPredefFuncNameWithParams() const
 {
-    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFuncNameWithParams()'.");
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contain PredefinedFunction. Illegal call to 'GetPredefFuncNameWithParams()'.");
 
     return PredefFunction->NameWithParams;
 }
 
 std::string FunctionWrapper::GetPredefFuncNameWithParamsForCppFile() const
 {
-    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFuncNameWithParamsForCppFile()'.");
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contain PredefinedFunction. Illegal call to 'GetPredefFuncNameWithParamsForCppFile()'.");
 
     return !PredefFunction->NameWithParamsWithoutDefaults.empty() ? PredefFunction->NameWithParamsWithoutDefaults : PredefFunction->NameWithParams;
 }
 
 std::string FunctionWrapper::GetPredefFuncReturnType() const
 {
-    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFuncReturnType()'.");
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contain PredefinedFunction. Illegal call to 'GetPredefFuncReturnType()'.");
 
     return PredefFunction->ReturnType;
 }
 
 std::string FunctionWrapper::GetPredefFunctionBody() const
 {
-    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionBodyRef()'.");
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contain PredefinedFunction. Illegal call to 'GetPredefFunctionBodyRef()'.");
 
     return PredefFunction->Body;
 }
 
 std::string FunctionWrapper::GetPredefFunctionInlineBody() const
 {
-    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contian PredefinedFunction. Illegal call to 'GetPredefFunctionBodyRef()'.");
+    assert(!bIsUnrealFunction && "FunctionWrapper doesn't contain PredefinedFunction. Illegal call to 'GetPredefFunctionBodyRef()'.");
 
     std::string BodyCopy = PredefFunction->Body;
 
@@ -283,7 +283,7 @@ std::string FunctionWrapper::GetPredefFunctionInlineBody() const
 
 UEFunction FunctionWrapper::GetUnrealFunction() const
 {
-    assert(bIsUnrealFunction && "FunctionWrapper doesn't contian UnrealFunction. Illegal call to 'GetUnrealFunction()'.");
+    assert(bIsUnrealFunction && "FunctionWrapper doesn't contain UnrealFunction. Illegal call to 'GetUnrealFunction()'.");
 
     return Function;
 }
