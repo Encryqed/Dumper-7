@@ -24,8 +24,9 @@
 7. If you call a function from the SDK you need to add the .cpp file, that contains the function-body, to your project. \
    Examle: \
    Calling `GetViewportSize()` from `APlayerController` requires you to add `Engine_functions.cpp` to your project. \
-   ![image](https://github.com/Encryqed/Dumper-7/assets/64608145/711cae3c-5b29-4615-92b1-8d0f01235870)
-8. If there are any static_asserts failing, or other errors occuring, during building, read the [Issue](README.md#issues) part of the [ReadMe](README.md)
+   ![image](https://github.com/Encryqed/Dumper-7/assets/64608145/c9ecf0c7-ec73-4e6a-8c6d-d7c86c26b5c8)
+
+9. If there are any static_asserts failing, or other errors occuring, during building, read the [Issue](README.md#issues) part of the [ReadMe](README.md)
 
 ## Using the SDK
 ### 1. Retrieving instances of classes/structs to manipulate them
