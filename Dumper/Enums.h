@@ -4,6 +4,8 @@
 #include <type_traits>
 #include <sstream>
 #include <vector>
+#include <string>
+#include <algorithm>
 
 #include <cassert>
 
@@ -364,7 +366,7 @@ ENUM_OPERATORS(EClassFlags);
 ENUM_OPERATORS(EMappingsTypeFlags);
 ENUM_OPERATORS(EFieldClassID);
 
-static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags)
+static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags, const char Seperator = ',')
 {
 	std::string RetFlags;
 
@@ -398,6 +400,9 @@ static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags)
 	if (FunctionFlags & EFunctionFlags::EditorOnly) { RetFlags += "EditorOnly, "; }
 	if (FunctionFlags & EFunctionFlags::Const) { RetFlags += "Const, "; }
 	if (FunctionFlags & EFunctionFlags::NetValidate) { RetFlags += "NetValidate, "; }
+
+	if (Seperator != ',')
+		std::replace(RetFlags.begin(), RetFlags.end(), ',', Seperator);
 
 	return RetFlags.size() > 2 ? RetFlags.erase(RetFlags.size() - 2) : RetFlags;
 }

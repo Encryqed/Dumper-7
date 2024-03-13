@@ -904,7 +904,7 @@ std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapp
 		return MemberWrapper.GetType();
 	}
 
-	return GetMemberTypeString(MemberWrapper.GetUnrealProperty(), bAllowForConstPtrMembers);
+	return GetMemberTypeString(MemberWrapper.GetUnrealProperty(), PackageIndex, bAllowForConstPtrMembers);
 }
 
 std::string CppGenerator::GetMemberTypeString(UEProperty Member, int32 PackageIndex, bool bAllowForConstPtrMembers)
@@ -1000,7 +1000,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		const StructWrapper& UnderlayingStruct = Member.Cast<UEStructProperty>().GetUnderlayingStruct();
 
 		if (UnderlayingStruct.IsCyclicWithPackage(PackageIndex)) [[unlikely]]
-			return std::format("struct {}", GetCycleFixupType(UnderlayingStruct, false));
+			return std::format("{}", GetCycleFixupType(UnderlayingStruct, false));
 
 		return std::format("struct {}", GetStructPrefixedName(UnderlayingStruct));
 	}
@@ -2283,7 +2283,7 @@ R"({
 			.CustomComment = "Returns the name of this object in the format 'Class Package.Outer.Object'",
 			.ReturnType = "std::string", .NameWithParams = "GetFullName()", .Body =
 R"({
-	if (Class)
+	if (this && Class)
 	{
 		std::string Temp;
 
@@ -5193,7 +5193,7 @@ namespace UC
 		const ContainerImpl::FBitArray& GetAllocationFlags() const { return Elements.GetAllocationFlags(); }
 
 	public:
-		inline decltype(auto) Find(const KeyElementType& Key, bool(*Equals)(const KeyElementType& Key, const ValueElementType& Value))
+		inline decltype(auto) Find(const KeyElementType& Key, bool(*Equals)(const KeyElementType& LeftKey, const KeyElementType& RightKey))
 		{
 			for (auto It = begin(*this); It != end(*this); ++It)
 			{

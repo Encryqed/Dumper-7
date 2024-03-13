@@ -10,15 +10,6 @@
 #include "StructManager.h"
 #include "EnumManager.h"
 
-#include "HashStringTableTest.h"
-#include "GeneratorTest.h"
-#include "StructManagerTest.h"
-#include "CollisionManagerTest.h"
-#include "MemberManagerTest.h"
-#include "CppGeneratorTest.h"
-#include "EnumManagerTest.h"
-#include "PackageManagerTest.h"
-
 #include "Generator.h"
 
 

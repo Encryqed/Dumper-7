@@ -207,9 +207,9 @@ MemberManager FunctionWrapper::GetMembers() const
     return MemberManager(Function);
 }
 
-std::string FunctionWrapper::StringifyFlags() const
+std::string FunctionWrapper::StringifyFlags(const char Seperator) const
 {
-    return bIsUnrealFunction ? Function.StringifyFlags() : "NoFlags";
+    return bIsUnrealFunction ? Function.StringifyFlags(Seperator) : "NoFlags";
 }
 
 std::string FunctionWrapper::GetParamStructName() const
@@ -279,6 +279,14 @@ std::string FunctionWrapper::GetPredefFunctionInlineBody() const
     }
 
     return BodyCopy;
+}
+
+uintptr_t FunctionWrapper::GetExecFuncOffset() const
+{
+    if (bIsUnrealFunction)
+        return 0x0;
+
+    return GetOffset(Function.GetExecFunction());
 }
 
 UEFunction FunctionWrapper::GetUnrealFunction() const
