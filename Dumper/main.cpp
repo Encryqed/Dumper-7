@@ -55,9 +55,9 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::Generator::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
-	//Generator::Generate<CppGenerator>();
-	//Generator::Generate<MappingGenerator>();
-	//Generator::Generate<IDAMappingGenerator>();
+	Generator::Generate<CppGenerator>();
+	Generator::Generate<MappingGenerator>();
+	Generator::Generate<IDAMappingGenerator>();
 	Generator::Generate<DumpspaceGenerator>();
 
 

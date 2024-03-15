@@ -47,7 +47,7 @@ private:
     static std::vector<std::string> GetSuperClasses(const StructWrapper& Struct);
 
 private:
-    static DSGen::ClassHolder GenerateStruct(const StructWrapper& Struct, bool bIsClass = false);
+    static DSGen::ClassHolder GenerateStruct(const StructWrapper& Struct);
     static DSGen::EnumHolder GenerateEnum(const EnumWrapper& Enum);
     static DSGen::FunctionHolder GenearateFunction(const FunctionWrapper& Function);
 

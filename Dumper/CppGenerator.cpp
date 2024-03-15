@@ -3508,7 +3508,7 @@ R"({
 			},
 			PredefinedMember {
 				.Comment = "",
-				.Type = "/*  1. Change \"thread_local FAllocatedString TempString(1024);\" to \"FString TempString;\"            */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
+				.Type = "/*  1. Change \"thread_local FAllocatedString TempString(1024);\" to \"FString TempString;\"   */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
 				.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
 			},
 			PredefinedMember {
@@ -3518,7 +3518,7 @@ R"({
 			},
 			PredefinedMember {
 				.Comment = "",
-				.Type = "/*  3. Replace \"TempString.Clear();\" with \"TempString.Free();\"                          */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
+				.Type = "/*  3. Replace \"TempString.Clear();\" with \"TempString.Free();\"                             */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
 				.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
 			},
 			PredefinedMember {

@@ -8,15 +8,9 @@ DSGen::DSGen()
 
 void DSGen::setDirectory(const std::filesystem::path& directory)
 {
-	DSGen::directory = directory / "Dumpspace";
+	DSGen::directory = directory;
 
 	dumpTimeStamp = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
-
-
-	if(!create_directories(DSGen::directory))
-	{
-		remove_all(DSGen::directory);
-	}
 }
 
 void DSGen::addOffset(const std::string& name, uintptr_t offset)
@@ -174,7 +168,7 @@ void DSGen::bakeStructOrClass(ClassHolder& classHolder)
 
 void DSGen::bakeEnum(EnumHolder& enumHolder)
 {
-	nlohmann::json members = nlohmann::json::array({});
+	nlohmann::json members = nlohmann::json::array();
 	for(const auto& member : enumHolder.enumMembers)
 	{
 		nlohmann::json m;

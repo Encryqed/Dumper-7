@@ -377,7 +377,7 @@ std::vector<std::string> DumpspaceGenerator::GetSuperClasses(const StructWrapper
 	return RetSuperNames;
 }
 
-DSGen::ClassHolder DumpspaceGenerator::GenerateStruct(const StructWrapper& Struct, bool bIsClass)
+DSGen::ClassHolder DumpspaceGenerator::GenerateStruct(const StructWrapper& Struct)
 {
 	DSGen::ClassHolder StructOrClass;
 	StructOrClass.className = GetStructPrefixedName(Struct);
@@ -390,7 +390,7 @@ DSGen::ClassHolder DumpspaceGenerator::GenerateStruct(const StructWrapper& Struc
 	for (const PropertyWrapper& Wrapper : Members.IterateMembers())
 		AddMemberToStruct(StructOrClass, Wrapper);
 
-	if (!bIsClass)
+	if (!Struct.IsClass())
 		return StructOrClass;
 
 	for (const FunctionWrapper& Wrapper : Members.IterateFunctions())
