@@ -283,7 +283,7 @@ std::string FunctionWrapper::GetPredefFunctionInlineBody() const
 
 uintptr_t FunctionWrapper::GetExecFuncOffset() const
 {
-    if (bIsUnrealFunction)
+    if (!bIsUnrealFunction)
         return 0x0;
 
     return GetOffset(Function.GetExecFunction());
