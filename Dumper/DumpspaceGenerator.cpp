@@ -377,7 +377,7 @@ std::vector<std::string> DumpspaceGenerator::GetSuperClasses(const StructWrapper
 	return RetSuperNames;
 }
 
-void DumpspaceGenerator::GenerateStruct(const StructWrapper& Struct, bool bIsClass)
+DSGen::ClassHolder DumpspaceGenerator::GenerateStruct(const StructWrapper& Struct, bool bIsClass)
 {
 	DSGen::ClassHolder StructOrClass;
 	StructOrClass.className = GetStructPrefixedName(Struct);
@@ -385,16 +385,21 @@ void DumpspaceGenerator::GenerateStruct(const StructWrapper& Struct, bool bIsCla
 	StructOrClass.classType = Struct.IsClass() ? DSGen::ET_Class : DSGen::ET_Struct;
 	StructOrClass.interitedTypes = GetSuperClasses(Struct);
 
-	/* <<<-------------------------------------- TODO -------------------------------------------->>> */
-	StructOrClass.functions; // ToDo
-
 	MemberManager Members = Struct.GetMembers();
 
 	for (const PropertyWrapper& Wrapper : Members.IterateMembers())
 		AddMemberToStruct(StructOrClass, Wrapper);
+
+	if (!bIsClass)
+		return StructOrClass;
+
+	for (const FunctionWrapper& Wrapper : Members.IterateFunctions())
+		StructOrClass.functions.push_back(GenearateFunction(Wrapper));
+
+	return StructOrClass;
 }
 
-void DumpspaceGenerator::GenerateEnum(const EnumWrapper& Enum)
+DSGen::EnumHolder DumpspaceGenerator::GenerateEnum(const EnumWrapper& Enum)
 {
 	DSGen::EnumHolder Enumerator;
 	Enumerator.enumName = GetEnumPrefixedName(Enum);
@@ -404,27 +409,91 @@ void DumpspaceGenerator::GenerateEnum(const EnumWrapper& Enum)
 		
 	for (const EnumCollisionInfo& Info : Enum.GetMembers())
 		Enumerator.enumMembers.emplace_back(Info.GetUniqueName(), Info.GetValue());
+
+	return Enumerator;
 }
 
-void DumpspaceGenerator::GenerateFunction(const FunctionWrapper& Function)
+DSGen::FunctionHolder DumpspaceGenerator::GenearateFunction(const FunctionWrapper& Function)
 {
-	DSGen::FunctionHolder Func;
+	DSGen::FunctionHolder RetFunc;
 
-	Func.functionFlags = Function.StringifyFlags('|');
+	StructWrapper FuncAsStruct = Function.AsStruct();
+	MemberManager FuncParams = FuncAsStruct.GetMembers();
 
-	/* Remove spaces */
-	std::string::iterator NewEnd = std::remove(Func.functionFlags.begin(), Func.functionFlags.end(), ' ');
-	Func.functionFlags.erase(NewEnd, Func.functionFlags.end());
+	RetFunc.functionName = Function.GetName();
+	RetFunc.functionOffset = Function.GetExecFuncOffset();
+	RetFunc.functionFlags = Function.StringifyFlags("|");
+	RetFunc.returnType = ManualCreateMemberType(DSGen::ET_Default, "void");
 
-	Func.functionName = Function.GetName();
-	Func.functionOffset = Function.GetExecFuncOffset();
-	Func.functionParams /* ToDo */;
-	Func.returnType /* ToDo */;
-	//Function.retur
+	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
+	{
+		if (Param.HasPropertyFlags(EPropertyFlags::ReturnParm))
+		{
+			RetFunc.returnType = GetMemberType(Param);
+			continue;
+		}
+
+		RetFunc.functionParams.emplace_back(GetMemberType(Param), Param.GetName());
+	}
+
+	return RetFunc;
 }
-
 
 void DumpspaceGenerator::GeneratedStaticOffsets()
 {
+	DSGen::addOffset("GObjects", Off::InSDK::ObjArray::GObjects);
+	DSGen::addOffset(Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString", Off::InSDK::Name::AppendNameToString);
+	DSGen::addOffset("GNames", Off::InSDK::NameArray::GNames);
+	DSGen::addOffset("GWorld", Off::InSDK::World::GWorld);
+	DSGen::addOffset("ProcessEvent", Off::InSDK::ProcessEvent::PEOffset);
+	DSGen::addOffset("ProcessEventIdx", Off::InSDK::ProcessEvent::PEIndex);
+}
 
+void DumpspaceGenerator::Generate()
+{
+	/* Set the output directory of DSGen to "...GenerationPath/GameVersion-GameName/Dumespace" */
+	DSGen::setDirectory(MainFolder);
+
+	/* Add offsets for GObjects, GNames, GWorld, AppendString, PrcessEvent and ProcessEventIndex*/
+	GeneratedStaticOffsets();
+
+	// Generates all packages and writes them to files
+	for (PackageInfoHandle Package : PackageManager::IterateOverPackageInfos())
+	{
+		if (Package.IsEmpty())
+			continue;
+
+		/*
+		* Generate classes/structs/enums/functions directly into the respective files
+		*
+		* Note: Some filestreams aren't opened but passed as parameters anyway because the function demands it, they are not used if they are closed
+		*/
+		for (int32 EnumIdx : Package.GetEnums())
+		{
+			DSGen::EnumHolder Enum = GenerateEnum(ObjectArray::GetByIndex<UEEnum>(EnumIdx));
+			DSGen::bakeEnum(Enum);
+		}
+
+		DependencyManager::OnVisitCallbackType GenerateClassOrStructCallback = [&](int32 Index) -> void
+		{
+			DSGen::ClassHolder StructOrClass = GenerateStruct(ObjectArray::GetByIndex<UEStruct>(Index));
+			DSGen::bakeStructOrClass(StructOrClass);
+		};
+
+		if (Package.HasStructs())
+		{
+			const DependencyManager& Structs = Package.GetSortedStructs();
+
+			Structs.VisitAllNodesWithCallback(GenerateClassOrStructCallback);
+		}
+
+		if (Package.HasClasses())
+		{
+			const DependencyManager& Classes = Package.GetSortedClasses();
+
+			Classes.VisitAllNodesWithCallback(GenerateClassOrStructCallback);
+		}
+	}
+
+	DSGen::dump();
 }

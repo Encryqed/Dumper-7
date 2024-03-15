@@ -207,7 +207,7 @@ MemberManager FunctionWrapper::GetMembers() const
     return MemberManager(Function);
 }
 
-std::string FunctionWrapper::StringifyFlags(const char Seperator) const
+std::string FunctionWrapper::StringifyFlags(const char* Seperator) const
 {
     return bIsUnrealFunction ? Function.StringifyFlags(Seperator) : "NoFlags";
 }

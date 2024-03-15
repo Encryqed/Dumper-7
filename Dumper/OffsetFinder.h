@@ -429,7 +429,10 @@ namespace OffsetFinder
 		for (int i = 0x40; i < 0x140; i += 8)
 		{
 			if (IsInProcessRange(*reinterpret_cast<uintptr_t*>(WasInputKeyJustPressed + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(ToggleSpeaking + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(SwitchLevel + i)))
+			{
+				std::cout << "Func: " << std::hex << WasInputKeyJustPressed << std::endl;
 				return i;
+			}
 		}
 
 		return 0x0;

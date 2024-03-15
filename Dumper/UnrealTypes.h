@@ -171,15 +171,15 @@ public:
 public:
 	inline const void* GetAddress() const { return Address; }
 
-	std::string ToString();
-	std::string ToValidString();
+	std::string ToString() const;
+	std::string ToValidString() const;
 
-	int32 GetCompIdx();
-	int32 GetNumber();
+	int32 GetCompIdx() const;
+	int32 GetNumber() const;
 
-	bool operator==(FName Other);
+	bool operator==(FName Other) const;
 
-	bool operator!=(FName Other);
+	bool operator!=(FName Other) const;
 
 	static std::string CompIdxToString(int CmpIdx);
 

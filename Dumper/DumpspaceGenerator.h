@@ -47,21 +47,15 @@ private:
     static std::vector<std::string> GetSuperClasses(const StructWrapper& Struct);
 
 private:
-    static void GenerateStruct(const StructWrapper& Struct, bool bIsClass = false);
-    static void GenerateEnum(const EnumWrapper& Enum);
-    static void GenerateFunction(const FunctionWrapper& Function);
+    static DSGen::ClassHolder GenerateStruct(const StructWrapper& Struct, bool bIsClass = false);
+    static DSGen::EnumHolder GenerateEnum(const EnumWrapper& Enum);
+    static DSGen::FunctionHolder GenearateFunction(const FunctionWrapper& Function);
 
     static void GeneratedStaticOffsets();
 
 public:
-    static void Generate()
-    {
-        DSGen::setDirectory(MainFolder);
+    static void Generate();
 
-
-        DSGen::dump();
-    }
-
-    static void InitPredefinedMembers();
-    static void InitPredefinedFunctions();
+    static void InitPredefinedMembers() { };
+    static void InitPredefinedFunctions() { };
 };

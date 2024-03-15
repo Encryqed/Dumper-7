@@ -6,6 +6,7 @@
 #include "CppGenerator.h"
 #include "MappingGenerator.h"
 #include "IDAMappingGenerator.h"
+#include "DumpspaceGenerator.h"
 
 #include "StructManager.h"
 #include "EnumManager.h"
@@ -54,9 +55,10 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::Generator::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
-	Generator::Generate<CppGenerator>();
-	Generator::Generate<MappingGenerator>();
-	Generator::Generate<IDAMappingGenerator>();
+	//Generator::Generate<CppGenerator>();
+	//Generator::Generate<MappingGenerator>();
+	//Generator::Generate<IDAMappingGenerator>();
+	Generator::Generate<DumpspaceGenerator>();
 
 
 	auto t_C = std::chrono::high_resolution_clock::now();

@@ -657,7 +657,7 @@ UEProperty UEFunction::GetReturnProperty() const
 }
 
 
-std::string UEFunction::StringifyFlags(const char Seperator)  const
+std::string UEFunction::StringifyFlags(const char* Seperator)  const
 {
 	return StringifyFunctionFlags(GetFunctionFlags(), Seperator);
 }

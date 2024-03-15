@@ -123,10 +123,14 @@ void FName::Init(bool bForceGNames)
 		}
 		else /* Attempt to find FName::ToString as a final fallback */
 		{
+			/* Initialize GNames offset without committing to use GNames during the dumping process or in the SDK */
+			NameArray::SetGNamesWithoutCommiting();
 			FName::InitFallback();
 		}
 	}
 
+	/* Initialize GNames offset without committing to use GNames during the dumping process or in the SDK */
+	NameArray::SetGNamesWithoutCommiting();
 
 	std::cout << std::format("Found FName::{} at Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
 
@@ -188,7 +192,7 @@ void FName::InitFallback()
 	Off::InSDK::Name::AppendNameToString = AppendString ? GetOffset(AppendString) : 0x0;
 }
 
-std::string FName::ToString()
+std::string FName::ToString() const
 {
 	std::string OutputString = ToStr(Address);
 
@@ -200,27 +204,27 @@ std::string FName::ToString()
 	return OutputString.substr(pos + 1);
 }
 
-std::string FName::ToValidString()
+std::string FName::ToValidString() const
 {
 	return MakeNameValid(ToString());
 }
 
-int32 FName::GetCompIdx()
+int32 FName::GetCompIdx() const 
 {
 	return *reinterpret_cast<int32*>(Address + Off::FName::CompIdx);
 }
 
-int32 FName::GetNumber()
+int32 FName::GetNumber() const
 {
 	return !Settings::Internal::bUseUoutlineNumberName ? *reinterpret_cast<int32*>(Address + Off::FName::Number) : 0x0;
 }
 
-bool FName::operator==(FName Other)
+bool FName::operator==(FName Other) const
 {
 	return GetCompIdx() == Other.GetCompIdx();
 }
 
-bool FName::operator!=(FName Other)
+bool FName::operator!=(FName Other) const
 {
 	return GetCompIdx() != Other.GetCompIdx();
 }

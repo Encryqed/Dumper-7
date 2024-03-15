@@ -106,7 +106,7 @@ public:
 
     MemberManager GetMembers() const;
 
-    std::string StringifyFlags(const char Seperator = ',') const;
+    std::string StringifyFlags(const char* Seperator = ", ") const;
     std::string GetParamStructName() const;
     int32 GetParamStructSize() const;
 

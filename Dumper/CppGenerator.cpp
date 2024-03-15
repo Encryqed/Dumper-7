@@ -2308,16 +2308,7 @@ R"({
 			.CustomComment = "Checks a UObjects' type by Class",
 			.ReturnType = "bool", .NameWithParams = "IsA(class UClass* TypeClass)", .Body =
 R"({
-	if (!TypeClass)
-		return false;
-
-	for (UStruct* Super = Class; Super; Super = Super->Super)
-	{
-		if (Super == TypeClass)
-			return true;
-	}
-
-	return false;
+	return Class->IsSubclassOf(TypeClass);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
@@ -2354,6 +2345,33 @@ R"({
 	InSDKUtils::CallGameFunction(InSDKUtils::GetVirtualFunction<void(*)(const UObject*, class UFunction*, void*)>(this, Offsets::ProcessEventIdx), this, Function, Parms);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+	};
+
+	UEClass Struct = ObjectArray::FindClassFast("Struct");
+
+	const int32 UStructIdx = Struct ? Struct.GetIndex() : ObjectArray::FindClassFast("struct").GetIndex(); // misspelled on some UE versions.
+
+	PredefinedElements& UStructPredefs = PredefinedMembers[UStructIdx];
+
+	UStructPredefs.Functions =
+	{
+		PredefinedFunction {
+			.CustomComment = "Checks if this class has a certain base",
+			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const UStruct* Base)", .Body =
+R"({
+	if (!Base)
+		return false;
+
+	for (const UStruct* Struct = this; Struct; Struct = Struct->Super)
+	{
+		if (Struct == Base)
+			return true;
+	}
+
+	return false;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 	};
 

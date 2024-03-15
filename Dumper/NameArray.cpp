@@ -492,6 +492,29 @@ bool NameArray::TryInit(bool bIsTestOnly)
 	return false;
 }
 
+bool NameArray::SetGNamesWithoutCommiting()
+{
+	/* GNames is already set */
+	if (Off::InSDK::NameArray::GNames != 0x0)
+		return false;
+
+	if (NameArray::TryFindNameArray())
+	{
+		std::cout << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		Settings::Internal::bUseNamePool = false;
+		return true;
+	}
+	else if (NameArray::TryFindNamePool())
+	{
+		std::cout << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		Settings::Internal::bUseNamePool = true;
+		return true;
+	}
+
+	std::cout << "\n\nCould not find GNames!\n\n" << std::endl;
+	return false;
+}
+
 bool NameArray::Init()
 {
 	uintptr_t ImageBase = GetImageBase();

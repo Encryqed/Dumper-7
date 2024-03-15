@@ -118,7 +118,7 @@ void DSGen::bakeStructOrClass(ClassHolder& classHolder)
 	nlohmann::json membersArray = nlohmann::json::array();
 
 	nlohmann::json inheritInfo = nlohmann::json::array();
-	for (auto& super : classHolder.interitedTypes)
+	for (auto super : classHolder.interitedTypes)
 		inheritInfo.push_back(super);
 
 	nlohmann::json InheritInfo;
@@ -174,7 +174,7 @@ void DSGen::bakeStructOrClass(ClassHolder& classHolder)
 
 void DSGen::bakeEnum(EnumHolder& enumHolder)
 {
-	nlohmann::json members = nlohmann::json::array();
+	nlohmann::json members = nlohmann::json::array({});
 	for(const auto& member : enumHolder.enumMembers)
 	{
 		nlohmann::json m;
