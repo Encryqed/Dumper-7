@@ -54,6 +54,9 @@ public:
 
 	static bool TryInit(bool bIsTestOnly = false);
 
+	/* Initializes the GNames offset, but doesn't call NameArray::InitializeNameArray() or NameArray::InitializedNamePool() */
+	static bool SetGNamesWithoutCommiting();
+
 	[[deprecated]] static bool Init();
 	static void PostInit();
 	

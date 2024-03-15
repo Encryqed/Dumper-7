@@ -4,6 +4,9 @@
 #include <type_traits>
 #include <sstream>
 #include <vector>
+#include <string>
+#include <algorithm>
+#include <array>
 
 #include <cassert>
 
@@ -364,42 +367,55 @@ ENUM_OPERATORS(EClassFlags);
 ENUM_OPERATORS(EMappingsTypeFlags);
 ENUM_OPERATORS(EFieldClassID);
 
-static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags)
+static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags, const char* Seperator = ", ")
 {
+	/* Make sure the size of this vector is always greater, or equal, to the number of flags existing */
+	std::array<const char*, 0x30> StringFlags;
+	int32 CurrentIdx = 0x0;
+
+	if (FunctionFlags & EFunctionFlags::Final) { StringFlags[CurrentIdx++] = "Final"; }
+	if (FunctionFlags & EFunctionFlags::RequiredAPI) { StringFlags[CurrentIdx++] = "RequiredAPI"; }
+	if (FunctionFlags & EFunctionFlags::BlueprintAuthorityOnly) { StringFlags[CurrentIdx++] = "BlueprintAuthorityOnly"; }
+	if (FunctionFlags & EFunctionFlags::BlueprintCosmetic) { StringFlags[CurrentIdx++] = "BlueprintCosmetic"; }
+	if (FunctionFlags & EFunctionFlags::Net) { StringFlags[CurrentIdx++] = "Net"; }
+	if (FunctionFlags & EFunctionFlags::NetReliable) { StringFlags[CurrentIdx++] = "NetReliable"; }
+	if (FunctionFlags & EFunctionFlags::NetRequest) { StringFlags[CurrentIdx++] = "NetRequest"; }
+	if (FunctionFlags & EFunctionFlags::Exec) { StringFlags[CurrentIdx++] = "Exec"; }
+	if (FunctionFlags & EFunctionFlags::Native) { StringFlags[CurrentIdx++] =  "Native"; }
+	if (FunctionFlags & EFunctionFlags::Event) { StringFlags[CurrentIdx++] = "Event"; }
+	if (FunctionFlags & EFunctionFlags::NetResponse) { StringFlags[CurrentIdx++] = "NetResponse"; }
+	if (FunctionFlags & EFunctionFlags::Static) { StringFlags[CurrentIdx++] = "Static"; }
+	if (FunctionFlags & EFunctionFlags::NetMulticast) { StringFlags[CurrentIdx++] = "NetMulticast"; }
+	if (FunctionFlags & EFunctionFlags::UbergraphFunction) { StringFlags[CurrentIdx++] =  "UbergraphFunction"; }
+	if (FunctionFlags & EFunctionFlags::MulticastDelegate) { StringFlags[CurrentIdx++] =  "MulticastDelegate"; }
+	if (FunctionFlags & EFunctionFlags::Public) { StringFlags[CurrentIdx++] = "Public"; }
+	if (FunctionFlags & EFunctionFlags::Private) { StringFlags[CurrentIdx++] = "Private"; }
+	if (FunctionFlags & EFunctionFlags::Protected) { StringFlags[CurrentIdx++] = "Protected"; }
+	if (FunctionFlags & EFunctionFlags::Delegate) { StringFlags[CurrentIdx++] = "Delegate"; }
+	if (FunctionFlags & EFunctionFlags::NetServer) { StringFlags[CurrentIdx++] = "NetServer"; }
+	if (FunctionFlags & EFunctionFlags::HasOutParms) { StringFlags[CurrentIdx++] =  "HasOutParams"; }
+	if (FunctionFlags & EFunctionFlags::HasDefaults) { StringFlags[CurrentIdx++] =  "HasDefaults"; }
+	if (FunctionFlags & EFunctionFlags::NetClient) { StringFlags[CurrentIdx++] = "NetClient"; }
+	if (FunctionFlags & EFunctionFlags::DLLImport) { StringFlags[CurrentIdx++] = "DLLImport"; }
+	if (FunctionFlags & EFunctionFlags::BlueprintCallable) { StringFlags[CurrentIdx++] = "BlueprintCallable"; }
+	if (FunctionFlags & EFunctionFlags::BlueprintEvent) { StringFlags[CurrentIdx++] = "BlueprintEvent"; }
+	if (FunctionFlags & EFunctionFlags::BlueprintPure) { StringFlags[CurrentIdx++] = "BlueprintPure"; }
+	if (FunctionFlags & EFunctionFlags::EditorOnly) { StringFlags[CurrentIdx++] = "EditorOnly"; }
+	if (FunctionFlags & EFunctionFlags::Const) { StringFlags[CurrentIdx++] = "Const"; }
+	if (FunctionFlags & EFunctionFlags::NetValidate) { StringFlags[CurrentIdx++] = "NetValidate"; }
+
 	std::string RetFlags;
+	RetFlags.reserve(CurrentIdx * 0xF);
 
-	if (FunctionFlags & EFunctionFlags::Final) { RetFlags += "Final, "; }
-	if (FunctionFlags & EFunctionFlags::RequiredAPI) { RetFlags += "RequiredAPI, "; }
-	if (FunctionFlags & EFunctionFlags::BlueprintAuthorityOnly) { RetFlags += "BlueprintAuthorityOnly, "; }
-	if (FunctionFlags & EFunctionFlags::BlueprintCosmetic) { RetFlags += "BlueprintCosmetic, "; }
-	if (FunctionFlags & EFunctionFlags::Net) { RetFlags += "Net, "; }
-	if (FunctionFlags & EFunctionFlags::NetReliable) { RetFlags += "NetReliable, "; }
-	if (FunctionFlags & EFunctionFlags::NetRequest) { RetFlags += "NetRequest, "; }
-	if (FunctionFlags & EFunctionFlags::Exec) { RetFlags += "Exec, "; }
-	if (FunctionFlags & EFunctionFlags::Native) { RetFlags += "Native, "; }
-	if (FunctionFlags & EFunctionFlags::Event) { RetFlags += "Event, "; }
-	if (FunctionFlags & EFunctionFlags::NetResponse) { RetFlags += "NetResponse, "; }
-	if (FunctionFlags & EFunctionFlags::Static) { RetFlags += "Static, "; }
-	if (FunctionFlags & EFunctionFlags::NetMulticast) { RetFlags += "NetMulticast, "; }
-	if (FunctionFlags & EFunctionFlags::UbergraphFunction) { RetFlags += "UbergraphFunction, "; }
-	if (FunctionFlags & EFunctionFlags::MulticastDelegate) { RetFlags += "MulticastDelegate, "; }
-	if (FunctionFlags & EFunctionFlags::Public) { RetFlags += "Public, "; }
-	if (FunctionFlags & EFunctionFlags::Private) { RetFlags += "Private, "; }
-	if (FunctionFlags & EFunctionFlags::Protected) { RetFlags += "Protected, "; }
-	if (FunctionFlags & EFunctionFlags::Delegate) { RetFlags += "Delegate, "; }
-	if (FunctionFlags & EFunctionFlags::NetServer) { RetFlags += "NetServer, "; }
-	if (FunctionFlags & EFunctionFlags::HasOutParms) { RetFlags += "HasOutParams, "; }
-	if (FunctionFlags & EFunctionFlags::HasDefaults) { RetFlags += "HasDefaults, "; }
-	if (FunctionFlags & EFunctionFlags::NetClient) { RetFlags += "NetClient, "; }
-	if (FunctionFlags & EFunctionFlags::DLLImport) { RetFlags += "DLLImport, "; }
-	if (FunctionFlags & EFunctionFlags::BlueprintCallable) { RetFlags += "BlueprintCallable, "; }
-	if (FunctionFlags & EFunctionFlags::BlueprintEvent) { RetFlags += "BlueprintEvent, "; }
-	if (FunctionFlags & EFunctionFlags::BlueprintPure) { RetFlags += "BlueprintPure, "; }
-	if (FunctionFlags & EFunctionFlags::EditorOnly) { RetFlags += "EditorOnly, "; }
-	if (FunctionFlags & EFunctionFlags::Const) { RetFlags += "Const, "; }
-	if (FunctionFlags & EFunctionFlags::NetValidate) { RetFlags += "NetValidate, "; }
+	for (int i = 0; i < CurrentIdx; i++)
+	{
+		RetFlags += StringFlags[i];
 
-	return RetFlags.size() > 2 ? RetFlags.erase(RetFlags.size() - 2) : RetFlags;
+		if (i != (CurrentIdx - 1))
+			RetFlags += Seperator;
+	}
+
+	return RetFlags;
 }
 
 static std::string StringifyPropertyFlags(EPropertyFlags PropertyFlags)

@@ -77,6 +77,7 @@ public:
     static inline fs::path MainFolder;
     static inline fs::path Subfolder;
 
+private:
     static inline std::vector<PredefinedStruct> PredefinedStructs;
 
 private:

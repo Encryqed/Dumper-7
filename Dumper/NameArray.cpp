@@ -450,12 +450,14 @@ bool NameArray::TryInit(bool bIsTestOnly)
 	{
 		std::cout << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		GNamesAddress = *reinterpret_cast<uint8**>(ImageBase + Off::InSDK::NameArray::GNames);// Derefernce
+		Settings::Internal::bUseNamePool = false;
 		bFoundNameArray = true;
 	}
 	else if (NameArray::TryFindNamePool())
 	{
 		std::cout << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames); // No derefernce
+		Settings::Internal::bUseNamePool = true;
 		bFoundnamePool = true;
 	}
 
@@ -483,12 +485,35 @@ bool NameArray::TryInit(bool bIsTestOnly)
 		return true;
 	}
 
-	GNames = nullptr;
-	Off::InSDK::NameArray::GNames = 0x0;
-	Settings::Internal::bUseNamePool = false;
+	//GNames = nullptr;
+	//Off::InSDK::NameArray::GNames = 0x0;
+	//Settings::Internal::bUseNamePool = false;
 
-	std::cout << "The address that was found couldn't be used by the generator, this might be due to GNames-encryption.\n\n" << std::endl;
+	std::cout << "The address that was found couldn't be used by the generator, this might be due to GNames-encryption.\n" << std::endl;
 
+	return false;
+}
+
+bool NameArray::SetGNamesWithoutCommiting()
+{
+	/* GNames is already set */
+	if (Off::InSDK::NameArray::GNames != 0x0)
+		return false;
+
+	if (NameArray::TryFindNameArray())
+	{
+		std::cout << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		Settings::Internal::bUseNamePool = false;
+		return true;
+	}
+	else if (NameArray::TryFindNamePool())
+	{
+		std::cout << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		Settings::Internal::bUseNamePool = true;
+		return true;
+	}
+
+	std::cout << "\n\nCould not find GNames!\n\n" << std::endl;
 	return false;
 }
 

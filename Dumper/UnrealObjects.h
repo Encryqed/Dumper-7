@@ -209,7 +209,7 @@ public:
 
 	UEProperty GetReturnProperty() const;
 
-	std::string StringifyFlags() const;
+	std::string StringifyFlags(const char* Seperator = ", ") const;
 	std::string GetParamStructName() const;
 };
 

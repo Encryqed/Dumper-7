@@ -142,7 +142,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="CompressionLibs\zstd\lib\zstd.c" />
+    <ClCompile Include="DumpspaceGenerator.cpp" />
+    <ClCompile Include="ExternalDependencies\Compression\zstd.c" />
+    <ClCompile Include="ExternalDependencies\Dumpspace\DSGen.cpp" />
     <ClCompile Include="CppGenerator.cpp" />
     <ClCompile Include="DependencyManager.cpp" />
     <ClCompile Include="EnumManager.cpp" />
@@ -165,7 +167,9 @@
     <ClCompile Include="StructWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CompressionLibs\zstd\lib\zstd.h" />
+    <ClInclude Include="DumpspaceGenerator.h" />
+    <ClInclude Include="ExternalDependencies\Compression\zstd.h" />
+    <ClInclude Include="ExternalDependencies\Dumpspace\DSGen.h" />
     <ClInclude Include="CppGenerator.h" />
     <ClInclude Include="CppGeneratorTest.h" />
     <ClInclude Include="DependencyManager.h" />
@@ -173,6 +177,7 @@
     <ClInclude Include="EnumManagerTest.h" />
     <ClInclude Include="Enums.h" />
     <ClInclude Include="EnumWrapper.h" />
+    <ClInclude Include="ExternalDependencies\Json\json.hpp" />
     <ClInclude Include="Generator.h" />
     <ClInclude Include="GeneratorTest.h" />
     <ClInclude Include="HashStringTable.h" />

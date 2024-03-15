@@ -108,7 +108,7 @@ public:
     inline std::string_view GetNameView() const { return std::string_view(Char, GetStringLength()); }
     inline std::wstring_view GetWideNameView() const { return std::wstring_view(WChar, GetStringLength()); }
 };
-#pragma pack(pop, 0x1)
+#pragma pack(pop)
 
 template<typename CharType>
 inline int32 Strcmp(const CharType* String, const StringEntry& Entry)

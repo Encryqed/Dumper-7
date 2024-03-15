@@ -1,7 +1,7 @@
 #include "MappingGenerator.h"
 #include "PackageManager.h"
 #include "Settings.h"
-#include "CompressionLibs/zstd/lib/zstd.h"
+#include "ExternalDependencies/Compression/zstd.h"
 
 #include "Utils.h"
 

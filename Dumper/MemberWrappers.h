@@ -106,7 +106,7 @@ public:
 
     MemberManager GetMembers() const;
 
-    std::string StringifyFlags() const;
+    std::string StringifyFlags(const char* Seperator = ", ") const;
     std::string GetParamStructName() const;
     int32 GetParamStructSize() const;
 
@@ -117,6 +117,8 @@ public:
     std::string GetPredefFuncReturnType() const;
     std::string GetPredefFunctionBody() const;
     std::string GetPredefFunctionInlineBody() const;
+
+    uintptr_t GetExecFuncOffset() const;
 
     UEFunction GetUnrealFunction() const;
 

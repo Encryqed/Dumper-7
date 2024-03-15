@@ -56,10 +56,16 @@
     <ClCompile Include="MappingGenerator.cpp">
       <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="CompressionLibs\zstd\lib\zstd.c">
+    <ClCompile Include="IDAMappingGenerator.cpp">
+      <Filter>GeneratorRewrite\Private\Generators</Filter>
+    </ClCompile>
+    <ClCompile Include="ExternalDependencies\Dumpspace\DSGen.cpp">
+      <Filter>Utils\Dumpspace</Filter>
+    </ClCompile>
+    <ClCompile Include="ExternalDependencies\Compression\zstd.c">
       <Filter>Utils\Compression</Filter>
     </ClCompile>
-    <ClCompile Include="IDAMappingGenerator.cpp">
+    <ClCompile Include="DumpspaceGenerator.cpp">
       <Filter>GeneratorRewrite\Private\Generators</Filter>
     </ClCompile>
   </ItemGroup>
@@ -85,9 +91,6 @@
     <Filter Include="GeneratorRewrite\Private">
       <UniqueIdentifier>{d7d31e29-fabc-4f1a-94be-53c5f4940c91}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Tests">
-      <UniqueIdentifier>{ae8563d1-816c-4218-9877-a95f062ca4ff}</UniqueIdentifier>
-    </Filter>
     <Filter Include="GeneratorRewrite\Public\Managers">
       <UniqueIdentifier>{94e86c4a-a3b6-4bff-823c-cc84621b8862}</UniqueIdentifier>
     </Filter>
@@ -108,6 +111,15 @@
     </Filter>
     <Filter Include="Utils\Compression">
       <UniqueIdentifier>{586453ff-9ea9-4e66-a54c-30654e0e6113}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utils\Dumpspace">
+      <UniqueIdentifier>{5c4c0ad6-3e5e-4c90-b98f-bcfa3d46d671}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utils\Json">
+      <UniqueIdentifier>{34aabb03-f73e-4107-b4ee-e7afa15b111d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tests">
+      <UniqueIdentifier>{ae8563d1-816c-4218-9877-a95f062ca4ff}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -207,11 +219,20 @@
     <ClInclude Include="IDAMappingGenerator.h">
       <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="CompressionLibs\zstd\lib\zstd.h">
-      <Filter>Utils\Compression</Filter>
-    </ClInclude>
     <ClInclude Include="PredefinedMembers.h">
       <Filter>GeneratorRewrite\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="ExternalDependencies\Dumpspace\DSGen.h">
+      <Filter>Utils\Dumpspace</Filter>
+    </ClInclude>
+    <ClInclude Include="ExternalDependencies\Compression\zstd.h">
+      <Filter>Utils\Compression</Filter>
+    </ClInclude>
+    <ClInclude Include="ExternalDependencies\Json\json.hpp">
+      <Filter>Utils\Json</Filter>
+    </ClInclude>
+    <ClInclude Include="DumpspaceGenerator.h">
+      <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

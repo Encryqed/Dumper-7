@@ -657,9 +657,9 @@ UEProperty UEFunction::GetReturnProperty() const
 }
 
 
-std::string UEFunction::StringifyFlags()  const
+std::string UEFunction::StringifyFlags(const char* Seperator)  const
 {
-	return StringifyFunctionFlags(GetFunctionFlags());
+	return StringifyFunctionFlags(GetFunctionFlags(), Seperator);
 }
 
 std::string UEFunction::GetParamStructName() const
@@ -918,11 +918,6 @@ int32 UEProperty::GetAlignment() const
 			return TryFindPropertyRefInOptionalToGetAlignment(UnknownProperties, GetClass().second.GetAddress());
 
 		return It->second;
-	}
-	else
-	{
-		/* Safe to use first member, as we're guaranteed *not* to use FProperty */
-		return GetClass().first.GetMinAlignment();
 	}
 
 	return 0x1;

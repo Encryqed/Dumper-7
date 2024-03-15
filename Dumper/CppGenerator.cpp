@@ -904,7 +904,7 @@ std::string CppGenerator::GetMemberTypeString(const PropertyWrapper& MemberWrapp
 		return MemberWrapper.GetType();
 	}
 
-	return GetMemberTypeString(MemberWrapper.GetUnrealProperty(), bAllowForConstPtrMembers);
+	return GetMemberTypeString(MemberWrapper.GetUnrealProperty(), PackageIndex, bAllowForConstPtrMembers);
 }
 
 std::string CppGenerator::GetMemberTypeString(UEProperty Member, int32 PackageIndex, bool bAllowForConstPtrMembers)
@@ -1000,7 +1000,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		const StructWrapper& UnderlayingStruct = Member.Cast<UEStructProperty>().GetUnderlayingStruct();
 
 		if (UnderlayingStruct.IsCyclicWithPackage(PackageIndex)) [[unlikely]]
-			return std::format("struct {}", GetCycleFixupType(UnderlayingStruct, false));
+			return std::format("{}", GetCycleFixupType(UnderlayingStruct, false));
 
 		return std::format("struct {}", GetStructPrefixedName(UnderlayingStruct));
 	}
@@ -2283,7 +2283,7 @@ R"({
 			.CustomComment = "Returns the name of this object in the format 'Class Package.Outer.Object'",
 			.ReturnType = "std::string", .NameWithParams = "GetFullName()", .Body =
 R"({
-	if (Class)
+	if (this && Class)
 	{
 		std::string Temp;
 
@@ -2308,16 +2308,7 @@ R"({
 			.CustomComment = "Checks a UObjects' type by Class",
 			.ReturnType = "bool", .NameWithParams = "IsA(class UClass* TypeClass)", .Body =
 R"({
-	if (!TypeClass)
-		return false;
-
-	for (UStruct* Super = Class; Super; Super = Super->Super)
-	{
-		if (Super == TypeClass)
-			return true;
-	}
-
-	return false;
+	return Class->IsSubclassOf(TypeClass);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
@@ -2354,6 +2345,33 @@ R"({
 	InSDKUtils::CallGameFunction(InSDKUtils::GetVirtualFunction<void(*)(const UObject*, class UFunction*, void*)>(this, Offsets::ProcessEventIdx), this, Function, Parms);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+	};
+
+	UEClass Struct = ObjectArray::FindClassFast("Struct");
+
+	const int32 UStructIdx = Struct ? Struct.GetIndex() : ObjectArray::FindClassFast("struct").GetIndex(); // misspelled on some UE versions.
+
+	PredefinedElements& UStructPredefs = PredefinedMembers[UStructIdx];
+
+	UStructPredefs.Functions =
+	{
+		PredefinedFunction {
+			.CustomComment = "Checks if this class has a certain base",
+			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const UStruct* Base)", .Body =
+R"({
+	if (!Base)
+		return false;
+
+	for (const UStruct* Struct = this; Struct; Struct = Struct->Super)
+	{
+		if (Struct == Base)
+			return true;
+	}
+
+	return false;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 	};
 
@@ -3490,7 +3508,7 @@ R"({
 			},
 			PredefinedMember {
 				.Comment = "",
-				.Type = "/*  1. Change \"thread_local FAllocatedString TempString(1024);\" to \"FString TempString;\"            */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
+				.Type = "/*  1. Change \"thread_local FAllocatedString TempString(1024);\" to \"FString TempString;\"   */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
 				.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
 			},
 			PredefinedMember {
@@ -3500,7 +3518,7 @@ R"({
 			},
 			PredefinedMember {
 				.Comment = "",
-				.Type = "/*  3. Replace \"TempString.Clear();\" with \"TempString.Free();\"                          */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
+				.Type = "/*  3. Replace \"TempString.Clear();\" with \"TempString.Free();\"                             */", .Name = NameArrayName, .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x4,
 				.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
 			},
 			PredefinedMember {
@@ -5193,7 +5211,7 @@ namespace UC
 		const ContainerImpl::FBitArray& GetAllocationFlags() const { return Elements.GetAllocationFlags(); }
 
 	public:
-		inline decltype(auto) Find(const KeyElementType& Key, bool(*Equals)(const KeyElementType& Key, const ValueElementType& Value))
+		inline decltype(auto) Find(const KeyElementType& Key, bool(*Equals)(const KeyElementType& LeftKey, const KeyElementType& RightKey))
 		{
 			for (auto It = begin(*this); It != end(*this); ++It)
 			{
