@@ -1543,6 +1543,10 @@ void CppGenerator::Generate()
 		if (Package.HasClasses())
 		{
 			ClassesFile = StreamType(Subfolder / (FileName + "_classes.hpp"));
+
+			if (!ClassesFile.is_open())
+				std::cout << "Error opening file \"" << (FileName + "_classes.hpp") << "\"" << std::endl;
+
 			WriteFileHead(ClassesFile, Package, EFileType::Classes);
 
 			/* Write enum foward declarations before all of the classes */
@@ -1552,6 +1556,10 @@ void CppGenerator::Generate()
 		if (Package.HasStructs() || Package.HasEnums())
 		{
 			StructsFile = StreamType(Subfolder / (FileName + "_structs.hpp"));
+
+			if (!StructsFile.is_open())
+				std::cout << "Error opening file \"" << (FileName + "_structs.hpp") << "\"" << std::endl;
+
 			WriteFileHead(StructsFile, Package, EFileType::Structs);
 
 			/* Write enum foward declarations before all of the structs */
@@ -1561,12 +1569,20 @@ void CppGenerator::Generate()
 		if (Package.HasParameterStructs())
 		{
 			ParametersFile = StreamType(Subfolder / (FileName + "_parameters.hpp"));
+
+			if (!ParametersFile.is_open())
+				std::cout << "Error opening file \"" << (FileName + "_parameters.hpp") << "\"" << std::endl;
+
 			WriteFileHead(ParametersFile, Package, EFileType::Parameters);
 		}
 
 		if (Package.HasFunctions())
 		{
 			FunctionsFile = StreamType(Subfolder / (FileName + "_functions.cpp"));
+
+			if (!FunctionsFile.is_open())
+				std::cout << "Error opening file \"" << (FileName + "_functions.cpp") << "\"" << std::endl;
+
 			WriteFileHead(FunctionsFile, Package, EFileType::Functions);
 		}
 
