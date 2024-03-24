@@ -22,7 +22,7 @@
     Adding `#include "SDK/Engine_classes.hpp"` is a good start in this case.
 6. Add `Basic.cpp` to your VS project
 7. If you call a function from the SDK you need to add the .cpp file, that contains the function-body, to your project. \
-   Examle: \
+   Example: \
    Calling `GetViewportSize()` from `APlayerController` requires you to add `Engine_functions.cpp` to your project. \
    ![image](https://github.com/Encryqed/Dumper-7/assets/64608145/c9ecf0c7-ec73-4e6a-8c6d-d7c86c26b5c8)
 
