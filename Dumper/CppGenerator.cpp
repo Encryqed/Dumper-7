@@ -5015,6 +5015,10 @@ namespace UC
 		}
 
 	public:
+		inline       wchar_t* CStr()       { return Data; }
+		inline const wchar_t* CStr() const { return Data; }
+
+	public:
 		inline bool operator==(const FString& Other) const { return Other ? NumElements == Other.NumElements && wcscmp(Data, Other.Data) == 0 : false; }
 		inline bool operator!=(const FString& Other) const { return Other ? NumElements != Other.NumElements || wcscmp(Data, Other.Data) != 0 : true; }
 	};

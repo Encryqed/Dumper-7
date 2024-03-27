@@ -39,6 +39,18 @@ bool NameInfo::HasCollisions() const
 	return false;
 }
 
+std::string NameInfo::DebugStringify() const
+{
+	return std::format(R"(
+OwnType: {};
+MemberNameCollisionCount: {};
+SuperMemberNameCollisionCount: {};
+FunctionNameCollisionCount: {};
+SuperFuncNameCollisionCount: {};
+ParamNameCollisionCount: {};
+)", StringifyCollisionType(static_cast<ECollisionType>(OwnType)), MemberNameCollisionCount, SuperMemberNameCollisionCount, FunctionNameCollisionCount, SuperFuncNameCollisionCount, ParamNameCollisionCount);
+}
+
 uint64 KeyFunctions::GetKeyForCollisionInfo(UEStruct Super, UEProperty Member)
 {
 	uint64 Key = 0x0;
@@ -215,7 +227,7 @@ std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 
 	std::string Name = MemberNames.GetStringEntry(Info.Name).GetName();
 
-	//std::cout << "Nm: " << Name << "\n";
+	//std::cout << "Nm: " << Name << "\nInfo:" << Info.DebugStringify() << "\n";
 
 	// Order of sub-if-statements matters
 	if (OwnCollisionType == ECollisionType::MemberName)

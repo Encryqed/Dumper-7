@@ -233,6 +233,9 @@ void MappingGenerator::GeneratePropertyInfo(const PropertyWrapper& Property, std
 
 void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringstream& Data, std::stringstream& NameTable)
 {
+	if (!Struct.IsValid())
+		return;
+
 	const int32 StructNameIndex = AddNameToData(NameTable, Struct.GetRawName());
 	WriteToStream(Data, StructNameIndex);
 

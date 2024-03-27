@@ -12,6 +12,34 @@ enum class ECollisionType : uint8
 	None,
 };
 
+inline std::string StringifyCollisionType(ECollisionType Type)
+{
+	switch (Type)
+	{
+	case ECollisionType::MemberName:
+		return "ECollisionType::MemberName";
+		break;
+	case ECollisionType::SuperMemberName:
+		return "ECollisionType::SuperMemberName";
+		break;
+	case ECollisionType::FunctionName:
+		return "ECollisionType::FunctionName";
+		break;
+	case ECollisionType::SuperFunctionName:
+		return "ECollisionType::SuperFunctionName";
+		break;
+	case ECollisionType::ParameterName:
+		return "ECollisionType::ParameterName";
+		break;
+	case ECollisionType::None:
+		return "ECollisionType::None";
+		break;
+	default:
+		return "ECollisionType::Invalid";
+		break;
+	}
+}
+
 constexpr int32 OwnTypeBitCount = 0x7;
 constexpr int32 PerCountBitCount = 0x5;
 
@@ -57,6 +85,9 @@ public:
 	{
 		return Name != -1;
 	}
+
+public:
+	std::string DebugStringify() const;
 };
 
 namespace KeyFunctions
