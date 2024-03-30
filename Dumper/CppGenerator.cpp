@@ -232,6 +232,9 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 
 		for (const PropertyWrapper& Param : FuncParams.IterateMembers())
 		{
+			if (!Param.HasPropertyFlags(EPropertyFlags::Parm))
+				continue;
+
 			std::string Type = GetMemberTypeString(Param);
 
 			if (Param.IsReturnParam())
@@ -308,6 +311,9 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 
 	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
 	{
+		if (!Param.HasPropertyFlags(EPropertyFlags::Parm))
+			continue;
+
 		std::string Type = GetMemberTypeString(Param);
 
 		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);

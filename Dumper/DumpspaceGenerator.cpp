@@ -427,6 +427,9 @@ DSGen::FunctionHolder DumpspaceGenerator::GenearateFunction(const FunctionWrappe
 
 	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
 	{
+		if (!Param.HasPropertyFlags(EPropertyFlags::Parm))
+			continue;
+
 		if (Param.HasPropertyFlags(EPropertyFlags::ReturnParm))
 		{
 			RetFunc.returnType = GetMemberType(Param);

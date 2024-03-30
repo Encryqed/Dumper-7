@@ -55,12 +55,25 @@ void IDAMappingGenerator::GenerateVTableName(StreamType& IdmapFile, UEObject Def
 
 void IDAMappingGenerator::GenerateClassFunctions(StreamType& IdmapFile, UEClass Class)
 {
+	static std::unordered_map<uint32, std::string> Funcs;
+
 	for (UEFunction Func : Class.GetFunctions())
 	{
+		if (!Func.HasFlags(EFunctionFlags::Native))
+			continue;
+
 		std::string MangledName = MangleFunctionName(Class.GetCppName(), Func.GetValidName());
 
 		uint32 Offset = static_cast<uint32>(GetOffset(Func.GetExecFunction()));
 		uint16 NameLen = static_cast<uint16>(MangledName.length());
+
+		auto [It, bInseted] = Funcs.emplace(Offset, Func.GetFullName());
+
+		if (!bInseted)
+		{
+			//std::cout << "Collision: \nOld: " << It->second << "\nNew: " << Func.GetFullName() << "\n" << std::endl;
+			continue;
+		}
 
 		WriteToStream(IdmapFile, Offset);
 		WriteToStream(IdmapFile, NameLen);
