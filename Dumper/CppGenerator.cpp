@@ -321,11 +321,11 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 		ParamInfo PInfo;
 		PInfo.Type = Type;
 
+		if (bIsConst)
+			Type = "const " + Type;
+
 		if (Param.IsReturnParam())
 		{
-			if (bIsConst)
-				Type = "const " + Type;
-
 			RetFuncInfo.RetType = Type;
 			RetFuncInfo.bIsReturningVoid = false;
 
@@ -340,7 +340,7 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 
 		bool bIsRef = false;
 		bool bIsOut = false;
-		bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
+		bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::TextProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
 
 		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
 		{
