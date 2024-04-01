@@ -359,10 +359,10 @@ void DumpspaceGenerator::RecursiveGetSuperClasses(const StructWrapper& Struct, s
 {
 	const StructWrapper& Super = Struct.GetSuper();
 
+	OutSupers.push_back(Struct.GetUniqueName().first);
+
 	if (Super.IsValid())
 		RecursiveGetSuperClasses(Super, OutSupers);
-
-	OutSupers.push_back(Struct.GetName());
 }
 
 std::vector<std::string> DumpspaceGenerator::GetSuperClasses(const StructWrapper& Struct)
