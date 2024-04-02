@@ -444,12 +444,12 @@ DSGen::FunctionHolder DumpspaceGenerator::GenearateFunction(const FunctionWrappe
 
 void DumpspaceGenerator::GeneratedStaticOffsets()
 {
-	DSGen::addOffset("GObjects", Off::InSDK::ObjArray::GObjects);
-	DSGen::addOffset(Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString", Off::InSDK::Name::AppendNameToString);
-	DSGen::addOffset("GNames", Off::InSDK::NameArray::GNames);
-	DSGen::addOffset("GWorld", Off::InSDK::World::GWorld);
-	DSGen::addOffset("ProcessEvent", Off::InSDK::ProcessEvent::PEOffset);
-	DSGen::addOffset("ProcessEventIdx", Off::InSDK::ProcessEvent::PEIndex);
+	DSGen::addOffset("OFFSET_GOBJECTS", Off::InSDK::ObjArray::GObjects);
+	DSGen::addOffset(Off::InSDK::Name::bIsUsingAppendStringOverToString ? "OFFSET_APPENDSTRING" : "OFFSET_TOSTRING", Off::InSDK::Name::AppendNameToString);
+	DSGen::addOffset("OFFSET_GNAMES", Off::InSDK::NameArray::GNames);
+	DSGen::addOffset("OFFSET_GWORLD", Off::InSDK::World::GWorld);
+	DSGen::addOffset("OFFSET_PROCESSEVENT", Off::InSDK::ProcessEvent::PEOffset);
+	DSGen::addOffset("INDEX_PROCESSEVENT", Off::InSDK::ProcessEvent::PEIndex);
 }
 
 void DumpspaceGenerator::Generate()
