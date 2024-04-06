@@ -3110,6 +3110,11 @@ private:
 	}
 
 public:
+	inline void InitGObjectsManually(PVOID GObjectsAddressParameter)
+	{
+		GObjectsAddress = GObjectsAddressParameter;
+	}
+
 	inline class TUObjectArray* operator->()
 	{
 		if (!GObjectsAddress) [[unlikely]]
