@@ -43,6 +43,8 @@ R"(
 		return Function(std::forward<ParamTypes>(Args)...);
 	}
 )";
+		// This will allow the user to supply manual locations of various GOffset classes at runtime. */
+		constexpr bool bAddManualOverrideOptions = true;
 	}
 
 	namespace MappingGenerator

@@ -3084,7 +3084,7 @@ public:
 
 	/* TUObjectArrayWrapper so InitGObjects() doesn't need to be called manually anymore */
 	// Start class 'TUObjectArrayWrapper'
-		BasicHpp << R"(
+	BasicHpp << R"(
 class TUObjectArrayWrapper
 {
 private:
@@ -3109,12 +3109,16 @@ private:
 		GObjectsAddress = reinterpret_cast<void*>(InSDKUtils::GetImageBase() + Offsets::GObjects);
 	}
 
-public:
-	inline void InitGObjectsManually(PVOID GObjectsAddressParameter)
+public:)";
+	if constexpr (Settings::CppGenerator::bAddManualOverrideOptions)
+	{
+	BasicHpp << R"(
+	inline void InitGObjectsManually(void* GObjectsAddressParameter)
 	{
 		GObjectsAddress = GObjectsAddressParameter;
 	}
-
+)"; }
+	BasicHpp << R"(
 	inline class TUObjectArray* operator->()
 	{
 		if (!GObjectsAddress) [[unlikely]]
@@ -3687,6 +3691,20 @@ std::format(R"({{
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 	};
+
+	if constexpr (Settings::CppGenerator::bAddManualOverrideOptions)
+	{
+		FName.Functions.insert(
+			FName.Functions.begin() + 1,
+			PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "void", .NameWithParams = "InitManually(void* AppendStringParameter)", .Body =
+std::format(R"({{
+	{0} = AppendStringParameter);
+}})", NameArrayName, NameArrayType, (Off::InSDK::Name::AppendNameToString == 0 && !Settings::Internal::bUseNamePool ? "*" : "")),
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+			});
+	}
 
 	GenerateStruct(&FName, BasicHpp, BasicCpp, BasicHpp);
 
