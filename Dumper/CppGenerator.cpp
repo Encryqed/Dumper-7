@@ -3698,9 +3698,9 @@ std::format(R"({{
 			FName.Functions.begin() + 1,
 			PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "void", .NameWithParams = "InitManually(void* AppendStringParameter)", .Body =
+			.ReturnType = "void", .NameWithParams = "InitManually(void* Location)", .Body =
 std::format(R"({{
-	{0} = AppendStringParameter);
+	{0} = {2}reinterpret_cast<{1}{2}>(Location);
 }})", NameArrayName, NameArrayType, (Off::InSDK::Name::AppendNameToString == 0 && !Settings::Internal::bUseNamePool ? "*" : "")),
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
 			});
