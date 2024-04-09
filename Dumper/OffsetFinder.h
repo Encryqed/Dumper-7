@@ -216,6 +216,9 @@ namespace OffsetFinder
 		if (Off::InSDK::Name::FNameSize == FNameSize)
 			return;
 		
+		/* We've used the wrong FNameSize to determine the offset of FField::Flags. Substract the old, wrong, size and add the new one.*/
+		Off::FField::Flags = (Off::FField::Flags - Off::InSDK::Name::FNameSize) + FNameSize;
+
 		const uint8* NameAddress = static_cast<const uint8*>(PlayerStart.GetFName().GetAddress());
 
 		const int32 FNameFirstInt /* ComparisonIndex */ = *reinterpret_cast<const int32*>(NameAddress);

@@ -237,6 +237,10 @@ void Off::Init()
 		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
 		std::cout << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
 
+		/* 
+		* FNameSize might be wrong at this point of execution. 
+		* FField::Flags is not critical so a fix is only applied later in OffsetFinder::PostInitFNameSettings().
+		*/
 		Off::FField::Flags = Off::FField::Name + Off::InSDK::Name::FNameSize;
 		std::cout << std::format("Off::FField::Flags: 0x{:X}\n", Off::FField::Flags);
 	}
