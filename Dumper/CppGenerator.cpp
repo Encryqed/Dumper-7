@@ -3113,7 +3113,7 @@ public:)";
 	if constexpr (Settings::CppGenerator::bAddManualOverrideOptions)
 	{
 	BasicHpp << R"(
-	inline void InitGObjectsManually(void* GObjectsAddressParameter)
+	inline void InitManually(void* GObjectsAddressParameter)
 	{
 		GObjectsAddress = GObjectsAddressParameter;
 	}
