@@ -529,11 +529,13 @@ bool NameArray::Init()
 		int Relative;
 	};
 
-	std::array<Signature, 3> Signatures = { {
+	std::array<Signature, 5> Signatures = { {
 		{ "48 89 3D ? ? ? ? 8B 87 ? ? ? ? 05 ? ? ? ? 99 81 E2 ? ? ? ?", 3 }, // TNameEntryArray
 		{ "48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8B C0 C6 05", 3 }, // FNamePool
-		{ "48 8D 05 ? ? ? ? 48 83 C4 ? 5F C3 48 89 5C 24", 3 } // FNamePool Back4Blood
-	}};
+		{ "48 8D 05 ? ? ? ? 48 83 C4 ? 5F C3 48 89 5C 24", 3 }, // FNamePool Back4Blood
+		{ "48 8B 1D ? ? ? ? 48 85 DB 75 ? B9 08 04 00 00", 3 }, // FNamePool Sea Of Thieves
+		{ "48 8d 0d ? ? ? ? e8 ? ? ? ? c6 05 ? ? ? ? ? 0f 10 03 ", 3 } // FNamePool Farlight 84
+	} };
 
 	uint8_t** GNamesAddress = nullptr;
 
