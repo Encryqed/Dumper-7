@@ -517,66 +517,6 @@ bool NameArray::SetGNamesWithoutCommiting()
 	return false;
 }
 
-bool NameArray::Init()
-{
-	uintptr_t ImageBase = GetImageBase();
-
-	std::cout << "Searching for GNames...\n\n";
-
-	struct Signature
-	{
-		const char* Pattern;
-		int Relative;
-	};
-
-	std::array<Signature, 3> Signatures = { {
-		{ "48 89 3D ? ? ? ? 8B 87 ? ? ? ? 05 ? ? ? ? 99 81 E2 ? ? ? ?", 3 }, // TNameEntryArray
-		{ "48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8B C0 C6 05", 3 }, // FNamePool
-		{ "48 8D 05 ? ? ? ? 48 83 C4 ? 5F C3 48 89 5C 24", 3 } // FNamePool Back4Blood
-	}};
-
-	uint8_t** GNamesAddress = nullptr;
-
-	for (auto Sig : Signatures)
-	{
-		if (GNamesAddress = reinterpret_cast<uint8_t**>(FindPattern(Sig.Pattern, Sig.Relative, true)))
-			break;
-	}
-
-	if (!GNamesAddress)
-	{
-		std::cout << "GNames couldn't be found\n\n" << std::endl;
-		return false;
-	}
-
-	Off::InSDK::NameArray::GNames = uintptr_t(GNamesAddress) - ImageBase;
-
-	if (NameArray::InitializeNameArray(*GNamesAddress))
-	{
-		GNames = *GNamesAddress;
-		Settings::Internal::bUseNamePool = false;
-		FNameEntry::Init();
-		std::cout << "Found NameArray at offset: 0x" << std::hex << (reinterpret_cast<uintptr_t>(GNamesAddress) - ImageBase) << "\n" << std::endl;
-		return true;
-	}
-	else if (NameArray::InitializeNamePool(reinterpret_cast<uint8_t*>(GNamesAddress)))
-	{
-		GNames = reinterpret_cast<uint8_t*>(GNamesAddress);
-		Settings::Internal::bUseNamePool = true;
-		std::cout << "Found NamePool at offset: 0x" << std::hex << (reinterpret_cast<uintptr_t>(GNamesAddress) - ImageBase) << "\n" << std::endl;
-		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
-		return true;
-	}
-
-	GNames = nullptr;
-	Off::InSDK::NameArray::GNames = 0x0;
-	Settings::Internal::bUseNamePool = false;
-
-	std::cout << "GNames couldn't be found!\n\n";
-
-	return false;
-}
-
 void NameArray::PostInit()
 {
 	if (GNames && Settings::Internal::bUseNamePool)
