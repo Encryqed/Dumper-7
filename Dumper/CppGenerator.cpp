@@ -5011,6 +5011,9 @@ namespace UC
 	class FString : public TArray<wchar_t>
 	{
 	public:
+		friend std::ostream& operator<<(std::ostream& Stream, const UC::FString& Str) { return Stream << Str.ToString(); }
+
+	public:
 		using TArray::TArray;
 
 		FString(const wchar_t* Str)
