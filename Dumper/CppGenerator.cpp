@@ -1082,7 +1082,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else if (Flags & EClassCastFlags::FieldPathProperty)
 	{
-		return std::format("TFieldPath<struct {}>", Member.Cast<UEFieldPathProperty>().GetFielClass().GetCppName());
+		return std::format("TFieldPath<class {}>", Member.Cast<UEFieldPathProperty>().GetFielClass().GetCppName());
 	}
 	else if (Flags & EClassCastFlags::OptionalProperty)
 	{
@@ -2535,7 +2535,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator*(float Scalar)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator*(UnderlayingType Scalar)", .Body =
 R"({
 	return { X * Scalar, Y * Scalar, Z * Scalar };
 })",
@@ -2551,9 +2551,9 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator/(float Scalar)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator/(UnderlayingType Scalar)", .Body =
 R"({
-	if (Scalar == 0.0f)
+	if (Scalar == 0.0)
 		return *this;
 
 	return { X / Scalar, Y / Scalar, Z / Scalar };
@@ -2564,7 +2564,7 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "FVector", .NameWithParams = "operator/(const FVector& Other)", .Body =
 R"({
-	if (Other.X == 0.0f || Other.Y == 0.0f ||Other.Z == 0.0f)
+	if (Other.X == 0.0 || Other.Y == 0.0 ||Other.Z == 0.0)
 		return *this;
 
 	return { X / Other.X, Y / Other.Y, Z / Other.Z };
@@ -2609,7 +2609,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator*=(float Scalar)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
 	return *this;
@@ -2627,7 +2627,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator/=(float Scalar)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
 	return *this;
@@ -2820,7 +2820,7 @@ class UClass;
 class UObject;
 class UFunction;
 
-struct FName;
+class FName;
 )";
 
 	BasicHpp << R"(
@@ -3322,15 +3322,15 @@ R"({
 				.CustomComment = "",
 				.ReturnType = "int32", .NameWithParams = "GetTypedId()", .Body = 
 R"({
-	return reinterpret_cast<int32>(Id);
+	return *reinterpret_cast<const int32*>(Id);
 })",
 				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 			},
 			PredefinedFunction {
 				.CustomComment = "",
-				.ReturnType = "uint32", .NameWithParams = "GetNumber()", .Body =
+				.ReturnType = "int32", .NameWithParams = "GetNumber()", .Body =
 R"({
-	return reinterpret_cast<uint32>(Number);
+	return *reinterpret_cast<const int32*>(Number);
 })",
 				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 			},
@@ -3342,7 +3342,7 @@ R"({
 			FStringData.Properties.push_back(
 				PredefinedMember{
 					.Comment = "NOT AUTO-GENERATED PROPERTY",
-					.Type = "FNumberedData", .Name = "AnsiName", .Offset = 0x10, .Size = FNumberedDataSize, .ArrayDim = 0x400, .Alignment = 0x1,
+					.Type = "FNumberedData", .Name = "NumberedName", .Offset = 0x10, .Size = FNumberedDataSize, .ArrayDim = 0x400, .Alignment = 0x1,
 					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 				}
 			);
@@ -3465,7 +3465,7 @@ R"({
 		{
 			PredefinedFunction {
 				.CustomComment = "",
-				.ReturnType = "bool", .NameWithParams = "IsValidIndex(int32 Index, int32 ChunkIdx, int32 InChunkIdx)", .Body =
+				.ReturnType = "bool", .NameWithParams = "IsValidIndex(uint32 Index, uint32 ChunkIdx, uint32 InChunkIdx)", .Body =
 R"({
 	return ChunkIdx <= CurrentBlock && !(ChunkIdx == CurrentBlock && InChunkIdx > CurrentByteCursor);
 }
@@ -3474,10 +3474,10 @@ R"({
 			},
 			PredefinedFunction {
 				.CustomComment = "",
-				.ReturnType = "FNameEntry*", .NameWithParams = "GetEntryByIndex(int32 Index)", .Body =
+				.ReturnType = "FNameEntry*", .NameWithParams = "GetEntryByIndex(uint32 Index)", .Body =
 R"({
-	const int32 ChunkIdx = Index >> FNameBlockOffsetBits;
-	const int32 InChunk = (Index & (FNameBlockOffsets - 1));
+	const uint32 ChunkIdx = Index >> FNameBlockOffsetBits;
+	const uint32 InChunk = (Index & (FNameBlockOffsets - 1));
 
 	if (!IsValidIndex(Index, ChunkIdx, InChunk))
 		return nullptr;
@@ -3488,7 +3488,9 @@ R"({
 			},
 		};
 
-		GenerateStruct(&FNumberedData, BasicHpp, BasicCpp, BasicHpp);
+		if (Settings::Internal::bUseUoutlineNumberName)
+			GenerateStruct(&FNumberedData, BasicHpp, BasicCpp, BasicHpp);
+
 		GenerateStruct(&FNameEntryHeader, BasicHpp, BasicCpp, BasicHpp);
 		GenerateStruct(&FStringData, BasicHpp, BasicCpp, BasicHpp);
 		GenerateStruct(&FNameEntry, BasicHpp, BasicCpp, BasicHpp);
@@ -3621,12 +3623,16 @@ R"({
 
 	const FNameEntry* Entry = FName::GNames->GetEntryByIndex(GetDisplayIndex());
 
-	if (Entry->Header.Length == 0)
+	if (Entry->Header.Len == 0)
 	{{
-		if (Entry->Number > 0)
-			return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString() + "_" + std::to_string(Entry->Number - 1);
+		std::string RetStr = FName::GNames->GetEntryByIndex(Entry->Name.NumberedName.GetTypedId())->GetString();
 
-		return FName::GNames->GetEntryByIndex(Entry->NumberedName.Id)->GetString();
+		const int32 Number = Entry->Name.NumberedName.GetNumber();
+
+		if (Number > 0)
+			return RetStr + "_" + std::to_string(Number - 1);
+
+		return RetStr;
 	}}
 
 	return Entry.GetString();
@@ -4428,7 +4434,7 @@ enum class EFunctionFlags : uint32
 	/* enum class EClassFlags */
 	BasicHpp <<
 		R"(
-enum class EClassFlags : int32
+enum class EClassFlags
 {
 	CLASS_None						= 0x00000000u,
 	Abstract						= 0x00000001u,
