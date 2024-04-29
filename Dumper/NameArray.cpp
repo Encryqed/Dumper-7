@@ -33,15 +33,30 @@ void FNameEntry::Init(uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 		Off::FNameEntry::NamePool::StringOffset = NameEntryStringOffset;
 		Off::FNameEntry::NamePool::HeaderOffset = NameEntryStringOffset == 6 ? 4 : 0;
 
-		uint16 BytePropertyHeader = *reinterpret_cast<uint16*>(*reinterpret_cast<uint8**>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen);
+		uint8* BytePrpertyHeaderPtr = *reinterpret_cast<uint8**>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen + Off::FNameEntry::NamePool::HeaderOffset;
 
-		constexpr int32 MaxAllowedShiftCount = 0xFF;
+		/* Limit the number of shifts we check to 16, as that's the number of Bits in the Header, a 2-byte integer (uint16). */
+		constexpr int32 MaxAllowedShiftCount = sizeof(uint16) * 0x8 ;
 
-		while (BytePropertyHeader != BytePropertyStrLen && FNameEntryLengthShiftCount < MaxAllowedShiftCount)
-		{			
-			FNameEntryLengthShiftCount++;
-			BytePropertyHeader >>= 1;
+		/* Check expected Header offset, but also ExpectedOffset + 0x2, because there is additional padding in FNameEntry in some games. */
+		for (int i = 0x0; i <= 0x2; i += 0x2)
+		{
+			uint16 BytePropertyHeader = *reinterpret_cast<uint16*>(BytePrpertyHeaderPtr + i);
+			FNameEntryLengthShiftCount = 0x0;
+
+			while (BytePropertyHeader != BytePropertyStrLen && FNameEntryLengthShiftCount < MaxAllowedShiftCount)
+			{
+				FNameEntryLengthShiftCount++;
+				BytePropertyHeader >>= 1;
+			}
+
+			/* Right ammount of shifts was found, no need to check for additional padding. */
+			if (FNameEntryLengthShiftCount != MaxAllowedShiftCount)
+				break;
 		}
+
+		if (FNameEntryLengthShiftCount == MaxAllowedShiftCount)
+			std::cout << "Dumper-7: Critical Error, FNameEntryLengthShiftCount was not found!" << std::endl;
 
 		GetStr = [](uint8* NameEntry) -> std::string
 		{
@@ -174,13 +189,18 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 
 	for (int i = 0x0; i < 0x20; i += 4)
 	{
-		const int32 PossibleMaxChunkIdx = *reinterpret_cast<int32*>(NamePool + i);
+		const int32 PossibleNumChunkIdx = *reinterpret_cast<int32*>(NamePool + i);
 
-		if (PossibleMaxChunkIdx <= 0 || PossibleMaxChunkIdx > 0x10000)
+		if (PossibleNumChunkIdx <= 0 || PossibleNumChunkIdx > 0x10000)
 			continue;
 
 		int32 NotNullptrCount = 0x0;
 		bool bFoundFirstPtr = false;
+
+		/* The ammount of nullptr's that was found after the last valid pointer. 
+		*  Used to terminate the check for the block-count after we reach
+		*/
+		int32 NumNullptrsInARow = 0x0;
 
 		for (int j = 0x0; j < 0x10000; j += 8)
 		{
@@ -188,6 +208,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 
 			if ((*reinterpret_cast<uint8_t**>(NamePool + ChunkOffset)) != nullptr)
 			{
+				NumNullptrsInARow = 0x0;
 				NotNullptrCount++;
 
 				if (!bFoundFirstPtr)
@@ -196,9 +217,17 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 					Off::NameArray::ChunksStart = i + 8 + j + (i % 8);
 				}
 			}
+			else
+			{
+				NumNullptrsInARow++;
+
+				/* Assume there are no more chunks after 256 unallocated chunks */
+				if (NumNullptrsInARow == 0x100)
+					break;
+			}
 		}
 
-		if (PossibleMaxChunkIdx == (NotNullptrCount - 1))
+		if (PossibleNumChunkIdx == (NotNullptrCount - 1))
 		{
 			Off::NameArray::MaxChunkIndex = i;
 			Off::NameArray::ByteCursor = i + 4;
@@ -212,8 +241,6 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 
 	constexpr uint64 CoreUObjAsUint64 = 0x6A624F5565726F43; // little endian "jbOUeroC" ["/Script/CoreUObject"]
 	constexpr uint32 NoneAsUint32 = 0x656E6F4E; // little endian "None"
-
-	constexpr int64 CoreUObjectStringLength = sizeof("/S");
 
 	uint8_t** ChunkPtr = reinterpret_cast<uint8_t**>(NamePool + Off::NameArray::ChunksStart);
 
@@ -367,7 +394,6 @@ bool NameArray::TryFindNamePool()
 	constexpr int32 BytePropertySearchRange = 0x2A0;
 
 	/* FNamePool::FNamePool contains a call to InitializeSRWLock or RtlInitializeSRWLock, we're going to check for that later */
-	//uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(GetImportAddress(nullptr, "kernel32.dll", "InitializeSRWLock"));
 	uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "InitializeSRWLock"));
 	uintptr_t RtlInitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("ntdll.dll", "RtlInitializeSRWLock"));
 
@@ -446,25 +472,77 @@ bool NameArray::TryInit(bool bIsTestOnly)
 	bool bFoundNameArray = false;
 	bool bFoundnamePool = false;
 
-	if (NameArray::TryFindNameArray())
+	auto OnFoundNameArray = [&]()
 	{
-		std::cout << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		GNamesAddress = *reinterpret_cast<uint8**>(ImageBase + Off::InSDK::NameArray::GNames);// Derefernce
 		Settings::Internal::bUseNamePool = false;
 		bFoundNameArray = true;
+	};
+
+	auto OnFoundNamePool = [&]()
+	{
+		GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames); // No derefernce
+		Settings::Internal::bUseNamePool = true;
+		bFoundnamePool = true;
+	};
+
+	if (NameArray::TryFindNameArray())
+	{
+		std::cout << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		OnFoundNameArray();
 	}
 	else if (NameArray::TryFindNamePool())
 	{
 		std::cout << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
-		GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames); // No derefernce
-		Settings::Internal::bUseNamePool = true;
-		bFoundnamePool = true;
+		OnFoundNamePool();
 	}
 
 	if (!bFoundNameArray && !bFoundnamePool)
 	{
-		std::cout << "\n\nCould not find GNames!\n\n" << std::endl;
-		return false;
+		/* Updated methodes didn't work, let's try the old-school signature scan as a backup */
+		struct GNamesSignature
+		{
+			const char* Pattern;
+			int Relative;
+			bool bIsNamePool;
+		};
+
+		std::array<GNamesSignature, 3> Signatures = { {
+			{ .Pattern = "48 8D 05 ? ? ? ? 48 83 C4 ? 5F C3 48 89 5C 24", .Relative = 0x3, .bIsNamePool = true, }, // FNamePool Back4Blood
+			{ .Pattern = "48 8D 0D ? ? ? ? E8 ? ? ? ? 4C 8B C0 C6 05", .Relative = 0x3, .bIsNamePool = true }, // FNamePool
+			{ .Pattern = "48 89 3D ? ? ? ? 8B 87 ? ? ? ? 05 ? ? ? ? 99 81 E2 ? ? ? ?", .Relative = 0x3, .bIsNamePool = false }, // TNameEntryArray
+		} };
+
+		uint8_t** GNamesAddress = nullptr;
+
+		for (auto Sig : Signatures)
+		{
+			GNamesAddress = reinterpret_cast<uint8_t**>(FindPattern(Sig.Pattern, Sig.Relative, true));
+
+			if (!GNamesAddress)
+				continue;
+
+			Off::InSDK::NameArray::GNames = GetOffset(GNamesAddress);
+			
+			if (!Sig.bIsNamePool)
+			{
+				std::cout << std::format("BACKUP - Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+				OnFoundNameArray();
+			}
+			else
+			{
+				std::cout << std::format("BACKUP - Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+				OnFoundNamePool();
+			}
+			break;
+		}
+
+		/* The backup-method failed, GNames wasn't found */
+		if (!GNamesAddress)
+		{
+			std::cout << "\n\nCould not find GNames!\n\n" << std::endl;
+			return false;
+		}
 	}
 
 	if (bIsTestOnly)
