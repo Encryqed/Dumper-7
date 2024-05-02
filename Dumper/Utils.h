@@ -168,7 +168,7 @@ inline bool IsInProcessRange(uintptr_t Address)
 	return Address > ImageBase && Address < (NtHeader->OptionalHeader.SizeOfImage + ImageBase);
 }
 
-inline bool IsBadReadPtr(void* p)
+inline bool IsBadReadPtr(const void* p)
 {
 	MEMORY_BASIC_INFORMATION mbi;
 
