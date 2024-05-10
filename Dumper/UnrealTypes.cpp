@@ -80,13 +80,13 @@ FName::FName(void* Ptr)
 
 void FName::Init(bool bForceGNames)
 {
-	constexpr std::array<const char*, 6> PossibleSigs = 
+	constexpr std::array<const char*, 5> PossibleSigs = 
 	{ 
 		"48 8D ? ? 48 8D ? ? E8",
 		"48 8D ? ? ? 48 8D ? ? E8",
 		"48 8D ? ? 49 8B ? E8",
 		"48 8D ? ? ? 49 8B ? E8",
-		"48 8D ? ? 48 8B ? E8",
+		"48 8D ? ? 48 8B ? E8"
 		"48 8D ? ? ? 48 8B ? E8",
 	};
 
