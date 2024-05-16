@@ -29,7 +29,7 @@ You can  find the full changelog for the new GeneratorRewrite in [Changelog.md](
 ## Overriding Offsets
 
 - ### Only override any offsets if the generator doesn't find them by itself
-- All overrides are made in **Generator::Init()** inside of **Generator.cpp**
+- All overrides are made in **Generator::InitEngineCore()** inside of **Generator.cpp**
 
 - GObjects
   ```cpp

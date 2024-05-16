@@ -658,11 +658,11 @@ namespace OffsetFinder
 		int32 SearchStart = ObjectArray::FindClassFast("Object").GetStructSize() + ObjectArray::FindObjectFast<UEStruct>("URL", EClassCastFlags::Struct).GetStructSize();
 		int32 SearchEnd = ObjectArray::FindClassFast("Level").FindMember("OwningWorld").GetOffset();
 
-		for (int i = SearchStart; i <= (SearchEnd - 0x10); i += 8)
+		for (int i = SearchStart; i < (SearchEnd - 0x10); i += 8)
 		{
-			const TArray<void*>& ActorArray = *reinterpret_cast<TArray<void*>*>(Lvl + i);
-
-			if (ActorArray.IsValid() && !IsBadReadPtr(ActorArray.GetDataPtr()))
+			if (*reinterpret_cast<int32_t*>(Lvl + i + 0xC) >= *reinterpret_cast<int32_t*>(Lvl + i + 0x8) /* TArray::MaxElements >= TArray::NumElements */
+				&& *reinterpret_cast<int64_t*>(Lvl + i + 0x8) // TArray::MaxElements == 0 && TArray::NumElements && 0
+				&& !IsBadReadPtr(*reinterpret_cast<void**>(Lvl + i)))
 			{
 				return i;
 			}

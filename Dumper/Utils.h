@@ -182,7 +182,7 @@ inline bool IsInProcessRange(uintptr_t Address)
 	return Address > ImageBase && Address < (NtHeader->OptionalHeader.SizeOfImage + ImageBase);
 }
 
-inline bool IsBadReadPtr(const void* p)
+inline bool IsBadReadPtr(void* p)
 {
 	MEMORY_BASIC_INFORMATION mbi;
 
@@ -494,7 +494,7 @@ inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearc
 template<typename T>
 inline T* FindAlignedValueInProcessInRange(T Value, int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
 {
-	constexpr int32 ElementSize = sizeof(T);
+	constexpr int32_t ElementSize = sizeof(T);
 
 	for (uint32_t i = 0x0; i < Range; i += Alignment)
 	{
@@ -574,32 +574,14 @@ private:
 		return bytes;
 	}
 
-	/* Function to determine whether this position is a function-return. Only "ret" instructions with pop operations before them and without immediate values are considered. */
 	static bool IsFunctionRet(uint8_t* Address)
 	{
-		if (!Address || (Address[0] != 0xC3 && Address[0] != 0xCB))
-			return false;
-
-		/* Opcodes representing pop instructions for x64 registers. Pop operations for r8-r15 are prefixed with 0x41. */
-		const uint8 AsmBytePopOpcodes[] = { 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F };
-
-		const uint8 ByteOneBeforeRet = Address[-1];
-		const uint8 ByteTwoBeforeRet = Address[-2];
-
-		for (const uint8 AsmPopByte : AsmBytePopOpcodes)
-		{
-			if (ByteOneBeforeRet == AsmPopByte)
-				return true;
-		}
-
-		return false;
+		int Align = 0x10 - (uintptr_t(Address) % 0x10);
+		//if (Opcode == RET && (OpcodeBefore is a POP opcode || OpcodeTwoBefore is a different POP Opcode)
+		return Address[0] == 0xC3 && Address[Align] == 0x40 && ((Address[-1] >= 0x58 && Address[-1] <= 0x5F) || (Address[-2] == 0x41 && (Address[-1] >= 0x58 && Address[-1] <= 0x5F)));
 	}
 
 public:
-	inline MemAddress(std::nullptr_t)
-		: Address(nullptr)
-	{
-	}
 	inline MemAddress(void* Addr)
 		: Address((uint8_t*)Addr)
 	{
@@ -663,18 +645,23 @@ public:
 	inline MemAddress FindFunctionEnd(uint32 Range = 0xFFFF) const
 	{
 		if (!Address)
-			return nullptr;
+			return MemAddress(nullptr);
 
-		if (Range > 0xFFFF)
-			Range = 0xFFFF;
+		int Align = 0x10 - (uintptr_t(Address) % 0x10);
 
-		for (int i = 0; i < Range; i++)
+		for (int i = 0; i < 0xFFFF; i++)
 		{
 			if (IsFunctionRet(Address + i))
-				return Address + i;
+			{
+				return MemAddress(Address + i);
+			}
+			if ((uintptr_t(Address + i) % 0x10 == 0) && (Address[i] == 0x40 && (Address[i + 1] >= 0x50 && Address[i + 1] <= 0x57) && (Address[i + 2] >= 0x50 && Address[i + 2] <= 0x57)))
+			{
+				return MemAddress(Address + i);
+			}
 		}
 
-		return  nullptr;
+		return  MemAddress(nullptr);
 	}
 
 	/* Helper function to find a Pattern in a Range relative to the current position */
@@ -698,42 +685,30 @@ public:
 	*/
 	inline MemAddress GetRipRelativeCalledFunction(int32_t OneBasedFuncIndex, bool(*IsWantedTarget)(MemAddress CalledAddr) = nullptr) const
 	{
-		if (!Address || OneBasedFuncIndex == 0)
+		if (!Address || FunctionIndex == 0)
 			return nullptr;
-
-		const int32 Multiply = OneBasedFuncIndex > 0 ? 1 : -1;
-
-		/* Returns Index if FunctionIndex is positive, else -1 if the index is less than 0 */
-		auto GetIndex = [=](int32 Index) -> int32 { return Index * Multiply; };
-
-		constexpr int32 RealtiveCallOpcodeCount = 0x5;
 
 		int32_t NumCalls = 0;
 
-		for (int i = 0; i < 0xFFF; i++)
+		for (int i = 0; i < (FunctionIndex > 0 ? 0xFFF : -0xFFF); (FunctionIndex > 0 ? i += 0x50 : i -= 0x50))
 		{
-			const int32 Index = GetIndex(i);
-
-			/* If this isn't a call, we don't care about it and want to continue */
-			if (Address[Index] != 0xE8)
-				continue;
-
-			const int32 RelativeOffset = *reinterpret_cast<int32*>(Address + Index + 0x1 /* 0xE8 byte */);
-			void* RelativeCallTarget = Address + Index + RelativeOffset + RealtiveCallOpcodeCount;
-
-			if (!IsInProcessRange(reinterpret_cast<uintptr_t>(RelativeCallTarget)))
-				continue;
-
-			if (++NumCalls == abs(OneBasedFuncIndex))
+			for (int j = 0; j < 0x50; j++)
 			{
-				/* This is not the target we wanted, even tho it's at the right index. Decrement the index to the value before and check if the next call satisfies the custom-condition. */
-				if (IsWantedTarget && !IsWantedTarget(RelativeCallTarget))
+				//opcode: call
+				if (Address[i + j] == 0xE8)
 				{
-					--NumCalls;
-					continue;
-				}
+					uint8_t* CallAddr = Address + i + j;
 
-				return RelativeCallTarget;
+					void* Func = CallAddr + *reinterpret_cast<int32_t*>(CallAddr + 1) + 5; /*Addr + Offset + 5*/
+
+					if ((uint64_t(Func) % 0x4) != 0x0)
+						continue;
+						
+					if (++NumCalls == FunctionIndex)
+					{
+						return Func;
+					}
+				}
 			}
 		}
 

@@ -46,44 +46,39 @@ public:
 		return Data[Index];
 	}
 
-	inline int32 Num()const 
+	inline int32 Num()
 	{
 		return this->NumElements;
 	}
 
-	inline int32 Max() const
+	inline int32 Max()
 	{
 		return this->MaxElements;
 	}
 
-	inline int32 GetSlack() const
+	inline int32 GetSlack()
 	{
 		return MaxElements - NumElements;
 	}
 
-	inline bool IsValid() const
+	inline bool IsValid()
 	{
-		return Data && MaxElements >= NumElements && MaxElements > 0x0 && NumElements > 0x0;
+		return this->Data != nullptr;
 	}
 
-	inline bool IsValidIndex(int32 Index) const
+	inline bool IsValidIndex(int32 Index)
 	{
 		return Index >= 0 && Index < this->NumElements;
 	}
 
-	inline bool IsValidIndex(uint32 Index) const
+	inline bool IsValidIndex(uint32 Index)
 	{
 		return Index < this->NumElements;
 	}
 
-	inline void ResetNum() 
+	inline void ResetNum()
 	{
 		NumElements = 0;
-	}
-
-	inline const void* GetDataPtr() const
-	{
-		return Data;
 	}
 
 protected:
