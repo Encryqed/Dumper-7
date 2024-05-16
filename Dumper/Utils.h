@@ -15,16 +15,29 @@ inline std::string str_tolower(std::string S)
 
 namespace ASMUtils
 {
-	inline bool IsRIPRelativeJump(uintptr_t Address)
+	/* See IDA or https://c9x.me/x86/html/file_module_x86_id_147.html for reference on the jmp opcode */
+	inline bool Is32BitRIPRelativeJump(uintptr_t Address)
 	{
-		return *reinterpret_cast<uint16_t*>(Address) == 0xFF48; /* 48 for jmp, FF for "RIP relative" -- little endian */
+		return Address && *reinterpret_cast<uint8_t*>(Address) == 0xE9; /* 48 for jmp, FF for "RIP relative" -- little endian */
 	}
 
-	inline uintptr_t Resolve32BitRIPRelativeJump(uintptr_t Address)
+	inline uintptr_t Resolve32BitRIPRelativeJumpTarget(uintptr_t Address)
+	{
+		constexpr int32_t InstructionSizeBytes = 0x5;
+		constexpr int32_t InstructionImmediateDisplacementOffset = 0x1;
+
+		const int32_t Offset = *reinterpret_cast<int32_t*>(Address + InstructionImmediateDisplacementOffset);
+
+		/* Add the InstructionSizeBytes because offsets are relative to the next instruction. */
+		return Address + InstructionSizeBytes + Offset;
+	}
+
+	/* See https://c9x.me/x86/html/file_module_x86_id_147.html */
+	inline uintptr_t Resolve32BitRegisterRelativeJump(uintptr_t Address)
 	{
 		/*
 		* 48 FF 25 C1 10 06 00     jmp QWORD [rip+0x610c1]
-		* 
+		*
 		* 48 FF 25 <-- Information on the instruction [jump, relative, rip]
 		* C1 10 06 00 <-- 32-bit Offset relative to the address coming **after** these instructions (+ 7) [if 48 had hte address 0x0 the offset would be relative to address 0x7]
 		*/
@@ -50,6 +63,7 @@ namespace ASMUtils
 		return ((Address + 7) + *reinterpret_cast<int32_t*>(Address + 3));
 	}
 }
+
 
 struct CLIENT_ID
 {
@@ -131,7 +145,7 @@ struct LDR_DATA_TABLE_ENTRY
 	BYTE MoreStupidCompilerPaddingYay[0x4];
 	UNICODE_STRING FullDllName;
 	UNICODE_STRING BaseDllName;
-}; 
+};
 
 inline _TEB* _NtCurrentTeb()
 {
@@ -473,7 +487,7 @@ inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearc
 	if (StartAddress == 0x0)
 		StartAddress = SearchStart;
 
-	return FindPatternInRange(Signature, reinterpret_cast<uint8_t*>(StartAddress), SearchRange, Offset != 0x0, Offset);
+	return FindPatternInRange(Signature, reinterpret_cast<uint8*>(StartAddress), SearchRange, Offset != 0x0, Offset);
 }
 
 
@@ -576,15 +590,17 @@ public:
 		: Address((uint8_t*)Addr)
 	{
 	}
+
 	explicit operator bool()
 	{
 		return Address != nullptr;
 	}
-	explicit operator uint8_t*()
+	template<typename T = void>
+	explicit operator T* ()
 	{
-		return Address;
+		return reinterpret_cast<T*>(Address);
 	}
-	operator void*()
+	operator void* ()
 	{
 		return Address;
 	}
@@ -604,7 +620,29 @@ public:
 		return Address;
 	}
 
-	MemAddress FindFunctionEnd()
+	/*
+	* Checks if the current address is a valid 32-bit relative 'jmp' instruction. and returns the address if true.
+	*
+	* If true: Returns resolved jump-target.
+	* If false: Returns current address.
+	*/
+	inline MemAddress ResolveJumpIfInstructionIsJump(MemAddress DefaultReturnValueOnFail = nullptr) const
+	{
+		const uintptr_t AddrAsInt = reinterpret_cast<uintptr_t>(Address);
+
+		if (!ASMUtils::Is32BitRIPRelativeJump(AddrAsInt))
+			return DefaultReturnValueOnFail;
+
+		const uintptr_t TargetAddress = ASMUtils::Resolve32BitRIPRelativeJumpTarget(AddrAsInt);
+
+		if (!IsInProcessRange(TargetAddress))
+			return DefaultReturnValueOnFail;
+
+		return TargetAddress;
+	}
+
+	/* Helper to find the end of a function based on 'pop' instructions followed by 'ret' */
+	inline MemAddress FindFunctionEnd(uint32 Range = 0xFFFF) const
 	{
 		if (!Address)
 			return MemAddress(nullptr);
@@ -626,7 +664,8 @@ public:
 		return  MemAddress(nullptr);
 	}
 
-	inline void* RelativePattern(const char* Pattern, int32_t Range, int32_t Relative = 0)
+	/* Helper function to find a Pattern in a Range relative to the current position */
+	inline MemAddress RelativePattern(const char* Pattern, int32_t Range, int32_t Relative = 0) const
 	{
 		if (!Address)
 			return nullptr;
@@ -634,9 +673,17 @@ public:
 		return FindPatternInRange(Pattern, Address, Range, Relative != 0, Relative);
 	}
 
-	// every occurence of E8 counts as a call, use for max 1-5 calls only
-	/* Negative index for search up, positive for search down  | goes beyond function-boundaries */
-	inline void* GetCalledFunction(int32_t FunctionIndex)
+	/*
+	* A Function to find calls relative to the instruction pointer (RIP). Other calls are ignored.
+	*
+	* Disclaimers:
+	*	Negative index to search up, positive index to search down.
+	*	Function considers all E8 bytes as 'call' instructsion, that would make for a valid call (to address within process-bounds).
+	*
+	* OneBasedFuncIndex -> Index of a function we want to find, n-th sub_ in IDA starting from this MemAddress
+	* IsWantedTarget -> Allows for the caller to pass a callback to verify, that the function at index n is the target we're looking for; else continue searching for a valid target.
+	*/
+	inline MemAddress GetRipRelativeCalledFunction(int32_t OneBasedFuncIndex, bool(*IsWantedTarget)(MemAddress CalledAddr) = nullptr) const
 	{
 		if (!Address || FunctionIndex == 0)
 			return nullptr;
@@ -668,7 +715,8 @@ public:
 		return nullptr;
 	}
 
-	inline MemAddress FindNextFunctionStart()
+	/* Note: Unrealiable */
+	inline MemAddress FindNextFunctionStart() const
 	{
 		if (!Address)
 			return MemAddress(nullptr);
@@ -852,10 +900,10 @@ inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress
 
 	static auto IsValidExecFunctionNotSetupFunc = [](uintptr_t Address) -> bool
 	{
-		/* 
+		/*
 		* UFuntion construction functions setting up exec functions always start with these asm instructions:
 		* sub rsp, 28h
-		* 
+		*
 		* In opcode bytes: 48 83 EC 28
 		*/
 		if (*reinterpret_cast<int32_t*>(Address) == 0x284883EC || *reinterpret_cast<int32_t*>(Address) == 0x4883EC28)

@@ -284,8 +284,14 @@ std::string UEObject::GetValidName() const
 
 std::string UEObject::GetCppName() const
 {
-	static UEClass ActorClass = ObjectArray::FindClassFast("Actor");
-	static UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
+	static UEClass ActorClass = nullptr;
+	static UEClass InterfaceClass = nullptr;
+	
+	if (ActorClass == nullptr)
+		ActorClass = ObjectArray::FindClassFast("Actor");
+	
+	if (InterfaceClass == nullptr)
+		InterfaceClass = ObjectArray::FindClassFast("Interface");
 
 	std::string Temp = GetValidName();
 
@@ -870,7 +876,15 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::FieldPathProperty)
 	{
-		return 0x8; // alignof member TArray<FName>;
+		return 0x8; // alignof member TArray<FName> and ptr;
+	}
+	else if (TypeFlags & EClassCastFlags::MulticastSparseDelegateProperty)
+	{
+		return 0x1; // size in PropertyFixup (alignment isn't greater than size)
+	}
+	else if (TypeFlags & EClassCastFlags::MulticastInlineDelegateProperty)
+	{
+		return 0x8;  // alignof member TArray<FName>
 	}
 	else if (TypeFlags & EClassCastFlags::OptionalProperty)
 	{

@@ -24,7 +24,8 @@ namespace Settings
 		/* No seperate namespace for Params -> ParamNamespaceName = nullptr */
 		constexpr const char* ParamNamespaceName = "Params";
 
-		/* Do not XOR strings -> XORString = nullptr */
+		/* Feature is currently not supported/not working. */
+		/* Do not XOR strings -> XORString = nullptr. Custom XorStr implementations differing from https://github.com/JustasMasiulis/xorstr may require changes to the struct 'StringLiteral' in CppGenerator.cpp.  */
 		constexpr const char* XORString = nullptr;
 
 		/* Customizable part of Cpp code to allow for a custom 'uintptr_t InSDKUtils::GetImageBase()' function */
