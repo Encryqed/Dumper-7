@@ -155,6 +155,20 @@ DWORD MainThread(HMODULE Module)
         }
     }
 
+    /* You might need to loop all levels in UWorld::Levels */
+    ULevel* Level = World->PersistentLevel;
+    TArray<AActor*>& volatile Actors = Level->Actors;
+
+    for (AActor* Actor : Actors)
+    {
+        /* The 2nd and 3rd checks are equal, prefer using EClassCastFlags if available for your class. */
+        if (!Actor || !Actor->IsA(EClassCastFlags::Pawn) || !Actor->IsA(APawn::StaticClass()))
+            continue;
+
+        APawn* Pawn = static_cast<APawn*>(Actor);
+        // Use Pawn here
+    }
+
     /* 
     * Changes the keyboard-key that's used to open the UE console
     * 
