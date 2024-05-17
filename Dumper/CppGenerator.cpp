@@ -2479,23 +2479,28 @@ R"({
 
 	PredefinedElements& UWorldPredefs = PredefinedMembers[ObjectArray::FindClassFast("World").GetIndex()];
 
+	constexpr const char* GetWorldThroughGWorldCode = R"(
+	if constexpr (Offsets::GWorld != 0)
+		return *reinterpret_cast<UWorld**>(InSDKUtils::GetImageBase() + Offsets::GWorld);
+)";
+
 	UWorldPredefs.Functions =
 	{
 		/* static non-inline functions */
 		PredefinedFunction {
 			.CustomComment = "Gets a pointer to the current World of the GameViewport",
 			.ReturnType = "class UWorld*", .NameWithParams = "GetWorld()", .Body =
-R"({
+std::format(R"({{{}
 	if (UEngine* Engine = UEngine::GetEngine())
-	{
+	{{
 		if (!Engine->GameViewport)
 			return nullptr;
 
 		return Engine->GameViewport->World;
-	}
+	}}
 
 	return nullptr;
-})",
+}})", !Settings::CppGenerator::bForceNoGWorldInSDK ?  GetWorldThroughGWorldCode : ""),
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = false
 		},
 	};
