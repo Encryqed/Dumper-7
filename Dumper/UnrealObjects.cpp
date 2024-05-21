@@ -530,6 +530,11 @@ std::vector<UEFunction> UEStruct::GetFunctions() const
 	return Functions;
 }
 
+const TArray<uint8>& UEStruct::GetScriptBytes() const
+{
+	return *reinterpret_cast<const TArray<uint8>*>(Object + Off::UStruct::Script);
+}
+
 UEProperty UEStruct::FindMember(const std::string& MemberName, EClassCastFlags TypeFlags) const
 {
 	if (!Object)
@@ -673,6 +678,244 @@ std::string UEFunction::GetParamStructName() const
 	return GetOuter().GetCppName() + "_" + GetValidName() + "_Params";
 }
 
+struct FScriptBytecodeReader
+{
+public:
+	/* if (SCRIPT_LIMIT_BYTECODE_TO_64KB) CodeSkipSizeType = uint16 */
+	using CodeSkipSizeType = uint32;
+
+private:
+	const TArray<uint8>& ScriptBytes;
+	int32 CurrentPos;
+
+public:
+	FScriptBytecodeReader(const TArray<uint8>& Script, int32 StartIdx = 0)
+		: ScriptBytes(Script), CurrentPos(StartIdx)
+	{
+	}
+
+public:
+	inline bool HasMoreInstructions() const
+	{
+		return CurrentPos < ScriptBytes.Num();
+	}
+
+public:
+	inline void SkipBytes(int32 Count)
+	{
+		CurrentPos += Count;
+	}
+
+	template<typename T>
+	inline T ReadAnyValue()
+	{
+		if (!ScriptBytes.IsValidIndex(CurrentPos + sizeof(T))
+			return 0x0;
+
+		T Ret = *reinterpret_cast<T* const>(&ScriptBytes[CurrentPos]);
+		CurrentPos += sizeof(T);
+
+		return Ret;
+	}
+
+	inline EExprToken GetInstructionAndContinue()
+	{
+		return ReadAnyValue<EExprToken>();
+	}
+
+	inline uint32 GetCodeSkipCount()
+	{
+		return ReadAnyValue<CodeSkipSizeType>();
+	}
+
+	inline void* ReadPtr()
+	{
+		return ReadAnyValue<void*>();
+	}
+
+	inline UEProperty ReadProperty()
+	{
+		return UEProperty(ReadPtr());
+	}
+
+	inline UEObject ReadObject()
+	{
+		return UEObject(ReadPtr());
+	}
+};
+
+/* Temp void* to avoid moving */
+std::string UEFunction::DisassembleInstruction(void* ByteCodeReader) const
+{
+	static auto AppendPrpertyNameIfValid = [](std::string& Str, UEProperty Property) -> void
+	{
+		Str += (!IsBadReadPtr(Property.GetAddress()) ? Property.GetName() : "NULL");
+	};
+	static auto AppendObjectNameIfValid = [](std::string& Str, UEObject Property) -> void
+	{
+		Str += (!IsBadReadPtr(Property.GetAddress()) ? Property.GetName() : "NULL");
+	};
+
+
+	FScriptBytecodeReader& Reader = *reinterpret_cast<FScriptBytecodeReader*>(ByteCodeReader);
+
+	EExprToken Instruction = Reader.GetInstructionAndContinue();
+
+	std::string Ret;
+
+	if (Instruction == EExprToken::LocalVariable)
+	{
+		Ret += "LocalVariable: ";
+
+		const UEProperty Property = Reader.ReadProperty();
+		AppendPrpertyNameIfValid(Ret, Property);
+
+		Ret += '\n';
+	}
+	else if (Instruction == EExprToken::InstanceVariable)
+	{
+		Ret += "InstanceVariable: ";
+
+		const UEProperty Property = Reader.ReadProperty();
+		AppendPrpertyNameIfValid(Ret, Property);
+
+		Ret += '\n';
+	}
+	else if (Instruction == EExprToken::DefaultVariable)
+	{
+		Ret += "DefaultVariable: ";
+
+		const UEProperty Property = Reader.ReadProperty();
+		AppendPrpertyNameIfValid(Ret, Property);
+
+		Ret += '\n';
+	}
+	else if (Instruction == EExprToken::Jump)
+	{
+		const uint32 SkipCount = Reader.GetCodeSkipCount();
+		Ret += std::format("JMP +0x{:X}\n", SkipCount);
+	}
+	else if (Instruction == EExprToken::JumpIfNot)
+	{
+		const uint32 SkipCount = Reader.GetCodeSkipCount();
+		Ret += std::format("JMP IF NOT +0x{:X}\n", SkipCount);
+
+		const std::string ConditionInstruction = DisassembleInstruction(&Reader);
+		Ret += ("\nCONDITION: " + ConditionInstruction);
+	}
+	else if (Instruction == EExprToken::Jump)
+	{
+		const uint16 LineNumber = Reader.ReadAnyValue<uint16>();
+
+		const std::string AssertionInstruction = DisassembleInstruction(&Reader);
+		Ret += std::format("ASSERT ({}) on line 0x{:X}\n", AssertionInstruction, LineNumber);;
+	}
+	else if (Instruction == EExprToken::Nothing)
+	{
+		Ret += "NOTHING\n";
+	}
+	else if (Instruction == EExprToken::NothingInt32)
+	{
+		const int32 Value = Reader.ReadAnyValue<int32>();
+		Ret += std::format("NOTHING32 0x{:X}\n", Value);
+	}
+	else if (Instruction == EExprToken::Let)
+	{
+		const UEProperty Property = Reader.ReadProperty();
+		const std::string MaybeValueToAssignTo = DisassembleInstruction(&Reader);
+		const std::string MaybeValueToAssign = DisassembleInstruction(&Reader);
+
+		Ret += "LET ";
+		AppendPrpertyNameIfValid(Ret, Property);
+		Ret += ("\n\tTARGET: " + MaybeValueToAssignTo);
+		Ret += ("\tSOURCE: " + MaybeValueToAssign);
+	}
+	else if (Instruction == EExprToken::BitFieldConst)
+	{
+		Ret += "BitFieldConst: ";
+
+		const UEProperty Property = Reader.ReadProperty();
+		AppendPrpertyNameIfValid(Ret, Property);
+
+		const uint8 Value = Reader.ReadAnyValue<uint8>();
+		Ret += std::format(" = 0x{:X}\n", Value);
+	}
+	else if (Instruction == EExprToken::ClassContext)		/* LIKELY INCORRECT  */
+	{
+		Ret += "ClassContext: ";
+		const std::string GetClassContextExpr = DisassembleInstruction(&Reader);
+
+		/* Actions from 'if' branch, 'else' is ignored for now. Might cause issues. */
+		Reader.SkipBytes(sizeof(FScriptBytecodeReader::CodeSkipSizeType) + sizeof(uint64) /* ScriptPtr size */);
+		const std::string DefaultObjExpression = DisassembleInstruction(&Reader);
+
+		Ret += ("\tEXPR: " + GetClassContextExpr + "\n");
+		Ret += ("\tDEF-EXPR: " + DefaultObjExpression + "\n");
+	}
+	else if (Instruction == EExprToken::MetaCast)
+	{
+		Ret += "META_CAST:\n";
+
+		const UEObject Object = Reader.ReadObject();
+		const std::string SubExpr = DisassembleInstruction(&Reader);
+
+		Ret += "\tOBJ: ";
+		AppendObjectNameIfValid(Ret, Object);
+		Ret += ("\n\tSUBEXPR: " + SubExpr + "\n");
+	}
+	else if (Instruction == EExprToken::LetBool)
+	{
+		Ret += "LETBOOL:\n";
+
+		/* Expr to get address, to place the data */
+		const std::string GetVarSubExpr = DisassembleInstruction(&Reader);
+
+		/* Expr to value to set the data */
+		const std::string GetValueExpr = DisassembleInstruction(&Reader);
+
+		Ret += "\tGET-TARGET: " + GetVarSubExpr + "\n";
+		Ret += "\tGET-VALUE: " + GetValueExpr + "\n";
+	}
+	else if (Instruction == EExprToken::EndParmValue)
+	{
+		Ret += "END_PARAM_VALUE\n";
+	}
+	else if (Instruction == EExprToken::EndFunctionParms)
+	{
+		Ret += "END_FUNC_PARAMS\n";
+	}
+	else if (Instruction == EExprToken::Self)
+	{
+		Ret += "SELF\n";
+	}
+	else if (Instruction == EExprToken::Self)
+	{
+		Ret += "SELF\n";
+	}
+	else if (Instruction == EExprToken::Return)
+	{
+		Ret += "Return\n";
+	}
+
+	return Ret;
+}
+
+std::string UEFunction::DumpScriptBytecode() const
+{
+	std::string Ret;
+
+	const TArray<uint8>& ByteCode = GetScriptBytes();
+
+	FScriptBytecodeReader Reader(ByteCode);
+
+	while (Reader.HasMoreInstructions())
+	{
+		Ret += DisassembleInstruction(&Reader);
+	}
+
+	return Ret;
+}
+
 void* UEProperty::GetAddress()
 {
 	return Base;
@@ -699,7 +942,6 @@ UEProperty::operator bool() const
 {
 	return Base != nullptr && ((Base + Off::UObject::Class) != nullptr || (Base + Off::FField::Class) != nullptr);
 }
-
 
 
 bool UEProperty::IsA(EClassCastFlags TypeFlags) const

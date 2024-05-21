@@ -191,11 +191,13 @@ public:
 	std::vector<UEProperty> GetProperties() const;
 	std::vector<UEFunction> GetFunctions() const;
 
+	const TArray<uint8>& GetScriptBytes() const;
 
 	UEProperty FindMember(const std::string& MemberName, EClassCastFlags TypeFlags = EClassCastFlags::None) const;
 
 	bool HasMembers() const;
 };
+
 
 class UEFunction : public UEStruct
 {
@@ -211,6 +213,11 @@ public:
 
 	std::string StringifyFlags(const char* Seperator = ", ") const;
 	std::string GetParamStructName() const;
+
+	/* Temp void* to avoid moving */
+	std::string DisassembleInstruction(void* ByteCodeReader) const;
+
+	std::string DumpScriptBytecode() const;
 };
 
 class UEClass : public UEStruct

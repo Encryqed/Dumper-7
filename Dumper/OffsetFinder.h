@@ -391,7 +391,7 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
-	inline int32_t FindMinAlignment()
+	inline int32_t FindMinAlignmentOffset()
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
@@ -399,6 +399,17 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindObjectFast("PlayerController").GetAddress(), 0x8 });
 
 		return FindOffset(Infos);
+	}
+
+	inline int32_t FindScriptOffset()
+	{
+		/* APlayerController::ServerViewPrevPlayer */
+		UEFunction Func = ObjectArray::FindObject<UEFunction>("Function BP_ThirdPersonCharacter.BP_ThirdPersonCharacter_C.ReceiveBeginPlay");
+
+		std::cout << "BP_ThirdPersonCharacter_C.ReceiveBeginPlay: " << Func.GetAddress() << std::endl;
+
+		/* Temporary hardcoded*/
+		return Off::UStruct::MinAlignemnt + 0x4;
 	}
 
 	/* UFunction */

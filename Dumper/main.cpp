@@ -55,10 +55,31 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::Generator::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
-	Generator::Generate<CppGenerator>();
-	Generator::Generate<MappingGenerator>();
-	Generator::Generate<IDAMappingGenerator>();
-	Generator::Generate<DumpspaceGenerator>();
+	UEClass BPGenClass = ObjectArray::FindClassFast("BlueprintGeneratedClass");
+	for (UEObject Obj : ObjectArray())
+	{
+		if (Obj.IsA(EClassCastFlags::Class) && Obj.IsA(BPGenClass))
+			std::cout << "BPClass: " << Obj.GetFullName() << "\n\n";
+
+		if (!Obj.IsA(EClassCastFlags::Function) || Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
+			continue;
+
+		UEFunction Func = Obj.Cast<UEFunction>();
+
+		//if (Func.GetOutermost().GetName() != "Engine")
+		//	continue;
+
+		if (Func.GetScriptBytes().IsEmpty())
+			continue;
+
+		std::cout << "Flags: (" << Func.StringifyObjFlags() << ")\nObj: " << Func.GetFullName() << "\nScriptBytes: " << Func.GetScriptBytes().Num() 
+			<< "\nOuter: " << Func.GetOuter().GetFullName() << "\n\n";
+	}
+
+	//Generator::Generate<CppGenerator>();
+	//Generator::Generate<MappingGenerator>();
+	//Generator::Generate<IDAMappingGenerator>();
+	//Generator::Generate<DumpspaceGenerator>();
 
 
 	auto t_C = std::chrono::high_resolution_clock::now();
