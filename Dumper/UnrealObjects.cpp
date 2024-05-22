@@ -718,12 +718,12 @@ public:
 		return Ret;
 	}
 
-	inline EExprToken GetInstructionAndContinue()
+	inline EExprToken ReadIntruction()
 	{
 		return ReadAnyValue<EExprToken>();
 	}
 
-	inline uint32 GetCodeSkipCount()
+	inline uint32 ReadCodeSkipCount()
 	{
 		return ReadAnyValue<CodeSkipSizeType>();
 	}
@@ -744,6 +744,188 @@ public:
 	}
 };
 
+std::string UEFunction::DisassembleInstructionFromUETemplate(void* ByteCodeReader) const
+{
+	FScriptBytecodeReader& Reader = *reinterpret_cast<FScriptBytecodeReader*>(ByteCodeReader);
+
+	EExprToken Instruction = Reader.ReadIntruction();
+
+	std::string Ret;
+
+	switch (Instruction)
+	{
+	case EExprToken::Cast:
+	{
+		uint8 CastType = Reader.ReadAnyValue<uint8>(); // 0x1
+		const std::string SubExpression = DisassembleInstructionFromUETemplate(&Reader); // Unknown-/Dynamic-Size
+
+		Ret = std::format("Cast: SUBEXPR -> {}", SubExpression);
+		break;
+	}
+	case EExprToken::ObjToInterfaceCast:
+	case EExprToken::CrossInterfaceCast:
+	case EExprToken::InterfaceToObjCast:
+	{
+		const UEObject Object = Reader.ReadObject(); // 0x8, even on x32
+		const std::string SubExpression = DisassembleInstructionFromUETemplate(&Reader); // Unknown-/Dynamic-Size
+
+		Ret = std::format("ObjToInterfaceCast|CrossInterfaceCast|InterfaceToObjCast: OJB -> \"{}\", SUBEXPR -> {}", Object.GetName(), SubExpression);
+		break;
+	}
+	case EExprToken::Let:
+	{
+		const UEProperty Property = Reader.ReadProperty(); // 0x8, even on x32
+
+		Ret = std::format("Let: PROP -> {}", Property.GetName());
+		break;
+	}
+	case EExprToken::LetObj:
+	case EExprToken::LetWeakObjPtr:
+	case EExprToken::LetBool:
+	case EExprToken::LetDelegate:
+	case EExprToken::LetMulticastDelegate:
+	{
+		const std::string GetVarExpr = DisassembleInstructionFromUETemplate(&Reader); // Unknown-/Dynamic-Size
+		const std::string AssignmentExpr = DisassembleInstructionFromUETemplate(&Reader); // Unknown-/Dynamic-Size
+
+		Ret = std::format("Let{{Obj|WeakObjPtr|Bool|Delegate|MCDelegate}}: GETVAR_EXPR -> \"{}\", ASSIGN_EXPR -> \"{}\"", GetVarExpr, AssignmentExpr);
+		break;
+	}
+	case EExprToken::LetValueOnPersistentFrame:
+	{
+		const UEProperty Property = Reader.ReadProperty(); // 0x8, even on x32
+		const std::string AssignmentExpr = DisassembleInstructionFromUETemplate(&Reader); // Unknown-/Dynamic-Size
+
+		Ret = std::format("LetValueOnPersistentFrame: PROP -> \"{}\", ASSIGN_EXPR -> \"{}\"", Property.GetName(), AssignmentExpr);
+		break;
+	}
+	case EExprToken::StructMemberContext:
+	{
+		const UEProperty Property = Reader.ReadProperty(); // 0x8, even on x32
+		const std::string AssignmentExpr = DisassembleInstructionFromUETemplate(&Reader); // Unknown-/Dynamic-Size
+
+		Ret = std::format("StructMemberContext: PROP -> \"{}\", ASSIGN_EXPR -> \"{}\"", Property.GetName(), AssignmentExpr);
+		break;
+	}
+	case EExprToken::Jump:
+	{
+		const uint32 CodeSkipCount = Reader.ReadCodeSkipCount(); // 0x4 by default, 0x2 with SCRIPT_LIMIT_BYTECODE_TO_64KB
+
+		Ret = std::format("Jump: SKIP_COUNT -> 0x{:X}", CodeSkipCount);
+		break;
+	}
+	case EExprToken::ComputedJump:
+	{
+		const std::string CalcJmpOffsetExpr = DisassembleInstructionFromUETemplate(&Reader); // Unknown-/Dynamic-Size
+
+		Ret = std::format("ComputedJump: CALC_JMP_OFF_EXPR -> \"{}\"", CalcJmpOffsetExpr);
+		break;
+	}
+	case EExprToken::LocalVariable:
+	case EExprToken::InstanceVariable:
+	case EExprToken::DefaultVariable:
+	case EExprToken::LocalOutVariable:
+	case EExprToken::ClassSparseDataVariable:
+	case EExprToken::PropertyConst:
+	{
+		const UEProperty Property = Reader.ReadProperty(); // 0x8, even on x32
+
+		Ret = std::format("Variable {Local|Instance|Default|LocOut|ClassSparse|PropConst}: PROP -> \"{}\"", Property.GetName());
+		break;
+	}
+	case EExprToken::InterfaceContext:
+	{
+		const std::string GetInerfaceValueExpr = DisassembleInstructionFromUETemplate(&Reader); // Unknown-/Dynamic-Size
+
+		Ret = std::format("InterfaceContext: GET_VAL_EXPR -> \"{}\"", GetInerfaceValueExpr);
+		break;
+	}
+	case EExprToken::PushExecutionFlow:
+	{
+		const uint32 CodeSkipCount = Reader.ReadCodeSkipCount(); // 0x4 by default, 0x2 with SCRIPT_LIMIT_BYTECODE_TO_64KB
+
+		Ret = std::format("PushExecutionFlow: LOC_TO_PUSH -> 0x{:X}", CodeSkipCount);
+		break;
+	}
+	case EExprToken::NothingInt32:
+	{
+		const uint32 NothingValue = Reader.ReadAnyValue<int32>(); // 0x4
+
+		Ret = std::format("NothingInt32: NOTHING_VALUE -> 0x{:X}", NothingValue);
+		break;
+	}
+	case EExprToken::Nothing:
+	case EExprToken::EndOfScript:
+	case EExprToken::EndFunctionParms:
+	case EExprToken::EndStructConst:
+	case EExprToken::EndArray:
+	case EExprToken::EndArrayConst:
+	case EExprToken::EndSet:
+	case EExprToken::EndMap:
+	case EExprToken::EndSetConst:
+	case EExprToken::EndMapConst:
+	case EExprToken::IntZero:
+	case EExprToken::IntOne:
+	case EExprToken::True:
+	case EExprToken::False:
+	case EExprToken::NoObject:
+	case EExprToken::NoInterface:
+	case EExprToken::Self:
+	case EExprToken::EndParmValue:
+	case EExprToken::PopExecutionFlow:
+	case EExprToken::DeprecatedOp4A:
+	{
+		Ret = "{Nothing|EndOfScirpt|EndFuncParms|EndStructConst|EndArr|EndArrConst|EndSet|EndMap|EndSetC|EndMapC|intZero|IntOne|True|False|NoObj|NoInter|Self|EndPrm|PopFlowStack|DeprecatedOp4A}";
+		break;
+	}
+	case EExprToken::WireTracepoint:
+	case EExprToken::Tracepoint:
+	{
+		Ret = "{ WireTracepoint| Tracepoint }";
+		break;
+	}
+	case EExprToken::Breakpoint:
+	{
+		Ret = "Breakpoint";
+		break;
+	}
+	case EExprToken::InstrumentationEvent:
+	{
+		EScriptInstrumentation Event = Reader.ReadAnyValue<EScriptInstrumentation>(); // 0x1
+
+		if (Event == EScriptInstrumentation::InlineEvent)
+			Reader.SkipBytes(Off::InSDK::Name::FNameSize); // 0x4/0x8/0xC
+
+		Reader.SkipBytes(0x1); // 0x1
+
+		Ret = "InstrumentationEvent";
+		break;
+	}
+	case EExprToken::Return:
+	{
+		Ret = DisassembleInstruction(&Reader);  // Unknown-/Dynamic-Size
+		break;
+	}
+	case EExprToken::CallMath:
+	case EExprToken::LocalFinalFunction:
+	case EExprToken::FinalFunction:
+	{
+		/* UEs Serializer now disassembles the code until it hits a "EndFunction" opcode. We're doing nothing, as subsequent disassembling operations will take care of this. */
+
+		Ret = "{ CallMath | LocalFinalFunction | FinalFunction }";
+		break;
+	}
+	case EExprToken::InstanceVariable:
+	{
+		break;
+	}
+	case EExprToken::InstanceVariable:
+	{
+		break;
+	}
+	}
+}
+
 /* Temp void* to avoid moving */
 std::string UEFunction::DisassembleInstruction(void* ByteCodeReader) const
 {
@@ -759,7 +941,7 @@ std::string UEFunction::DisassembleInstruction(void* ByteCodeReader) const
 
 	FScriptBytecodeReader& Reader = *reinterpret_cast<FScriptBytecodeReader*>(ByteCodeReader);
 
-	EExprToken Instruction = Reader.GetInstructionAndContinue();
+	EExprToken Instruction = Reader.ReadIntruction();
 
 	std::string Ret;
 
@@ -792,12 +974,12 @@ std::string UEFunction::DisassembleInstruction(void* ByteCodeReader) const
 	}
 	else if (Instruction == EExprToken::Jump)
 	{
-		const uint32 SkipCount = Reader.GetCodeSkipCount();
+		const uint32 SkipCount = Reader.ReadCodeSkipCount();
 		Ret += std::format("JMP +0x{:X}\n", SkipCount);
 	}
 	else if (Instruction == EExprToken::JumpIfNot)
 	{
-		const uint32 SkipCount = Reader.GetCodeSkipCount();
+		const uint32 SkipCount = Reader.ReadCodeSkipCount();
 		Ret += std::format("JMP IF NOT +0x{:X}\n", SkipCount);
 
 		const std::string ConditionInstruction = DisassembleInstruction(&Reader);

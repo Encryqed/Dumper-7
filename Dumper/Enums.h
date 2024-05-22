@@ -442,6 +442,28 @@ enum class EClassFlags
 	NewerVersionExists			= 0x80000000u,
 };
 
+// Script instrumentation event types
+enum class EScriptInstrumentation : uint8
+{
+	Class = 0,
+	ClassScope,
+	Instance,
+	Event,
+	InlineEvent,
+	ResumeEvent,
+	PureNodeEntry,
+	NodeDebugSite,
+	NodeEntry,
+	NodeExit,
+	PushState,
+	RestoreState,
+	ResetState,
+	SuspendState,
+	PopState,
+	TunnelEndOfThread,
+	Stop
+};
+
 enum class EMappingsTypeFlags : uint8
 {
 	ByteProperty,

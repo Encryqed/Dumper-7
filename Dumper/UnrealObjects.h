@@ -214,7 +214,10 @@ public:
 	std::string StringifyFlags(const char* Seperator = ", ") const;
 	std::string GetParamStructName() const;
 
-	/* Temp void* to avoid moving */
+	/* Temp void* to avoid moving FScriptBytecodeReader */
+	std::string DisassembleInstructionFromUETemplate(void* ByteCodeReader) const;
+
+	/* Temp void* to avoid moving FScriptBytecodeReader */
 	std::string DisassembleInstruction(void* ByteCodeReader) const;
 
 	std::string DumpScriptBytecode() const;
