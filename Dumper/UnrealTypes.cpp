@@ -73,8 +73,8 @@ std::string MakeNameValid(std::string&& Name)
 }
 
 
-FName::FName(void* Ptr)
-	: Address((uint8*)Ptr)
+FName::FName(const void* Ptr)
+	: Address(static_cast<const uint8*>(Ptr))
 {
 }
 

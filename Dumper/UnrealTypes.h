@@ -84,6 +84,15 @@ public:
 		NumElements = 0;
 	}
 
+	inline void AddIfSpaceAvailable(const T& Element)
+	{
+		if (GetSlack() <= 0x0)
+			return;
+
+		Data[NumElements] = Element;
+		NumElements++;
+	}
+
 protected:
 	inline void FreeArray()
 	{
@@ -158,12 +167,12 @@ private:
 	inline static std::string(*ToStr)(void* Name) = nullptr;
 
 private:
-	uint8* Address;
+	const uint8* Address;
 
 public:
 	FName() = default;
 
-	FName(void* Ptr);
+	FName(const void* Ptr);
 
 public:
 	static void Init(bool bForceGNames = false);

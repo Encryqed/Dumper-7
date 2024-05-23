@@ -742,6 +742,49 @@ public:
 	{
 		return UEObject(ReadPtr());
 	}
+
+	inline const FName ReadName()
+	{
+		const FName Name = FName(&ScriptBytes[CurrentPos]);
+
+		CurrentPos += Off::InSDK::Name::FNameSize;
+
+		return Name;
+	}
+
+	inline std::string ReadString()
+	{
+		std::string Str;
+
+		for (int i = 0; i < 1024; i++)
+		{
+			char C = ReadAnyValue<char>();
+
+			Str.push_back(C);
+
+			if (C == '\0')
+				break;
+		}
+
+		return Str;
+	}
+
+	inline std::wstring ReadUnicodeString()
+	{
+		std::wstring Str;
+
+		for (int i = 0; i < 1024; i++)
+		{
+			wchar_t C = ReadAnyValue<wchar_t>();
+
+			Str.push_back(C);
+
+			if (C == L'\0')
+				break;
+		}
+
+		return Str;
+	}
 };
 
 std::string UEFunction::DisassembleInstructionFromUETemplate(void* ByteCodeReader) const
@@ -759,7 +802,7 @@ std::string UEFunction::DisassembleInstructionFromUETemplate(void* ByteCodeReade
 		uint8 CastType = Reader.ReadAnyValue<uint8>(); // 0x1
 		const std::string SubExpression = DisassembleInstructionFromUETemplate(&Reader); // Unknown-/Dynamic-Size
 
-		Ret = std::format("Cast: SUBEXPR -> {}", SubExpression);
+		Ret = std::format("Cast: SUBEXPR -> \"{}\"", SubExpression);
 		break;
 	}
 	case EExprToken::ObjToInterfaceCast:
@@ -776,7 +819,7 @@ std::string UEFunction::DisassembleInstructionFromUETemplate(void* ByteCodeReade
 	{
 		const UEProperty Property = Reader.ReadProperty(); // 0x8, even on x32
 
-		Ret = std::format("Let: PROP -> {}", Property.GetName());
+		Ret = std::format("Let: PROP -> \"{}\"", Property.GetName());
 		break;
 	}
 	case EExprToken::LetObj:
@@ -915,14 +958,211 @@ std::string UEFunction::DisassembleInstructionFromUETemplate(void* ByteCodeReade
 		Ret = "{ CallMath | LocalFinalFunction | FinalFunction }";
 		break;
 	}
-	//case EExprToken::InstanceVariable:
-	//{
-	//	break;
-	//}
-	//case EExprToken::InstanceVariable:
-	//{
-	//	break;
-	//}
+	case EExprToken::LocalVirtualFunction:
+	case EExprToken::VirtualFunction:
+	{
+		const FName VFuncName = Reader.ReadName(); // sizeof(FName) (0x4/0x8/0xC)
+
+		Ret = std::format("{{VFUNC|LOC_VFUNC}: CALLED_VFUNC -> \"{}\"", VFuncName.ToString());
+		break;
+	}
+	case EExprToken::CallMulticastDelegate:
+	{
+		const UEObject Object = Reader.ReadObject(); // 0x8
+
+		Ret = std::format("CallMulticastDelegate: DELEGATE -> \"{}\"", Object.GetName());
+		break;
+	}
+	case EExprToken::ClassContext:
+	case EExprToken::Context:
+	case EExprToken::Context_FailSilent:
+	{
+		const std::string OjbExpr = DisassembleInstruction(&Reader); // Unknown/Dynamic
+		const uint32 SkipOffset = Reader.ReadCodeSkipCount(); // 0x2/0x4
+		const UEProperty DataProperty = Reader.ReadProperty(); // 0x8
+		const std::string ContextExpr = DisassembleInstruction(&Reader); // Unknown/Dynamic
+
+		Ret = std::format("{{ClassContext|Context|Context_FailSilent}}: OBJ_EXPR -> \"{}\", DATA_PROP -> \"{}\", CONTEXT_EXPR -> \"{}\"", OjbExpr, DataProperty.GetName(), ContextExpr);
+		break;
+	}
+	case EExprToken::AddMulticastDelegate:
+	case EExprToken::RemoveMulticastDelegate:
+	{
+		const std::string GetTargetExpr = DisassembleInstruction(&Reader); // Unknown/Dynamic
+		const std::string GetSourceExpr = DisassembleInstruction(&Reader); // Unknown/Dynamic
+
+		Ret = std::format("{{AddMulticastDelegate|RemoveMulticastDelegate}}: TARGET_EXPR -> \"{}\", SOURCE_EXPR -> \"{}\"", GetTargetExpr, GetSourceExpr);
+		break;
+	}
+	case EExprToken::ClearMulticastDelegate:
+	{
+		const std::string GetTargetExpr = DisassembleInstruction(&Reader); // Unknown/Dynamic
+
+		Ret = std::format("ClearMulticastDelegate: TARGET_EXPR -> \"{}\"", GetTargetExpr);
+		break;
+	}
+	case EExprToken::IntConst:
+	{
+		const int32 IntegerConstant = Reader.ReadAnyValue<int32>(); // 0x4
+
+		Ret = std::format("IntConst: CONST_INT -> 0x{:X}", IntegerConstant);
+		break;
+	}
+	case EExprToken::Int64Const:
+	{
+		const int64 IntegerConstant = Reader.ReadAnyValue<int64>(); // 0x8
+
+		Ret = std::format("Int64Const: CONST_INT64 -> 0x{:X}", IntegerConstant);
+		break;
+	}
+	case EExprToken::UInt64Const:
+	{
+		const uint64 IntegerConstant = Reader.ReadAnyValue<uint64>(); // 0x8
+
+		Ret = std::format("UInt64Const: CONST_UINT64 -> 0x{:X}", IntegerConstant);
+		break;
+	}
+	case EExprToken::SkipOffsetConst:
+	{
+		const uint32 IntegerConstant = Reader.ReadCodeSkipCount(); // 0x2/0x4
+
+		Ret = std::format("SkipOffsetConst: SKIP_VAL -> 0x{:X}", IntegerConstant);
+		break;
+	}
+	case EExprToken::FloatConst:
+	{
+		const float FloatConstant = Reader.ReadAnyValue<float>(); // 0x4
+
+		Ret = std::format("FloatConst: FLOAT: -> {}", FloatConstant);
+		break;
+	}
+	case EExprToken::DoubleConst:
+	{
+		const double DoubleConstant = Reader.ReadAnyValue<double>(); // 0x4
+
+		Ret = std::format("DoubleConst: DOUBLE -> {}", DoubleConstant);
+		break;
+	}
+	case EExprToken::StringConst:
+	{
+		const std::string String = Reader.ReadString(); // Dynamic size
+
+		Ret = std::format("StringConst: STR -> \"{}\"", String);
+		break;
+	}
+	case EExprToken::UnicodeStringConst:
+	{
+		const std::wstring String = Reader.ReadUnicodeString(); // Dynamic size
+
+		Ret = std::format("UnicodeStringConst: WSTR -> \"{}\"", String);
+		break;
+	}
+	case EExprToken::TextConst:
+	{
+		EBlueprintTextLiteralType TextType = Reader.ReadAnyValue<EBlueprintTextLiteralType>();
+
+		switch (TextType)
+		{
+		case EBlueprintTextLiteralType::LocalizedText:
+		{
+			const std::string Source = DisassembleInstruction(&Reader); // Unknown/Dynamic
+			const std::string Text = DisassembleInstruction(&Reader); // Unknown/Dynamic
+			const std::string Namespace = DisassembleInstruction(&Reader); // Unknown/Dynamic
+
+			Ret = std::format("TextConst [Localized]: SRC: \"{}\", TXT: \"{}\", NAMESPACE: \"{}\"", Source, Text, Namespace);
+			break;
+		}
+		case EBlueprintTextLiteralType::InvariantText:
+		case EBlueprintTextLiteralType::LiteralString:
+		{
+			const std::string StringLiteral = DisassembleInstruction(&Reader); // Unknown/Dynamic
+
+			Ret = std::format("TextConst [Invariant|Literal]: STR: \"{}\"", StringLiteral);
+			break;
+		}
+		case EBlueprintTextLiteralType::StringTableEntry:
+		{
+			Reader.SkipBytes(0x8); // sizeof(ScriptPointerType) always 0x8 (even on x32)
+			const std::string Expr1 = DisassembleInstruction(&Reader); // Unknown/Dynamic
+			const std::string Expr2 = DisassembleInstruction(&Reader); // Unknown/Dynamic
+
+			Ret = std::format("TextConst [StringTableEntry]: EXPR1: \"{}\", EXPR2: \"{}\"", Expr1, Expr2);
+			break;
+		}
+		default:
+			Ret = "TextConst [UNK/EMPTY]";
+			break;
+		}
+
+		break;
+	}
+	case EExprToken::ObjectConst:
+	{
+		const UEObject Object = Reader.ReadObject();
+
+		Ret = std::format("ObjectConst: OBJ -> \"{}\"", Object.GetName());
+		break;
+	}
+	case EExprToken::SoftObjectConst:
+	{
+		const std::string StrExpr = DisassembleInstruction(&Reader); // Unknown/Dynamic
+
+		Ret = std::format("SoftObjectConst: STR_EXPR -> \"{}\"", StrExpr);
+		break;
+	}
+	case EExprToken::FieldPathConst:
+	{
+		const std::string SubExpr = DisassembleInstruction(&Reader); // Unknown/Dynamic
+
+		Ret = std::format("FieldPathConst: SUB_EXPR -> \"{}\"", SubExpr);
+		break;
+	}
+	case EExprToken::NameConst:
+	{
+		const FName Name = Reader.ReadName(); // sizeof(FName) 0x4/0x8/0xC
+
+		Ret = std::format("NameConst: NAME -> \"{}\"", Name.ToString());
+		break;
+	}
+	case EExprToken::RotationConst:
+	{
+		/************* TODO: CHECK FOR      LARGE_WORLD_COORDINATES      ***************/
+
+		break;
+	}
+	case EExprToken::VectorConst:
+	{
+		constexpr bool bIsUE5 = "fortnite";
+
+		if (bIsUE5)
+		{
+			double X = Reader.ReadAnyValue<double>(); // 0x8
+			double Y = Reader.ReadAnyValue<double>(); // 0x8
+			double Z = Reader.ReadAnyValue<double>(); // 0x8
+		}
+		else
+		{
+			float X = Reader.ReadAnyValue<float>(); // 0x4
+			float Y = Reader.ReadAnyValue<float>(); // 0x4
+			float Z = Reader.ReadAnyValue<float>(); // 0x4
+
+			return ""
+		}
+
+		break;
+	}
+	case EExprToken::InstanceVariable:
+	{
+		break;
+	}
+	case EExprToken::InstanceVariable:
+	{
+		break;
+	}
+	case EExprToken::InstanceVariable:
+	{
+		break;
+	}
 	default:
 		Ret = "INVALID_OPCODE";
 	}
