@@ -709,10 +709,10 @@ public:
 	template<typename T>
 	inline T ReadAnyValue()
 	{
-		if (!ScriptBytes.IsValidIndex(CurrentPos + sizeof(T))
-			return 0x0;
+		if (!ScriptBytes.IsValidIndex(CurrentPos + sizeof(T)))
+			return T();
 
-		T Ret = *reinterpret_cast<T* const>(&ScriptBytes[CurrentPos]);
+		T Ret = *reinterpret_cast<const T*>(&ScriptBytes[CurrentPos]);
 		CurrentPos += sizeof(T);
 
 		return Ret;
@@ -830,7 +830,7 @@ std::string UEFunction::DisassembleInstructionFromUETemplate(void* ByteCodeReade
 	{
 		const UEProperty Property = Reader.ReadProperty(); // 0x8, even on x32
 
-		Ret = std::format("Variable {Local|Instance|Default|LocOut|ClassSparse|PropConst}: PROP -> \"{}\"", Property.GetName());
+		Ret = std::format("Variable {{Local|Instance|Default|LocOut|ClassSparse|PropConst}}: PROP -> \"{}\"", Property.GetName());
 		break;
 	}
 	case EExprToken::InterfaceContext:
@@ -915,14 +915,16 @@ std::string UEFunction::DisassembleInstructionFromUETemplate(void* ByteCodeReade
 		Ret = "{ CallMath | LocalFinalFunction | FinalFunction }";
 		break;
 	}
-	case EExprToken::InstanceVariable:
-	{
-		break;
-	}
-	case EExprToken::InstanceVariable:
-	{
-		break;
-	}
+	//case EExprToken::InstanceVariable:
+	//{
+	//	break;
+	//}
+	//case EExprToken::InstanceVariable:
+	//{
+	//	break;
+	//}
+	default:
+		Ret = "INVALID_OPCODE";
 	}
 }
 

@@ -76,12 +76,7 @@ public:
 
 	inline bool IsValidIndex(int32 Index) const
 	{
-		return Index >= 0 && Index < Num();
-	}
-
-	inline bool IsValidIndex(uint32 Index) const
-	{
-		return Index < Num();
+		return Data && Index >= 0 && Index < NumElements;
 	}
 
 	inline void ResetNum()
