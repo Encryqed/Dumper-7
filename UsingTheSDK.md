@@ -20,7 +20,7 @@
 4. If you do not care about your projects' compilation time, add `#include "SDK.hpp"` at the top of your `Main.cpp` file
 5. If you **do** care, and you want faster compilation-times, directly include only the files you require. \
     Adding `#include "SDK/Engine_classes.hpp"` is a good start in this case.
-6. Add `Basic.cpp` to your VS project
+6. Add `Basic.cpp` and `CoreUObject_functions.cpp` to your VS project
 7. If you call a function from the SDK you need to add the .cpp file, that contains the function-body, to your project. \
    Example: \
    Calling `GetViewportSize()` from `APlayerController` requires you to add `Engine_functions.cpp` to your project. \
