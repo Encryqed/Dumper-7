@@ -193,7 +193,7 @@ void Off::InSDK::Text::InitTextOffsets()
 
 	std::cout << std::format("Off::InSDK::Text::TextSize: 0x{:X}\n", Off::InSDK::Text::TextSize);
 	std::cout << std::format("Off::InSDK::Text::TextDatOffset: 0x{:X}\n", Off::InSDK::Text::TextDatOffset);
-	std::cout << std::format("Off::InSDK::Text::InTextDataStringOffset: 0x{:X}\n", Off::InSDK::Text::InTextDataStringOffset);
+	std::cout << std::format("Off::InSDK::Text::InTextDataStringOffset: 0x{:X}\n\n", Off::InSDK::Text::InTextDataStringOffset);
 }
 
 void Off::Init()

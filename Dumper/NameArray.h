@@ -65,6 +65,6 @@ public:
 	static int32 GetNumElements();
 	static int32 GetByteCursor();
 
-	static FNameEntry GetNameEntry(void* Name);
+	static FNameEntry GetNameEntry(const void* Name);
 	static FNameEntry GetNameEntry(int32 Idx);
 };

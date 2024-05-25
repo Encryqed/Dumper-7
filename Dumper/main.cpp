@@ -34,7 +34,7 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "Started Generation [Dumper-7]!\n";
 
 	Generator::InitEngineCore();
-	Generator::InitInternal();
+	//Generator::InitInternal();
 
 	if (Settings::Generator::GameName.empty() && Settings::Generator::GameVersion.empty())
 	{
@@ -60,21 +60,31 @@ DWORD MainThread(HMODULE Module)
 	{
 		if (Obj.IsA(EClassCastFlags::Class) && Obj.IsA(BPGenClass))
 			std::cout << "BPClass: " << Obj.GetFullName() << "\n\n";
-
+	
 		if (!Obj.IsA(EClassCastFlags::Function) || Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
 			continue;
-
+	
 		UEFunction Func = Obj.Cast<UEFunction>();
-
+	
 		//if (Func.GetOutermost().GetName() != "Engine")
 		//	continue;
-
+	
 		if (Func.GetScriptBytes().IsEmpty())
 			continue;
-
+	
 		std::cout << "Flags: (" << Func.StringifyObjFlags() << ")\nObj: " << Func.GetFullName() << "\nScriptBytes: " << Func.GetScriptBytes().Num() 
 			<< "\nOuter: " << Func.GetOuter().GetFullName() << "\n\n";
 	}
+
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("SetLoadingScreenDescription", "WBP_HDLoadingScreenBase_C");
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("Construct", "WBP_DlgBox_ServerUGCDownloadStatus_C");
+	UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("ExecuteUbergraph_WBP_HDMenuButton_ModalDialog", "WBP_HDMenuButton_ModalDialog_C");
+
+	std::cout << "Func: " << Func.GetName() << std::endl;
+
+	std::string DisassembledScript = Func.DumpScriptBytecode();
+
+	//std::cout << "SetLoadingScreenDescription Script:\n" << DisassembledScript << std::endl;
 
 	//Generator::Generate<CppGenerator>();
 	//Generator::Generate<MappingGenerator>();

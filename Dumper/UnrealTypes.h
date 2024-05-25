@@ -162,9 +162,9 @@ public:
 class FName
 {
 private:
-	inline static void(*AppendString)(void*, FString&) = nullptr;
+	inline static void(*AppendString)(const void*, FString&) = nullptr;
 
-	inline static std::string(*ToStr)(void* Name) = nullptr;
+	inline static std::string(*ToStr)(const void* Name) = nullptr;
 
 private:
 	const uint8* Address;

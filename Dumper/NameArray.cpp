@@ -572,7 +572,7 @@ int32 NameArray::GetByteCursor()
 	return Settings::Internal::bUseNamePool ? *reinterpret_cast<int32*>(GNames + Off::NameArray::ByteCursor) : 0;
 }
 
-FNameEntry NameArray::GetNameEntry(void* Name)
+FNameEntry NameArray::GetNameEntry(const void* Name)
 {
 	return ByIndex(GNames, FName(Name).GetCompIdx(), FNameBlockOffsetBits);
 }

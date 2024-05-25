@@ -215,7 +215,7 @@ public:
 	std::string GetParamStructName() const;
 
 	/* Temp void* to avoid moving FScriptBytecodeReader */
-	std::string DisassembleInstructionFromUETemplate(void* ByteCodeReader) const;
+	std::string DisassembleInstructionFromUETemplate(void* ByteCodeReader, bool bShouldAddNewLine = false) const;
 
 	/* Temp void* to avoid moving FScriptBytecodeReader */
 	std::string DisassembleInstruction(void* ByteCodeReader) const;
