@@ -74,11 +74,18 @@ DWORD MainThread(HMODULE Module)
 	
 		std::cout << "Flags: (" << Func.StringifyObjFlags() << ")\nObj: " << Func.GetFullName() << "\nScriptBytes: " << Func.GetScriptBytes().Num() 
 			<< "\nOuter: " << Func.GetOuter().GetFullName() << "\n\n";
+
+
+		//std::string DisassembledScript = Func.DumpScriptBytecode();
+		//std::cout << "\n" << std::endl;
 	}
 
 	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("SetLoadingScreenDescription", "WBP_HDLoadingScreenBase_C");
 	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("Construct", "WBP_DlgBox_ServerUGCDownloadStatus_C");
-	UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("ExecuteUbergraph_WBP_HDMenuButton_ModalDialog", "WBP_HDMenuButton_ModalDialog_C");
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("ExecuteUbergraph_WBP_HDMenuButton_ModalDialog", "WBP_HDMenuButton_ModalDialog_C");
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("UpdateDesignerView", "WBP_Toggle_C");
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("SetToggle", "WBP_Toggle_C");
+	UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("GetDefaultLeftHandIKTransformByItemType", "ABP_HDPlayerCharacter_TP_C");
 
 	std::cout << "Func: " << Func.GetName() << std::endl;
 
