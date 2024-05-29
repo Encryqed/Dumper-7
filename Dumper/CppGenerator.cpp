@@ -4471,7 +4471,7 @@ enum class EFunctionFlags : uint32
 	/* enum class EClassFlags */
 	BasicHpp <<
 		R"(
-enum class EClassFlags : int32
+enum class EClassFlags : uint32
 {
 	CLASS_None						= 0x00000000u,
 	Abstract						= 0x00000001u,
