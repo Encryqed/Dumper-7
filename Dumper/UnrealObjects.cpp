@@ -893,7 +893,7 @@ std::string UEFunction::DisassembleInstructionFromUETemplate(void* ByteCodeReade
 	{
 		const UEProperty Property = Reader.ReadProperty(); // 0x8, even on x32
 
-		SetOpcodeNameIfEmpty(Ret, "PropertyConst"); [[fallthrough]];
+		SetOpcodeNameIfEmpty(Ret, "PropertyConst");
 		Ret += std::format(": PROP -> \"{}\"", Property.GetName());
 		break;
 	}
