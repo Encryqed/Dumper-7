@@ -3,8 +3,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <fstream>
 #include <algorithm>
+#include <functional>
 
 /* Credits: https://en.cppreference.com/w/cpp/string/byte/tolower */
 inline std::string str_tolower(std::string S)
@@ -162,14 +162,14 @@ inline uintptr_t GetImageBase()
 	return reinterpret_cast<uintptr_t>(GetPEB()->ImageBaseAddress);
 }
 
-inline uintptr_t GetOffset(void* Addr)
+inline uintptr_t GetOffset(const void* Addr)
 {
 	static uintptr_t ImageBase = 0x0;
 
 	if (ImageBase == 0x0)
 		ImageBase = GetImageBase();
 
-	uintptr_t AddrAsInt = reinterpret_cast<uintptr_t>(Addr);
+	const uintptr_t AddrAsInt = reinterpret_cast<const uintptr_t>(Addr);
 
 	return AddrAsInt > ImageBase ? (AddrAsInt - ImageBase) : 0x0;
 }
@@ -373,7 +373,7 @@ inline void* GetExportAddress(const char* SearchModuleName, const char* SearchFu
 	return nullptr;
 }
 
-inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0, int SkipCount = 0)
+inline void* FindPatternInRange(std::vector<int>&& Signature, const uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0, int SkipCount = 0)
 {
 	const auto PatternLength = Signature.size();
 	const auto PatternBytes = Signature.data();
@@ -405,16 +405,16 @@ inline void* FindPatternInRange(std::vector<int>&& Signature, uint8_t* Start, ui
 				if (Offset == -1)
 					Offset = PatternLength;
 
-				Address = ((Address + Offset + 4) + *(int32_t*)(Address + Offset));
+				Address = ((Address + Offset + 4) + *reinterpret_cast<int32_t*>(Address + Offset));
 			}
-			return (void*)Address;
+			return reinterpret_cast<void*>(Address);
 		}
 	}
 
 	return nullptr;
 }
 
-inline void* FindPatternInRange(const char* Signature, uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0)
+inline void* FindPatternInRange(const char* Signature, const uint8_t* Start, uintptr_t Range, bool bRelative = false, uint32_t Offset = 0)
 {
 	static auto patternToByte = [](const char* pattern) -> std::vector<int>
 	{
@@ -487,14 +487,14 @@ inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearc
 	if (StartAddress == 0x0)
 		StartAddress = SearchStart;
 
-	return FindPatternInRange(Signature, reinterpret_cast<uint8*>(StartAddress), SearchRange, Offset != 0x0, Offset);
+	return FindPatternInRange(Signature, reinterpret_cast<uint8_t*>(StartAddress), SearchRange, Offset != 0x0, Offset);
 }
 
 
 template<typename T>
 inline T* FindAlignedValueInProcessInRange(T Value, int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
 {
-	constexpr int32 ElementSize = sizeof(T);
+	constexpr int32_t ElementSize = sizeof(T);
 
 	for (uint32_t i = 0x0; i < Range; i += Alignment)
 	{
@@ -547,6 +547,46 @@ inline T* FindAlignedValueInProcess(T Value, const std::string& Sectionname = ".
 	return Result;
 }
 
+template<bool bShouldRelove32BitJumps = true>
+inline std::pair<const void*, int32_t> IterateVTableFunctions(void** VTable, const std::function<bool(const uint8_t* Addr, int32_t Index)>& CallBackForEachFunc, int32_t NumFunctions = 0x150, int32_t OffsetFromStart = 0x0)
+{
+	[[maybe_unused]] auto Resolve32BitRelativeJump = [](const void* FunctionPtr) -> const uint8_t*
+	{
+		if constexpr (bShouldRelove32BitJumps)
+		{
+			const uint8_t* Address = reinterpret_cast<const uint8_t*>(FunctionPtr);
+			if (*Address == 0xE9)
+			{
+				const uint8_t* Ret = ((Address + 5) + *reinterpret_cast<const int32_t*>(Address + 1));
+
+				if (IsInProcessRange(uintptr_t(Ret)))
+					return Ret;
+			}
+		}
+
+		return reinterpret_cast<const uint8_t*>(FunctionPtr);
+	};
+
+
+	if (!CallBackForEachFunc)
+		return { nullptr, -1 };
+
+	for (int i = 0; i < 0x150; i++)
+	{
+		const uintptr_t CurrentFuncAddress = reinterpret_cast<uintptr_t>(VTable[i]);
+
+		if (CurrentFuncAddress == NULL || !IsInProcessRange(CurrentFuncAddress))
+			break;
+
+		const uint8_t* ResolvedAddress = Resolve32BitRelativeJump(reinterpret_cast<const uint8_t*>(CurrentFuncAddress));
+
+		if (CallBackForEachFunc(ResolvedAddress, i))
+			return { ResolvedAddress, i };
+	}
+
+	return { nullptr, -1 };
+}
+
 struct MemAddress
 {
 public:
@@ -581,12 +621,12 @@ private:
 			return false;
 
 		/* Opcodes representing pop instructions for x64 registers. Pop operations for r8-r15 are prefixed with 0x41. */
-		const uint8 AsmBytePopOpcodes[] = { 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F };
+		const uint8_t AsmBytePopOpcodes[] = { 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F };
 
-		const uint8 ByteOneBeforeRet = Address[-1];
-		const uint8 ByteTwoBeforeRet = Address[-2];
+		const uint8_t ByteOneBeforeRet = Address[-1];
+		const uint8_t ByteTwoBeforeRet = Address[-2];
 
-		for (const uint8 AsmPopByte : AsmBytePopOpcodes)
+		for (const uint8_t AsmPopByte : AsmBytePopOpcodes)
 		{
 			if (ByteOneBeforeRet == AsmPopByte)
 				return true;
@@ -615,7 +655,7 @@ public:
 	}
 
 	template<typename T>
-	explicit operator T*()
+	explicit operator T* ()
 	{
 		return reinterpret_cast<T*>(Address);
 	}
@@ -661,7 +701,7 @@ public:
 	}
 
 	/* Helper to find the end of a function based on 'pop' instructions followed by 'ret' */
-	inline MemAddress FindFunctionEnd(uint32 Range = 0xFFFF) const
+	inline MemAddress FindFunctionEnd(uint32_t Range = 0xFFFF) const
 	{
 		if (!Address)
 			return nullptr;
@@ -702,24 +742,24 @@ public:
 		if (!Address || OneBasedFuncIndex == 0)
 			return nullptr;
 
-		const int32 Multiply = OneBasedFuncIndex > 0 ? 1 : -1;
+		const int32_t Multiply = OneBasedFuncIndex > 0 ? 1 : -1;
 
 		/* Returns Index if FunctionIndex is positive, else -1 if the index is less than 0 */
-		auto GetIndex = [=](int32 Index) -> int32 { return Index * Multiply; };
+		auto GetIndex = [=](int32_t Index) -> int32_t { return Index * Multiply; };
 
-		constexpr int32 RealtiveCallOpcodeCount = 0x5;
+		constexpr int32_t RealtiveCallOpcodeCount = 0x5;
 
 		int32_t NumCalls = 0;
 
 		for (int i = 0; i < 0xFFF; i++)
 		{
-			const int32 Index = GetIndex(i);
+			const int32_t Index = GetIndex(i);
 
 			/* If this isn't a call, we don't care about it and want to continue */
 			if (Address[Index] != 0xE8)
 				continue;
 
-			const int32 RelativeOffset = *reinterpret_cast<int32*>(Address + Index + 0x1 /* 0xE8 byte */);
+			const int32_t RelativeOffset = *reinterpret_cast<int32_t*>(Address + Index + 0x1 /* 0xE8 byte */);
 			void* RelativeCallTarget = Address + Index + RelativeOffset + RealtiveCallOpcodeCount;
 
 			if (!IsInProcessRange(reinterpret_cast<uintptr_t>(RelativeCallTarget)))

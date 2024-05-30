@@ -11,6 +11,8 @@
 
 #include "Generator.h"
 
+#include <fstream>
+
 namespace fs = std::filesystem;
 
 
