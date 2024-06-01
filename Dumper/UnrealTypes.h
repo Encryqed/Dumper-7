@@ -93,6 +93,11 @@ public:
 		NumElements++;
 	}
 
+	inline const void* GetDataPtr() const
+	{
+		return Data;
+	}
+
 protected:
 	inline void FreeArray()
 	{
