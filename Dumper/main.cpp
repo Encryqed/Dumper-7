@@ -34,7 +34,7 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "Started Generation [Dumper-7]!\n";
 
 	Generator::InitEngineCore();
-	//Generator::InitInternal();
+	Generator::InitInternal();
 
 	if (Settings::Generator::GameName.empty() && Settings::Generator::GameVersion.empty())
 	{
@@ -55,6 +55,7 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::Generator::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
+	/*
 	UEClass BPGenClass = ObjectArray::FindClassFast("BlueprintGeneratedClass");
 	for (UEObject Obj : ObjectArray())
 	{
@@ -92,11 +93,11 @@ DWORD MainThread(HMODULE Module)
 	std::string DisassembledScript = Func.DumpScriptBytecode();
 
 	//std::cout << "SetLoadingScreenDescription Script:\n" << DisassembledScript << std::endl;
-
-	//Generator::Generate<CppGenerator>();
-	//Generator::Generate<MappingGenerator>();
-	//Generator::Generate<IDAMappingGenerator>();
-	//Generator::Generate<DumpspaceGenerator>();
+	*/
+	Generator::Generate<CppGenerator>();
+	Generator::Generate<MappingGenerator>();
+	Generator::Generate<IDAMappingGenerator>();
+	Generator::Generate<DumpspaceGenerator>();
 
 
 	auto t_C = std::chrono::high_resolution_clock::now();

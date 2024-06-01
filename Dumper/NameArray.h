@@ -28,7 +28,7 @@ public:
 
 private:
 	//Optional to avoid code duplication for FNamePool
-	static void Init(uint8_t* FirstChunkPtr = nullptr, int64 NameEntryStringOffset = 0x0);
+	static void Init(const uint8_t* FirstChunkPtr = nullptr, int64 NameEntryStringOffset = 0x0);
 };
 
 class NameArray
