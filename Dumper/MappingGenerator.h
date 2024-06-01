@@ -3,6 +3,8 @@
 #include "MemberWrappers.h"
 #include "EnumWrapper.h"
 
+#include <fstream>
+
 /*
 * USMAP-Header:
 * 

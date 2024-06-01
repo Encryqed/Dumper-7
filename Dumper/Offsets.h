@@ -149,8 +149,8 @@ namespace Off
 		inline int32 SuperStruct;
 		inline int32 Children;
 		inline int32 ChildProperties;
-		inline int32 MinAlignemnt;
 		inline int32 Size;
+		inline int32 MinAlignemnt;
 	}
 
 	namespace UFunction

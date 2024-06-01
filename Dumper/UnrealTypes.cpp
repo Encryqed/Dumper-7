@@ -73,8 +73,8 @@ std::string MakeNameValid(std::string&& Name)
 }
 
 
-FName::FName(void* Ptr)
-	: Address((uint8*)Ptr)
+FName::FName(const void* Ptr)
+	: Address(static_cast<const uint8*>(Ptr))
 {
 }
 
@@ -95,7 +95,7 @@ void FName::Init(bool bForceGNames)
 	int i = 0;
 	while (!AppendString && i < PossibleSigs.size())
 	{
-		AppendString = static_cast<void(*)(void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1 /* auto */));
+		AppendString = static_cast<void(*)(const void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1 /* auto */));
 
 		i++;
 	}
@@ -108,7 +108,7 @@ void FName::Init(bool bForceGNames)
 
 		if (bInitializedSuccessfully)
 		{
-			ToStr = [](void* Name) -> std::string
+			ToStr = [](const void* Name) -> std::string
 			{
 				if (!Settings::Internal::bUseUoutlineNumberName)
 				{
@@ -136,7 +136,7 @@ void FName::Init(bool bForceGNames)
 
 	std::cout << std::format("Found FName::{} at Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
 
-	ToStr = [](void* Name) -> std::string
+	ToStr = [](const void* Name) -> std::string
 	{
 		thread_local FFreableString TempString(1024);
 
@@ -151,12 +151,12 @@ void FName::Init(bool bForceGNames)
 
 void FName::Init(int32 AppendStringOffset, bool bIsToString)
 {
-	AppendString = reinterpret_cast<void(*)(void*, FString&)>(GetImageBase() + AppendStringOffset);
+	AppendString = reinterpret_cast<void(*)(const void*, FString&)>(GetImageBase() + AppendStringOffset);
 
 	Off::InSDK::Name::AppendNameToString = AppendStringOffset;
 	Off::InSDK::Name::bIsUsingAppendStringOverToString = !bIsToString;
 
-	ToStr = [](void* Name) -> std::string
+	ToStr = [](const void* Name) -> std::string
 	{
 		thread_local FFreableString TempString(1024);
 
@@ -187,7 +187,7 @@ void FName::InitFallback()
 	int i = 0;
 	while (!AppendString && i < PossibleSigs.size())
 	{
-		AppendString = static_cast<void(*)(void*, FString&)>(Conv_NameToStringAddress.RelativePattern(PossibleSigs[i], 0x90, -1 /* auto */));
+		AppendString = static_cast<void(*)(const void*, FString&)>(Conv_NameToStringAddress.RelativePattern(PossibleSigs[i], 0x90, -1 /* auto */));
 
 		i++;
 	}
@@ -197,6 +197,9 @@ void FName::InitFallback()
 
 std::string FName::ToString() const
 {
+	if (!Address)
+		return "None";
+
 	std::string OutputString = ToStr(Address);
 
 	size_t pos = OutputString.rfind('/');
@@ -214,12 +217,12 @@ std::string FName::ToValidString() const
 
 int32 FName::GetCompIdx() const 
 {
-	return *reinterpret_cast<int32*>(Address + Off::FName::CompIdx);
+	return *reinterpret_cast<const int32*>(Address + Off::FName::CompIdx);
 }
 
 int32 FName::GetNumber() const
 {
-	return !Settings::Internal::bUseUoutlineNumberName ? *reinterpret_cast<int32*>(Address + Off::FName::Number) : 0x0;
+	return !Settings::Internal::bUseUoutlineNumberName ? *reinterpret_cast<const int32*>(Address + Off::FName::Number) : 0x0;
 }
 
 bool FName::operator==(FName Other) const

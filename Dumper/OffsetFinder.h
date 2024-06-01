@@ -391,7 +391,7 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
-	inline int32_t FindMinAlignment()
+	inline int32_t FindMinAlignmentOffset()
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 

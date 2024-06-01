@@ -23,24 +23,47 @@ void* FNameEntry::GetAddress()
 	return Address;
 }
 
-void FNameEntry::Init(uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
+void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 {
 	if (Settings::Internal::bUseNamePool)
 	{
 		constexpr int64 NoneStrLen = 0x4;
-		constexpr int64 BytePropertyStrLen = 0xC;
+		constexpr uint16 BytePropertyStrLen = 0xC;
+
+		constexpr uint32 BytePropertyStartAsUint32 = 'etyB'; // "Byte" part of "ByteProperty"
 
 		Off::FNameEntry::NamePool::StringOffset = NameEntryStringOffset;
 		Off::FNameEntry::NamePool::HeaderOffset = NameEntryStringOffset == 6 ? 4 : 0;
 
-		uint16 BytePropertyHeader = *reinterpret_cast<uint16*>(*reinterpret_cast<uint8**>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen);
+		uint8* AssumedBytePropertyEntry = *reinterpret_cast<uint8* const*>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen;
 
-		constexpr int32 MaxAllowedShiftCount = 0xFF;
+		/* Check if there's pading after an FNameEntry. Check if there's up to 0x4 bytes padding. */
+		for (int i = 0; i < 0x4; i++)
+		{
+			const uint32 FirstPartOfByteProperty = *reinterpret_cast<const uint32*>(AssumedBytePropertyEntry + NameEntryStringOffset);
+
+			if (FirstPartOfByteProperty == BytePropertyStartAsUint32)
+				break;
+
+			AssumedBytePropertyEntry += 0x1;
+		}
+
+		uint16 BytePropertyHeader = *reinterpret_cast<const uint16*>(AssumedBytePropertyEntry + Off::FNameEntry::NamePool::HeaderOffset);
+
+		/* Shifiting past the size of the header is not allowed, so limmit the shiftcount here */
+		constexpr int32 MaxAllowedShiftCount = sizeof(BytePropertyHeader) * 0x8;
 
 		while (BytePropertyHeader != BytePropertyStrLen && FNameEntryLengthShiftCount < MaxAllowedShiftCount)
 		{			
 			FNameEntryLengthShiftCount++;
 			BytePropertyHeader >>= 1;
+		}
+
+		if (FNameEntryLengthShiftCount == MaxAllowedShiftCount)
+		{
+			std::cout << "\Dumper-7: Error, couldn't get FNameEntryLengthShiftCount!\n" << std::endl;
+			GetStr = [](uint8* NameEntry)->std::string { return "Invalid FNameEntryLengthShiftCount!"; };
+			return;
 		}
 
 		GetStr = [](uint8* NameEntry) -> std::string
@@ -572,7 +595,7 @@ int32 NameArray::GetByteCursor()
 	return Settings::Internal::bUseNamePool ? *reinterpret_cast<int32*>(GNames + Off::NameArray::ByteCursor) : 0;
 }
 
-FNameEntry NameArray::GetNameEntry(void* Name)
+FNameEntry NameArray::GetNameEntry(const void* Name)
 {
 	return ByIndex(GNames, FName(Name).GetCompIdx(), FNameBlockOffsetBits);
 }

@@ -30,7 +30,10 @@ protected:
 
 public:
 
-	TArray() = default;
+	inline TArray()
+		: Data(nullptr), NumElements(0), MaxElements(0)
+	{
+	}
 
 	inline TArray(int32 Num)
 		:NumElements(0), MaxElements(Num), Data((T*)malloc(sizeof(T)* Num))
@@ -46,39 +49,48 @@ public:
 		return Data[Index];
 	}
 
-	inline int32 Num()
+	inline int32 Num() const
 	{
-		return this->NumElements;
+		return NumElements;
 	}
 
-	inline int32 Max()
+	inline int32 Max() const
 	{
-		return this->MaxElements;
+		return MaxElements;
 	}
 
-	inline int32 GetSlack()
+	inline int32 GetSlack() const
 	{
-		return MaxElements - NumElements;
+		return Max() - Num();
 	}
 
-	inline bool IsValid()
+	inline bool IsEmpty() const
 	{
-		return this->Data != nullptr;
+		return Num() <= 0;
 	}
 
-	inline bool IsValidIndex(int32 Index)
+	inline bool IsValid() const
 	{
-		return Index >= 0 && Index < this->NumElements;
+		return Data != nullptr;
 	}
 
-	inline bool IsValidIndex(uint32 Index)
+	inline bool IsValidIndex(int32 Index) const
 	{
-		return Index < this->NumElements;
+		return Data && Index >= 0 && Index < NumElements;
 	}
 
 	inline void ResetNum()
 	{
 		NumElements = 0;
+	}
+
+	inline void AddIfSpaceAvailable(const T& Element)
+	{
+		if (GetSlack() <= 0x0)
+			return;
+
+		Data[NumElements] = Element;
+		NumElements++;
 	}
 
 protected:
@@ -111,7 +123,7 @@ public:
 		return FString(Other);
 	}
 
-	inline std::wstring ToWString()
+	inline std::wstring ToWString() const
 	{
 		if (IsValid())
 		{
@@ -121,7 +133,7 @@ public:
 		return L"";
 	}
 
-	inline std::string ToString()
+	inline std::string ToString() const
 	{
 		if (IsValid())
 		{
@@ -150,17 +162,17 @@ public:
 class FName
 {
 private:
-	inline static void(*AppendString)(void*, FString&) = nullptr;
+	inline static void(*AppendString)(const void*, FString&) = nullptr;
 
-	inline static std::string(*ToStr)(void* Name) = nullptr;
+	inline static std::string(*ToStr)(const void* Name) = nullptr;
 
 private:
-	uint8* Address;
+	const uint8* Address;
 
 public:
 	FName() = default;
 
-	FName(void* Ptr);
+	FName(const void* Ptr);
 
 public:
 	static void Init(bool bForceGNames = false);

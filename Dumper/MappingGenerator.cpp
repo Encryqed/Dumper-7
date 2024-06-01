@@ -7,7 +7,6 @@
 
 #include <iostream>
 #include <string>
-#include <format>
 
 EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 {

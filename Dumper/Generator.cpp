@@ -6,7 +6,7 @@
 #include "PackageManager.h"
 #include "Utils.h"
 
-inline void InitSettings()
+inline void InitWeakObjectPtrSettings()
 {
 	UEStruct LoadAsset = ObjectArray::FindObjectFast<UEFunction>("LoadAsset", EClassCastFlags::Function);
 
@@ -31,7 +31,37 @@ inline void InitSettings()
 
 	Settings::Internal::bIsWeakObjectPtrWithoutTag = Asset.GetSize() <= (SizeOfSoftObjectPath + SizeOfFFWeakObjectPtr);
 
-	std::cout << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
+	//std::cout << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
+}
+
+inline void InitLargeWorldCoordinateSettings()
+{
+	UEStruct FVectorStruct = ObjectArray::FindObjectFast<UEStruct>("Vector", EClassCastFlags::Struct);
+
+	if (!FVectorStruct) [[unlikely]]
+	{
+		std::cout << "\nSomething went horribly wrong, FVector wasn't even found!\n\n" << std::endl;
+		return;
+	}
+
+	UEProperty XProperty = FVectorStruct.FindMember("X");
+
+	if (!XProperty) [[unlikely]]
+	{
+		std::cout << "\nSomething went horribly wrong, FVector::X wasn't even found!\n\n" << std::endl;
+		return;
+	}
+
+	/* Check the underlaying type of FVector::X. If it's double we're on UE5.0, or higher, and using large world coordinates. */
+	Settings::Internal::bUseLargeWorldCoordinates = XProperty.IsA(EClassCastFlags::DoubleProperty);
+
+	//std::cout << std::format("\nDumper-7: bUseLargeWorldCoordinates = {}\n", Settings::Internal::bUseLargeWorldCoordinates) << std::endl;
+}
+
+inline void InitSettings()
+{
+	InitWeakObjectPtrSettings();
+	InitLargeWorldCoordinateSettings();
 }
 
 

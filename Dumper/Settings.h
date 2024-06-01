@@ -100,5 +100,8 @@ R"(
 
 		/* Whether this games' engine version uses a contexpr flag to determine whether a FFieldVariant holds a UObject* or FField* */
 		inline bool bUseMaskForFieldOwner = false;
+
+		/* Whether this games' engine version uses double for FVector, instead of float. Aka, whether the engine version is UE5.0 or higher. */
+		inline bool bUseLargeWorldCoordinates = false;
 	}
 }

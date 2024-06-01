@@ -3417,19 +3417,19 @@ R"({
 
 		/* struct FNameEntry */
 		PredefinedStruct FNameEntry = PredefinedStruct{
-			.UniqueName = "FNameEntry", .Size = FNameEntryHeaderSize + 0x800, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
+			.UniqueName = "FNameEntry", .Size = Off::FNameEntry::NamePool::StringOffset + 0x800, .Alignment = 0x2, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
 		};
 
 		FNameEntry.Properties =
 		{
 			PredefinedMember {
 				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "struct FNameEntryHeader", .Name = "Header", .Offset = 0x0, .Size = FNameEntryHeaderSize, .ArrayDim = 0x1, .Alignment = 0x2,
+				.Type = "struct FNameEntryHeader", .Name = "Header", .Offset = Off::FNameEntry::NamePool::HeaderOffset, .Size = FNameEntryHeaderSize, .ArrayDim = 0x1, .Alignment = 0x2,
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			},
 			PredefinedMember {
 				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "union FStringData", .Name = "Name", .Offset = FNameEntryHeaderSize, .Size = 0x800, .ArrayDim = 0x1, .Alignment = 0x2,
+				.Type = "union FStringData", .Name = "Name", .Offset = Off::FNameEntry::NamePool::HeaderOffset + FNameEntryHeaderSize, .Size = 0x800, .ArrayDim = 0x1, .Alignment = 0x2,
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			},
 		};
@@ -4003,7 +4003,7 @@ public:
 	/* class TPersistentObjectPtr */
 	PredefinedStruct TPersistentObjectPtr = PredefinedStruct{
 		.CustomTemplateText = "template<typename TObjectID>",
-		.UniqueName = "TPersistentObjectPtr", .Size = Off::FNameEntry::NamePool::StringOffset + 0x08, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "TPersistentObjectPtr", .Size = 0x0, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	const int32 ObjectIDOffset = Settings::Internal::bIsWeakObjectPtrWithoutTag ? 0x8 : 0xC;
