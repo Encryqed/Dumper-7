@@ -20,7 +20,7 @@
 4. If you do not care about your projects' compilation time, add `#include "SDK.hpp"` at the top of your `Main.cpp` file
 5. If you **do** care, and you want faster compilation-times, directly include only the files you require. \
     Adding `#include "SDK/Engine_classes.hpp"` is a good start in this case.
-6. Add `Basic.cpp` to your VS project
+6. Add `Basic.cpp` and `CoreUObject_functions.cpp` to your VS project
 7. If you call a function from the SDK you need to add the .cpp file, that contains the function-body, to your project. \
    Example: \
    Calling `GetViewportSize()` from `APlayerController` requires you to add `Engine_functions.cpp` to your project. \
@@ -156,16 +156,16 @@ DWORD MainThread(HMODULE Module)
     }
 
     /* You might need to loop all levels in UWorld::Levels */
-    ULevel* Level = World->PersistentLevel;
-    TArray<AActor*>& volatile Actors = Level->Actors;
+    SDK::ULevel* Level = World->PersistentLevel;
+    SDK::TArray<SDK::AActor*>& volatile Actors = Level->Actors;
 
-    for (AActor* Actor : Actors)
+    for (SDK::AActor* Actor : Actors)
     {
         /* The 2nd and 3rd checks are equal, prefer using EClassCastFlags if available for your class. */
-        if (!Actor || !Actor->IsA(EClassCastFlags::Pawn) || !Actor->IsA(APawn::StaticClass()))
+        if (!Actor || !Actor->IsA(SDK::EClassCastFlags::Pawn) || !Actor->IsA(SDK::APawn::StaticClass()))
             continue;
 
-        APawn* Pawn = static_cast<APawn*>(Actor);
+        SDK::APawn* Pawn = static_cast<SDK::APawn*>(Actor);
         // Use Pawn here
     }
 
