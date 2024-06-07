@@ -84,29 +84,50 @@
 #include <Windows.h>
 #include <iostream>
 
-DWORD MainThread(HMODULE Module)
+DWORD __stdcall MainThread(LPVOID lpParam)
 {
         /* Code to open a console window */
-        AllocConsole();
-        FILE* Dummy;
-        freopen_s(&Dummy, "CONOUT$", "w", stdout);
-        freopen_s(&Dummy, "CONIN$", "r", stdin);
+        if (!AllocConsole())
+          return EXIT_FAILURE;
 
-        // Your code here
+        FILE* m_pSTDOutDummy = nullptr;
+        FILE* m_pSTDInDummy = nullptr;
+        if (freopen_s(&m_pSTDOutDummy, "CONOUT$", "w", stdout) || freopen_s(&m_pSTDInDummy, "CONIN$", "w", stdin)) // If either freopen_s returns non-zero that means it failed and we should bail
+          return EXIT_FAILURE;
 
-        return 0;
-}
-
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
-{
-        switch (reason)
+        std::cout.clear();
+        std::cin.clear();
+        
+        while (!GetAsyncKeyState(VK_END)) // Using an endless loop with an escape can be nice to allow the module to keep running and not instantly unload
         {
-                case DLL_PROCESS_ATTACH:
-                CreateThread(0, 0, (LPTHREAD_START_ROUTINE)MainThread, hModule, 0, 0);
-                break;
+          // Your code here
+
+          std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Adding a sleep is also nice to not eat the CPU, this is not 100% necessairy
         }
 
-        return TRUE;
+        // Clean up the console and unload the DLL
+        fclose(m_pSTDOutDummy);
+	      fclose(m_pSTDInDummy);
+
+        FreeConsole();
+
+        FreeLibraryAndExitThread(reinterpret_cast<HMODULE>(lpParam), EXIT_SUCCESS);
+        return EXIT_SUCCESS;
+}
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReasonForCall, LPVOID lpReserved)
+{
+	// Disable unwanted and unneeded thread calls
+	DisableThreadLibraryCalls(hModule);
+
+	if (ulReasonForCall != DLL_PROCESS_ATTACH)
+		return TRUE;
+
+	HANDLE hThread = CreateThread(nullptr, NULL, MainThread, hModule, NULL, nullptr);
+	if (hThread)
+		CloseHandle(hThread);
+
+	return TRUE;
 }
 ```
 ### Example program that enables the UnrealEngine console
@@ -119,82 +140,98 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 // Basic.cpp was added to the VS project
 // Engine_functions.cpp was added to the VS project
 
-DWORD MainThread(HMODULE Module)
+DWORD __stdcall MainThread(LPVOID lpParam)
 {
-    /* Code to open a console window */
-    AllocConsole();
-    FILE* Dummy;
-    freopen_s(&Dummy, "CONOUT$", "w", stdout);
-    freopen_s(&Dummy, "CONIN$", "r", stdin);
+	/* Code to open a console window */
+	if (!AllocConsole())
+		return EXIT_FAILURE;
 
-    /* Functions returning "static" instances */
-    SDK::UEngine* Engine = SDK::UEngine::GetEngine();
-    SDK::UWorld* World = SDK::UWorld::GetWorld();
+	FILE* m_pSTDOutDummy = nullptr;
+	FILE* m_pSTDInDummy = nullptr;
+	if (freopen_s(&m_pSTDOutDummy, "CONOUT$", "w", stdout) || freopen_s(&m_pSTDInDummy, "CONIN$", "w", stdin)) // If either freopen_s returns non-zero that means it failed and we should bail
+		return EXIT_FAILURE;
 
-    /* Getting the PlayerController, World, OwningGameInstance, ... should all be checked not to be nullptr! */
-    SDK::APlayerController* MyController = World->OwningGameInstance->LocalPlayers[0]->PlayerController;
+	std::cout.clear();
+	std::cin.clear();
 
-    /* Print the full-name of an object ("ClassName PackageName.OptionalOuter.ObjectName") */
-    std::cout << Engine->ConsoleClass->GetFullName() << std::endl;
+	/* Functions returning "static" instances */
+	SDK::UEngine* Engine = SDK::UEngine::GetEngine();
+	SDK::UWorld* World = SDK::UWorld::GetWorld();
 
-    /* Manually iterating GObjects and printing the FullName of every UObject that is a Pawn (not recommended) */
-    for (int i = 0; i < SDK::UObject::GObjects->Num(); i++)
-    {
-        SDK::UObject* Obj = SDK::UObject::GObjects->GetByIndex(i);
+	/* Getting the PlayerController, World, OwningGameInstance, ... should all be checked not to be nullptr! */
+	SDK::APlayerController* MyController = World->OwningGameInstance->LocalPlayers[0]->PlayerController;
 
-        if (!Obj)
-            continue;
+	/* Print the full-name of an object ("ClassName PackageName.OptionalOuter.ObjectName") */
+	std::cout << Engine->ConsoleClass->GetFullName() << std::endl;
 
-        if (!Obj->IsDefaultObject())
-            continue;
+	/* Manually iterating GObjects and printing the FullName of every UObject that is a Pawn (not recommended) */
+	for (int i = 0; i < SDK::UObject::GObjects->Num(); i++)
+	{
+		SDK::UObject* Obj = SDK::UObject::GObjects->GetByIndex(i);
 
-        /* Only the 'IsA' check using the cast flags is required, the other 'IsA' is redundant */
-        if (Obj->IsA(SDK::APawn::StaticClass()) || Obj->HasTypeFlag(SDK::EClassCastFlags::Pawn))
-        {
-            std::cout << Obj->GetFullName() << "\n";
-        }
-    }
+		if (!Obj)
+			continue;
 
-    /* You might need to loop all levels in UWorld::Levels */
-    SDK::ULevel* Level = World->PersistentLevel;
-    SDK::TArray<SDK::AActor*>& volatile Actors = Level->Actors;
+		if (!Obj->IsDefaultObject())
+			continue;
 
-    for (SDK::AActor* Actor : Actors)
-    {
-        /* The 2nd and 3rd checks are equal, prefer using EClassCastFlags if available for your class. */
-        if (!Actor || !Actor->IsA(SDK::EClassCastFlags::Pawn) || !Actor->IsA(SDK::APawn::StaticClass()))
-            continue;
+		/* Only the 'IsA' check using the cast flags is required, the other 'IsA' is redundant */
+		if (Obj->IsA(SDK::APawn::StaticClass()) || Obj->HasTypeFlag(SDK::EClassCastFlags::Pawn))
+		{
+			std::cout << Obj->GetFullName() << "\n";
+		}
+	}
 
-        SDK::APawn* Pawn = static_cast<SDK::APawn*>(Actor);
-        // Use Pawn here
-    }
+	/* You might need to loop all levels in UWorld::Levels */
+	SDK::ULevel* Level = World->PersistentLevel;
+	SDK::TArray<SDK::AActor*>& volatile Actors = Level->Actors;
 
-    /* 
-    * Changes the keyboard-key that's used to open the UE console
-    * 
-    * This is a rare case of a DefaultObjects' member-variables being changed.
-    * By default you do not want to use the DefaultObject, this is a rare exception.
-    */
-    SDK::UInputSettings::GetDefaultObj()->ConsoleKeys[0].KeyName = SDK::UKismetStringLibrary::Conv_StringToName(L"F2");
+	for (SDK::AActor* Actor : Actors)
+	{
+		/* The 2nd and 3rd checks are equal, prefer using EClassCastFlags if available for your class. */
+		if (!Actor || !Actor->IsA(SDK::EClassCastFlags::Pawn) || !Actor->IsA(SDK::APawn::StaticClass()))
+			continue;
 
-    /* Creates a new UObject of class-type specified by Engine->ConsoleClass */
-    SDK::UObject* NewObject = SDK::UGameplayStatics::SpawnObject(Engine->ConsoleClass, Engine->GameViewport);
+		SDK::APawn* Pawn = static_cast<SDK::APawn*>(Actor);
+		// Use Pawn here
+	}
 
-    /* The Object we created is a subclass of UConsole, so this cast is **safe**. */
-    Engine->GameViewport->ViewportConsole = static_cast<SDK::UConsole*>(NewObject);
+	/*
+	* Changes the keyboard-key that's used to open the UE console
+	*
+	* This is a rare case of a DefaultObjects' member-variables being changed.
+	* By default you do not want to use the DefaultObject, this is a rare exception.
+	*/
+	SDK::UInputSettings::GetDefaultObj()->ConsoleKeys[0].KeyName = SDK::UKismetStringLibrary::Conv_StringToName(L"F2");
 
-    return 0;
+	/* Creates a new UObject of class-type specified by Engine->ConsoleClass */
+	SDK::UObject* NewObject = SDK::UGameplayStatics::SpawnObject(Engine->ConsoleClass, Engine->GameViewport);
+
+	/* The Object we created is a subclass of UConsole, so this cast is **safe**. */
+	Engine->GameViewport->ViewportConsole = static_cast<SDK::UConsole*>(NewObject);
+
+	// Clean up the console and unload the DLL
+	fclose(m_pSTDOutDummy);
+	fclose(m_pSTDInDummy);
+
+	FreeConsole();
+
+	FreeLibraryAndExitThread(reinterpret_cast<HMODULE>(lpParam), EXIT_SUCCESS);
+	return EXIT_SUCCESS;
 }
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReasonForCall, LPVOID lpReserved)
 {
-    switch (reason)
-    {
-    case DLL_PROCESS_ATTACH:
-        CreateThread(0, 0, (LPTHREAD_START_ROUTINE)MainThread, hModule, 0, 0);
-        break;
-    }
+	// Disable unwanted and unneeded thread calls
+	DisableThreadLibraryCalls(hModule);
 
-    return TRUE;
+	if (ulReasonForCall != DLL_PROCESS_ATTACH)
+		return TRUE;
+
+	HANDLE hThread = CreateThread(nullptr, NULL, MainThread, hModule, NULL, nullptr);
+	if (hThread)
+		CloseHandle(hThread);
+
+	return TRUE;
 }
 ```
