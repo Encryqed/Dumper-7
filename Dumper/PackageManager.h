@@ -173,7 +173,7 @@ public:
 struct PackageManagerIterationParams
 {
 	int32 PrevPackage;
-	int32 RequiredPackge;
+	int32 RequiredPackage;
 
 	bool bWasPrevNodeStructs;
 	bool bRequiresClasses;
@@ -235,7 +235,7 @@ private:
 	static void HelperMarkStructDependenciesOfPackage(UEStruct Struct, int32 OwnPackageIdx, int32 RequiredPackageIdx, bool bIsClass);
 	static int32 HelperCountStructDependenciesOfPackage(UEStruct Struct, int32 OwnPackageIdx, bool bIsClass);
 
-	static void HelperAddEnumsFromPacakgeToFwdDeclarations(UEStruct Struct, std::vector<std::pair<int32, bool>>& EnumsToForwardDeclare, int32 RequiredPackageIdx, bool bMarkAsClass);
+	static void HelperAddEnumsFromPacakageToFwdDeclarations(UEStruct Struct, std::vector<std::pair<int32, bool>>& EnumsToForwardDeclare, int32 RequiredPackageIdx, bool bMarkAsClass);
 
 	static void HelperInitEnumFwdDeclarationsForPackage(int32 PackageForFwdDeclarations, int32 RequiredPackage, bool bIsClass);
 

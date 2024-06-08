@@ -389,7 +389,7 @@ int32 PackageManager::HelperCountStructDependenciesOfPackage(UEStruct Struct, in
 	return RetCount;
 }
 
-void PackageManager::HelperAddEnumsFromPacakgeToFwdDeclarations(UEStruct Struct, std::vector<std::pair<int32, bool>>& EnumsToForwardDeclare, int32 RequiredPackageIdx, bool bMarkAsClass)
+void PackageManager::HelperAddEnumsFromPacakageToFwdDeclarations(UEStruct Struct, std::vector<std::pair<int32, bool>>& EnumsToForwardDeclare, int32 RequiredPackageIdx, bool bMarkAsClass)
 {
 	for (UEProperty Child : Struct.GetProperties())
 	{
@@ -414,7 +414,7 @@ void PackageManager::HelperInitEnumFwdDeclarationsForPackage(int32 PackageForFwd
 
 	DependencyManager::OnVisitCallbackType CheckForEnumsToForwardDeclareCallback = [&EnumsToForwardDeclare, RequiredPackage, bIsClass](int32 Index) -> void
 	{
-		HelperAddEnumsFromPacakgeToFwdDeclarations(ObjectArray::GetByIndex<UEStruct>(Index), EnumsToForwardDeclare, RequiredPackage, bIsClass);
+		HelperAddEnumsFromPacakageToFwdDeclarations(ObjectArray::GetByIndex<UEStruct>(Index), EnumsToForwardDeclare, RequiredPackage, bIsClass);
 	};
 
 	DependencyManager& Manager = bIsClass ? Info.ClassesSorted : Info.StructsSorted;
@@ -423,7 +423,7 @@ void PackageManager::HelperInitEnumFwdDeclarationsForPackage(int32 PackageForFwd
 	/* Enums used in functions are required by classes too, due to the declaration of functions being in the classes-header */
 	for (const int32 FuncIdx : Info.Functions)
 	{
-		HelperAddEnumsFromPacakgeToFwdDeclarations(ObjectArray::GetByIndex<UEFunction>(FuncIdx), EnumsToForwardDeclare, RequiredPackage, true);
+		HelperAddEnumsFromPacakageToFwdDeclarations(ObjectArray::GetByIndex<UEFunction>(FuncIdx), EnumsToForwardDeclare, RequiredPackage, true);
 	}
 
 	std::sort(EnumsToForwardDeclare.begin(), EnumsToForwardDeclare.end());
@@ -447,7 +447,7 @@ void PackageManager::HandleCycles()
 
 	FindCycleCallbackType CleanedUpOnCycleFoundCallback = [&HandledPackages](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
 	{
-		const int32 CurrentPackageIndex = NewParams.RequiredPackge;
+		const int32 CurrentPackageIndex = NewParams.RequiredPackage;
 		const int32 PreviousPackageIndex = NewParams.PrevPackage;
 
 		/* Check if this pacakge was handled before, return if true */
@@ -615,7 +615,7 @@ void PackageManager::IterateSingleDependencyImplementation(SingleDependencyItera
 			Params.NewParams.bWasPrevNodeStructs = Params.bIsStruct;
 			Params.NewParams.bRequiresClasses = Requirements.bShouldIncludeClasses;
 			Params.NewParams.bRequiresStructs = Requirements.bShouldIncludeStructs;
-			Params.NewParams.RequiredPackge = Requirements.PackageIdx;
+			Params.NewParams.RequiredPackage = Requirements.PackageIdx;
 
 			/* Iterate dependencies recursively */
 			IterateDependenciesImplementation(Params.NewParams, Params.CallbackForEachPackage, Params.OnFoundCycle, bCheckForCycle);
@@ -642,12 +642,12 @@ void PackageManager::IterateSingleDependencyImplementation(SingleDependencyItera
 void PackageManager::IterateDependenciesImplementation(const PackageManagerIterationParams& Params, const IteratePackagesCallbackType& CallbackForEachPackage, const FindCycleCallbackType& OnFoundCycle, bool bCheckForCycle)
 {
 	PackageManagerIterationParams NewParams = {
-		.PrevPackage = Params.RequiredPackge,
+		.PrevPackage = Params.RequiredPackage,
 
 		.VisitedNodes = Params.VisitedNodes,
 	};
 
-	DependencyInfo& Dependencies = PackageInfos.at(Params.RequiredPackge).PackageDependencies;
+	DependencyInfo& Dependencies = PackageInfos.at(Params.RequiredPackage).PackageDependencies;
 
 	SingleDependencyIterationParamsInternal StructsParams{
 		.CallbackForEachPackage = CallbackForEachPackage,
@@ -658,7 +658,7 @@ void PackageManager::IterateDependenciesImplementation(const PackageManagerItera
 		.Dependencies = Dependencies.StructsDependencies,
 		.VisitedNodes = Params.VisitedNodes,
 
-		.CurrentIndex = Params.RequiredPackge,
+		.CurrentIndex = Params.RequiredPackage,
 		.PrevIndex = Params.PrevPackage,
 		.IterationHitCounterRef = Dependencies.StructsIterationHitCount,
 
@@ -675,7 +675,7 @@ void PackageManager::IterateDependenciesImplementation(const PackageManagerItera
 		.Dependencies = Dependencies.ClassesDependencies,
 		.VisitedNodes = Params.VisitedNodes,
 
-		.CurrentIndex = Params.RequiredPackge,
+		.CurrentIndex = Params.RequiredPackage,
 		.PrevIndex = Params.PrevPackage,
 		.IterationHitCounterRef = Dependencies.ClassesIterationHitCount,
 
@@ -704,7 +704,7 @@ void PackageManager::IterateDependencies(const IteratePackagesCallbackType& Call
 
 	for (const auto& [PackageIndex, Info] : PackageInfos)
 	{
-		Params.RequiredPackge = PackageIndex;
+		Params.RequiredPackage = PackageIndex;
 		Params.bWasPrevNodeStructs = true;
 		Params.bRequiresClasses = true;
 		Params.bRequiresStructs = true;
@@ -731,7 +731,7 @@ void PackageManager::FindCycle(const FindCycleCallbackType& OnFoundCycle)
 
 	for (const auto& [PackageIndex, Info] : PackageInfos)
 	{
-		Params.RequiredPackge = PackageIndex;
+		Params.RequiredPackage = PackageIndex;
 		Params.bWasPrevNodeStructs = true;
 		Params.bRequiresClasses = true;
 		Params.bRequiresStructs = true;
