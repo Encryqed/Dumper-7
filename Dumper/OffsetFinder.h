@@ -640,6 +640,7 @@ namespace OffsetFinder
 	/* ULevel */
 	inline int32_t FindLevelActorsOffset()
 	{
+		UEObject Level = nullptr;
 		uintptr_t Lvl = 0x0;
 
 		for (auto Obj : ObjectArray())
@@ -647,13 +648,14 @@ namespace OffsetFinder
 			if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject) || !Obj.IsA(EClassCastFlags::Level))
 				continue;
 
+			Level = Obj;
 			Lvl = reinterpret_cast<uintptr_t>(Obj.GetAddress());
 			break;
 		}
 
 		if (Lvl == 0x0)
 			return OffsetNotFound;
-		
+
 		/*
 		class ULevel : public UObject
 		{
@@ -666,13 +668,8 @@ namespace OffsetFinder
 		SearchEnd = offsetof(ULevel, OwningWorld)
 		*/
 
-		UEClass LevelClass = ObjectArray::FindClassFast("Level");
-
-		if (!LevelClass) [[unlikely]]
-			LevelClass = ObjectArray::FindClassFast("level");
-
 		int32 SearchStart = ObjectArray::FindClassFast("Object").GetStructSize() + ObjectArray::FindObjectFast<UEStruct>("URL", EClassCastFlags::Struct).GetStructSize();
-		int32 SearchEnd = LevelClass.FindMember("OwningWorld").GetOffset();
+		int32 SearchEnd = Level.GetClass().FindMember("OwningWorld").GetOffset();
 
 		for (int i = SearchStart; i <= (SearchEnd - 0x10); i += 8)
 		{
