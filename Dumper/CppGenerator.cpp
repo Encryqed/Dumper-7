@@ -1361,7 +1361,7 @@ void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
 
 	auto ForEachElementCallback = [&SdkHpp](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
 	{
-		PackageInfoHandle CurrentPackage = PackageManager::GetInfo(NewParams.RequiredPackge);
+		PackageInfoHandle CurrentPackage = PackageManager::GetInfo(NewParams.RequiredPackage);
 
 		const bool bHasClassesFile = CurrentPackage.HasClasses();
 		const bool bHasStructsFile = (CurrentPackage.HasStructs() || CurrentPackage.HasEnums());
