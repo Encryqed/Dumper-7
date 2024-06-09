@@ -1667,7 +1667,12 @@ void CppGenerator::InitPredefinedMembers()
 
 	if (Off::ULevel::Actors != -1)
 	{
-		PredefinedElements& ULevelPredefs = PredefinedMembers[ObjectArray::FindClassFast("Level").GetIndex()];
+		UEClass Level = ObjectArray::FindClassFast("Level");
+
+		if (Level == nullptr)
+			Level = ObjectArray::FindClassFast("level");
+
+		PredefinedElements& ULevelPredefs = PredefinedMembers[Level.GetIndex()];
 		ULevelPredefs.Members =
 		{
 			PredefinedMember {
