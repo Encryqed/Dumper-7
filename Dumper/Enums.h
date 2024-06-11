@@ -151,6 +151,125 @@ enum class EFunctionFlags : uint32
 	AllFlags = 0xFFFFFFFF,
 };
 
+//
+// Evaluatable expression item types.
+//
+enum class EExprToken : uint8
+{
+	// Variable references.
+	LocalVariable					= 0x00,	// A local variable.
+	InstanceVariable				= 0x01,	// An object variable.
+	DefaultVariable					= 0x02, // Default variable for a class context.
+
+	Return							= 0x04,	// Return from function.
+
+	Jump							= 0x06,	// Goto a local address in code.
+	JumpIfNot						= 0x07,	// Goto if not expression.
+
+	Assert							= 0x09,	// Assertion.
+
+	Nothing							= 0x0B,	// No operation.
+	NothingInt32					= 0x0C, // No operation with an int32 argument (useful for debugging script disassembly)
+
+	Let								= 0x0F,	// Assign an arbitrary size value to a variable.
+
+	BitFieldConst					= 0x11, // assign to a single bit, defined by an FProperty
+	ClassContext					= 0x12,	// Class default object context.
+	MetaCast						= 0x13, // Metaclass cast.
+	LetBool							= 0x14, // Let boolean variable.
+	EndParmValue					= 0x15,	// end of default value for optional function parameter
+	EndFunctionParms				= 0x16,	// End of function call parameters.
+	Self							= 0x17,	// Self object.
+	Skip							= 0x18,	// Skippable expression.
+	Context							= 0x19,	// Call a function through an object context.
+	Context_FailSilent				= 0x1A, // Call a function through an object context (can fail silently if the context is NULL; only generated for functions that don't have output or return values).
+	VirtualFunction					= 0x1B,	// A function call with parameters.
+	FinalFunction					= 0x1C,	// A prebound function call with parameters.
+	IntConst						= 0x1D,	// Int constant.
+	FloatConst						= 0x1E,	// Floating point constant.
+	StringConst						= 0x1F,	// String constant.
+	ObjectConst						= 0x20,	// An object constant.
+	NameConst						= 0x21,	// A name constant.
+	RotationConst					= 0x22,	// A rotation constant.
+	VectorConst						= 0x23,	// A vector constant.
+	ByteConst						= 0x24,	// A byte constant.
+	IntZero							= 0x25,	// Zero.
+	IntOne							= 0x26,	// One.
+	True							= 0x27,	// Bool True.
+	False							= 0x28,	// Bool False.
+	TextConst						= 0x29, // FText constant
+	NoObject						= 0x2A,	// NoObject.
+	TransformConst					= 0x2B, // A transform constant
+	IntConstByte					= 0x2C,	// Int constant that requires 1 byte.
+	NoInterface						= 0x2D, // A null interface (similar to EX_NoObject, but for interfaces)
+	DynamicCast						= 0x2E,	// Safe dynamic class casting.
+	StructConst						= 0x2F, // An arbitrary UStruct constant
+	EndStructConst					= 0x30, // End of UStruct constant
+	SetArray						= 0x31, // Set the value of arbitrary array
+	EndArray						= 0x32,
+	PropertyConst					= 0x33, // FProperty constant.
+	UnicodeStringConst				= 0x34, // Unicode string constant.
+	Int64Const						= 0x35,	// 64-bit integer constant.
+	UInt64Const						= 0x36,	// 64-bit unsigned integer constant.
+	DoubleConst						= 0x37, // Double constant.
+	Cast							= 0x38,	// A casting operator which reads the type as the subsequent byte
+	SetSet							= 0x39,
+	EndSet							= 0x3A,
+	SetMap							= 0x3B,
+	EndMap							= 0x3C,
+	SetConst						= 0x3D,
+	EndSetConst						= 0x3E,
+	MapConst						= 0x3F,
+	EndMapConst						= 0x40,
+	Vector3fConst					= 0x41,	// A float vector constant.
+	StructMemberContext				= 0x42, // Context expression to address a property within a struct
+	LetMulticastDelegate			= 0x43, // Assignment to a multi-cast delegate
+	LetDelegate						= 0x44, // Assignment to a delegate
+	LocalVirtualFunction			= 0x45, // Special instructions to quickly call a virtual function that we know is going to run only locally
+	LocalFinalFunction				= 0x46, // Special instructions to quickly call a final function that we know is going to run only locally
+	//								= 0x47, // CST_ObjectToBool
+	LocalOutVariable				= 0x48, // local out (pass by reference) function parameter
+	//								= 0x49, // CST_InterfaceToBool
+	DeprecatedOp4A					= 0x4A,
+	InstanceDelegate				= 0x4B,	// const reference to a delegate or normal function object
+	PushExecutionFlow				= 0x4C, // push an address on to the execution flow stack for future execution when a EX_PopExecutionFlow is executed.   Execution continues on normally and doesn't change to the pushed address.
+	PopExecutionFlow				= 0x4D, // continue execution at the last address previously pushed onto the execution flow stack.
+	ComputedJump					= 0x4E,	// Goto a local address in code, specified by an integer value.
+	PopExecutionFlowIfNot			= 0x4F, // continue execution at the last address previously pushed onto the execution flow stack, if the condition is not true.
+	Breakpoint						= 0x50, // Breakpoint.  Only observed in the editor, otherwise it behaves like EX_Nothing.
+	InterfaceContext				= 0x51,	// Call a function through a native interface variable
+	ObjToInterfaceCast				= 0x52,	// Converting an object reference to native interface variable
+	EndOfScript						= 0x53, // Last byte in script code
+	CrossInterfaceCast				= 0x54, // Converting an interface variable reference to native interface variable
+	InterfaceToObjCast				= 0x55, // Converting an interface variable reference to an object
+
+	WireTracepoint					= 0x5A, // Trace point.  Only observed in the editor, otherwise it behaves like EX_Nothing.
+	SkipOffsetConst					= 0x5B, // A CodeSizeSkipOffset constant
+	AddMulticastDelegate			= 0x5C, // Adds a delegate to a multicast delegate's targets
+	ClearMulticastDelegate			= 0x5D, // Clears all delegates in a multicast target
+	Tracepoint						= 0x5E, // Trace point.  Only observed in the editor, otherwise it behaves like EX_Nothing.
+	LetObj							= 0x5F,	// assign to any object ref pointer
+	LetWeakObjPtr					= 0x60, // assign to a weak object pointer
+	BindDelegate					= 0x61, // bind object and name to delegate
+	RemoveMulticastDelegate			= 0x62, // Remove a delegate from a multicast delegate's targets
+	CallMulticastDelegate			= 0x63, // Call multicast delegate
+	LetValueOnPersistentFrame		= 0x64,
+	ArrayConst						= 0x65,
+	EndArrayConst					= 0x66,
+	SoftObjectConst					= 0x67,
+	CallMath						= 0x68, // static pure function from on local call space
+	SwitchValue						= 0x69,
+	InstrumentationEvent			= 0x6A, // Instrumentation event
+	ArrayGetByRef					= 0x6B,
+	ClassSparseDataVariable			= 0x6C, // Sparse data variable
+	FieldPathConst					= 0x6D,
+
+	AutoRtfmTransact				= 0x70, // AutoRTFM: run following code in a transaction
+	AutoRtfmStopTransact			= 0x71, // AutoRTFM: if in a transaction, abort or break, otherwise no operation
+	AutoRtfmAbortIfNot				= 0x72, // AutoRTFM: evaluate bool condition, abort transaction on false
+	Max								= 0xFF,
+};
+
 enum class EObjectFlags
 {
 	NoFlags							= 0x00000000,
@@ -321,6 +440,42 @@ enum class EClassFlags
 	Constructed					= 0x20000000u,
 	ConfigDoNotCheckDefaults	= 0x40000000u,
 	NewerVersionExists			= 0x80000000u,
+};
+
+// Script instrumentation event types
+enum class EScriptInstrumentation : uint8
+{
+	Class = 0,
+	ClassScope,
+	Instance,
+	Event,
+	InlineEvent,
+	ResumeEvent,
+	PureNodeEntry,
+	NodeDebugSite,
+	NodeEntry,
+	NodeExit,
+	PushState,
+	RestoreState,
+	ResetState,
+	SuspendState,
+	PopState,
+	TunnelEndOfThread,
+	Stop
+};
+
+enum class EBlueprintTextLiteralType : uint8
+{
+	/* Text is an empty string. The bytecode contains no strings, and you should use FText::GetEmpty() to initialize the FText instance. */
+	Empty,
+	/** Text is localized. The bytecode will contain three strings - source, key, and namespace - and should be loaded via FInternationalization */
+	LocalizedText,
+	/** Text is culture invariant. The bytecode will contain one string, and you should use FText::AsCultureInvariant to initialize the FText instance. */
+	InvariantText,
+	/** Text is a literal FString. The bytecode will contain one string, and you should use FText::FromString to initialize the FText instance. */
+	LiteralString,
+	/** Text is from a string table. The bytecode will contain an object pointer (not used) and two strings - the table ID, and key - and should be found via FText::FromStringTable */
+	StringTableEntry,
 };
 
 enum class EMappingsTypeFlags : uint8

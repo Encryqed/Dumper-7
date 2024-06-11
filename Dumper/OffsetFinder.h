@@ -401,6 +401,17 @@ namespace OffsetFinder
 		return FindOffset(Infos);
 	}
 
+	inline int32_t FindScriptOffset()
+	{
+		/* APlayerController::ServerViewPrevPlayer */
+		UEFunction Func = ObjectArray::FindObject<UEFunction>("Function BP_ThirdPersonCharacter.BP_ThirdPersonCharacter_C.ReceiveBeginPlay");
+
+		std::cout << "BP_ThirdPersonCharacter_C.ReceiveBeginPlay: " << Func.GetAddress() << std::endl;
+
+		/* Temporary hardcoded*/
+		return Off::UStruct::MinAlignemnt + 0x4;
+	}
+
 	/* UFunction */
 	inline int32_t FindFunctionFlagsOffset()
 	{
@@ -644,7 +655,7 @@ namespace OffsetFinder
 
 		if (Lvl == 0x0)
 			return OffsetNotFound;
-		
+
 		/*
 		class ULevel : public UObject
 		{

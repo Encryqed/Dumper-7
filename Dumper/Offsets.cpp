@@ -214,6 +214,9 @@ void Off::Init()
 	Off::UStruct::MinAlignemnt = OffsetFinder::FindMinAlignmentOffset();
 	std::cout << std::format("Off::UStruct::MinAlignemnts: 0x{:X}\n", Off::UStruct::MinAlignemnt);
 
+	Off::UStruct::Script = OffsetFinder::FindScriptOffset();
+	std::cout << std::format("Off::UStruct::Script: 0x{:X}\n", Off::UStruct::Script);
+
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
 	std::cout << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
 

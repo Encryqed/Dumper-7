@@ -55,6 +55,45 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameName: " << Settings::Generator::GameName << "\n";
 	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
+	/*
+	UEClass BPGenClass = ObjectArray::FindClassFast("BlueprintGeneratedClass");
+	for (UEObject Obj : ObjectArray())
+	{
+		if (Obj.IsA(EClassCastFlags::Class) && Obj.IsA(BPGenClass))
+			std::cout << "BPClass: " << Obj.GetFullName() << "\n\n";
+	
+		if (!Obj.IsA(EClassCastFlags::Function) || Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
+			continue;
+	
+		UEFunction Func = Obj.Cast<UEFunction>();
+	
+		//if (Func.GetOutermost().GetName() != "Engine")
+		//	continue;
+	
+		if (Func.GetScriptBytes().IsEmpty())
+			continue;
+	
+		std::cout << "Flags: (" << Func.StringifyObjFlags() << ")\nObj: " << Func.GetFullName() << "\nScriptBytes: " << Func.GetScriptBytes().Num() 
+			<< "\nOuter: " << Func.GetOuter().GetFullName() << "\n\n";
+
+
+		//std::string DisassembledScript = Func.DumpScriptBytecode();
+		//std::cout << "\n" << std::endl;
+	}
+
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("SetLoadingScreenDescription", "WBP_HDLoadingScreenBase_C");
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("Construct", "WBP_DlgBox_ServerUGCDownloadStatus_C");
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("ExecuteUbergraph_WBP_HDMenuButton_ModalDialog", "WBP_HDMenuButton_ModalDialog_C");
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("UpdateDesignerView", "WBP_Toggle_C");
+	//UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("SetToggle", "WBP_Toggle_C");
+	UEFunction Func = ObjectArray::FindObjectFastInOuter<UEFunction>("GetDefaultLeftHandIKTransformByItemType", "ABP_HDPlayerCharacter_TP_C");
+
+	std::cout << "Func: " << Func.GetName() << std::endl;
+
+	std::string DisassembledScript = Func.DumpScriptBytecode();
+
+	//std::cout << "SetLoadingScreenDescription Script:\n" << DisassembledScript << std::endl;
+	*/
 	Generator::Generate<CppGenerator>();
 	Generator::Generate<MappingGenerator>();
 	Generator::Generate<IDAMappingGenerator>();
