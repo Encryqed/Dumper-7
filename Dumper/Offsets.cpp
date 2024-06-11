@@ -276,10 +276,15 @@ void Off::Init()
 	Off::MapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(Off::InSDK::Properties::PropertySize);
 	std::cout << std::format("Off::MapProperty::Base: 0x{:X}\n", Off::MapProperty::Base) << std::endl;
 
-	Off::ULevel::Actors = OffsetFinder::FindLevelActorsOffset();
-	std::cout << std::format("Off::ULevel::Actors: 0x{:X}\n", Off::ULevel::Actors) << std::endl;
+	Off::InSDK::ULevel::Actors = OffsetFinder::FindLevelActorsOffset();
+	std::cout << std::format("Off::InSDK::ULevel::Actors: 0x{:X}\n", Off::InSDK::ULevel::Actors) << std::endl;
+
+	Off::InSDK::UDataTable::RowMap = OffsetFinder::FindDatatableRowMapOffset();
+	std::cout << std::format("Off::InSDK::UDataTable::RowMap: 0x{:X}\n", Off::InSDK::UDataTable::RowMap) << std::endl;
 
 	OffsetFinder::PostInitFNameSettings();
+
+	std::cout << std::endl;
 
 	Off::ByteProperty::Enum = Off::InSDK::Properties::PropertySize;
 	Off::BoolProperty::Base = Off::InSDK::Properties::PropertySize;

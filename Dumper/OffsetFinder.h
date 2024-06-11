@@ -626,7 +626,7 @@ namespace OffsetFinder
 		return PropertySize;
 	}
 
-	/* ULevel */
+	/* InSDK -> ULevel */
 	inline int32_t FindLevelActorsOffset()
 	{
 		UEObject Level = nullptr;
@@ -671,6 +671,32 @@ namespace OffsetFinder
 		}
 
 		return OffsetNotFound;
+	}
+
+
+	/* InSDK -> UDataTable */
+	inline int32_t FindDatatableRowMapOffset()
+	{
+		const UEClass DataTable = ObjectArray::FindClassFast("DataTable");
+
+		constexpr int32 UObjectOuterSize = 0x8;
+		constexpr int32 RowStructSize = 0x8;
+
+		if (!DataTable)
+		{
+			std::cout << "\nDumper-7: [DataTable] Couldn't find \"DataTable\" class, assuming default layout.\n" << std::endl;
+			return (Off::UObject::Outer + UObjectOuterSize + RowStructSize);
+		}
+
+		UEProperty RowStructProp = DataTable.FindMember("RowStruct", EClassCastFlags::ObjectProperty);
+
+		if (!RowStructProp)
+		{
+			std::cout << "\nDumper-7: [DataTable] Couldn't find \"RowStruct\" property, assuming default layout.\n" << std::endl;
+			return (Off::UObject::Outer + UObjectOuterSize + RowStructSize);
+		}
+
+		return RowStructProp.GetOffset() + RowStructProp.GetSize();
 	}
 }
 

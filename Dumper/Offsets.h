@@ -63,6 +63,16 @@ namespace Off
 
 			void InitTextOffsets();
 		}
+
+		namespace ULevel
+		{
+			inline int32 Actors;
+		}
+
+		namespace UDataTable
+		{
+			inline int32 RowMap;
+		}
 	}
 
 	namespace FUObjectArray
@@ -251,10 +261,5 @@ namespace Off
 	namespace OptionalProperty
 	{
 		inline int32 ValueProperty;
-	}
-
-	namespace ULevel
-	{
-		inline int32 Actors;
 	}
 }
