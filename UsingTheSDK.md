@@ -54,7 +54,7 @@
   - Static functions
     ```c++
     /* static functions do not require an instance, they are automatically called using their DefaultObject */
-    SDK::FName MyNewName = SDK::UKismetStringLibrary::Conv_StringToName("DemoNetDriver");
+    SDK::FName MyNewName = SDK::UKismetStringLibrary::Conv_StringToName(L"DemoNetDriver");
     ```
 ### 3. Checking a UObject's type
   - With EClassCastFlags
