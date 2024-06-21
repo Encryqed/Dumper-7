@@ -4,7 +4,7 @@
 NameInfo::NameInfo(HashStringTableIndex NameIdx, ECollisionType CurrentType)
 	: Name(NameIdx), CollisionData(0x0)
 {
-	// Member-Initializer order is not guaranteed, init "OwnType" after
+	// Member-Initializer order is not guaranteed, init "OwnType" after "CollisionData"
 	OwnType = static_cast<uint8>(CurrentType);
 }
 
@@ -13,10 +13,30 @@ void NameInfo::InitCollisionData(const NameInfo& Existing, ECollisionType Curren
 	CollisionData = Existing.CollisionData;
 	OwnType = static_cast<uint8>(CurrentType);
 
-	// Increments the CollisionCount, for the CollisionType specified, by 1
-	const int32 ShiftCount = OwnTypeBitCount + ((Existing.OwnType + bIsSuper) * PerCountBitCount);
-	const int32 IncrementForCollisionCount = 1 << ShiftCount;
-	CollisionData += IncrementForCollisionCount;
+	switch (CurrentType)
+	{
+	case ECollisionType::MemberName:
+		if (bIsSuper)
+		{
+			SuperMemberNameCollisionCount++;
+			return;
+		}
+		MemberNameCollisionCount++;
+		break;
+	case ECollisionType::FunctionName:
+		if (bIsSuper)
+		{
+			SuperFuncNameCollisionCount++;
+			return;
+		}
+		FunctionNameCollisionCount++;
+		break;
+	case ECollisionType::ParameterName:
+		ParamNameCollisionCount++;
+		break;
+	default:
+		break;
+	}
 }
 
 bool NameInfo::HasCollisions() const
