@@ -154,11 +154,11 @@ public:
 		{
 			if (bIsSecondIteration)
 			{
-				SecondIndices.push_back(OldParams.RequiredPackge);
+				SecondIndices.push_back(OldParams.RequiredPackage);
 				return;
 			}
 
-			Indices.push_back(OldParams.RequiredPackge);
+			Indices.push_back(OldParams.RequiredPackage);
 		};
 
 		PackageManager::IterateDependencies(OnElementVisit);
@@ -180,7 +180,7 @@ public:
 		PackageManager::FindCycleCallbackType OnCycleFound = [&bSuccededTestWithoutError](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
 		{
 			std::string PrevName = ObjectArray::GetByIndex(NewParams.PrevPackage).GetValidName() + (NewParams.bWasPrevNodeStructs ? "_structs" : "_classes");
-			std::string CurrName = ObjectArray::GetByIndex(NewParams.RequiredPackge).GetValidName() + (bIsStruct ? "_structs" : "_classes");
+			std::string CurrName = ObjectArray::GetByIndex(NewParams.RequiredPackage).GetValidName() + (bIsStruct ? "_structs" : "_classes");
 
 			PrintDbgMessage<bDoDebugPrinting>("Cycle between: Current - '{}' and Previous - '{}'", CurrName, PrevName);
 			bSuccededTestWithoutError = false;
