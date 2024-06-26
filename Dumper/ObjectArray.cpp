@@ -123,7 +123,8 @@ void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 	{
 		void* SecondObject = *reinterpret_cast<uint8**>(FirstItemPtr + i);
 		void* ThirdObject  = *reinterpret_cast<uint8**>(FirstItemPtr + (i * 2) - FUObjectItemInitialOffset);
-		if (!IsBadReadPtr(SecondObject) && !IsBadReadPtr(*(void**)SecondObject) && !IsBadReadPtr(ThirdObject) && !IsBadReadPtr(*(void**)ThirdObject))
+
+		if (!IsBadReadPtr(SecondObject) && !IsBadReadPtr(*reinterpret_cast<void**>(SecondObject)) && !IsBadReadPtr(ThirdObject) && !IsBadReadPtr(*reinterpret_cast<void**>(ThirdObject)))
 		{
 			SizeOfFUObjectItem = i - FUObjectItemInitialOffset;
 			break;
@@ -176,35 +177,27 @@ void ObjectArray::Init(bool bScanAllMemory)
 	if (!bScanAllMemory)
 		std::cout << "\nDumper-7 by me, you & him\n\n\n";
 
-	uintptr_t ImageBase = GetImageBase();
-	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)(ImageBase);
-	PIMAGE_NT_HEADERS NtHeader = (PIMAGE_NT_HEADERS)(ImageBase + DosHeader->e_lfanew);
-	PIMAGE_SECTION_HEADER Sections = IMAGE_FIRST_SECTION(NtHeader);
+	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
 
-	uint8_t* SearchBase = (uint8_t*)ImageBase;
- 	DWORD SearchRange = NtHeader->OptionalHeader.SizeOfImage;
+	uintptr_t SearchBase = ImageBase;
+	DWORD SearchRange = ImageSize;
 
 	if (!bScanAllMemory)
 	{
-		for (int i = 0; i < NtHeader->FileHeader.NumberOfSections; i++)
-		{
-			IMAGE_SECTION_HEADER& CurrentSection = Sections[i];
+		const auto [DataSection, DataSize] = GetSectionByName(ImageBase, ".data");
 
-			if (std::string((char*)CurrentSection.Name) == ".data")
-			{
-				SearchBase = (uint8_t*)(CurrentSection.VirtualAddress + ImageBase);
-				SearchRange = CurrentSection.Misc.VirtualSize;
-			}
-		}
+		SearchBase = DataSection;
+		SearchRange = DataSize;
 	}
+
+	/* Sub 0x50 so we don't try to read out of bounds memory when checking FixedArray->IsValid() or ChunkedArray->IsValid() */
+	SearchRange -= 0x50;
 
 	if (!bScanAllMemory)
 		std::cout << "Searching for GObjects...\n\n";
 
-
 	for (int i = 0; i < SearchRange; i += 0x4)
 	{
-
 		auto FixedArray = reinterpret_cast<FFixedUObjectArray*>(SearchBase + i);
 		auto ChunkedArray = reinterpret_cast<FChunkedFixedUObjectArray*>(SearchBase + i);
 
@@ -214,7 +207,7 @@ void ObjectArray::Init(bool bScanAllMemory)
 			Off::FUObjectArray::Num = 0xC;
 			NumElementsPerChunk = -1;
 
-			Off::InSDK::ObjArray::GObjects = uintptr_t(SearchBase + i) - ImageBase;
+			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
 
 			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
 
@@ -242,7 +235,7 @@ void ObjectArray::Init(bool bScanAllMemory)
 			Off::FUObjectArray::Num = 0x14;
 			FUObjectItemInitialOffset = 0x0;
 
-			Off::InSDK::ObjArray::GObjects = uintptr_t(SearchBase + i) - ImageBase;
+			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
 
 			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
 
@@ -257,7 +250,7 @@ void ObjectArray::Init(bool bScanAllMemory)
 				uint8_t* ChunkPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(ObjectsArray));
 
 				uint8_t* Chunk = reinterpret_cast<uint8_t**>(ChunkPtr)[ChunkIndex];
-				uint8_t* ItemPtr = reinterpret_cast<uint8_t*>(Chunk) + (InChunkIdx * FUObjectItemSize);
+				uint8_t* ItemPtr = Chunk + (InChunkIdx * FUObjectItemSize);
 
 				return *reinterpret_cast<void**>(ItemPtr + FUObjectItemOffset);
 			};
@@ -279,7 +272,11 @@ void ObjectArray::Init(bool bScanAllMemory)
 	}
 
 	if (!bScanAllMemory)
+	{
 		std::cout << "\nGObjects couldn't be found!\n\n\n";
+		Sleep(3000);
+		exit(1);
+	}
 }
 
 void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChunked)
@@ -335,7 +332,7 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChu
 	Off::InSDK::ObjArray::ChunkSize = ElementsPerChunk;
 }
 
-void ObjectArray::DumpObjects(const fs::path& Path)
+void ObjectArray::DumpObjects(const fs::path& Path, bool bWithPathname)
 {
 	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
@@ -345,7 +342,14 @@ void ObjectArray::DumpObjects(const fs::path& Path)
 
 	for (auto Object : ObjectArray())
 	{
-		DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
+		if (!bWithPathname)
+		{
+			DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
+		}
+		else
+		{
+			DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetPathName());
+		}
 	}
 
 	DumpStream.close();

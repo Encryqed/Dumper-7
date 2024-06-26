@@ -277,6 +277,11 @@ std::string UEObject::GetName() const
 	return Object ? GetFName().ToString() : "None";
 }
 
+std::string UEObject::GetNameWithPath() const
+{
+	return Object ? GetFName().ToRawString() : "None";
+}
+
 std::string UEObject::GetValidName() const
 {
 	return Object ? GetFName().ToValidString() : "None";
@@ -312,7 +317,7 @@ std::string UEObject::GetCppName() const
 	return 'F' + Temp;
 }
 
-std::string UEObject::GetFullName(int32& OutNameLength)
+std::string UEObject::GetFullName(int32& OutNameLength) const
 {
 	if (*this)
 	{
@@ -355,6 +360,29 @@ std::string UEObject::GetFullName() const
 
 	return "None";
 }
+
+std::string UEObject::GetPathName() const
+{
+	if (*this)
+	{
+		std::string Temp;
+
+		for (UEObject Outer = GetOuter(); Outer; Outer = Outer.GetOuter())
+		{
+			Temp = Outer.GetNameWithPath() + "." + Temp;
+		}
+
+		std::string Name = GetClass().GetNameWithPath();
+		Name += " ";
+		Name += Temp;
+		Name += GetNameWithPath();
+
+		return Name;
+	}
+
+	return "None";
+}
+
 
 UEObject::operator bool() const
 {
