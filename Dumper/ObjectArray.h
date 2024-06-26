@@ -38,7 +38,7 @@ public:
 
 	static void Init(int32 GObjectsOffset, int32 NumElementsPerChunk, bool bIsChunked);
 
-	static void DumpObjects(const fs::path& Path);
+	static void DumpObjects(const fs::path& Path, bool bWithPathname = false);
 
 	static int32 Num();
 

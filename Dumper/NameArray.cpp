@@ -351,7 +351,7 @@ bool NameArray::TryFindNameArray()
 		if (!IsInProcessRange(Address) || IsBadReadPtr(*reinterpret_cast<void**>(Address)))
 			return false;
 
-		Off::InSDK::NameArray::GNames = GetOffset(reinterpret_cast<void*>(Address));
+		Off::InSDK::NameArray::GNames = GetOffset(Address);
 		return true;
 	}
 
@@ -374,7 +374,7 @@ bool NameArray::TryFindNameArray()
 		if (IsBadReadPtr(ValueOfMoveTargetAsPtr) || ValueOfMoveTargetAsPtr != Names)
 			continue;
 
-		Off::InSDK::NameArray::GNames = GetOffset(reinterpret_cast<void*>(MoveTarget));
+		Off::InSDK::NameArray::GNames = GetOffset(MoveTarget);
 		return true;
 	}
 	
@@ -437,7 +437,7 @@ bool NameArray::TryFindNamePool()
 				continue;
 
 			/* Try to find the "ByteProperty" string, as it's always referenced in FNamePool::FNamePool, so we use it to verify that we got the right function */
-			void* StringRef = FindByStringInAllSections(L"ByteProperty", PossibleConstructorAddress, BytePropertySearchRange);
+			MemAddress StringRef = FindByStringInAllSections(L"ByteProperty", PossibleConstructorAddress, BytePropertySearchRange);
 
 			/* We couldn't find a wchar_t string L"ByteProperty", now see if we can find a char string "ByteProperty" */
 			if (!StringRef)

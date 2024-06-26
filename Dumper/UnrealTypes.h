@@ -189,6 +189,7 @@ public:
 	inline const void* GetAddress() const { return Address; }
 
 	std::string ToString() const;
+	std::string ToRawString() const;
 	std::string ToValidString() const;
 
 	int32 GetCompIdx() const;

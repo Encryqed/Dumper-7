@@ -210,6 +210,14 @@ std::string FName::ToString() const
 	return OutputString.substr(pos + 1);
 }
 
+std::string FName::ToRawString() const
+{
+	if (!Address)
+		return "None";
+
+	return ToStr(Address);
+}
+
 std::string FName::ToValidString() const
 {
 	return MakeNameValid(ToString());
