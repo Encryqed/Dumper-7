@@ -187,18 +187,25 @@ void DSGen::dump()
 
 	constexpr auto version = 10201;
 
-	auto saveToDisk = [&](const nlohmann::json& json, const std::string& fileName)
+	auto saveToDisk = [&](const nlohmann::json& json, const std::string& fileName, bool offsetFile = false)
 	{
 		nlohmann::json j;
 		j["updated_at"] = dumpTimeStamp;
 		j["data"] = json;
 		j["version"] = 10201;
 
+		if(offsetFile){
+			nlohmann::json credit;
+			credit["dumper_used"] = "Dumper-7";
+			credit["dumper_link"] = "https://github.com/Encryqed/Dumper-7";
+			j["credit"] = credit;
+		}
+
 		std::ofstream file(directory / fileName);
-		file << j.dump();
+		file << j.dump(-1, ' ', false, nlohmann::detail::error_handler_t::replace);
 	};
 
-	saveToDisk(nlohmann::json(nlohmann::json(offsets)), "OffsetsInfo.json");
+	saveToDisk(nlohmann::json(nlohmann::json(offsets)), "OffsetsInfo.json", true);
 	saveToDisk(nlohmann::json(classes), "ClassesInfo.json");
 	saveToDisk(nlohmann::json(functions), "FunctionsInfo.json");
 	saveToDisk(nlohmann::json(structs), "StructsInfo.json");
