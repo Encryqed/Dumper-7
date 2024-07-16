@@ -708,7 +708,7 @@ public:
 
 	inline bool operator==(MemAddress Other) const
 	{
-		return Address != Other.Address;
+		return Address == Other.Address;
 	}
 
 	inline MemAddress operator+(int Value) const
