@@ -257,7 +257,7 @@ std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
 				bIsOut = true;
 			}
 
-			if (bIsConstParam)
+			if (!bIsOut && bIsConstParam)
 				Type = "const " + Type;
 
 			if (!bIsOut && !bIsRef && bIsMoveType)

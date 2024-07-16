@@ -96,17 +96,17 @@ void EnumManager::InitInternal()
 				{
 					Enum = Property.Cast<UEEnumProperty>().GetEnum();
 					UnderlayingProperty = Property.Cast<UEEnumProperty>().GetUnderlayingProperty();
+
+					if (!UnderlayingProperty)
+						continue;
 				}
 				else /* ByteProperty */
 				{
 					Enum = Property.Cast<UEByteProperty>().GetEnum();
 					UnderlayingProperty = Property;
-
-					if (!Enum)
-						continue;
 				}
 
-				if (!Enum && !UnderlayingProperty)
+				if (!Enum)
 					continue;
 
 				EnumInfo& Info = EnumInfoOverrides[Enum.GetIndex()];
