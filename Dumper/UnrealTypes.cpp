@@ -3,6 +3,7 @@
 #include "UnrealTypes.h"
 #include "NameArray.h"
 
+#include "UnicodeNames.h"
 
 std::string MakeNameValid(std::string&& Name)
 {
@@ -23,50 +24,24 @@ std::string MakeNameValid(std::string&& Name)
 	if (Name == "bool")
 		return "Bool";
 
-	if (Name == "TRUE")
-		return "TURR";
-
-	if (Name == "FALSE")
-		return "FLASE";
-
 	if (Name == "NULL")
 		return "NULLL";
 
+	/* Replace 0 with Zero or 9 with Nine, if it is the first letter of the name. */
 	if (Name[0] <= '9' && Name[0] >= '0')
 	{
 		Name.replace(0, 1, Numbers[Name[0] - '0']);
 	}
-	else if ((Name[0] <= 'z' && Name[0] >= 'a') && Name[0] != 'b')
+	else if (!IsUnicodeCharXIDStart(Name[0])) // Check if the character is a valid unicode start-character
 	{
-		Name[0] -= 0x20;
+		/* Replace invalid starting character with 'm' character. 'm' for "member" */
+		Name[0] = 'm';
 	}
 
-	for (int i = 0; i < Name.length(); i++)
+	for (int i = 1; i < Name.length(); i++)
 	{
-		switch (Name[i])
-		{
-		case '+':
-			Name.replace(i, 1, "Plus");
-			continue;
-		case '-':
-			Name.replace(i, 1, "Minus");
-			continue;
-		case '*':
-			Name.replace(i, 1, "Star");
-			continue;
-		case '/':
-			Name.replace(i, 1, "Slash");
-			continue;
-		default:
-			break;
-		}
-
-		char c = Name[i];
-
-		if (c != '_' && !((c <= 'z' && c >= 'a') || (c <= 'Z' && c >= 'A') || (c <= '9' && c >= '0')))
-		{
+		if (!IsUnicodeCharXIDContinue(Name[i]))
 			Name[i] = '_';
-		}
 	}
 
 	return Name;

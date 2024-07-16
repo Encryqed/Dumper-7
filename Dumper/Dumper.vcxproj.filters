@@ -234,5 +234,8 @@
     <ClInclude Include="DumpspaceGenerator.h">
       <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
+    <ClInclude Include="UnicodeNames.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
