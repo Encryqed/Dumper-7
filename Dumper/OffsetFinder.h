@@ -322,8 +322,6 @@ namespace OffsetFinder
 
 			if (ArrayOfNameValuePairs[1].Second != 1)
 				Settings::Internal::bIsEnumNameOnly = true;
-
-			
 		}
 		else
 		{
@@ -332,6 +330,11 @@ namespace OffsetFinder
 		}
 
 		return Ret;
+	}
+
+	inline int32_t FindEnumFlagsOffset()
+	{
+		return Off::UEnum::Names + 0x14;
 	}
 
 	/* UStruct */

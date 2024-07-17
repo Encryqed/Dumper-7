@@ -424,6 +424,11 @@ bool UEField::IsNextValid() const
 	return (bool)GetNext();
 }
 
+EEnumFlags UEEnum::GetEnumFlags() const
+{
+	return *reinterpret_cast<EEnumFlags*>(Object + Off::UEnum::Flags);
+}
+
 std::vector<std::pair<FName, int64>> UEEnum::GetNameValuePairs() const
 {
 	struct alignas(0x4) Name08Byte { uint8 Pad[0x08]; };

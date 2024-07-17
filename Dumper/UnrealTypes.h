@@ -166,6 +166,14 @@ public:
 
 class FName
 {
+public:
+	enum class EOffsetOverrideType
+	{
+		AppendString,
+		ToString,
+		GNames
+	};
+
 private:
 	inline static void(*AppendString)(const void*, FString&) = nullptr;
 
@@ -183,7 +191,7 @@ public:
 	static void Init(bool bForceGNames = false);
 	static void InitFallback();
 
-	static void Init(int32 AppendStringOffset, bool bIsToString = false);
+	static void Init(int32 OverrideOffset, EOffsetOverrideType OverrideType = EOffsetOverrideType::AppendString, bool bIsNamePool = false);
 
 public:
 	inline const void* GetAddress() const { return Address; }

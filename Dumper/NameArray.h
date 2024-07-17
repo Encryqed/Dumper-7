@@ -53,6 +53,7 @@ public:
 	static bool TryFindNamePool();
 
 	static bool TryInit(bool bIsTestOnly = false);
+	static bool TryInit(int32 OffsetOverride, bool bIsNamePool);
 
 	/* Initializes the GNames offset, but doesn't call NameArray::InitializeNameArray() or NameArray::InitializedNamePool() */
 	static bool SetGNamesWithoutCommiting();
