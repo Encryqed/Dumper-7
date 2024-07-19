@@ -531,8 +531,15 @@ inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearc
 	{
 		const auto [TextSection, TextSize] = GetSectionByName(ImageBase, ".text");
 
-		SearchStart = TextSection;
-		SearchRange = TextSize;
+		if (TextSection != 0x0 && TextSize != 0x0)
+		{
+			SearchStart = TextSection;
+			SearchRange = TextSize;
+		}
+		else
+		{
+			bSearchAllSections = true;
+		}
 	}
 
 	const uintptr_t SearchEnd = ImageBase + SearchRange;
@@ -577,8 +584,15 @@ inline T* FindAlignedValueInProcess(T Value, const std::string& Sectionname = ".
 	{
 		const auto [SectionStart, SectionSize] = GetSectionByName(ImageBase, Sectionname);
 
-		SearchStart = SectionStart;
-		SearchRange = SectionSize;
+		if (SectionStart != 0x0 && SectionSize != 0x0)
+		{
+			SearchStart = SectionStart;
+			SearchRange = SectionSize;
+		}
+		else
+		{
+			bSearchAllSections = true;
+		}
 	}
 
 	T* Result = FindAlignedValueInProcessInRange(Value, Alignment, SearchStart, SearchRange);
