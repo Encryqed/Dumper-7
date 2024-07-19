@@ -186,8 +186,15 @@ void ObjectArray::Init(bool bScanAllMemory)
 	{
 		const auto [DataSection, DataSize] = GetSectionByName(ImageBase, ".data");
 
-		SearchBase = DataSection;
-		SearchRange = DataSize;
+		if (DataSection != 0x0 && DataSize != 0x0)
+		{
+			SearchBase = DataSection;
+			SearchRange = DataSize;
+		}
+		else
+		{
+			bScanAllMemory = true;
+		}
 	}
 
 	/* Sub 0x50 so we don't try to read out of bounds memory when checking FixedArray->IsValid() or ChunkedArray->IsValid() */
