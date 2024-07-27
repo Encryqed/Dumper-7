@@ -255,10 +255,11 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 
 	uint16 PropertyCount = 0x0;
 	uint16 SerializablePropertyCount = 0x0;
+	constexpr auto ExcludeEditorOnlyProps = Settings::MappingGenerator::bExcludeEditorOnlyProperties;
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
-		if (Member.HasPropertyFlags(EPropertyFlags::EditorOnly))
+		if (ExcludeEditorOnlyProps && Member.HasPropertyFlags(EPropertyFlags::EditorOnly))
 			continue;
 
 		SerializablePropertyCount++;
@@ -274,7 +275,7 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
-		if (Member.HasPropertyFlags(EPropertyFlags::EditorOnly))
+		if (ExcludeEditorOnlyProps && Member.HasPropertyFlags(EPropertyFlags::EditorOnly))
 			continue;
 
 		GeneratePropertyInfo(Member, Data, NameTable, IndexIncrementedByFunction);
