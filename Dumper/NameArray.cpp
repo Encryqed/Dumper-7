@@ -205,6 +205,10 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 		int32 NotNullptrCount = 0x0;
 		bool bFoundFirstPtr = false;
 
+		/* Number of invalid pointers we can encounter before we assume that there are no valid pointers anymore. */
+		constexpr int32 MaxAllowedNumInvalidPtrs = 0x500;
+		int32 NumPtrsSinceLastValid = 0x0;
+
 		for (int j = 0x0; j < 0x10000; j += 8)
 		{
 			const int32 ChunkOffset = i + 8 + j + (i % 8);
@@ -212,12 +216,21 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 			if ((*reinterpret_cast<uint8_t**>(NamePool + ChunkOffset)) != nullptr)
 			{
 				NotNullptrCount++;
+				NumPtrsSinceLastValid = 0;
 
 				if (!bFoundFirstPtr)
 				{
 					bFoundFirstPtr = true;
 					Off::NameArray::ChunksStart = i + 8 + j + (i % 8);
 				}
+			}
+			else
+			{
+				NumPtrsSinceLastValid++;
+
+				/* The last time we've seen a non-nullptr value was 0x500 iterations ago. It's safe to say we wont find any more. */
+				if (NumPtrsSinceLastValid == MaxAllowedNumInvalidPtrs)
+					break;
 			}
 		}
 
@@ -415,7 +428,7 @@ bool NameArray::TryFindNamePool()
 
 		constexpr int32 SizeOfMovInstructionBytes = 0x7;
 
-		uintptr_t PossibleConstructorAddress = ASMUtils::Resolve32BitRelativeCall(SigOccurrence + SizeOfMovInstructionBytes);
+		const uintptr_t PossibleConstructorAddress = ASMUtils::Resolve32BitRelativeCall(SigOccurrence + SizeOfMovInstructionBytes);
 
 		if (!IsInProcessRange(PossibleConstructorAddress))
 			continue;
@@ -426,12 +439,12 @@ bool NameArray::TryFindNamePool()
 			if (*reinterpret_cast<uint16*>(PossibleConstructorAddress + i) != 0x15FF)
 				continue;
 
-			uintptr_t RelativeCallTarget = ASMUtils::Resolve32BitSectionRelativeCall(PossibleConstructorAddress + i);
+			const uintptr_t RelativeCallTarget = ASMUtils::Resolve32BitSectionRelativeCall(PossibleConstructorAddress + i);
 
 			if (!IsInProcessRange(RelativeCallTarget))
 				continue;
 
-			uintptr_t ValueOfCallTarget = *reinterpret_cast<uintptr_t*>(RelativeCallTarget);
+			const uintptr_t ValueOfCallTarget = *reinterpret_cast<uintptr_t*>(RelativeCallTarget);
 
 			if (ValueOfCallTarget != InitSRWLockAddress && ValueOfCallTarget != RtlInitSRWLockAddress)
 				continue;
@@ -513,6 +526,62 @@ bool NameArray::TryInit(bool bIsTestOnly)
 	//Settings::Internal::bUseNamePool = false;
 
 	std::cout << "The address that was found couldn't be used by the generator, this might be due to GNames-encryption.\n" << std::endl;
+
+	return false;
+}
+
+
+bool NameArray::TryInit(int32 OffsetOverride, bool bIsNamePool)
+{
+	uintptr_t ImageBase = GetImageBase();
+
+	uint8* GNamesAddress = nullptr;
+
+	const bool bIsNameArrayOverride = !bIsNamePool;
+	const bool bIsNamePoolOverride = bIsNamePool;
+
+	bool bFoundNameArray = false;
+	bool bFoundnamePool = false;
+
+	Off::InSDK::NameArray::GNames = OffsetOverride;
+
+	if (bIsNameArrayOverride)
+	{
+		std::cout << std::format("Overwrote offset: 'TNameEntryArray GNames' set as offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		GNamesAddress = *reinterpret_cast<uint8**>(ImageBase + Off::InSDK::NameArray::GNames);// Derefernce
+		Settings::Internal::bUseNamePool = false;
+		bFoundNameArray = true;
+	}
+	else if (bIsNamePoolOverride)
+	{
+		std::cout << std::format("Overwrote offset: 'FNamePool GNames' set as offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames); // No derefernce
+		Settings::Internal::bUseNamePool = true;
+		bFoundnamePool = true;
+	}
+
+	if (!bFoundNameArray && !bFoundnamePool)
+	{
+		std::cout << "\n\nCould not find GNames!\n\n" << std::endl;
+		return false;
+	}
+
+	if (bFoundNameArray && NameArray::InitializeNameArray(GNamesAddress))
+	{
+		GNames = GNamesAddress;
+		Settings::Internal::bUseNamePool = false;
+		FNameEntry::Init();
+		return true;
+	}
+	else if (bFoundnamePool && NameArray::InitializeNamePool(reinterpret_cast<uint8_t*>(GNamesAddress)))
+	{
+		GNames = GNamesAddress;
+		Settings::Internal::bUseNamePool = true;
+		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
+		return true;
+	}
+
+	std::cout << "The address was overwritten, but couldn't be used. This might be due to GNames-encryption.\n" << std::endl;
 
 	return false;
 }

@@ -322,8 +322,6 @@ namespace OffsetFinder
 
 			if (ArrayOfNameValuePairs[1].Second != 1)
 				Settings::Internal::bIsEnumNameOnly = true;
-
-			
 		}
 		else
 		{

@@ -149,12 +149,35 @@ void FName::Init(bool bForceGNames)
 	};
 }
 
-void FName::Init(int32 AppendStringOffset, bool bIsToString)
+void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bIsNamePool)
 {
-	AppendString = reinterpret_cast<void(*)(const void*, FString&)>(GetImageBase() + AppendStringOffset);
+	if (OverrideType == EOffsetOverrideType::GNames)
+	{
+		const bool bInitializedSuccessfully = NameArray::TryInit(OverrideOffset, bIsNamePool);
 
-	Off::InSDK::Name::AppendNameToString = AppendStringOffset;
-	Off::InSDK::Name::bIsUsingAppendStringOverToString = !bIsToString;
+		if (bInitializedSuccessfully)
+		{
+			ToStr = [](const void* Name) -> std::string
+			{
+				if (!Settings::Internal::bUseUoutlineNumberName)
+				{
+					const int32 Number = FName(Name).GetNumber();
+
+					if (Number > 0)
+						return NameArray::GetNameEntry(Name).GetString() + "_" + std::to_string(Number - 1);
+				}
+
+				return NameArray::GetNameEntry(Name).GetString();
+			};
+		}
+
+		return;
+	}
+
+	AppendString = reinterpret_cast<void(*)(const void*, FString&)>(GetImageBase() + OverrideOffset);
+
+	Off::InSDK::Name::AppendNameToString = OverrideOffset;
+	Off::InSDK::Name::bIsUsingAppendStringOverToString = OverrideType == EOffsetOverrideType::AppendString;
 
 	ToStr = [](const void* Name) -> std::string
 	{
