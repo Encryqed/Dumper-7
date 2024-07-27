@@ -358,6 +358,15 @@ enum class EMappingsTypeFlags : uint8
 	Unknown = 0xFF
 };
 
+enum class EUsmapCompressionMethod : uint8
+{
+	None,
+	Oodle,
+	Brotli,
+	ZStandard,
+	Unknown = 0xFF
+};
+
 ENUM_OPERATORS(EObjectFlags);
 ENUM_OPERATORS(EFunctionFlags);
 ENUM_OPERATORS(EPropertyFlags);

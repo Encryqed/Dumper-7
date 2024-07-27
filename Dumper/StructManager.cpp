@@ -149,6 +149,9 @@ void StructManager::InitSizesAndIsFinal()
 
 		UEStruct Super = ObjAsStruct.GetSuper();
 
+		if (NewOrExistingInfo.Size == 0x0 && Super != nullptr)
+			NewOrExistingInfo.Size = Super.GetStructSize();
+
 		int32 LastMemberEnd = 0x0;
 		int32 LowestOffset = INT_MAX;
 

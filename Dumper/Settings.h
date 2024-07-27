@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 
+#include "Enums.h"
 
 namespace Settings
 {
@@ -55,6 +56,12 @@ R"(
 	{
 		/* Whether the MappingGenerator should check if a name was written to the nametable before. Exists to reduce mapping size. */
 		constexpr bool bShouldCheckForDuplicatedNames = true;
+
+		/* Whether EditorOnly should be excluded from the mapping file. */
+		constexpr bool bExcludeEditorOnlyProperties = false;
+
+		/* Which compression method to use when generating the file. */
+		constexpr EUsmapCompressionMethod CompressionMethod = EUsmapCompressionMethod::ZStandard;
 	}
 
 	/* Partially implemented  */
