@@ -366,6 +366,7 @@ ENUM_OPERATORS(EClassFlags);
 ENUM_OPERATORS(EMappingsTypeFlags);
 ENUM_OPERATORS(EFieldClassID);
 
+
 static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags, const char* Seperator = ", ")
 {
 	/* Make sure the size of this vector is always greater, or equal, to the number of flags existing */

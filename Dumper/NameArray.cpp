@@ -482,7 +482,6 @@ bool NameArray::TryInit(bool bIsTestOnly)
 	bool bFoundNameArray = false;
 	bool bFoundnamePool = false;
 
-
 	if (NameArray::TryFindNameArray())
 	{
 		std::cout << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
