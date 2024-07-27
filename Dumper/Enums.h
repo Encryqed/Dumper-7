@@ -358,14 +358,6 @@ enum class EMappingsTypeFlags : uint8
 	Unknown = 0xFF
 };
 
-enum class EEnumFlags : uint8
-{
-	None,
-
-	Flags = 0x00000001,              // Whether the UEnum represents a set of flags
-	NewerVersionExists = 0x00000002, // If set, this UEnum has been replaced by a newer version
-};
-
 ENUM_OPERATORS(EObjectFlags);
 ENUM_OPERATORS(EFunctionFlags);
 ENUM_OPERATORS(EPropertyFlags);
@@ -373,7 +365,6 @@ ENUM_OPERATORS(EClassCastFlags);
 ENUM_OPERATORS(EClassFlags);
 ENUM_OPERATORS(EMappingsTypeFlags);
 ENUM_OPERATORS(EFieldClassID);
-ENUM_OPERATORS(EEnumFlags);
 
 static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags, const char* Seperator = ", ")
 {

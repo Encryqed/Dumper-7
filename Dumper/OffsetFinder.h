@@ -332,11 +332,6 @@ namespace OffsetFinder
 		return Ret;
 	}
 
-	inline int32_t FindEnumFlagsOffset()
-	{
-		return Off::UEnum::Names + 0x14;
-	}
-
 	/* UStruct */
 	inline int32_t FindSuperOffset()
 	{

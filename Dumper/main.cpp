@@ -60,25 +60,6 @@ DWORD MainThread(HMODULE Module)
 	Generator::Generate<IDAMappingGenerator>();
 	Generator::Generate<DumpspaceGenerator>();
 
-	for (UEObject Obj : ObjectArray())
-	{
-		if (!Obj.IsA(EClassCastFlags::Enum) || Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
-			continue;
-
-		UEEnum Enum = Obj.Cast<UEEnum>();
-
-		if (Enum.GetEnumFlags() & EEnumFlags::Flags)
-		{
-			std::cout << "Enum: " << Enum.GetCppName() << " : " << Enum.GetEnumTypeAsStr() << "\n";
-
-			for (auto& NameValuePair : Enum.GetNameValuePairs())
-			{
-				std::cout << "Val: " << NameValuePair.first.ToString() << " = " << NameValuePair.second << std::endl;
-			}
-
-			std::cout << "\n\n";
-		}
-	}
 
 	auto t_C = std::chrono::high_resolution_clock::now();
 	

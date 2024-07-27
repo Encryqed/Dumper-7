@@ -173,8 +173,6 @@ class UEEnum : public UEField
 	using UEField::UEField;
 
 public:
-	EEnumFlags GetEnumFlags() const;
-
 	std::vector<std::pair<FName, int64>> GetNameValuePairs() const;
 	std::string GetSingleName(int32 Index) const;
 	std::string GetEnumPrefixedName() const;

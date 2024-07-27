@@ -246,9 +246,6 @@ void Off::Init()
 	Off::UEnum::Names = OffsetFinder::FindEnumNamesOffset();
 	std::cout << std::format("Off::UEnum::Names: 0x{:X}\n", Off::UEnum::Names);
 
-	Off::UEnum::Flags = OffsetFinder::FindEnumFlagsOffset();
-	std::cout << std::format("Off::UEnum::Flags: 0x{:X}\n", Off::UEnum::Flags);
-
 	Off::UFunction::FunctionFlags = OffsetFinder::FindFunctionFlagsOffset();
 	std::cout << std::format("Off::UFunction::FunctionFlags: 0x{:X}\n", Off::UFunction::FunctionFlags) << std::endl;
 
