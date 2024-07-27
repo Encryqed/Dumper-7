@@ -254,10 +254,16 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 	MemberManager Members = Struct.GetMembers();
 
 	uint16 PropertyCount = 0x0;
-	uint16 SerializablePropertyCount = Members.GetNumMembers();
+	uint16 SerializablePropertyCount = 0x0;
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
+	{
+		if (Member.HasPropertyFlags(EPropertyFlags::EditorOnly))
+			continue;
+
+		SerializablePropertyCount++;
 		PropertyCount += Member.GetArrayDim();
+	}
 
 	/* uint16, uint16 */
 	WriteToStream(Data, PropertyCount);
@@ -267,7 +273,12 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 	int32 IndexIncrementedByFunction = 0x0;
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
+	{
+		if (Member.HasPropertyFlags(EPropertyFlags::EditorOnly))
+			continue;
+
 		GeneratePropertyInfo(Member, Data, NameTable, IndexIncrementedByFunction);
+	}
 }
 
 void MappingGenerator::GenerateEnum(const EnumWrapper& Enum, std::stringstream& Data, std::stringstream& NameTable)
