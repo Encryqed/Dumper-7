@@ -381,8 +381,7 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 
 	const uint32 UncompressedSize = static_cast<uint32>(Data.str().length());
 
-	/* Should be a configurable option */
-	EUsmapCompressionMethod CompressionMethod = EUsmapCompressionMethod::ZStandard;
+	constexpr auto CompressionMethod = Settings::MappingGenerator::CompressionMethod;
 
 	/* Write 'CompressionMethod' to the compression byte */
 	WriteToStream(InUsmap, static_cast<uint8>(CompressionMethod));
