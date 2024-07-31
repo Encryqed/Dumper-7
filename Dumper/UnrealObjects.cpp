@@ -325,13 +325,13 @@ std::string UEObject::GetFullName(int32& OutNameLength) const
 
 		for (UEObject Outer = GetOuter(); Outer; Outer = Outer.GetOuter())
 		{
-			Temp = Outer.GetName() + "." + Temp;
+			Temp = Outer.GetName() + '.' + Temp;
 		}
 
 		std::string Name = GetName();
 		OutNameLength = Name.size() + 1;
 
-		Name = GetClass().GetName() + " " + Temp + Name;
+		Name = GetClass().GetName() + ' ' + Temp + Name;
 
 		return Name;
 	}

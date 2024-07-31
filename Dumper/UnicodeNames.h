@@ -417,3 +417,32 @@ constexpr bool IsUnicodeCharXIDContinueWithoutXIDStart(char32_t Character)
 {
     return XIDContinueRanges.Contains(Character);
 }
+
+static std::string ConvertWideStrToUtf8(const std::wstring& WStr)
+{
+    if (WStr.empty())
+        return "";
+
+    const int NewNumCharacters = WideCharToMultiByte(CP_UTF8, 0, WStr.c_str(), WStr.length(), NULL, 0, NULL, NULL);
+
+    if (NewNumCharacters == 0x0)
+        return "";
+
+    std::string Str(NewNumCharacters, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, WStr.c_str(), WStr.length(), Str.data(), NewNumCharacters, NULL, NULL);
+
+    return Str;
+}
+
+//static std::string ConvertWideStrToUtf8(const wchar_t* WStr)
+//{
+//    const int NewNumCharacters = WideCharToMultiByte(CP_UTF8, 0, WStr, -1, NULL, 0, NULL, NULL);
+//
+//    if (NewNumCharacters == 0x0)
+//        return "";
+//
+//    std::string Str(NewNumCharacters - 1, '\0');
+//    WideCharToMultiByte(CP_UTF8, 0, WStr, -1, Str.data(), NewNumCharacters, NULL, NULL);
+//
+//    return Str;
+//}

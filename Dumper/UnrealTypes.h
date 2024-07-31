@@ -8,6 +8,8 @@
 #include "Utils.h"
 #include "Offsets.h"
 
+#include "UnicodeNames.h"
+
 extern std::string MakeNameValid(std::string&& Name);
 
 template<typename ValueType, typename KeyType>
@@ -138,13 +140,23 @@ public:
 		return L"";
 	}
 
-	inline std::string ToString() const
+	/* The original ToString function */
+	inline std::string ToANSIString() const
 	{
 		if (IsValid())
 		{
 			std::wstring WData(Data);
 			return std::string(WData.begin(), WData.end());
 		}
+
+		return "";
+	}
+
+	/* A new ToString that converts to a utf8 string as std::string. */
+	inline std::string ToString() const
+	{
+		if (IsValid())
+			return ConvertWideStrToUtf8(Data);
 
 		return "";
 	}
