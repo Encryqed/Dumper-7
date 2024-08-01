@@ -83,6 +83,7 @@ void Generator::InitEngineCore()
 	ObjectArray::Init();
 	FName::Init();
 	Off::Init();
+	PropertySizes::Init();
 	Off::InSDK::ProcessEvent::InitPE(); //Must be at this position, relies on offsets initialized in Off::Init()
 
 	Off::InSDK::World::InitGWorld(); //Must be at this position, relies on offsets initialized in Off::Init()
