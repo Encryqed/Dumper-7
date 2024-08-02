@@ -249,8 +249,6 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 	constexpr uint64 CoreUObjAsUint64 = 0x6A624F5565726F43; // little endian "jbOUeroC" ["/Script/CoreUObject"]
 	constexpr uint32 NoneAsUint32 = 0x656E6F4E; // little endian "None"
 
-	constexpr int64 CoreUObjectStringLength = sizeof("/S");
-
 	uint8_t** ChunkPtr = reinterpret_cast<uint8_t**>(NamePool + Off::NameArray::ChunksStart);
 
 	// "/Script/CoreUObject"

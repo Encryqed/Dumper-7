@@ -13,19 +13,22 @@ private:
 	friend struct FFixedUObjectArray;
 	friend class ObjectArrayValidator;
 
+	friend bool IsAddressValidGObjects(const uintptr_t, const struct FFixedUObjectArrayLayout&, int32*);
+	friend bool IsAddressValidGObjects(const uintptr_t, const struct FChunkedFixedUObjectArrayLayout&, int32*);
+
 private:
-	static uint8* GObjects;
-	static uint32 NumElementsPerChunk;
-	static uint32 SizeOfFUObjectItem;
-	static uint32 FUObjectItemInitialOffset;
+	static inline uint8* GObjects = nullptr;
+	static inline uint32 NumElementsPerChunk = 0x10000;
+	static inline uint32 SizeOfFUObjectItem = 0x18;
+	static inline uint32 FUObjectItemInitialOffset = 0x0;
 
 public:
-	static std::string DecryptionLambdaStr;
+	static inline std::string DecryptionLambdaStr;
 
 private:
 	static inline void*(*ByIndex)(void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) = nullptr;
 
-	static inline uint8_t* (*DecryptPtr)(void* ObjPtr) = [](void* Ptr) -> uint8* { return (uint8*)Ptr; };
+	static inline uint8_t* (*DecryptPtr)(void* ObjPtr) = [](void* Ptr) -> uint8* { return static_cast<uint8*>(Ptr); };
 
 private:
 	static void InitializeFUObjectItem(uint8_t* FirstItemPtr);

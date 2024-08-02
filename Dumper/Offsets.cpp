@@ -117,6 +117,8 @@ void Off::InSDK::Text::InitTextOffsets()
 
 	for (UEProperty Prop : Conv_StringToText.GetProperties())
 	{
+		std::cout << "Prop: " << Prop.GetName() << std::endl;
+
 		/* Func has 2 params, if the param is the return value assign to ReturnProp, else InStringProp*/
 		(Prop.HasPropertyFlags(EPropertyFlags::ReturnParm) ? ReturnProp : InStringProp) = Prop;
 	}
