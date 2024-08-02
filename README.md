@@ -13,22 +13,10 @@ SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and
 
 KoFi: https://ko-fi.com/fischsalat \
 Patreon: https://patreon.com/user?u=119629245
-## Changelog
-
-### Summary:
-- Added TUObjectArrayWrapper which automatically initializes `GObjects` the first time it's accessed
-- Added predefined member **ULevel::Actors** to the SDK
-- Added support for more Properties
-- Functions with `EFunctionFlags::Static` are now automatically called on the classes' DefaultObject
-- Fixed name-collisions between classes/structs, between enums, between members/functions, and between packages
-- Fixed cyclic dependencies
-- Fixed incorrect size/alignment on classes
-  
-You can  find the full changelog for the new GeneratorRewrite in [Changelog.md](Changelog.md).
 
 ## Overriding Offsets
 
-- ### Only override any offsets if the generator doesn't find them by itself
+- ### Only override any offsets if the generator doesn't find them, or if they are incorrect
 - All overrides are made in **Generator::InitEngineCore()** inside of **Generator.cpp**
 
 - GObjects
@@ -40,9 +28,14 @@ You can  find the full changelog for the new GeneratorRewrite in [Changelog.md](
   InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
   ```
 - FName::AppendString
-  ```cpp
-  FName::Init(/*FName::AppendStringOffset*/);
-  ```
+  - Forcing GNames:
+    ```cpp
+    FName::Init(/*bForceGNames*/); // Useful if the AppendString offset is wrong
+    ```
+  - Overriding the offset:
+    ```cpp
+    FName::Init(/*OverrideOffset, OverrideType=[AppendString, ToString, GNames], bIsNamePool*/);
+    ```
 - ProcessEvent
   ```cpp
   Off::InSDK::InitPE(/*PEIndex*/);
