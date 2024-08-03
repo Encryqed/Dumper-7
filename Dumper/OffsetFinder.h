@@ -34,15 +34,15 @@ namespace OffsetFinder
 	}
 
 	template<bool bCheckForVft = true>
-	inline int32_t GetValidPointerOffset(uint8_t* ObjA, uint8_t* ObjB, int32_t StartingOffset, int32_t MaxOffset)
+	inline int32_t GetValidPointerOffset(const uint8_t* ObjA, const uint8_t* ObjB, int32_t StartingOffset, int32_t MaxOffset)
 	{
 		if (IsBadReadPtr(ObjA) || IsBadReadPtr(ObjB))
 			return OffsetNotFound;
 
 		for (int j = StartingOffset; j <= MaxOffset; j += 0x8)
 		{
-			const bool bIsAValid = !IsBadReadPtr(*reinterpret_cast<void**>(ObjA + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void***>(ObjA + j)) : true);
-			const bool bIsBValid = !IsBadReadPtr(*reinterpret_cast<void**>(ObjB + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void***>(ObjB + j)) : true);
+			const bool bIsAValid = !IsBadReadPtr(*reinterpret_cast<void* const*>(ObjA + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void** const*>(ObjA + j)) : true);
+			const bool bIsBValid = !IsBadReadPtr(*reinterpret_cast<void* const*>(ObjB + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void** const*>(ObjB + j)) : true);
 
 			if (bIsAValid && bIsBValid)
 				return j;
@@ -263,17 +263,17 @@ namespace OffsetFinder
 	/* UField */
 	inline int32_t FindUFieldNextOffset()
 	{
-		uint8_t* KismetSystemLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetSystemLibrary").GetChild().GetAddress());
-		uint8_t* KismetStringLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetStringLibrary").GetChild().GetAddress());
+		const uint8_t* KismetSystemLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetSystemLibrary").GetChild().GetAddress());
+		const uint8_t* KismetStringLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetStringLibrary").GetChild().GetAddress());
 		
-		return GetValidPointerOffset(KismetSystemLibraryChild, KismetStringLibraryChild, Off::UObject::Outer + 0x08, 0x48);
+		return GetValidPointerOffset(KismetSystemLibraryChild, KismetStringLibraryChild, Off::UObject::Outer + 0x08, 0x60);
 	}
 
 	/* FField */
 	inline int32_t FindFFieldNextOffset()
 	{
-		uint8_t* GuidChildren = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("Guid").GetChildProperties().GetAddress());
-		uint8_t* VectorChildren = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("Vector").GetChildProperties().GetAddress());
+		const uint8_t* GuidChildren   = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("Guid").GetChildProperties().GetAddress());
+		const uint8_t* VectorChildren = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("Vector").GetChildProperties().GetAddress());
 
 		return GetValidPointerOffset(GuidChildren, VectorChildren, Off::FField::Owner + 0x8, 0x48);
 	}
@@ -322,8 +322,6 @@ namespace OffsetFinder
 
 			if (ArrayOfNameValuePairs[1].Second != 1)
 				Settings::Internal::bIsEnumNameOnly = true;
-
-			
 		}
 		else
 		{
@@ -488,7 +486,7 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindObjectFast("Object").GetAddress(), ObjectArray::FindObjectFast("Default__Object").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("Field").GetAddress(), ObjectArray::FindObjectFast("Default__Field").GetAddress() });
 
-		return FindOffset(Infos);
+		return FindOffset(Infos, 0x28, 0x200);
 	}
 
 	/* Property */

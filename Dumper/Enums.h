@@ -358,6 +358,14 @@ enum class EMappingsTypeFlags : uint8
 	Unknown = 0xFF
 };
 
+enum class EUsmapCompressionMethod : uint8
+{
+	None,
+	Oodle,
+	Brotli,
+	ZStandard,
+	Unknown = 0xFF
+};
 
 ENUM_OPERATORS(EObjectFlags);
 ENUM_OPERATORS(EFunctionFlags);
@@ -366,6 +374,7 @@ ENUM_OPERATORS(EClassCastFlags);
 ENUM_OPERATORS(EClassFlags);
 ENUM_OPERATORS(EMappingsTypeFlags);
 ENUM_OPERATORS(EFieldClassID);
+
 
 static std::string StringifyFunctionFlags(EFunctionFlags FunctionFlags, const char* Seperator = ", ")
 {

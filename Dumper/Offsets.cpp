@@ -297,3 +297,80 @@ void Off::Init()
 
 	Off::ClassProperty::MetaClass = Off::InSDK::Properties::PropertySize + 0x8; //0x8 inheritance from ObjectProperty
 }
+
+void PropertySizes::Init()
+{
+	InitTDelegateSize();
+	InitFFieldPathSize();
+}
+
+void PropertySizes::InitTDelegateSize()
+{
+	/* If the AudioComponent class or the OnQueueSubtitles member weren't found, fallback to looping GObjects and looking for a Delegate. */
+	auto OnPropertyNotFoudn = [&]() -> void
+	{
+		for (UEObject Obj : ObjectArray())
+		{
+			if (!Obj.IsA(EClassCastFlags::Struct))
+				continue;
+
+			for (UEProperty Prop : Obj.Cast<UEClass>().GetProperties())
+			{
+				if (Prop.IsA(EClassCastFlags::DelegateProperty))
+				{
+					PropertySizes::DelegateProperty = Prop.GetSize();
+					return;
+				}
+			}
+		}
+	};
+
+	const UEClass AudioComponentClass = ObjectArray::FindClassFast("AudioComponent");
+
+	if (!AudioComponentClass)
+		return OnPropertyNotFoudn();
+
+	const UEProperty OnQueueSubtitlesProp = AudioComponentClass.FindMember("OnQueueSubtitles", EClassCastFlags::DelegateProperty);
+
+	if (!OnQueueSubtitlesProp)
+		return OnPropertyNotFoudn();
+
+	PropertySizes::DelegateProperty = OnQueueSubtitlesProp.GetSize();
+}
+
+void PropertySizes::InitFFieldPathSize()
+{
+	if (!Settings::Internal::bUseFProperty)
+		return;
+
+	/* If the SetFieldPathPropertyByName function or the Value parameter weren't found, fallback to looping GObjects and looking for a Delegate. */
+	auto OnPropertyNotFoudn = [&]() -> void
+	{
+		for (UEObject Obj : ObjectArray())
+		{
+			if (!Obj.IsA(EClassCastFlags::Struct))
+				continue;
+
+			for (UEProperty Prop : Obj.Cast<UEClass>().GetProperties())
+			{
+				if (Prop.IsA(EClassCastFlags::FieldPathProperty))
+				{
+					PropertySizes::FieldPathProperty = Prop.GetSize();
+					return;
+				}
+			}
+		}
+	};
+
+	const UEFunction SetFieldPathPropertyByNameFunc = ObjectArray::FindObjectFast<UEFunction>("SetFieldPathPropertyByName", EClassCastFlags::Function);
+
+	if (!SetFieldPathPropertyByNameFunc)
+		return OnPropertyNotFoudn();
+
+	const UEProperty ValueParamProp = SetFieldPathPropertyByNameFunc.FindMember("Value", EClassCastFlags::FieldPathProperty);
+
+	if (!ValueParamProp)
+		return OnPropertyNotFoudn();
+
+	PropertySizes::FieldPathProperty = ValueParamProp.GetSize();
+}

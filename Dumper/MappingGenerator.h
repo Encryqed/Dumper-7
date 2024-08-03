@@ -82,15 +82,6 @@ private:
         LatestPlusOne,
     };
 
-    enum class EUsmapCompressionMethod : uint8
-    {
-        None,
-        Oodle,
-        Brotli,
-        ZStandard,
-        Unknown = 0xFF
-    };
-
 private:
     static constexpr uint16 UsmapFileMagic = 0x30C4;
 

@@ -349,8 +349,9 @@ void DumpspaceGenerator::AddMemberToStruct(DSGen::ClassHolder& Struct, const Pro
 	Member.memberType = GetMemberType(Property);
 	Member.bitOffset = Property.IsBitField() ? Property.GetBitIndex() : -1;
 	Member.offset = Property.GetOffset();
-	Member.size = Property.GetSize();
+	Member.size = Property.GetSize() * Property.GetArrayDim();
 	Member.memberName = Property.GetName();
+	Member.arrayDim = Property.GetArrayDim();
 
 	Struct.members.push_back(std::move(Member));
 }

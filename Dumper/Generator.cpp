@@ -70,6 +70,8 @@ void Generator::InitEngineCore()
 	/* manual override */
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
 	//FName::Init(/*FName::AppendString*/);
+	//FName::Init(/*FName::ToString, FName::EOffsetOverrideType::ToString*/);
+	//FName::Init(/*GNames, FName::EOffsetOverrideType::GNames, true/false*/);
 	//Off::InSDK::ProcessEvent::InitPE(/*PEIndex*/);
 
 	/* Back4Blood*/
@@ -81,6 +83,7 @@ void Generator::InitEngineCore()
 	ObjectArray::Init();
 	FName::Init();
 	Off::Init();
+	PropertySizes::Init();
 	Off::InSDK::ProcessEvent::InitPE(); //Must be at this position, relies on offsets initialized in Off::Init()
 
 	Off::InSDK::World::InitGWorld(); //Must be at this position, relies on offsets initialized in Off::Init()
