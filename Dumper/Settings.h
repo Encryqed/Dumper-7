@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 
+#include "Enums.h"
 
 namespace Settings
 {
@@ -44,10 +45,10 @@ R"(
 		return Function(std::forward<ParamTypes>(Args)...);
 	}
 )";
-		/* An option to force the UWorld::GetWorld() funtion in the SDK to get the world throught an insance of UEngine. Useful for games on which the dumper finds the wrong GWorld offset. */
+		/* An option to force the UWorld::GetWorld() function in the SDK to get the world through an instance of UEngine. Useful for games on which the dumper finds the wrong GWorld offset. */
 		constexpr bool bForceNoGWorldInSDK = false;
 
-		/* This will allow the user to manually initialize global variable addreses in the SDK (eg. GObjects, GNames, AppendString). */
+		/* This will allow the user to manually initialize global variable addresses in the SDK (eg. GObjects, GNames, AppendString). */
 		constexpr bool bAddManualOverrideOptions = true;
 	}
 
@@ -55,6 +56,12 @@ R"(
 	{
 		/* Whether the MappingGenerator should check if a name was written to the nametable before. Exists to reduce mapping size. */
 		constexpr bool bShouldCheckForDuplicatedNames = true;
+
+		/* Whether EditorOnly should be excluded from the mapping file. */
+		constexpr bool bExcludeEditorOnlyProperties = false;
+
+		/* Which compression method to use when generating the file. */
+		constexpr EUsmapCompressionMethod CompressionMethod = EUsmapCompressionMethod::ZStandard;
 	}
 
 	/* Partially implemented  */

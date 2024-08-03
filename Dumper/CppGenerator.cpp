@@ -84,7 +84,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 	int32 PrevBitPropertyEndBit = 1;
 
 	uint8 PrevBitPropertySize = 0x1;
-	uint8 PrevBitPropertyOffset = 0x0;
+	int32 PrevBitPropertyOffset = 0x0;
 	uint64 PrevNumBitsInUnderlayingType = 0x8;
 
 	const int32 SuperTrailingPaddingSize = SuperSize - SuperLastMemberEnd;
@@ -4229,11 +4229,9 @@ R"({
 
 	if (Settings::Internal::bUseFProperty)
 	{
-		const int32 FieldPathSize = (0x8 + FWeakObjectPtrSize + 0x10);
-
 		/* class FFieldPath */
 		PredefinedStruct FFieldPath = PredefinedStruct{
-			.UniqueName = "FFieldPath", .Size = FieldPathSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+			.UniqueName = "FFieldPath", .Size = PropertySizes::FieldPathProperty, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 		};
 
 		FFieldPath.Properties =
@@ -4243,24 +4241,54 @@ R"({
 				.Type = "class FField*", .Name = "ResolvedField", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			},
-			PredefinedMember {
-				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "TWeakObjectPtr<class UStruct>", .Name = "ResolvedOwner", .Offset = 0x8, .Size = 0x8, .ArrayDim = 0x1, .Alignment = 0x4,
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			},
-			PredefinedMember {
-				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "TArray<FName>", .Name = "Path", .Offset = 0x10, .Size = 0x10, .ArrayDim = 0x1, .Alignment = 0x8,
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			},
 		};
+
+		/* #ifdef WIHT_EDITORONLY_DATA */
+		const bool bIsWithEditorOnlyData = PropertySizes::FieldPathProperty > 0x20;
+
+		if (bIsWithEditorOnlyData)
+		{
+			FFieldPath.Properties.emplace_back
+			(
+				PredefinedMember{
+					.Comment = "NOT AUTO-GENERATED PROPERTY",
+					.Type = "FFieldClass*", .Name = "InitialFieldClass", .Offset = 0x08, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+				}
+			);
+			FFieldPath.Properties.emplace_back
+			(
+				PredefinedMember{
+					.Comment = "NOT AUTO-GENERATED PROPERTY",
+					.Type = "int32", .Name = "FieldPathSerialNumber", .Offset = 0x10, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x4,
+					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+				}
+			);
+		}
+
+		FFieldPath.Properties.push_back
+		(
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "TWeakObjectPtr<class UStruct>", .Name = "ResolvedOwner", .Offset = (bIsWithEditorOnlyData ? 0x14 : 0x8), .Size = 0x8, .ArrayDim = 0x1, .Alignment = 0x4,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			}
+		);
+		FFieldPath.Properties.push_back
+		(
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "TArray<FName>", .Name = "Path", .Offset = (bIsWithEditorOnlyData ? 0x20 : 0x10), .Size = 0x10, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			}
+		);
 
 		GenerateStruct(&FFieldPath, BasicHpp, BasicCpp, BasicHpp);
 
 		/* class TFieldPath */
 		PredefinedStruct TFieldPath = PredefinedStruct{
 			.CustomTemplateText = "template<class PropertyType>",
-			.UniqueName = "TFieldPath", .Size = FieldPathSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = &FFieldPath
+			.UniqueName = "TFieldPath", .Size = PropertySizes::FieldPathProperty, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = &FFieldPath
 		};
 
 		GenerateStruct(&TFieldPath, BasicHpp, BasicCpp, BasicHpp);
@@ -4339,7 +4367,7 @@ public:
 	/* TDelegate */
 	PredefinedStruct TDelegate = PredefinedStruct{
 		.CustomTemplateText = "template<typename FunctionSignature>",
-		.UniqueName = "TDelegate", .Size = 0x0, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "TDelegate", .Size = PropertySizes::DelegateProperty, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	TDelegate.Properties =
@@ -4354,7 +4382,7 @@ public:
 
 	GenerateStruct(&TDelegate, BasicHpp, BasicCpp, BasicHpp);
 
-	/* TDelegate<Ret(Args...> */
+	/* TDelegate<Ret(Args...)> */
 	PredefinedStruct TDelegateSpezialiation = PredefinedStruct{
 		.CustomTemplateText = "template<typename Ret, typename... Args>",
 		.UniqueName = "TDelegate<Ret(Args...)>", .Size = 0x0, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
