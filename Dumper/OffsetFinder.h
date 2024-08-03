@@ -87,7 +87,10 @@ namespace OffsetFinder
 				* And we already know Name isn't at the location it's supposed to be (right after 'Class'). 'Name' must be in this space.
 				*/
 				if ((ClassOffset - IndexOffset) >= 0x4)
+				{
+					Settings::Internal::bIsObjectNameBeforeClass = true;
 					return IndexOffset + 0x4;
+				}
 
 				/* The 'Name' isn't before 'Class' and right after 'Class' is 'Outer'. So the best bet for the pos is right after 'Outer'. */
 				return ClassOffset + 0x10;
@@ -170,7 +173,8 @@ namespace OffsetFinder
 		const int32 FNameFirstInt /* ComparisonIndex */ =  *reinterpret_cast<const int32*>(NameAddress);
 		const int32 FNameSecondInt /* [Number/DisplayIndex] */ = *reinterpret_cast<const int32*>(NameAddress + 0x4);
 
-		const int32 FNameSize = Off::UObject::Outer - Off::UObject::Name;
+		/* Some games move 'Name' before 'Class'. Just substract the offset of 'Name' with the offset of the member that follows right after it, to get an estimate of sizeof(FName). */
+		const int32 FNameSize = !Settings::Internal::bIsObjectNameBeforeClass ? (Off::UObject::Outer - Off::UObject::Name) : (Off::UObject::Class - Off::UObject::Name);
 
 		Off::FName::CompIdx = 0x0;
 		Off::FName::Number = 0x4; // defaults for check
