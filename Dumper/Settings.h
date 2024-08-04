@@ -97,6 +97,8 @@ R"(
 		/* Whether this games' engine version uses FNamePool rather than TNameEntryArray */
 		inline bool bUseNamePool = false;
 
+		/* Whether UObject::Name or UObject::Class is first. Affects the calculation of the size of FName in fixup code. Not used after Off::Init(); */
+		inline bool bIsObjectNameBeforeClass = false;
 
 		/* Whether this games uses case-sensitive FNames, adding int32 DisplayIndex to FName */
 		inline bool bUseCasePreservingName = false;

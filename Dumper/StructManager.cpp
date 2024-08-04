@@ -66,8 +66,6 @@ void StructManager::InitAlignmentsAndNames()
 		StructInfo& NewOrExistingInfo = StructInfoOverrides[Obj.GetIndex()];
 		NewOrExistingInfo.Name = UniqueNameTable.FindOrAdd(Obj.GetCppName(), !Obj.IsA(EClassCastFlags::Function)).first;
 
-		UEStruct Super = ObjAsStruct.GetSuper();
-
 		int32 MinAlignment = ObjAsStruct.GetMinAlignment();
 		int32 HighestMemberAlignment = 0x1; // starting at 0x1 when checking **all**, not just struct-properties
 
@@ -80,8 +78,11 @@ void StructManager::InitAlignmentsAndNames()
 				HighestMemberAlignment = CurrentPropertyAlignment;
 		}
 
+		/* On some strange games there are BlueprintGeneratedClass UClasses which don't inherit from UObject. */
+		const bool bHasSuperClass = static_cast<bool>(ObjAsStruct.GetSuper());
+
 		// if Class alignment is below pointer-alignment (0x8), use pointer-alignment instead, else use whichever, MinAlignment or HighestAlignment, is bigger
-		if (ObjAsStruct.IsA(EClassCastFlags::Class) && HighestMemberAlignment < DefaultClassAlignment)
+		if (ObjAsStruct.IsA(EClassCastFlags::Class) && bHasSuperClass && HighestMemberAlignment < DefaultClassAlignment)
 		{
 			NewOrExistingInfo.bUseExplicitAlignment = false;
 			NewOrExistingInfo.Alignment = DefaultClassAlignment;

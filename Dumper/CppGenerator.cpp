@@ -610,7 +610,8 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		InHeaderFunctionText += GenerateSingleFunction(Func, StructName, FunctionFile, ParamFile);
 	}
 
-	if (!Struct.IsUnrealStruct() || !Struct.IsClass())
+	/* Skip predefined classes, all structs and classes which don't inherit from UObject (very rare). */
+	if (!Struct.IsUnrealStruct() || !Struct.IsClass() || !Struct.GetSuper().IsValid())
 		return InHeaderFunctionText;
 
 	/* Special spacing for UClass specific functions 'StaticClass' and 'GetDefaultObj' */
