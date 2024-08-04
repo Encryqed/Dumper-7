@@ -19,7 +19,7 @@ Patreon: https://patreon.com/user?u=119629245
 - ### Only override any offsets if the generator doesn't find them, or if they are incorrect
 - All overrides are made in **Generator::InitEngineCore()** inside of **Generator.cpp**
 
-- GObjects (see [GObjects-Layout](#Overriding_GObjects-Layout) too)
+- GObjects (see [GObjects-Layout](#overriding-gobjects-layout) too)
   ```cpp
   ObjectArray::Init(/*GObjectsOffset*/, /*ChunkSize*/, /*bIsChunked*/);
   ```
