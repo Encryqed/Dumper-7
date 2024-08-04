@@ -19,7 +19,7 @@ Patreon: https://patreon.com/user?u=119629245
 - ### Only override any offsets if the generator doesn't find them, or if they are incorrect
 - All overrides are made in **Generator::InitEngineCore()** inside of **Generator.cpp**
 
-- GObjects
+- GObjects (see [GObjects-Layout](#Overriding_GObjects-Layout) too)
   ```cpp
   ObjectArray::Init(/*GObjectsOffset*/, /*ChunkSize*/, /*bIsChunked*/);
   ```
@@ -40,7 +40,29 @@ Patreon: https://patreon.com/user?u=119629245
   ```cpp
   Off::InSDK::InitPE(/*PEIndex*/);
   ```
-
+## Overriding GObjects-Layout
+- Only add a new layout if GObjects isn't automatically found for your game.
+- For UE4.11 to UE4.20 add the layout to `FFixedUObjectArrayLayouts`
+- For UE4.21 and higher add the layout to `FChunkedFixedUObjectArrayLayouts
+- **Examples:**
+  ```cpp
+  FFixedUObjectArrayLayout // Default UE4.11 - UE4.20
+  {
+      .ObjectsOffset = 0x0,
+      .MaxObjectsOffset = 0x8,
+      .NumObjectsOffset = 0xC
+  }
+  ```
+  ```cpp
+  FChunkedFixedUObjectArrayLayout // Default UE4.21 and above
+  {
+      .ObjectsOffset = 0x00,
+      .MaxElementsOffset = 0x10,
+      .NumElementsOffset = 0x14,
+      .MaxChunksOffset = 0x18,
+      .NumChunksOffset = 0x1C,
+  },
+  ``` 
 ## Issues
 
 If you have any issues using the Dumper, please create an Issue on this repository\
