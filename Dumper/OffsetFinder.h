@@ -75,15 +75,15 @@ namespace OffsetFinder
 			const bool bIsObjAOuterRightAfterClass = (!IsBadReadPtr(ObjAValueAfterClassAsPtr) || ObjAValueAfterClassAsPtr == NULL);
 			const bool bIsObjBOuterRightAfterClass = (!IsBadReadPtr(ObjBValueAfterClassAsPtr) || ObjBValueAfterClassAsPtr == NULL);
 
-			/* 
+			/*
 			* This check is mostly based on the assumption that FNames typically aren't valid pointers by chance.
-			* 
+			*
 			* UObjects however always have a valid name (that isn't None, and hence isn't 0).
 			*/
 			if (bIsObjAOuterRightAfterClass && bIsObjBOuterRightAfterClass)
 			{
 				/*
-				* There is "free" space between the 'Index' and 'Class', when there shouldn't be. 
+				* There is "free" space between the 'Index' and 'Class', when there shouldn't be.
 				* And we already know Name isn't at the location it's supposed to be (right after 'Class'). 'Name' must be in this space.
 				*/
 				if ((ClassOffset - IndexOffset) >= 0x4)
@@ -136,8 +136,8 @@ namespace OffsetFinder
 			/*
 			* On versions below 5.1.1: class FFieldVariant { void*, bool } -> extends to { void*, bool, uint8[0x7] }
 			* ON versions since 5.1.1: class FFieldVariant { void* }
-			* 
-			* Check: 
+			*
+			* Check:
 			* if FFieldVariant contains a bool, the memory at the bools offset will not be a valid pointer
 			* if FFieldVariant doesn't contain a bool, the memory at the bools offset will be the next member of FField, the Next ptr [valid]
 			*/
@@ -167,10 +167,10 @@ namespace OffsetFinder
 	inline void InitFNameSettings()
 	{
 		UEObject FirstObject = ObjectArray::GetByIndex(0);
-		
+
 		const uint8* NameAddress = static_cast<const uint8*>(FirstObject.GetFName().GetAddress());
 
-		const int32 FNameFirstInt /* ComparisonIndex */ =  *reinterpret_cast<const int32*>(NameAddress);
+		const int32 FNameFirstInt /* ComparisonIndex */ = *reinterpret_cast<const int32*>(NameAddress);
 		const int32 FNameSecondInt /* [Number/DisplayIndex] */ = *reinterpret_cast<const int32*>(NameAddress + 0x4);
 
 		/* Some games move 'Name' before 'Class'. Just substract the offset of 'Name' with the offset of the member that follows right after it, to get an estimate of sizeof(FName). */
@@ -198,9 +198,9 @@ namespace OffsetFinder
 		/*
 		* Games without FNAME_OUTLINE_NUMBER have a min. percentage of 6% of all object-names for which FName::Number is in a [1...4] range
 		* On games with FNAME_OUTLINE_NUMBER the (random) integer after FName::ComparisonIndex is in the range from [1...4] about 2% (or less) of times.
-		* 
+		*
 		* The minimum percentage of names is set to 3% to give both normal names, as well as outline-numer names a buffer-zone.
-		* 
+		*
 		* This doesn't work on some very small UE template games, which is why PostInitFNameSettings() was added to fix the incorrect behavior of this function
 		*/
 		constexpr float MinPercentage = 0.03f;
@@ -301,7 +301,7 @@ namespace OffsetFinder
 	{
 		const uint8_t* KismetSystemLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetSystemLibrary").GetChild().GetAddress());
 		const uint8_t* KismetStringLibraryChild = reinterpret_cast<uint8_t*>(ObjectArray::FindObjectFast<UEStruct>("KismetStringLibrary").GetChild().GetAddress());
-		
+
 		return GetValidPointerOffset(KismetSystemLibraryChild, KismetStringLibraryChild, Off::UObject::Outer + 0x08, 0x60);
 	}
 
@@ -329,7 +329,7 @@ namespace OffsetFinder
 		{
 			GuidChildName = GuidChild.GetName();
 			VectorChildName = VectorChild.GetName();
-			
+
 			if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
 				return Off::FField::Name;
 		}
@@ -342,8 +342,8 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("ENetRole").GetAddress(), 0x5 });			
-		Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery").GetAddress(), 0x22 }); 
+		Infos.push_back({ ObjectArray::FindObjectFast("ENetRole").GetAddress(), 0x5 });
+		Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery").GetAddress(), 0x22 });
 
 		int Ret = FindOffset(Infos) - 0x8;
 
@@ -375,7 +375,7 @@ namespace OffsetFinder
 
 		Infos.push_back({ ObjectArray::FindObjectFast("Struct").GetAddress(), ObjectArray::FindObjectFast("Field").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("Class").GetAddress(), ObjectArray::FindObjectFast("Struct").GetAddress() });
-		
+
 		// Thanks to the ue4 dev who decided UStruct should be spelled Ustruct
 		if (Infos[0].first == nullptr)
 			Infos[0].first = Infos[1].second = ObjectArray::FindObjectFast("struct").GetAddress();
@@ -511,7 +511,7 @@ namespace OffsetFinder
 
 		Infos.push_back({ ObjectArray::FindObjectFast("Actor").GetAddress(), EClassCastFlags::Actor });
 		Infos.push_back({ ObjectArray::FindObjectFast("Class").GetAddress(), EClassCastFlags::Field | EClassCastFlags::Struct | EClassCastFlags::Class });
-		
+
 		return FindOffset(Infos);
 	}
 
@@ -602,7 +602,7 @@ namespace OffsetFinder
 		std::vector<std::pair<void*, uint8_t>> Infos;
 
 		UEClass Engine = ObjectArray::FindClassFast("Engine");
-		Infos.push_back({ Engine.FindMember("bIsOverridingSelectedColor").GetAddress(), 0xFF }); 
+		Infos.push_back({ Engine.FindMember("bIsOverridingSelectedColor").GetAddress(), 0xFF });
 		Infos.push_back({ Engine.FindMember("bEnableOnScreenDebugMessagesDisplay").GetAddress(), 0b00000010 });
 		Infos.push_back({ ObjectArray::FindClassFast("PlayerController").FindMember("bAutoManageActiveCameraTarget").GetAddress(), 0xFF });
 
@@ -678,7 +678,7 @@ namespace OffsetFinder
 
 		if (Lvl == 0x0)
 			return OffsetNotFound;
-		
+
 		/*
 		class ULevel : public UObject
 		{
@@ -733,4 +733,3 @@ namespace OffsetFinder
 		return RowStructProp.GetOffset() + RowStructProp.GetSize();
 	}
 }
-
