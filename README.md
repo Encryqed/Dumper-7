@@ -42,8 +42,9 @@ Patreon: https://patreon.com/user?u=119629245
   ```
 ## Overriding GObjects-Layout
 - Only add a new layout if GObjects isn't automatically found for your game.
+- Layout overrides are at roughly line 30 of `ObjectArray.cpp`
 - For UE4.11 to UE4.20 add the layout to `FFixedUObjectArrayLayouts`
-- For UE4.21 and higher add the layout to `FChunkedFixedUObjectArrayLayouts
+- For UE4.21 and higher add the layout to `FChunkedFixedUObjectArrayLayouts`
 - **Examples:**
   ```cpp
   FFixedUObjectArrayLayout // Default UE4.11 - UE4.20
