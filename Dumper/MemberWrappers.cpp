@@ -216,7 +216,7 @@ std::string FunctionWrapper::GetParamStructName() const
 {
     assert(bIsUnrealFunction && "FunctionWrapper doesn't contain UnrealFunction. Illegal call to 'GetParamStructName()'.");
 
-    return Function.GetOuter().GetValidName() + "_" + Function.GetValidName();
+    return Struct->GetName() + "_" + GetName();
 }
 
 int32  FunctionWrapper::GetParamStructSize() const

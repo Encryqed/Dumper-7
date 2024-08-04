@@ -139,7 +139,7 @@ public:
 	std::string GetPathName() const;
 
 	explicit operator bool() const;
-	explicit operator uint8*();
+	explicit operator uint8* ();
 	bool operator==(const UEObject& Other) const;
 	bool operator!=(const UEObject& Other) const;
 
@@ -447,4 +447,3 @@ public:
 
 	std::string GetCppType() const;
 };
-

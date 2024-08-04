@@ -62,10 +62,10 @@ DWORD MainThread(HMODULE Module)
 
 
 	auto t_C = std::chrono::high_resolution_clock::now();
-	
+
 	auto ms_int_ = std::chrono::duration_cast<std::chrono::milliseconds>(t_C - t_1);
 	std::chrono::duration<double, std::milli> ms_double_ = t_C - t_1;
-	
+
 	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 
 	while (true)

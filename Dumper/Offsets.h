@@ -266,12 +266,12 @@ namespace Off
 
 namespace PropertySizes
 {
-	void Init();  
+	void Init();
 
 	/* These are properties for which their size might change depending on the UE version or compilerflags. */
 	inline int32 DelegateProperty = 0x10;
 	void InitTDelegateSize();
-	
+
 	inline int32 FieldPathProperty = 0x20;
 	void InitFFieldPathSize();
 }

@@ -603,12 +603,12 @@ inline T* FindAlignedValueInProcess(T Value, const std::string& Sectionname = ".
 	return Result;
 }
 
-template<bool bShouldRelove32BitJumps = true>
+template<bool bShouldResolve32BitJumps = true>
 inline std::pair<const void*, int32_t> IterateVTableFunctions(void** VTable, const std::function<bool(const uint8_t* Addr, int32_t Index)>& CallBackForEachFunc, int32_t NumFunctions = 0x150, int32_t OffsetFromStart = 0x0)
 {
 	[[maybe_unused]] auto Resolve32BitRelativeJump = [](const void* FunctionPtr) -> const uint8_t*
 	{
-		if constexpr (bShouldRelove32BitJumps)
+		if constexpr (bShouldResolve32BitJumps)
 		{
 			const uint8_t* Address = reinterpret_cast<const uint8_t*>(FunctionPtr);
 			if (*Address == 0xE9)

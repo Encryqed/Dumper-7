@@ -424,15 +424,16 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 		return InHeaderFunctionText;
 	}
 
+	std::string ParamStructName = Func.GetParamStructName();
 
 	// Parameter struct generation for unreal-functions
 	if (!Func.IsPredefined() && Func.GetParamStructSize() > 0x0)
-		GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile);
+		GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile, -1, ParamStructName);
 
 
 	std::string ParamVarCreationString = std::format(R"(
 	{}{} Parms{{}};
-)", CppSettings::ParamNamespaceName ? std::format("{}::", CppSettings::ParamNamespaceName) : "", Func.GetParamStructName());
+)", CppSettings::ParamNamespaceName ? std::format("{}::", CppSettings::ParamNamespaceName) : "", ParamStructName);
 
 	constexpr const char* StoreFunctionFlagsString = R"(
 	auto Flgs = Func->FunctionFlags;
@@ -672,12 +673,12 @@ R"({{
 	return InHeaderFunctionText;
 }
 
-void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile, int32 PackageIndex)
+void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile, int32 PackageIndex, const std::string& StructNameOverride)
 {
 	if (!Struct.IsValid())
 		return;
 
-	std::string UniqueName = GetStructPrefixedName(Struct);
+	std::string UniqueName = StructNameOverride.empty() ? GetStructPrefixedName(Struct) : StructNameOverride;
 	std::string UniqueSuperName;
 
 	const int32 StructSize = Struct.GetSize();
@@ -776,15 +777,16 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	if constexpr (Settings::Debug::bGenerateInlineAssertionsForStructMembers)
 	{
+		std::string StructName = GetStructPrefixedName(Struct);
+
 		for (const PropertyWrapper& Member : Members.IterateMembers())
 		{
 			if (Member.IsBitField() || Member.IsZeroSizedMember() || Member.IsStatic())
 				continue;
 
-			std::string StructName = GetStructPrefixedName(Struct);
 			std::string MemberName = Member.GetName();
 
-			StructFile << std::format("static_assert(offsetof({}, {}) == 0x{:06X}, \"Member '{}::{}' has a wrong offset!\");\n", StructName, MemberName, Member.GetOffset(), StructName, MemberName);
+			StructFile << std::format("static_assert(offsetof({0}, {1}) == 0x{2:06X}, \"Member '{0}::{1}' has a wrong offset!\");\n", StructName, Member.GetName(), Member.GetOffset());
 		}
 	}
 }
@@ -821,7 +823,6 @@ enum class {} : {}
   , GetEnumUnderlayingType(Enum)
   , MemberString);
 }
-
 
 std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 {
