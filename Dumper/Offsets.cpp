@@ -214,9 +214,6 @@ void Off::Init()
 	Off::UStruct::MinAlignemnt = OffsetFinder::FindMinAlignmentOffset();
 	std::cout << std::format("Off::UStruct::MinAlignemnts: 0x{:X}\n", Off::UStruct::MinAlignemnt);
 
-	Off::UStruct::Script = OffsetFinder::FindScriptOffset();
-	std::cout << std::format("Off::UStruct::Script: 0x{:X}\n", Off::UStruct::Script);
-
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
 	std::cout << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
 
@@ -231,12 +228,12 @@ void Off::Init()
 
 		Off::FField::Next = OffsetFinder::FindFFieldNextOffset();
 		std::cout << std::format("Off::FField::Next: 0x{:X}\n", Off::FField::Next);
-		
+
 		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
 		std::cout << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
 
-		/* 
-		* FNameSize might be wrong at this point of execution. 
+		/*
+		* FNameSize might be wrong at this point of execution.
 		* FField::Flags is not critical so a fix is only applied later in OffsetFinder::PostInitFNameSettings().
 		*/
 		Off::FField::Flags = Off::FField::Name + Off::InSDK::Name::FNameSize;
@@ -272,10 +269,10 @@ void Off::Init()
 
 	Off::ArrayProperty::Inner = OffsetFinder::FindInnerTypeOffset(Off::InSDK::Properties::PropertySize);
 	std::cout << std::format("Off::ArrayProperty::Inner: 0x{:X}\n", Off::ArrayProperty::Inner);
-	
+
 	Off::SetProperty::ElementProp = OffsetFinder::FindSetPropertyBaseOffset(Off::InSDK::Properties::PropertySize);
 	std::cout << std::format("Off::SetProperty::ElementProp: 0x{:X}\n", Off::SetProperty::ElementProp);
-	
+
 	Off::MapProperty::Base = OffsetFinder::FindMapPropertyBaseOffset(Off::InSDK::Properties::PropertySize);
 	std::cout << std::format("Off::MapProperty::Base: 0x{:X}\n", Off::MapProperty::Base) << std::endl;
 
@@ -294,7 +291,7 @@ void Off::Init()
 	Off::ObjectProperty::PropertyClass = Off::InSDK::Properties::PropertySize;
 	Off::StructProperty::Struct = Off::InSDK::Properties::PropertySize;
 	Off::EnumProperty::Base = Off::InSDK::Properties::PropertySize;
-	Off::DelegateProperty::SignatureFunction =  Off::InSDK::Properties::PropertySize;
+	Off::DelegateProperty::SignatureFunction = Off::InSDK::Properties::PropertySize;
 	Off::FieldPathProperty::FieldClass = Off::InSDK::Properties::PropertySize;
 	Off::OptionalProperty::ValueProperty = Off::InSDK::Properties::PropertySize;
 

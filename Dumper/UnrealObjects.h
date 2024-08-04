@@ -139,7 +139,7 @@ public:
 	std::string GetPathName() const;
 
 	explicit operator bool() const;
-	explicit operator uint8*();
+	explicit operator uint8* ();
 	bool operator==(const UEObject& Other) const;
 	bool operator!=(const UEObject& Other) const;
 
@@ -193,13 +193,11 @@ public:
 	std::vector<UEProperty> GetProperties() const;
 	std::vector<UEFunction> GetFunctions() const;
 
-	const TArray<uint8>& GetScriptBytes() const;
 
 	UEProperty FindMember(const std::string& MemberName, EClassCastFlags TypeFlags = EClassCastFlags::None) const;
 
 	bool HasMembers() const;
 };
-
 
 class UEFunction : public UEStruct
 {
@@ -215,11 +213,6 @@ public:
 
 	std::string StringifyFlags(const char* Seperator = ", ") const;
 	std::string GetParamStructName() const;
-
-	/* Temp void* to avoid moving FScriptBytecodeReader */
-	std::string DisassembleInstruction(void* ByteCodeReader, bool bShouldAddNewLine = false) const;
-
-	std::string DumpScriptBytecode() const;
 };
 
 class UEClass : public UEStruct
@@ -454,4 +447,3 @@ public:
 
 	std::string GetCppType() const;
 };
-
