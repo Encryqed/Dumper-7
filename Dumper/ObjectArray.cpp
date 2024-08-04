@@ -8,99 +8,6 @@
 
 namespace fs = std::filesystem;
 
-/* Scuffed stuff up here */
-struct FChunkedFixedUObjectArray
-{
-	void** ObjectsAbove;
-	uint8_t Pad_0[0x08];
-	int32_t MaxElements;
-	int32_t NumElements;
-	int32_t MaxChunks;
-	int32_t NumChunks;
-	void** ObjectsBelow;
-
-	inline int32 IsValid(int32& OutObjectsPtrOffset)
-	{
-		void** ObjectsAboveButDecrypted = (void**)ObjectArray::DecryptPtr(ObjectsAbove);
-		void** ObjectsBelowButDecrypted = (void**)ObjectArray::DecryptPtr(ObjectsBelow);
-
-		if (NumChunks > 0x14 || NumChunks < 0x1)
-			return false;
-
-		if (MaxChunks > 0x22F || MaxChunks < 0x6)
-			return false;
-
-		if (NumElements > MaxElements || NumChunks > MaxChunks)
-			return false;
-
-		if (((NumElements / 0x10000) + 1) != NumChunks || (MaxElements / 0x10000) != MaxChunks)
-			return false;
-
-		const bool bAreObjectsAboveValid = (ObjectsAboveButDecrypted && !IsBadReadPtr(ObjectsAboveButDecrypted));
-		const bool bAreObjectsBewlowValid = (ObjectsBelowButDecrypted && !IsBadReadPtr(ObjectsBelowButDecrypted));
-
-		if (!bAreObjectsAboveValid && !bAreObjectsBewlowValid)
-			return false;
-
-		for (int i = 0; i < NumChunks; i++)
-		{
-#pragma warning(disable:6011)
-			const bool bIsCurrentIndexValidAbove = bAreObjectsAboveValid ? !IsBadReadPtr(ObjectsAboveButDecrypted[i]) : false;
-			const bool bIsCurrentIndexValidBelow = bAreObjectsBewlowValid ? !IsBadReadPtr(ObjectsBelowButDecrypted[i]) : false;
-#pragma pop
-
-			if (!bIsCurrentIndexValidAbove && !bIsCurrentIndexValidBelow)
-				return false;
-		}
-
-		OutObjectsPtrOffset = 0x00;
-
-		if (!bAreObjectsAboveValid && bAreObjectsBewlowValid)
-			OutObjectsPtrOffset = 0x20;
-
-		return true;
-	}
-};
-
-struct FFixedUObjectArray
-{
-	struct FUObjectItem
-	{
-		void* Object;
-		uint8_t Pad[0x10];
-	};
-
-	FUObjectItem* Objects;
-	int32_t Max;
-	int32_t Num;
-
-	inline bool IsValid()
-	{
-		FUObjectItem* ObjectsButDecrypted = (FUObjectItem*)ObjectArray::DecryptPtr(Objects);
-
-		if (Num > Max)
-			return false;
-
-		if (Max > 0x400000)
-			return false;
-
-		if (Num < 0x1000)
-			return false;
-
-		if (IsBadReadPtr(ObjectsButDecrypted))
-			return false;
-
-		if (IsBadReadPtr(ObjectsButDecrypted[5].Object))
-			return false;
-
-		if (*(int32_t*)(uintptr_t(ObjectsButDecrypted[5].Object) + 0xC) != 5)
-			return false;
-
-		return true;
-	}
-};
-
-
 
 struct FFixedUObjectArrayLayout
 {
@@ -148,18 +55,54 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 	}
 };
 
-bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLayout& Layout, int32* OutObjectsPtrOffset)
+bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLayout& Layout, int32*)
 {
-	return false;
+	/* It is assumed that the FUObjectItem layout is constant amongst all games using FFixedUObjectArray for ObjObjects. */
+	struct FUObjectItem
+	{
+		void* Object;
+		uint8_t Pad[0x10];
+	};
+
+
+	void* Objects = *reinterpret_cast<void**>(Address + Layout.ObjectsOffset);
+	const int32 MaxElements = *reinterpret_cast<const int32*>(Address + Layout.MaxObjectsOffset);
+	const int32 NumElements = *reinterpret_cast<const int32*>(Address + Layout.NumObjectsOffset);
+
+
+	FUObjectItem* ObjectsButDecrypted = (FUObjectItem*)ObjectArray::DecryptPtr(Objects);
+
+	if (NumElements > MaxElements)
+		return false;
+
+	if (MaxElements > 0x400000)
+		return false;
+
+	if (NumElements < 0x1000)
+		return false;
+
+	if (IsBadReadPtr(ObjectsButDecrypted))
+		return false;
+
+	if (IsBadReadPtr(ObjectsButDecrypted[5].Object))
+		return false;
+
+	const uintptr_t FithObject = reinterpret_cast<uintptr_t>(ObjectsButDecrypted[0x5].Object);
+	const int32 IndexOfFithobject = *reinterpret_cast<int32_t*>(FithObject + 0xC);
+
+	if (IndexOfFithobject != 0x5)
+		return false;
+
+	return true;
 }
 
 bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectArrayLayout& Layout, int32* OutObjectsPtrOffset)
 {
 	void* Objects = *reinterpret_cast<void**>(Address + Layout.ObjectsOffset);
-	const int32 NumElements = *reinterpret_cast<const int32*>(Address + Layout.NumElementsOffset);
 	const int32 MaxElements = *reinterpret_cast<const int32*>(Address + Layout.MaxElementsOffset);
-	const int32 NumChunks   = *reinterpret_cast<const int32*>(Address + Layout.NumChunksOffset);
+	const int32 NumElements = *reinterpret_cast<const int32*>(Address + Layout.NumElementsOffset);
 	const int32 MaxChunks   = *reinterpret_cast<const int32*>(Address + Layout.MaxChunksOffset);
+	const int32 NumChunks   = *reinterpret_cast<const int32*>(Address + Layout.NumChunksOffset);
 
 	void** ObjectsPtrButDecrypted = reinterpret_cast<void**>(ObjectArray::DecryptPtr(Objects));
 
@@ -298,7 +241,7 @@ void ObjectArray::Init(bool bScanAllMemory)
 	if (!bScanAllMemory)
 		std::cout << "Searching for GObjects...\n\n";
 
-	auto MatchesAnyLayout = [](const auto& ObjectArrayLayouts, uintptr_t Address, int32* OutObjectsPtrOffset)
+	auto MatchesAnyLayout = [](const auto& ObjectArrayLayouts, uintptr_t Address, int32* OutObjectsPtrOffset = nullptr)
 	{
 		for (const auto& Layout : ObjectArrayLayouts)
 		{
@@ -311,15 +254,9 @@ void ObjectArray::Init(bool bScanAllMemory)
 
 	for (int i = 0; i < SearchRange; i += 0x4)
 	{
-		auto FixedArray = reinterpret_cast<FFixedUObjectArray*>(SearchBase + i);
-		auto ChunkedArray = reinterpret_cast<FChunkedFixedUObjectArray*>(SearchBase + i);
-
 		const uintptr_t CurrentAddress = SearchBase + i;
 
-		//if (i == 0x42372c8)
-		//	DebugBreak();
-
-		if (FixedArray->IsValid())
+		if (MatchesAnyLayout(FFixedUObjectArrayLayouts, CurrentAddress))
 		{
 			GObjects = reinterpret_cast<uint8_t*>(SearchBase + i);
 			Off::FUObjectArray::Num = 0xC;
@@ -345,7 +282,6 @@ void ObjectArray::Init(bool bScanAllMemory)
 
 			return;
 		}
-		//else if (ChunkedArray->IsValid(Off::FUObjectArray::Ptr))
 		else if (MatchesAnyLayout(FChunkedFixedUObjectArrayLayouts, CurrentAddress, &Off::FUObjectArray::Ptr))
 		{
 			GObjects = reinterpret_cast<uint8_t*>(SearchBase + i);
