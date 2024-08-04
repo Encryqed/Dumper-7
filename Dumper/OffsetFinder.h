@@ -54,10 +54,10 @@ namespace OffsetFinder
 	/* UObject */
 	inline void InitUObjectOffsets()
 	{
-		uint8_t* ObjA = (uint8_t*)ObjectArray::GetByIndex(0x55).GetAddress();
-		uint8_t* ObjB = (uint8_t*)ObjectArray::GetByIndex(0x123).GetAddress();
+		uint8_t* ObjA = static_cast<uint8_t*>(ObjectArray::GetByIndex(0x055).GetAddress());
+		uint8_t* ObjB = static_cast<uint8_t*>(ObjectArray::GetByIndex(0x123).GetAddress());
 
-		auto GetIndexOffset = [&ObjA, &ObjB]() -> int32_t
+		auto GetIndexOffset = [ObjA, ObjB]() -> int32_t
 		{
 			std::vector<std::pair<void*, int32_t>> Infos;
 
@@ -67,20 +67,55 @@ namespace OffsetFinder
 			return FindOffset<4>(Infos, 0x0);
 		};
 
+		auto GetNameOffset = [ObjA, ObjB](int32_t ClassOffset, int32_t IndexOffset) -> int32_t
+		{
+			const uintptr_t ObjAValueAfterClassAsPtr = *reinterpret_cast<uintptr_t*>(ObjA + ClassOffset + sizeof(void*));
+			const uintptr_t ObjBValueAfterClassAsPtr = *reinterpret_cast<uintptr_t*>(ObjB + ClassOffset + sizeof(void*));
+
+			const bool bIsObjAOuterRightAfterClass = (!IsBadReadPtr(ObjAValueAfterClassAsPtr) || ObjAValueAfterClassAsPtr == NULL);
+			const bool bIsObjBOuterRightAfterClass = (!IsBadReadPtr(ObjBValueAfterClassAsPtr) || ObjBValueAfterClassAsPtr == NULL);
+
+			/* 
+			* This check is mostly based on the assumption that FNames typically aren't valid pointers by chance.
+			* 
+			* UObjects however always have a valid name (that isn't None, and hence isn't 0).
+			*/
+			if (bIsObjAOuterRightAfterClass && bIsObjBOuterRightAfterClass)
+			{
+				/*
+				* There is "free" space between the 'Index' and 'Class', when there shouldn't be. 
+				* And we already know Name isn't at the location it's supposed to be (right after 'Class'). 'Name' must be in this space.
+				*/
+				if ((ClassOffset - IndexOffset) >= 0x4)
+				{
+					Settings::Internal::bIsObjectNameBeforeClass = true;
+					return IndexOffset + 0x4;
+				}
+
+				/* The 'Name' isn't before 'Class' and right after 'Class' is 'Outer'. So the best bet for the pos is right after 'Outer'. */
+				return ClassOffset + 0x10;
+			}
+
+			return ClassOffset + sizeof(void*);
+		};
+
 		Off::UObject::Vft = 0x00;
 		Off::UObject::Flags = sizeof(void*);
 		Off::UObject::Index = GetIndexOffset();
 		Off::UObject::Class = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Index + sizeof(int), 0x40);
-		Off::UObject::Name = Off::UObject::Class + sizeof(void*);
-		Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8, 0x40);
+		Off::UObject::Name = GetNameOffset(Off::UObject::Class, Off::UObject::Index); // Off::UObject::Class + sizeof(void*);
+		Off::UObject::Outer = OffsetNotFound;
+
+		/* Some games move 'Name' before 'Class', so just select the higher one for searching for 'Outer'. */
+		const int32 OuterSearchBase = max(Off::UObject::Name, Off::UObject::Class) + 0x8;
 
 		// loop a few times in case we accidentally choose a UPackage (which doesn't have an Outer) to find Outer
 		while (Off::UObject::Outer == OffsetNotFound)
 		{
-			ObjA = (uint8*)ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
-			ObjB = (uint8*)ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
+			Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, OuterSearchBase, 0x40);
 
-			Off::UObject::Outer = GetValidPointerOffset(ObjA, ObjB, Off::UObject::Name + 0x8, 0x40);
+			ObjA = static_cast<uint8*>(ObjectArray::GetByIndex(rand() % 0x400).GetAddress());
+			ObjB = static_cast<uint8*>(ObjectArray::GetByIndex(rand() % 0x400).GetAddress());
 		}
 	}
 
@@ -138,7 +173,8 @@ namespace OffsetFinder
 		const int32 FNameFirstInt /* ComparisonIndex */ =  *reinterpret_cast<const int32*>(NameAddress);
 		const int32 FNameSecondInt /* [Number/DisplayIndex] */ = *reinterpret_cast<const int32*>(NameAddress + 0x4);
 
-		const int32 FNameSize = Off::UObject::Outer - Off::UObject::Name;
+		/* Some games move 'Name' before 'Class'. Just substract the offset of 'Name' with the offset of the member that follows right after it, to get an estimate of sizeof(FName). */
+		const int32 FNameSize = !Settings::Internal::bIsObjectNameBeforeClass ? (Off::UObject::Outer - Off::UObject::Name) : (Off::UObject::Class - Off::UObject::Name);
 
 		Off::FName::CompIdx = 0x0;
 		Off::FName::Number = 0x4; // defaults for check
