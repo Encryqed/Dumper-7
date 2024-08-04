@@ -62,7 +62,7 @@ Patreon: https://patreon.com/user?u=119629245
       .NumElementsOffset = 0x14,
       .MaxChunksOffset = 0x18,
       .NumChunksOffset = 0x1C,
-  },
+  }
   ``` 
 ## Issues
 
