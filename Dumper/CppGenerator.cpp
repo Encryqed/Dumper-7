@@ -1,5 +1,7 @@
 #include <vector>
 
+#include <array>
+
 #include "CppGenerator.h"
 #include "ObjectArray.h"
 #include "MemberWrappers.h"
@@ -30,9 +32,9 @@ std::string CppGenerator::MakeMemberString(const std::string& Type, const std::s
 	return std::format("\t{:{}} {:{}} // {}\n", Type, 45, Name + ";", 50, std::move(Comment));
 }
 
-std::string CppGenerator::MakeMemberStringWithoutName(const std::string& Type, std::string&& Comment)
+std::string CppGenerator::MakeMemberStringWithoutName(const std::string& Type)
 {
-	return std::format("\t{:{}} // {}\n", Type + ";", 96, std::move(Comment));
+	return '\t' + Type + ";\n";
 }
 
 std::string CppGenerator::GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
@@ -166,7 +168,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		/* using directives */
 		if (Member.IsZeroSizedMember()) [[unlikely]]
 		{
-			OutMembers += MakeMemberStringWithoutName(GetMemberTypeString(Member, PackageIndex, bAllowForConstPtrMembers), std::move(Comment));
+			OutMembers += MakeMemberStringWithoutName(GetMemberTypeString(Member, PackageIndex, bAllowForConstPtrMembers));
 		}
 		else [[likely]]
 		{
@@ -3016,9 +3018,9 @@ ClassType* GetDefaultObjImpl()
 
 )";
 
-	// Start class 'TUObjectArray'
+	// Start class 'FUObjectItem'
 	PredefinedStruct FUObjectItem = PredefinedStruct{
-		.UniqueName = "FUObjectItem", .Size = Off::InSDK::ObjArray::FUObjectItemSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr  /* FProperty */
+		.UniqueName = "FUObjectItem", .Size = Off::InSDK::ObjArray::FUObjectItemSize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = false, .bIsUnion = false, .Super = nullptr
 	};
 
 	FUObjectItem.Properties =
@@ -3032,107 +3034,186 @@ ClassType* GetDefaultObjImpl()
 
 	GenerateStruct(&FUObjectItem, BasicHpp, BasicCpp, BasicHpp);
 
-
 	constexpr const char* DefaultDecryption = R"([](void* ObjPtr) -> uint8*
 	{
 		return reinterpret_cast<uint8*>(ObjPtr);
 	})";
 
 	std::string DecryptionStrToUse = ObjectArray::DecryptionLambdaStr.empty() ? DefaultDecryption : std::move(ObjectArray::DecryptionLambdaStr);
-
-
+//#error Fix this and fix alignof(UObject) == 0x1
 	if (Off::InSDK::ObjArray::ChunkSize <= 0)
 	{
-		BasicHpp << std::format(R"(
-class TUObjectArray
-{{
-private:
-	static inline auto DecryptPtr = {};
+#undef max
+		const auto& ObjectsArrayLayout = Off::FUObjectArray::FixedLayout;
+		const int32 ObjectArraySize = std::max({ ObjectsArrayLayout.ObjectsOffset + 0x8, ObjectsArrayLayout.NumObjectsOffset + 0x4, ObjectsArrayLayout.MaxObjectsOffset + 0x4, });
+#define max(A, B) (A > B ? A : B)
 
-public:
-	FUObjectItem* Objects;
-	int32 MaxElements;
-	int32 NumElements;
+		// Start class 'TUObjectArray'
+		PredefinedStruct TUObjectArray = PredefinedStruct{
+			.UniqueName = "TUObjectArray", .Size = ObjectArraySize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		};
 
-public:
-	inline int Num() const
-	{{
-		return NumElements;
-	}}
+		TUObjectArray.Properties =
+		{
+			/* Static members of TUObjectArray */
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = ("static constexpr auto DecryptPtr = " + DecryptionStrToUse), .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
+			},
 
-	inline FUObjectItem* GetDecrytedObjPtr() const
-	{{
-		return reinterpret_cast<FUObjectItem*>(DecryptPtr(Objects));
-	}}
+			/* Non-static members of TUObjectArray */
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "struct FUObjectItem*", .Name = "Objects", .Offset = ObjectsArrayLayout.ObjectsOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "int32", .Name = "MaxElements", .Offset = ObjectsArrayLayout.MaxObjectsOffset, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "int32", .Name = "NumElements", .Offset = ObjectsArrayLayout.NumObjectsOffset, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+		};
 
-	inline class UObject* GetByIndex(const int32 Index) const
-	{{
-		if (Index < 0 || Index > NumElements)
-			return nullptr;
+		TUObjectArray.Functions =
+		{
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "inline int32", .NameWithParams = "Num()", .Body =
+R"({
+	return NumElements;
+}
+)",				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "FUObjectItem*", .NameWithParams = "GetDecrytedObjPtr()", .Body =
+R"({
+	return reinterpret_cast<FUObjectItem*>(DecryptPtr(Objects));
+}
+)",				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "inline class UObject*", .NameWithParams = "GetByIndex(const int32 Index)", .Body =
+R"({
+	if (Index < 0 || Index > NumElements)
+		return nullptr;
 
-		return GetDecrytedObjPtr()[Index].Object;
-	}}
-}};
-)", DecryptionStrToUse);
+	return GetDecrytedObjPtr()[Index].Object;
+})",
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+		};
+
+		SortMembers(TUObjectArray.Properties);
+		GenerateStruct(&TUObjectArray, BasicHpp, BasicCpp, BasicHpp);
 	}
 	else
 	{
-		constexpr const char* MemmberString = R"(
-	FUObjectItem** Objects;
-	uint8 Pad_0[0x08];
-	int32 MaxElements;
-	int32 NumElements;
-	int32 MaxChunks;
-	int32 NumChunks;)";
 
-		constexpr const char* MemberStringWeirdLayout = R"(
-	uint8 Pad_0[0x10];
-	int32 MaxElements;
-	int32 NumElements;
-	int32 MaxChunks;
-	int32 NumChunks;
-	FUObjectItem** Objects;)";
+#undef max
+		const auto& ObjectsArrayLayout = Off::FUObjectArray::ChunkedFixedLayout;
+		const int32 ObjectArraySize = std::max({
+			ObjectsArrayLayout.ObjectsOffset + 0x8,
+			ObjectsArrayLayout.MaxElementsOffset + 0x8,
+			ObjectsArrayLayout.NumElementsOffset + 0x4,
+			ObjectsArrayLayout.MaxChunksOffset + 0x4,
+			ObjectsArrayLayout.NumChunksOffset + 0x4
+		});
+#define max(A, B) (A > B ? A : B)
 
-		BasicHpp << std::format(R"(
-class TUObjectArray
-{{
-public:
-	enum
-	{{
-		ElementsPerChunk = 0x{:X},
-	}};
+		// Start class 'TUObjectArray'
+		PredefinedStruct TUObjectArray = PredefinedStruct{
+			.UniqueName = "TUObjectArray", .Size = ObjectArraySize, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		};
 
-private:
-	static inline auto DecryptPtr = {};
+		TUObjectArray.Properties =
+		{
+			/* Static members of TUObjectArray */
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = ("static constexpr auto DecryptPtr = " + DecryptionStrToUse), .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "constexpr int32", .Name = "ElementsPerChunk", .Offset = 0x0, .Size = 0x4, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF, .DefaultValue = std::format("0x{:X}", Off::InSDK::ObjArray::ChunkSize)
+			},
 
-public:{}
+			/* Non-static members of TUObjectArray */
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "struct FUObjectItem**", .Name = "Objects", .Offset = ObjectsArrayLayout.ObjectsOffset, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "int32", .Name = "MaxElements", .Offset = ObjectsArrayLayout.MaxElementsOffset, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "int32", .Name = "NumElements", .Offset = ObjectsArrayLayout.NumElementsOffset, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "int32", .Name = "MaxChunks", .Offset = ObjectsArrayLayout.MaxChunksOffset, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "int32", .Name = "NumChunks", .Offset = ObjectsArrayLayout.NumChunksOffset, .Size = 0x04, .ArrayDim = 0x1, .Alignment = 0x8,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			},
+		};
 
-public:
-	inline int32 Num() const
-	{{
-		return NumElements;
-	}}
-
-	inline FUObjectItem** GetDecrytedObjPtr() const
-	{{
-		return reinterpret_cast<FUObjectItem**>(DecryptPtr(Objects));
-	}}
-
-	inline class UObject* GetByIndex(const int32 Index) const
-	{{
-		const int32 ChunkIndex = Index / ElementsPerChunk;
-		const int32 InChunkIdx = Index % ElementsPerChunk;
-
-		if (ChunkIndex >= NumChunks || Index >= NumElements)
-			return nullptr;
+		TUObjectArray.Functions =
+		{
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "inline int32", .NameWithParams = "Num()", .Body =
+R"({
+	return NumElements;
+}
+)",				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "FUObjectItem**", .NameWithParams = "GetDecrytedObjPtr()", .Body =
+R"({
+	return reinterpret_cast<FUObjectItem**>(DecryptPtr(Objects));
+}
+)",				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+			PredefinedFunction {
+				.CustomComment = "",
+				.ReturnType = "inline class UObject*", .NameWithParams = "GetByIndex(const int32 Index)", .Body =
+R"({
+	const int32 ChunkIndex = Index / ElementsPerChunk;
+	const int32 InChunkIdx = Index % ElementsPerChunk;
 	
-		FUObjectItem* ChunkPtr = GetDecrytedObjPtr()[ChunkIndex];
-		if (!ChunkPtr) return nullptr;
+	if (ChunkIndex >= NumChunks || Index >= NumElements)
+	    return nullptr;
+	
+	FUObjectItem* ChunkPtr = GetDecrytedObjPtr()[ChunkIndex];
+	if (!ChunkPtr) return nullptr;
+	
+	return ChunkPtr[InChunkIdx].Object;
+})",
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+			},
+		};
 
-		return ChunkPtr[InChunkIdx].Object;
-	}}
-}};
-)", Off::InSDK::ObjArray::ChunkSize, DecryptionStrToUse, Off::FUObjectArray::Ptr == 0 ? MemmberString : MemberStringWeirdLayout);
+		SortMembers(TUObjectArray.Properties);
+		GenerateStruct(&TUObjectArray, BasicHpp, BasicCpp, BasicHpp);
 	}
 	// End class 'TUObjectArray'
 
@@ -3181,6 +3262,11 @@ public:)";
 			InitGObjects();
 
 		return reinterpret_cast<class TUObjectArray*>(GObjectsAddress);
+	}
+
+	inline TUObjectArray& operator*() const
+	{
+		return *reinterpret_cast<class TUObjectArray*>(GObjectsAddress);
 	}
 
 	inline operator const void* ()

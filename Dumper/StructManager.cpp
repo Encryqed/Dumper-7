@@ -224,4 +224,11 @@ void StructManager::Init()
 
 	InitAlignmentsAndNames();
 	InitSizesAndIsFinal();
+
+	/* 
+	* The default class-alignment of 0x8 is only set for classes with a valid Super-class, because they inherit from UObject. 
+	* UObject however doesn't have a super, so this needs to be set manually.
+	*/
+	const UEObject UObjectClass = ObjectArray::FindClassFast("Object");
+	StructInfoOverrides.find(UObjectClass.GetIndex())->second.Alignment = 0x8;
 }

@@ -4,6 +4,8 @@
 #include <filesystem>
 #include "UnrealObjects.h"
 
+#include "Offsets.h"
+
 namespace fs = std::filesystem;
 
 class ObjectArray
@@ -13,8 +15,8 @@ private:
 	friend struct FFixedUObjectArray;
 	friend class ObjectArrayValidator;
 
-	friend bool IsAddressValidGObjects(const uintptr_t, const struct FFixedUObjectArrayLayout&, int32*);
-	friend bool IsAddressValidGObjects(const uintptr_t, const struct FChunkedFixedUObjectArrayLayout&, int32*);
+	friend bool IsAddressValidGObjects(const uintptr_t, const struct FFixedUObjectArrayLayout&);
+	friend bool IsAddressValidGObjects(const uintptr_t, const struct FChunkedFixedUObjectArrayLayout&);
 
 private:
 	static inline uint8* GObjects = nullptr;
@@ -38,6 +40,10 @@ public:
 	static void InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), const char* DecryptionLambdaAsStr);
 
 	static void Init(bool bScanAllMemory = false);
+
+
+	void Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& ObjectArrayLayout = FFixedUObjectArrayLayout());
+	void Init(int32 GObjectsOffset, int32 ElementsPerChunk, const FChunkedFixedUObjectArrayLayout& ObjectArrayLayout = FChunkedFixedUObjectArrayLayout());
 
 	static void Init(int32 GObjectsOffset, int32 NumElementsPerChunk, bool bIsChunked);
 

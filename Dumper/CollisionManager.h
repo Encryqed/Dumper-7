@@ -120,16 +120,20 @@ private:
 	CollisionManager::TranslationMapType TranslationMap;
 
 	/* Names reserved for predefined members or local variables in function-bodies. Eg. "Class", "Parms", etc. */
+	NameContainer ClassReservedNames;
+
+	/* Names reserved for all members/parameters. Eg. "float", "operator", "return", ... */
 	NameContainer ReservedNames;
 
 private:
 	/* Returns index of NameInfo inside of the NameContainer it was added to */
-	uint64 AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, bool bShouldCheckReservedNames, UEFunction Func = nullptr);
+	uint64 AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, bool bIsStruct, UEFunction Func = nullptr);
 
 public:
 	/* For external use by 'MemberManager::InitReservedNames()' */
-	void AddReservedName(const std::string& Name, bool bIsParameterOrLocalVariable);
-	void AddStructToNameContainer(UEStruct ObjAsStruct, bool bShouldCheckReservedNames);
+	void AddReservedClassName(const std::string& Name, bool bIsParameterOrLocalVariable);
+	void AddReservedName(const std::string& Name);
+	void AddStructToNameContainer(UEStruct ObjAsStruct, bool bIsStruct);
 
 	std::string StringifyName(UEStruct Struct, NameInfo Info);
 

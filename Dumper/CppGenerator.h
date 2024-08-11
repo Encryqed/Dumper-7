@@ -84,7 +84,7 @@ private:
 
 private:
     static std::string MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment);
-    static std::string MakeMemberStringWithoutName(const std::string& Type, std::string&& Comment);
+    static std::string MakeMemberStringWithoutName(const std::string& Type);
 
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
     static std::string GenerateBitPadding(uint8 UnderlayingSizeBytes, const uint8 PrevBitPropertyEndBit, const int32 Offset, const int32 PadSize, std::string&& Reason);
