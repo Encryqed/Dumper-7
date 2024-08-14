@@ -779,7 +779,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	if constexpr (Settings::Debug::bGenerateInlineAssertionsForStructMembers)
 	{
-		std::string StructName = GetStructPrefixedName(Struct);
+		std::string UniquePrefixedName = StructNameOverride.empty() ? GetStructPrefixedName(Struct) : StructNameOverride;
 
 		for (const PropertyWrapper& Member : Members.IterateMembers())
 		{
@@ -788,7 +788,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 			std::string MemberName = Member.GetName();
 
-			StructFile << std::format("static_assert(offsetof({0}, {1}) == 0x{2:06X}, \"Member '{0}::{1}' has a wrong offset!\");\n", StructName, Member.GetName(), Member.GetOffset());
+			StructFile << std::format("static_assert(offsetof({0}, {1}) == 0x{2:06X}, \"Member '{0}::{1}' has a wrong offset!\");\n", UniquePrefixedName, Member.GetName(), Member.GetOffset());
 		}
 	}
 }
