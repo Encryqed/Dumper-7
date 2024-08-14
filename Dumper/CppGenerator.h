@@ -108,7 +108,7 @@ private: /* utility functions */
 
     static std::string GetFunctionSignature(UEFunction Func);
 
-    static std::string GetStructPrefixedName(const StructWrapper& Struct, const std::string& StructNameOverride = std::string());
+    static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
     static std::string GetEnumUnderlayingType(const EnumWrapper& Enm);
 

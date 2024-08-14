@@ -765,7 +765,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 		if (Struct.HasCustomTemplateText())
 			return;
 
-		std::string UniquePrefixedName = GetStructPrefixedName(Struct, StructNameOverride);
+		std::string UniquePrefixedName = StructNameOverride.empty() ? GetStructPrefixedName(Struct) : StructNameOverride;
 
 		const int32 StructSize = Struct.GetSize();
 
@@ -826,10 +826,10 @@ enum class {} : {}
   , MemberString);
 }
 
-std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct, const std::string& StructNameOverride)
+std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 {
 	if (Struct.IsFunction())
-		return Struct.GetUnrealStruct().GetOuter().GetValidName() + "_" + (StructNameOverride.empty() ? Struct.GetName() : StructNameOverride);
+		return Struct.GetUnrealStruct().GetOuter().GetValidName() + "_" + Struct.GetName();
 
 	auto [ValidName, bIsUnique] = Struct.GetUniqueName();
 
