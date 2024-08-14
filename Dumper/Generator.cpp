@@ -74,7 +74,7 @@ void Generator::InitEngineCore()
 	//FName::Init(/*GNames, FName::EOffsetOverrideType::GNames, true/false*/);
 	//Off::InSDK::ProcessEvent::InitPE(/*PEIndex*/);
 
-	/* Back4Blood*/
+	/* Back4Blood (requires manual GNames override) */
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
 
 	/* Multiversus [Unsupported, weird GObjects-struct]*/
