@@ -227,9 +227,6 @@ inline std::pair<uintptr_t, DWORD> GetSectionByName(uintptr_t ImageBase, const s
 
 	return { NULL, 0 };
 }
-constexpr auto a = _MSC_VER;
-constexpr auto b = _MSC_FULL_VER;
-constexpr auto c = _MSC_BUILD;
 
 inline uintptr_t GetOffset(const uintptr_t Address)
 {
