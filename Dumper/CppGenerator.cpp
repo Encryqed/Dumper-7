@@ -2710,7 +2710,7 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceToInMeters(const FVector& Other)", .Body =
 R"({
-	return GetDistanceTo(Other) * 0.01;
+	return GetDistanceTo(Other) * static_cast<UnderlayingType>(0.01);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
@@ -2864,7 +2864,7 @@ class UClass;
 class UObject;
 class UFunction;
 
-struct FName;
+class FName;
 )";
 
 	BasicHpp << R"(
