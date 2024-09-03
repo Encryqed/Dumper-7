@@ -938,7 +938,7 @@ int32 UEProperty::GetAlignment() const
 
 				for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
 				{
-					if (!Prop.IsA(EClassCastFlags::OptionalProperty))
+					if (!Prop.IsA(EClassCastFlags::OptionalProperty) || Prop.IsA(EClassCastFlags::ObjectPropertyBase))
 						continue;
 
 					UEOptionalProperty Optional = Prop.Cast<UEOptionalProperty>();

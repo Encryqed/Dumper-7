@@ -152,7 +152,7 @@ namespace PackageManagerUtils
 			GetPropertyDependency(Prop.Cast<UEMapProperty>().GetKeyProperty(), Store);
 			GetPropertyDependency(Prop.Cast<UEMapProperty>().GetValueProperty(), Store);
 		}
-		else if (Prop.IsA(EClassCastFlags::OptionalProperty))
+		else if (Prop.IsA(EClassCastFlags::OptionalProperty) && !Prop.IsA(EClassCastFlags::ObjectPropertyBase))
 		{
 			GetPropertyDependency(Prop.Cast<UEOptionalProperty>().GetValueProperty(), Store);
 		}

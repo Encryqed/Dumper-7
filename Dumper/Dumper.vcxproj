@@ -204,6 +204,7 @@
     <ClInclude Include="UnicodeNames.h" />
     <ClInclude Include="UnrealObjects.h" />
     <ClInclude Include="UnrealTypes.h" />
+    <ClInclude Include="UtfN.hpp" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="StructWrapper.h" />
   </ItemGroup>

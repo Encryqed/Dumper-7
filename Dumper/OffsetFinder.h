@@ -533,8 +533,8 @@ namespace OffsetFinder
 		UEStruct Guid = ObjectArray::FindObjectFast("Guid", EClassCastFlags::Struct).Cast<UEStruct>();
 
 		Infos.push_back({ Guid.FindMember("A").GetAddress(), 0x04 });
-		Infos.push_back({ Guid.FindMember("B").GetAddress(), 0x04 });
 		Infos.push_back({ Guid.FindMember("C").GetAddress(), 0x04 });
+		Infos.push_back({ Guid.FindMember("D").GetAddress(), 0x04 });
 
 		return FindOffset(Infos);
 	}
@@ -546,8 +546,8 @@ namespace OffsetFinder
 		UEStruct Guid = ObjectArray::FindObjectFast("Guid", EClassCastFlags::Struct).Cast<UEStruct>();
 
 		Infos.push_back({ Guid.FindMember("A").GetAddress(), 0x01 });
-		Infos.push_back({ Guid.FindMember("B").GetAddress(), 0x01 });
 		Infos.push_back({ Guid.FindMember("C").GetAddress(), 0x01 });
+		Infos.push_back({ Guid.FindMember("D").GetAddress(), 0x01 });
 
 		const int32_t MinOffset = Off::Property::ElementSize - 0x10;
 		const int32_t MaxOffset = Off::Property::ElementSize + 0x10;
@@ -568,6 +568,9 @@ namespace OffsetFinder
 
 		Infos.push_back({ Guid.FindMember("A").GetAddress(), GuidMemberFlags });
 		Infos.push_back({ Color.FindMember("R").GetAddress(), ColorMemberFlags });
+
+		if (Infos[1].first == nullptr) [[unlikely]]
+			Infos[1].first = Color.FindMember("r").GetAddress();
 
 		int FlagsOffset = FindOffset(Infos);
 
@@ -592,6 +595,10 @@ namespace OffsetFinder
 		Infos.push_back({ Color.FindMember("B").GetAddress(), 0x00 });
 		Infos.push_back({ Color.FindMember("G").GetAddress(), 0x01 });
 		Infos.push_back({ Color.FindMember("R").GetAddress(), 0x02 });
+
+		// Thanks to the ue5 dev who decided FColor::R should be spelled FColor::r
+		if (Infos[2].first == nullptr) [[unlikely]]
+			Infos[2].first = Color.FindMember("r").GetAddress();
 
 		return FindOffset(Infos);
 	}

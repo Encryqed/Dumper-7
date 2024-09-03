@@ -121,6 +121,9 @@
     <Filter Include="Tests">
       <UniqueIdentifier>{ae8563d1-816c-4218-9877-a95f062ca4ff}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Utils\Encoding">
+      <UniqueIdentifier>{6b25c48b-0bb2-4044-85fc-d02953c8f851}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ObjectArray.h">
@@ -236,6 +239,9 @@
     </ClInclude>
     <ClInclude Include="UnicodeNames.h">
       <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="UtfN.hpp">
+      <Filter>Utils\Encoding</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
