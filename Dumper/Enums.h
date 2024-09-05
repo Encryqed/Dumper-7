@@ -217,7 +217,7 @@ enum class EFieldClassID : uint64
 	Map						= 1llu << 46,
 	Set						= 1llu << 47,
 	Enum					= 1llu << 48,
-	MulticastInlineDelegate = 1llu << 50,
+	MulticasTMulticastInlineDelegate = 1llu << 50,
 	MulticastSparseDelegate = 1llu << 51,
 	ObjectPointer			= 1llu << 53
 };
@@ -276,7 +276,7 @@ enum class EClassCastFlags : uint64
 	SetProperty							= 0x0000800000000000,
 	EnumProperty						= 0x0001000000000000,
 	SparseDelegateFunction				= 0x0002000000000000,
-	MulticastInlineDelegateProperty		= 0x0004000000000000,
+	MulticasTMulticastInlineDelegateProperty		= 0x0004000000000000,
 	MulticastSparseDelegateProperty		= 0x0008000000000000,
 	FieldPathProperty					= 0x0010000000000000,
 	LargeWorldCoordinatesRealProperty	= 0x0080000000000000,
@@ -574,7 +574,7 @@ static std::string StringifyClassCastFlags(EClassCastFlags CastFlags)
 	if (CastFlags & EClassCastFlags::SetProperty) { RetFlags += "SetProperty, "; }
 	if (CastFlags & EClassCastFlags::EnumProperty) { RetFlags += "EnumProperty, "; }
 	if (CastFlags & EClassCastFlags::SparseDelegateFunction) { RetFlags += "SparseDelegateFunction, "; }
-	if (CastFlags & EClassCastFlags::MulticastInlineDelegateProperty) { RetFlags += "MulticastInlineDelegateProperty, "; }
+	if (CastFlags & EClassCastFlags::MulticasTMulticastInlineDelegateProperty) { RetFlags += "MulticasTMulticastInlineDelegateProperty, "; }
 	if (CastFlags & EClassCastFlags::MulticastSparseDelegateProperty) { RetFlags += "MulticastSparseDelegateProperty, "; }
 	if (CastFlags & EClassCastFlags::FieldPathProperty) { RetFlags += "MarkAsFieldPathPropertyRootSet, "; }
 	if (CastFlags & EClassCastFlags::LargeWorldCoordinatesRealProperty) { RetFlags += "LargeWorldCoordinatesRealProperty, "; }

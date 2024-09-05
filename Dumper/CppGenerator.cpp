@@ -593,6 +593,10 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 
 	for (const FunctionWrapper& Func : Members.IterateFunctions())
 	{
+		/* The function is no callable function, but instead just the signature of a TDelegate or TMulticastInlineDelegate */
+		if (Func.GetFunctionFlags() & EFunctionFlags::Delegate)
+			continue;
+
 		// Handeling spacing between static and non-static, const and non-const, as well as inline and non-inline functions
 		if (bWasLastFuncInline != Func.HasInlineBody() && !bIsFirstIteration)
 		{
@@ -1079,6 +1083,13 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 			return std::format("TDelegate<{}>", GetFunctionSignature(SignatureFunc));
 
 		return "TDelegate<void()>";
+	}
+	else if (Flags & EClassCastFlags::MulticasTMulticastInlineDelegateProperty)
+	{
+		if (UEFunction SignatureFunc = Member.Cast<UEMulticastInlineDelegateProperty>().GetSignatureFunction()) [[likely]]
+			return std::format("TMulticastInlineDelegate<{}>", GetFunctionSignature(SignatureFunc));
+
+		return "TMulticastInlineDelegate<void()>";
 	}
 	else if (Flags & EClassCastFlags::FieldPathProperty)
 	{
@@ -4451,6 +4462,30 @@ public:
 )";
 	} /* End 'if (Settings::Internal::bUseFProperty)' */
 
+	const auto ScriptDelegateSize = (FWeakObjectPtrSize + Off::InSDK::Name::FNameSize);
+
+	/* FScriptDelegate */
+	PredefinedStruct FScriptDelegate = PredefinedStruct{
+		.UniqueName = "FScriptDelegate", .Size = ScriptDelegateSize, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = false, .bIsUnion = false, .Super = nullptr
+	};
+
+	FScriptDelegate.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FWeakObjectPtr", .Name = "Object", .Offset = 0x0, .Size = FWeakObjectPtrSize, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FName", .Name = "FunctionName", .Offset = FWeakObjectPtrSize, .Size = Off::InSDK::Name::FNameSize, .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	GenerateStruct(&FScriptDelegate, BasicHpp, BasicCpp, BasicHpp);
+
+
 	/* TDelegate */
 	PredefinedStruct TDelegate = PredefinedStruct{
 		.CustomTemplateText = "template<typename FunctionSignature>",
@@ -4479,17 +4514,46 @@ public:
 	{
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "FWeakObjectPtr", .Name = "Object", .Offset = 0x0, .Size = FWeakObjectPtrSize, .ArrayDim = 0x1, .Alignment = 0x4,
+			.Type = "FScriptDelegate", .Name = "BoundFunction", .Offset = 0x0, .Size = ScriptDelegateSize, .ArrayDim = 0x1, .Alignment = 0x8,
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
+		}
+	};
+
+	GenerateStruct(&TDelegateSpezialiation, BasicHpp, BasicCpp, BasicHpp);
+
+	/* TMulticastInlineDelegate */
+	PredefinedStruct TMulticastInlineDelegate = PredefinedStruct{
+		.CustomTemplateText = "template<typename FunctionSignature>",
+		.UniqueName = "TMulticastInlineDelegate", .Size = 0x10, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+	};
+
+	TMulticastInlineDelegate.Properties =
+	{
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "FName", .Name = "FunctionName", .Offset = FWeakObjectPtrSize, .Size = Off::InSDK::Name::FNameSize, .ArrayDim = 0x1, .Alignment = 0x4,
+			.Type = "struct InvalidUseOfTMulticastInlineDelegate", .Name = "TemplateParamIsNotAFunctionSignature", .Offset = 0x0, .Size = ScriptDelegateSize, .ArrayDim = 0x1, .Alignment = 0x1,
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
 
-	GenerateStruct(&TDelegateSpezialiation, BasicHpp, BasicCpp, BasicHpp);
+	GenerateStruct(&TMulticastInlineDelegate, BasicHpp, BasicCpp, BasicHpp);
+
+	/* TMulticastInlineDelegate<Ret(Args...)> */
+	PredefinedStruct TMulticastInlineDelegateSpezialiation = PredefinedStruct{
+		.CustomTemplateText = "template<typename Ret, typename... Args>",
+		.UniqueName = "TMulticastInlineDelegate<Ret(Args...)>", .Size = 0x0, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+	};
+
+	TMulticastInlineDelegateSpezialiation.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "TArray<FScriptDelegate>", .Name = "InvocationList", .Offset = 0x0, .Size = 0x10, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		}
+	};
+
+	GenerateStruct(&TMulticastInlineDelegateSpezialiation, BasicHpp, BasicCpp, BasicHpp);
 
 
 	/* UE_ENUM_OPERATORS - enum flag operations */
@@ -4695,7 +4759,7 @@ enum class EClassCastFlags : uint64
 	SetProperty							= 0x0000800000000000,
 	EnumProperty						= 0x0001000000000000,
 	USparseDelegateFunction				= 0x0002000000000000,
-	FMulticastInlineDelegateProperty	= 0x0004000000000000,
+	FMulticasTMulticastInlineDelegateProperty	= 0x0004000000000000,
 	FMulticastSparseDelegateProperty	= 0x0008000000000000,
 	FFieldPathProperty					= 0x0010000000000000,
 	FLargeWorldCoordinatesRealProperty	= 0x0080000000000000,

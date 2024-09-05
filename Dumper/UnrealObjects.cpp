@@ -909,7 +909,7 @@ int32 UEProperty::GetAlignment() const
 	{
 		return 0x1; // size in PropertyFixup (alignment isn't greater than size)
 	}
-	else if (TypeFlags & EClassCastFlags::MulticastInlineDelegateProperty)
+	else if (TypeFlags & EClassCastFlags::MulticasTMulticastInlineDelegateProperty)
 	{
 		return 0x8;  // alignof member TArray<FName>
 	}
@@ -1217,6 +1217,17 @@ UEFunction UEDelegateProperty::GetSignatureFunction() const
 std::string UEDelegateProperty::GetCppType() const
 {
 	return "TDeleage<GetCppTypeIsNotImplementedForDelegates>";
+}
+
+UEFunction UEMulticastInlineDelegateProperty::GetSignatureFunction() const
+{
+	// Uses "Off::DelegateProperty::SignatureFunction" on purpose
+	return UEFunction(*reinterpret_cast<void**>(Base + Off::DelegateProperty::SignatureFunction));
+}
+
+std::string UEMulticastInlineDelegateProperty::GetCppType() const
+{
+	return "TMulticastInlineDelegate<GetCppTypeIsNotImplementedForDelegates>";
 }
 
 UEProperty UEMapProperty::GetKeyProperty() const

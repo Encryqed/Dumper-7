@@ -396,6 +396,16 @@ public:
 	std::string GetCppType() const;
 };
 
+class UEMulticastInlineDelegateProperty : public UEProperty
+{
+	using UEProperty::UEProperty;
+
+public:
+	UEFunction GetSignatureFunction() const;
+
+	std::string GetCppType() const;
+};
+
 class UEMapProperty : public UEProperty
 {
 	using UEProperty::UEProperty;
