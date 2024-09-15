@@ -124,11 +124,11 @@ void FName::Init(bool bForceGNames)
 	};
 }
 
-void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bIsNamePool)
+void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bIsNamePool, const char* const ModuleName)
 {
 	if (OverrideType == EOffsetOverrideType::GNames)
 	{
-		const bool bInitializedSuccessfully = NameArray::TryInit(OverrideOffset, bIsNamePool);
+		const bool bInitializedSuccessfully = NameArray::TryInit(OverrideOffset, bIsNamePool, ModuleName);
 
 		if (bInitializedSuccessfully)
 		{
@@ -149,7 +149,7 @@ void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bI
 		return;
 	}
 
-	AppendString = reinterpret_cast<void(*)(const void*, FString&)>(GetImageBase() + OverrideOffset);
+	AppendString = reinterpret_cast<void(*)(const void*, FString&)>(GetModuleBase(ModuleName) + OverrideOffset);
 
 	Off::InSDK::Name::AppendNameToString = OverrideOffset;
 	Off::InSDK::Name::bIsUsingAppendStringOverToString = OverrideType == EOffsetOverrideType::AppendString;
