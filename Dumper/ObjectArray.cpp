@@ -202,12 +202,12 @@ void ObjectArray::InitializeChunkSize(uint8_t* ChunksPtr)
 }
 
 /* We don't speak about this function... */
-void ObjectArray::Init(bool bScanAllMemory)
+void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 {
 	if (!bScanAllMemory)
 		std::cout << "\nDumper-7 by me, you & him\n\n\n";
 
-	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
+	const auto [ImageBase, ImageSize] = GetImageBaseAndSize(ModuleName);
 
 	uintptr_t SearchBase = ImageBase;
 	DWORD SearchRange = ImageSize;

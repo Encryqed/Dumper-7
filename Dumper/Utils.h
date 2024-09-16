@@ -218,9 +218,9 @@ inline uintptr_t GetModuleBase(const char* const ModuleName = nullptr)
 	return reinterpret_cast<uintptr_t>(GetModuleLdrTableEntry(ModuleName)->DllBase);
 }
 
-inline std::pair<uintptr_t, uintptr_t> GetImageBaseAndSize()
+inline std::pair<uintptr_t, uintptr_t> GetImageBaseAndSize(const char* const ModuleName = nullptr)
 {
-	uintptr_t ImageBase = GetModuleBase();
+	uintptr_t ImageBase = GetModuleBase(ModuleName);
 	PIMAGE_NT_HEADERS NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase)->e_lfanew);
 
 	return { ImageBase, NtHeader->OptionalHeader.SizeOfImage };
