@@ -270,11 +270,32 @@ inline uintptr_t GetOffset(const void* Address)
 	return GetOffset(reinterpret_cast<const uintptr_t>(Address));
 }
 
+inline bool IsInAnyModules(const uintptr_t Address)
+{
+	PEB* Peb = GetPEB();
+	PEB_LDR_DATA* Ldr = Peb->Ldr;
+
+	int NumEntriesLeft = Ldr->Length;
+
+	for (LIST_ENTRY* P = Ldr->InMemoryOrderModuleList.Flink; P && NumEntriesLeft-- > 0; P = P->Flink)
+	{
+		LDR_DATA_TABLE_ENTRY* Entry = reinterpret_cast<LDR_DATA_TABLE_ENTRY*>(P);
+
+		if (reinterpret_cast<void*>(Address) > Entry->DllBase && reinterpret_cast<void*>(Address) < ((PCHAR)Entry->DllBase + Entry->SizeOfImage))
+			return true;
+	}
+
+	return false;
+}
+
 inline bool IsInProcessRange(const uintptr_t Address)
 {
 	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
 
-	return Address > ImageBase && Address < (ImageBase + ImageSize);
+	if (Address > ImageBase && Address < (ImageBase + ImageSize))
+		return true;
+
+	return IsInAnyModules(Address);
 }
 
 inline bool IsInProcessRange(const void* Address)
