@@ -186,7 +186,7 @@ namespace OffsetFinder
 
 			for (UEObject Obj : ObjectArray())
 			{
-				const int32 Number = Obj.GetFName().GetNumber();
+				const uint32 Number = Obj.GetFName().GetNumber();
 
 				if (Number > 0x0 && Number < 0x5)
 					NamesWithNumberOneToFour++;

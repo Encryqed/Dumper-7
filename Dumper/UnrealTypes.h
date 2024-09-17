@@ -213,7 +213,7 @@ public:
 	std::string ToValidString() const;
 
 	int32 GetCompIdx() const;
-	int32 GetNumber() const;
+	uint32 GetNumber() const;
 
 	bool operator==(FName Other) const;
 

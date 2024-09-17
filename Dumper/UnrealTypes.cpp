@@ -87,7 +87,7 @@ void FName::Init(bool bForceGNames)
 			{
 				if (!Settings::Internal::bUseUoutlineNumberName)
 				{
-					const int32 Number = FName(Name).GetNumber();
+					const uint32 Number = FName(Name).GetNumber();
 
 					if (Number > 0)
 						return NameArray::GetNameEntry(Name).GetString() + "_" + std::to_string(Number - 1);
@@ -136,7 +136,7 @@ void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bI
 			{
 				if (!Settings::Internal::bUseUoutlineNumberName)
 				{
-					const int32 Number = FName(Name).GetNumber();
+					const uint32 Number = FName(Name).GetNumber();
 
 					if (Number > 0)
 						return NameArray::GetNameEntry(Name).GetString() + "_" + std::to_string(Number - 1);
@@ -226,9 +226,15 @@ int32 FName::GetCompIdx() const
 	return *reinterpret_cast<const int32*>(Address + Off::FName::CompIdx);
 }
 
-int32 FName::GetNumber() const
+uint32 FName::GetNumber() const
 {
-	return !Settings::Internal::bUseUoutlineNumberName ? *reinterpret_cast<const int32*>(Address + Off::FName::Number) : 0x0;
+	if (Settings::Internal::bUseUoutlineNumberName)
+		return 0x0;
+
+	if (Settings::Internal::bUseNamePool)
+		return *reinterpret_cast<const uint32*>(Address + Off::FName::Number); // The number is uint32 on versions <= UE4.23 
+
+	return static_cast<uint32_t>(*reinterpret_cast<const int32*>(Address + Off::FName::Number));
 }
 
 bool FName::operator==(FName Other) const
