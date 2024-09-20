@@ -58,7 +58,7 @@ R"(
 		constexpr bool bShouldCheckForDuplicatedNames = true;
 
 		/* Whether EditorOnly should be excluded from the mapping file. */
-		constexpr bool bExcludeEditorOnlyProperties = false;
+		constexpr bool bExcludeEditorOnlyProperties = true;
 
 		/* Which compression method to use when generating the file. */
 		constexpr EUsmapCompressionMethod CompressionMethod = EUsmapCompressionMethod::ZStandard;
