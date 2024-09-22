@@ -55,13 +55,13 @@ void Off::InSDK::ProcessEvent::InitPE()
 	std::cout << "\nCouldn't find ProcessEvent!\n\n" << std::endl;
 }
 
-void Off::InSDK::ProcessEvent::InitPE(int32 Index)
+void Off::InSDK::ProcessEvent::InitPE(int32 Index, const char* const ModuleName)
 {
 	Off::InSDK::ProcessEvent::PEIndex = Index;
 
 	void** VFT = *reinterpret_cast<void***>(ObjectArray::GetByIndex(0).GetAddress());
 
-	uintptr_t Imagebase = GetImageBase();
+	uintptr_t Imagebase = GetModuleBase(ModuleName);
 
 	Off::InSDK::ProcessEvent::PEOffset = uintptr_t(VFT[Off::InSDK::ProcessEvent::PEIndex]) - Imagebase;
 

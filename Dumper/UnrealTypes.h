@@ -203,7 +203,7 @@ public:
 	static void Init(bool bForceGNames = false);
 	static void InitFallback();
 
-	static void Init(int32 OverrideOffset, EOffsetOverrideType OverrideType = EOffsetOverrideType::AppendString, bool bIsNamePool = false);
+	static void Init(int32 OverrideOffset, EOffsetOverrideType OverrideType = EOffsetOverrideType::AppendString, bool bIsNamePool = false, const char* const ModuleName = nullptr);
 
 public:
 	inline const void* GetAddress() const { return Address; }

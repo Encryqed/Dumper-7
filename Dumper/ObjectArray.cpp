@@ -202,12 +202,12 @@ void ObjectArray::InitializeChunkSize(uint8_t* ChunksPtr)
 }
 
 /* We don't speak about this function... */
-void ObjectArray::Init(bool bScanAllMemory)
+void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 {
 	if (!bScanAllMemory)
 		std::cout << "\nDumper-7 by me, you & him\n\n\n";
 
-	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
+	const auto [ImageBase, ImageSize] = GetImageBaseAndSize(ModuleName);
 
 	uintptr_t SearchBase = ImageBase;
 	DWORD SearchRange = ImageSize;
@@ -337,9 +337,9 @@ void ObjectArray::Init(bool bScanAllMemory)
 	}
 }
 
-void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& ObjectArrayLayout)
+void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& ObjectArrayLayout, const char* const ModuleName)
 {
-	GObjects = reinterpret_cast<uint8_t*>(GetImageBase() + GObjectsOffset);
+	GObjects = reinterpret_cast<uint8_t*>(GetModuleBase(ModuleName) + GObjectsOffset);
 	Off::InSDK::ObjArray::GObjects = GObjectsOffset;
 
 	std::cout << "GObjects: 0x" << (void*)GObjects << "\n" << std::endl;
@@ -362,8 +362,11 @@ void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& Obj
 	ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
 }
 
-void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, const FChunkedFixedUObjectArrayLayout& ObjectArrayLayout)
+void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, const FChunkedFixedUObjectArrayLayout& ObjectArrayLayout, const char* const ModuleName)
 {
+	GObjects = reinterpret_cast<uint8_t*>(GetModuleBase(ModuleName) + GObjectsOffset);
+	Off::InSDK::ObjArray::GObjects = GObjectsOffset;
+
 	Off::FUObjectArray::bIsChunked = true;
 	Off::FUObjectArray::ChunkedFixedLayout = ObjectArrayLayout.IsValid() ? ObjectArrayLayout : FChunkedFixedUObjectArrayLayouts[0];
 

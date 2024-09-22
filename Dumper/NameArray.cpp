@@ -352,7 +352,7 @@ bool NameArray::TryFindNameArray()
 
 	void* EnterCriticalSectionAddress = GetImportAddress(nullptr, "kernel32.dll", "EnterCriticalSection");
 
-	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), GetImageBase());
+	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), GetModuleBase());
 
 	if (Address == 0x0)
 		return false;
@@ -473,7 +473,7 @@ bool NameArray::TryFindNamePool()
 
 bool NameArray::TryInit(bool bIsTestOnly)
 {
-	uintptr_t ImageBase = GetImageBase();
+	uintptr_t ImageBase = GetModuleBase();
 
 	uint8* GNamesAddress = nullptr;
 
@@ -529,9 +529,9 @@ bool NameArray::TryInit(bool bIsTestOnly)
 }
 
 
-bool NameArray::TryInit(int32 OffsetOverride, bool bIsNamePool)
+bool NameArray::TryInit(int32 OffsetOverride, bool bIsNamePool, const char* const ModuleName)
 {
-	uintptr_t ImageBase = GetImageBase();
+	uintptr_t ImageBase = GetModuleBase(ModuleName);
 
 	uint8* GNamesAddress = nullptr;
 
