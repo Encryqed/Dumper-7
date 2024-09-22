@@ -292,7 +292,7 @@ inline bool IsInProcessRange(const uintptr_t Address)
 {
 	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
 
-	if (Address > ImageBase && Address < (ImageBase + ImageSize))
+	if (Address >= ImageBase && Address < (ImageBase + ImageSize))
 		return true;
 
 	return IsInAnyModules(Address);
@@ -964,8 +964,6 @@ inline MemAddress FindByStringInAllSections(const CharType* RefStr, uintptr_t St
 		SearchRange -= OffsetFromMemoryEnd;
 
 	const int32_t RefStrLen = StrlenHelper(RefStr);
-
-	const uintptr_t OtherStringRef = GetModuleBase() + 0x4AF5973;
 
 	for (uintptr_t i = 0; i < SearchRange; i++)
 	{
