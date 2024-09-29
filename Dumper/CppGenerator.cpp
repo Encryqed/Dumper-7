@@ -1373,6 +1373,17 @@ void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
 
 	PackageManager::IterateDependencies(ForEachElementCallback);
 
+	auto ForEachElementParamsCallback = [&SdkHpp](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
+	{
+		PackageInfoHandle CurrentPackage = PackageManager::GetInfo(NewParams.RequiredPackage);
+
+		const bool bHasParameterStructs = CurrentPackage.HasParameterStructs();
+
+		if (bHasParameterStructs)
+			SdkHpp << std::format("#include \"SDK/{}_parameters.hpp\"\n", CurrentPackage.GetName());
+	};
+
+	PackageManager::IterateDependencies(ForEachElementParamsCallback);
 
 	WriteFileEnd(SdkHpp, EFileType::SdkHpp);
 }
