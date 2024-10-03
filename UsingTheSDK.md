@@ -146,7 +146,7 @@ DWORD MainThread(HMODULE Module)
         if (!Obj)
             continue;
 
-        if (!Obj->IsDefaultObject())
+        if (Obj->IsDefaultObject())
             continue;
 
         /* Only the 'IsA' check using the cast flags is required, the other 'IsA' is redundant */
