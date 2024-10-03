@@ -2723,7 +2723,7 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceToInMeters(const FVector& Other)", .Body =
 R"({
-	return GetDistanceTo(Other) * 0.01;
+	return GetDistanceTo(Other) * static_cast<UnderlayingType>(0.01);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
@@ -2877,7 +2877,7 @@ class UClass;
 class UObject;
 class UFunction;
 
-struct FName;
+class FName;
 )";
 
 	BasicHpp << R"(
@@ -4341,7 +4341,7 @@ R"({
 			},
 		};
 
-		/* #ifdef WIHT_EDITORONLY_DATA */
+		/* #ifdef WITH_EDITORONLY_DATA */
 		const bool bIsWithEditorOnlyData = PropertySizes::FieldPathProperty > 0x20;
 
 		if (bIsWithEditorOnlyData)
@@ -4350,7 +4350,7 @@ R"({
 			(
 				PredefinedMember{
 					.Comment = "NOT AUTO-GENERATED PROPERTY",
-					.Type = "FFieldClass*", .Name = "InitialFieldClass", .Offset = 0x08, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+					.Type = "class FFieldClass*", .Name = "InitialFieldClass", .Offset = 0x08, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
 					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 				}
 			);

@@ -146,7 +146,7 @@ DWORD MainThread(HMODULE Module)
         if (!Obj)
             continue;
 
-        if (!Obj->IsDefaultObject())
+        if (Obj->IsDefaultObject())
             continue;
 
         /* Only the 'IsA' check using the cast flags is required, the other 'IsA' is redundant */
@@ -158,7 +158,7 @@ DWORD MainThread(HMODULE Module)
 
     /* You might need to loop all levels in UWorld::Levels */
     SDK::ULevel* Level = World->PersistentLevel;
-    SDK::TArray<SDK::AActor*>& volatile Actors = Level->Actors;
+    SDK::TArray<SDK::AActor*>& Actors = Level->Actors;
 
     for (SDK::AActor* Actor : Actors)
     {
