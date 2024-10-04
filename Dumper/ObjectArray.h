@@ -41,11 +41,8 @@ public:
 
 	static void Init(bool bScanAllMemory = false, const char* const ModuleName = nullptr);
 
-
 	static void Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& ObjectArrayLayout = FFixedUObjectArrayLayout(), const char* const ModuleName = nullptr);
 	static void Init(int32 GObjectsOffset, int32 ElementsPerChunk, const FChunkedFixedUObjectArrayLayout& ObjectArrayLayout = FChunkedFixedUObjectArrayLayout(), const char* const ModuleName = nullptr);
-
-	static void Init(int32 GObjectsOffset, int32 NumElementsPerChunk, bool bIsChunked);
 
 	static void DumpObjects(const fs::path& Path, bool bWithPathname = false);
 
