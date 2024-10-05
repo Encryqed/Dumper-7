@@ -415,6 +415,37 @@ void ObjectArray::DumpObjects(const fs::path& Path, bool bWithPathname)
 	DumpStream.close();
 }
 
+void ObjectArray::DumpObjectsWithProperties(const fs::path& Path, bool bWithPathname)
+{
+	std::ofstream DumpStream(Path / "GObjects-Dump-WithProperties.txt");
+
+	DumpStream << "Object dump by Dumper-7\n\n";
+	DumpStream << (!Settings::Generator::GameVersion.empty() && !Settings::Generator::GameName.empty() ? (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName) + "\n\n" : "");
+	DumpStream << "Count: " << Num() << "\n\n\n";
+
+	for (auto Object : ObjectArray())
+	{
+		if (!bWithPathname)
+		{
+			DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
+		}
+		else
+		{
+			DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetPathName());
+		}
+
+		if (Object.IsA(EClassCastFlags::Struct))
+		{
+			for (UEProperty Prop : Object.Cast<UEStruct>().GetProperties())
+			{
+				DumpStream << std::format("[{:08X}] {{{}}}\t{} {}\n", Prop.GetOffset(), Prop.GetAddress(), Prop.GetPropClassName(), Prop.GetName());
+			}
+		}
+	}
+
+	DumpStream.close();
+}
+
 
 int32 ObjectArray::Num()
 {

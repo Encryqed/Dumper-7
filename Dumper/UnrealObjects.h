@@ -268,6 +268,8 @@ public:
 
 	std::string GetCppType() const;
 
+	std::string GetPropClassName() const;
+
 	std::string StringifyFlags() const;
 
 public:

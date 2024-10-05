@@ -1090,6 +1090,11 @@ std::string UEProperty::GetCppType() const
 	}
 }
 
+std::string UEProperty::GetPropClassName() const
+{
+	return GetClass().first ? GetClass().first.GetName() : GetClass().second.GetName();
+}
+
 std::string UEProperty::StringifyFlags() const
 {
 	return StringifyPropertyFlags(GetPropertyFlags());
