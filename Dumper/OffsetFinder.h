@@ -342,8 +342,8 @@ namespace OffsetFinder
 	{
 		std::vector<std::pair<void*, int32_t>> Infos;
 
-		Infos.push_back({ ObjectArray::FindObjectFast("ENetRole").GetAddress(), 0x5 });
-		Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery").GetAddress(), 0x22 });
+		Infos.push_back({ ObjectArray::FindObjectFast("EAlphaBlendOption").GetAddress(), 16 });
+		Infos.push_back({ ObjectArray::FindObjectFast("EUpdateRateShiftBucket").GetAddress(), 8 });
 
 		int Ret = FindOffset(Infos) - 0x8;
 
