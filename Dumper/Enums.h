@@ -217,7 +217,7 @@ enum class EFieldClassID : uint64
 	Map						= 1llu << 46,
 	Set						= 1llu << 47,
 	Enum					= 1llu << 48,
-	MulticasTMulticastInlineDelegate = 1llu << 50,
+	MulticastInlineDelegate = 1llu << 50,
 	MulticastSparseDelegate = 1llu << 51,
 	ObjectPointer			= 1llu << 53
 };
