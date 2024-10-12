@@ -8,7 +8,7 @@ namespace Settings
 	namespace EngineCore
 	{
 		/* A special setting to fix UEnum::Names where the type is sometimes TArray<FName> and sometimes TArray<TPair<FName, Some8ByteData>> */
-		constexpr bool bCheckEnumNamesInUEnum = flase;
+		constexpr bool bCheckEnumNamesInUEnum = false;
 	}
 
 	namespace Generator
@@ -91,8 +91,11 @@ R"(
 	//* * * * * * * * * * * * * * * * * * * * *//
 	namespace Internal
 	{
-		// UEEnum::Names
-		inline bool bIsEnumNameOnly = false;
+		/* Whether UEnum::Names stores only the name of the enum value, or a Pair<Name, Value> */
+		inline bool bIsEnumNameOnly = false; // EDemoPlayFailure
+
+		/* Whether the 'Value' component in the Pair<Name, Value> UEnum::Names is a uint8 value, rather than the default int64 */
+		inline bool bIsSmallEnumValue = false;
 
 		/* Whether TWeakObjectPtr contains 'TagAtLastTest' */
 		inline bool bIsWeakObjectPtrWithoutTag = false;

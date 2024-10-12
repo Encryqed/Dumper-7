@@ -428,8 +428,9 @@ std::vector<std::pair<FName, int64>> UEEnum::GetNameValuePairs() const
 {
 	struct alignas(0x4) Name08Byte { uint8 Pad[0x08]; };
 	struct alignas(0x4) Name16Byte { uint8 Pad[0x10]; };
+	struct alignas(0x4) UInt8As64  { uint8 Bytes[0x8]; inline operator int64() const { return Bytes[0]; }; };
 
-	static auto GetNameValuePairsWithIndex = []<typename NameType>(const TArray<TPair<NameType, int64>>& EnumNameValuePairs)
+	static auto GetNameValuePairsWithIndex = []<typename NameType, typename ValueType>(const TArray<TPair<NameType, ValueType>>& EnumNameValuePairs)
 	{
 		std::vector<std::pair<FName, int64>> Ret;
 
@@ -453,28 +454,22 @@ std::vector<std::pair<FName, int64>> UEEnum::GetNameValuePairs() const
 		return Ret;
 	};
 
+
 	if constexpr (Settings::EngineCore::bCheckEnumNamesInUEnum)
 	{
-		struct Uint8As64BitValue
-		{
-			uint8 Bytes[0x8];
-
-			inline uint8 operator[](int Idx) const { return Bytes[Idx]; };
-		};
-
-		static auto SetIsNamesOnlyIfDevsTookCrack = []<typename NameType>(const TArray<TPair<NameType, Uint8As64BitValue>>& EnumNames)
+		static auto SetIsNamesOnlyIfDevsTookCrack = [&]<typename NameType>(const TArray<TPair<NameType, UInt8As64>>& EnumNames)
 		{
 			/* This is a hacky workaround for UEnum::Names which somtimes store the enum-value and sometimes don't. I've seem much of UE, but what drugs did some devs take???? */
-			Settings::Internal::bIsEnumNameOnly = EnumNames[0].Second[0] != 0 || EnumNames[1].Second[0] != 1;
+			Settings::Internal::bIsEnumNameOnly = EnumNames[0].Second != 0 || EnumNames[1].Second != 1;
 		};
 
 		if (Settings::Internal::bUseCasePreservingName)
 		{
-			SetIsNamesOnlyIfDevsTookCrack(*reinterpret_cast<TArray<TPair<Name16Byte, Uint8As64BitValue>>*>(Object + Off::UEnum::Names));
+			SetIsNamesOnlyIfDevsTookCrack(*reinterpret_cast<TArray<TPair<Name16Byte, UInt8As64>>*>(Object + Off::UEnum::Names));
 		}
 		else
 		{
-			SetIsNamesOnlyIfDevsTookCrack(*reinterpret_cast<TArray<TPair<Name08Byte, Uint8As64BitValue>>*>(Object + Off::UEnum::Names));
+			SetIsNamesOnlyIfDevsTookCrack(*reinterpret_cast<TArray<TPair<Name08Byte, UInt8As64>>*>(Object + Off::UEnum::Names));
 		}
 	}
 
@@ -487,6 +482,15 @@ std::vector<std::pair<FName, int64>> UEEnum::GetNameValuePairs() const
 	}
 	else
 	{
+		/* This only applies very very rarely on weir UE4.13 or UE4.14 games where the devs didn't know what they were doing. */
+		if (Settings::Internal::bIsSmallEnumValue)
+		{
+			if (Settings::Internal::bUseCasePreservingName)
+				return GetNameValuePairsWithIndex(*reinterpret_cast<TArray<TPair<Name16Byte, UInt8As64>>*>(Object + Off::UEnum::Names));
+
+			return GetNameValuePairsWithIndex(*reinterpret_cast<TArray<TPair<Name08Byte, UInt8As64>>*>(Object + Off::UEnum::Names));
+		}
+
 		if (Settings::Internal::bUseCasePreservingName)
 			return GetNameValuePairsWithIndex(*reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(Object + Off::UEnum::Names));
 		

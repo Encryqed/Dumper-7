@@ -361,17 +361,40 @@ namespace OffsetFinder
 
 		if (Settings::Internal::bUseCasePreservingName)
 		{
-			TArray<TPair<Name16Byte, int64>>& ArrayOfNameValuePairs = *reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(ArrayAddress);
+			auto& ArrayOfNameValuePairs = *reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(ArrayAddress);
 
-			if (ArrayOfNameValuePairs[1].Second != 1)
-				Settings::Internal::bIsEnumNameOnly = true;
+			if (ArrayOfNameValuePairs[1].Second == 1)
+				return Ret;
+
+			if constexpr (Settings::EngineCore::bCheckEnumNamesInUEnum)
+			{
+				if (static_cast<uint8_t>(ArrayOfNameValuePairs[1].Second) == 1 && static_cast<uint8_t>(ArrayOfNameValuePairs[2].Second) == 2)
+				{
+
+					Settings::Internal::bIsSmallEnumValue = true;
+					return Ret;
+				}
+			}
+
+			Settings::Internal::bIsEnumNameOnly = true;
 		}
 		else
 		{
 			const auto& Array = *reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret);
 
-			if (Array[1].Second != 1)
-				Settings::Internal::bIsEnumNameOnly = true;
+			if (Array[1].Second == 1)
+				return Ret;
+
+			if constexpr (Settings::EngineCore::bCheckEnumNamesInUEnum)
+			{
+				if (static_cast<uint8_t>(Array[1].Second) == 1 && static_cast<uint8_t>(Array[2].Second) == 2)
+				{
+					Settings::Internal::bIsSmallEnumValue = true;
+					return Ret;
+				}
+			}
+
+			Settings::Internal::bIsEnumNameOnly = true;
 		}
 
 		return Ret;
