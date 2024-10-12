@@ -429,54 +429,69 @@ std::vector<std::pair<FName, int64>> UEEnum::GetNameValuePairs() const
 	struct alignas(0x4) Name08Byte { uint8 Pad[0x08]; };
 	struct alignas(0x4) Name16Byte { uint8 Pad[0x10]; };
 
-	std::vector<std::pair<FName, int64>> Ret;
-
-	if (!Settings::Internal::bIsEnumNameOnly)
+	static auto GetNameValuePairsWithIndex = []<typename NameType>(const TArray<TPair<NameType, int64>>& EnumNameValuePairs)
 	{
+		std::vector<std::pair<FName, int64>> Ret;
+
+		for (int i = 0; i < EnumNameValuePairs.Num(); i++)
+		{
+			Ret.push_back({ FName(&EnumNameValuePairs[i].First), EnumNameValuePairs[i].Second });
+		}
+
+		return Ret;
+	};
+
+	static auto GetNameValuePairs = []<typename NameType>(const TArray<NameType>& EnumNameValuePairs)
+	{
+		std::vector<std::pair<FName, int64>> Ret;
+
+		for (int i = 0; i < EnumNameValuePairs.Num(); i++)
+		{
+			Ret.push_back({ FName(&EnumNameValuePairs[i]), i });
+		}
+
+		return Ret;
+	};
+
+	if constexpr (Settings::EngineCore::bCheckEnumNamesInUEnum)
+	{
+		struct Uint8As64BitValue
+		{
+			uint8 Bytes[0x8];
+
+			inline uint8 operator[](int Idx) const { return Bytes[Idx]; };
+		};
+
+		static auto SetIsNamesOnlyIfDevsTookCrack = []<typename NameType>(const TArray<TPair<NameType, Uint8As64BitValue>>& EnumNames)
+		{
+			/* This is a hacky workaround for UEnum::Names which somtimes store the enum-value and sometimes don't. I've seem much of UE, but what drugs did some devs take???? */
+			Settings::Internal::bIsEnumNameOnly = EnumNames[0].Second[0] != 0 || EnumNames[1].Second[0] != 1;
+		};
+
 		if (Settings::Internal::bUseCasePreservingName)
 		{
-			auto& Names = *reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(Object + Off::UEnum::Names);
-
-			for (int i = 0; i < Names.Num(); i++)
-			{
-				Ret.push_back({ FName(&Names[i].First), Names[i].Second });
-			}
+			SetIsNamesOnlyIfDevsTookCrack(*reinterpret_cast<TArray<TPair<Name16Byte, Uint8As64BitValue>>*>(Object + Off::UEnum::Names));
 		}
 		else
 		{
-			auto& Names = *reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(Object + Off::UEnum::Names);
-
-			for (int i = 0; i < Names.Num(); i++)
-			{
-				Ret.push_back({ FName(&Names[i].First), Names[i].Second });
-			}
+			SetIsNamesOnlyIfDevsTookCrack(*reinterpret_cast<TArray<TPair<Name08Byte, Uint8As64BitValue>>*>(Object + Off::UEnum::Names));
 		}
+	}
+
+	if (Settings::Internal::bIsEnumNameOnly)
+	{
+		if (Settings::Internal::bUseCasePreservingName)
+			return GetNameValuePairs(*reinterpret_cast<TArray<Name16Byte>*>(Object + Off::UEnum::Names));
+		
+		return GetNameValuePairs(*reinterpret_cast<TArray<Name08Byte>*>(Object + Off::UEnum::Names));
 	}
 	else
 	{
-		auto& NameOnly = *reinterpret_cast<TArray<FName>*>(Object + Off::UEnum::Names);
-
 		if (Settings::Internal::bUseCasePreservingName)
-		{
-			auto& Names = *reinterpret_cast<TArray<Name16Byte>*>(Object + Off::UEnum::Names);
-
-			for (int i = 0; i < Names.Num(); i++)
-			{
-				Ret.push_back({ FName(&Names[i]), i });
-			}
-		}
-		else
-		{
-			auto& Names = *reinterpret_cast<TArray<Name08Byte>*>(Object + Off::UEnum::Names);
-
-			for (int i = 0; i < Names.Num(); i++)
-			{
-				Ret.push_back({ FName(&Names[i]), i });
-			}
-		}
+			return GetNameValuePairsWithIndex(*reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(Object + Off::UEnum::Names));
+		
+		return GetNameValuePairsWithIndex(*reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(Object + Off::UEnum::Names));
 	}
-
-	return Ret;
 }
 
 std::string UEEnum::GetSingleName(int32 Index) const

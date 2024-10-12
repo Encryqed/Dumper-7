@@ -3490,7 +3490,7 @@ R"({
 		};
 
 
-		if (Settings::Internal::bUseUoutlineNumberName)
+		if (Settings::Internal::bUseOutlineNumberName)
 		{
 			FStringData.Properties.push_back(
 				PredefinedMember{
@@ -3713,7 +3713,7 @@ R"({
 		});
 	}
 
-	if (!Settings::Internal::bUseUoutlineNumberName)
+	if (!Settings::Internal::bUseOutlineNumberName)
 	{
 		FName.Properties.push_back(PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
@@ -3786,7 +3786,7 @@ R"({
 }
 )";
 
-	std::string GetRawStringBody = Off::InSDK::Name::AppendNameToString == 0 ? Settings::Internal::bUseUoutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString;
+	std::string GetRawStringBody = Off::InSDK::Name::AppendNameToString == 0 ? Settings::Internal::bUseOutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString;
 
 	FName.Functions =
 	{
@@ -3832,7 +3832,7 @@ std::format(R"({{
 			.ReturnType = "bool", .NameWithParams = "operator==(const FName& Other)", .Body =
 std::format(R"({{
 	return ComparisonIndex == Other.ComparisonIndex{};
-}})", !Settings::Internal::bUseUoutlineNumberName ? " && Number == Other.Number" : ""),
+}})", !Settings::Internal::bUseOutlineNumberName ? " && Number == Other.Number" : ""),
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 		PredefinedFunction {
@@ -3840,7 +3840,7 @@ std::format(R"({{
 			.ReturnType = "bool", .NameWithParams = "operator!=(const FName& Other)", .Body =
 std::format(R"({{
 	return ComparisonIndex != Other.ComparisonIndex{};
-}})", !Settings::Internal::bUseUoutlineNumberName ? " || Number != Other.Number" : ""),
+}})", !Settings::Internal::bUseOutlineNumberName ? " || Number != Other.Number" : ""),
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 	};

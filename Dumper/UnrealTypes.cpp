@@ -85,7 +85,7 @@ void FName::Init(bool bForceGNames)
 		{
 			ToStr = [](const void* Name) -> std::string
 			{
-				if (!Settings::Internal::bUseUoutlineNumberName)
+				if (!Settings::Internal::bUseOutlineNumberName)
 				{
 					const uint32 Number = FName(Name).GetNumber();
 
@@ -134,7 +134,7 @@ void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bI
 		{
 			ToStr = [](const void* Name) -> std::string
 			{
-				if (!Settings::Internal::bUseUoutlineNumberName)
+				if (!Settings::Internal::bUseOutlineNumberName)
 				{
 					const uint32 Number = FName(Name).GetNumber();
 
@@ -228,7 +228,7 @@ int32 FName::GetCompIdx() const
 
 uint32 FName::GetNumber() const
 {
-	if (Settings::Internal::bUseUoutlineNumberName)
+	if (Settings::Internal::bUseOutlineNumberName)
 		return 0x0;
 
 	if (Settings::Internal::bUseNamePool)

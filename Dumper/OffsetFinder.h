@@ -213,7 +213,7 @@ namespace OffsetFinder
 		if (FNameSize == 0x8 && FNameFirstInt == FNameSecondInt) /* WITH_CASE_PRESERVING_NAME + FNAME_OUTLINE_NUMBER */
 		{
 			Settings::Internal::bUseCasePreservingName = true;
-			Settings::Internal::bUseUoutlineNumberName = true;
+			Settings::Internal::bUseOutlineNumberName = true;
 
 			Off::FName::Number = -0x1;
 			Off::InSDK::Name::FNameSize = 0x8;
@@ -228,7 +228,7 @@ namespace OffsetFinder
 		}
 		else if (GetNumNamesWithNumberOneToFour() < FNameNumberThreashold) /* FNAME_OUTLINE_NUMBER */
 		{
-			Settings::Internal::bUseUoutlineNumberName = true;
+			Settings::Internal::bUseOutlineNumberName = true;
 
 			Off::FName::Number = -0x1;
 
@@ -263,14 +263,14 @@ namespace OffsetFinder
 		if (FNameSize == 0x8 && FNameFirstInt == FNameSecondInt) /* WITH_CASE_PRESERVING_NAME + FNAME_OUTLINE_NUMBER */
 		{
 			Settings::Internal::bUseCasePreservingName = true;
-			Settings::Internal::bUseUoutlineNumberName = true;
+			Settings::Internal::bUseOutlineNumberName = true;
 
 			Off::FName::Number = -0x1;
 			Off::InSDK::Name::FNameSize = 0x8;
 		}
 		else if (FNameSize > 0x8) /* WITH_CASE_PRESERVING_NAME */
 		{
-			Settings::Internal::bUseUoutlineNumberName = false;
+			Settings::Internal::bUseOutlineNumberName = false;
 			Settings::Internal::bUseCasePreservingName = true;
 
 			Off::FName::Number = FNameFirstInt == FNameSecondInt ? 0x8 : 0x4;
@@ -279,7 +279,7 @@ namespace OffsetFinder
 		}
 		else if (FNameSize == 0x4) /* FNAME_OUTLINE_NUMBER */
 		{
-			Settings::Internal::bUseUoutlineNumberName = true;
+			Settings::Internal::bUseOutlineNumberName = true;
 			Settings::Internal::bUseCasePreservingName = false;
 
 			Off::FName::Number = -0x1;
@@ -288,7 +288,7 @@ namespace OffsetFinder
 		}
 		else /* Default */
 		{
-			Settings::Internal::bUseUoutlineNumberName = false;
+			Settings::Internal::bUseOutlineNumberName = false;
 			Settings::Internal::bUseCasePreservingName = false;
 
 			Off::FName::Number = 0x4;
@@ -346,6 +346,13 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery").GetAddress(), 0x22 });
 
 		int Ret = FindOffset(Infos) - 0x8;
+		if (Ret == (OffsetNotFound - 0x8))
+		{
+			Infos[0] = { ObjectArray::FindObjectFast("EAlphaBlendOption").GetAddress(), 0x10 };
+			Infos[1] = { ObjectArray::FindObjectFast("EUpdateRateShiftBucket").GetAddress(), 0x8 };
+		
+			Ret = FindOffset(Infos) - 0x8;
+		}
 
 		struct Name08Byte { uint8 Pad[0x08]; };
 		struct Name16Byte { uint8 Pad[0x10]; };
@@ -361,7 +368,9 @@ namespace OffsetFinder
 		}
 		else
 		{
-			if (reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret)->operator[](1).Second != 1)
+			const auto& Array = *reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(static_cast<uint8*>(Infos[0].first) + Ret);
+
+			if (Array[1].Second != 1)
 				Settings::Internal::bIsEnumNameOnly = true;
 		}
 

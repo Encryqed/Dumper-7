@@ -80,6 +80,9 @@ void EnumManager::InitInternal()
 {
 	for (auto Obj : ObjectArray())
 	{
+		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
+			continue;
+
 		if (Obj.IsA(EClassCastFlags::Struct))
 		{
 			UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
