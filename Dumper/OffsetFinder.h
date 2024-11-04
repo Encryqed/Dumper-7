@@ -357,9 +357,10 @@ namespace OffsetFinder
 			* if FFieldVariant doesn't contain a bool, the memory at the bools offset will be the next member of FField, the Next ptr [valid]
 			*/
 
-			void* PossibleNextPtrOrBool0 = *(void**)((uint8*)ObjectArray::FindClassFast("Actor").GetChildProperties().GetAddress() + 0x18);
-			void* PossibleNextPtrOrBool1 = *(void**)((uint8*)ObjectArray::FindClassFast("ActorComponent").GetChildProperties().GetAddress() + 0x18);
-			void* PossibleNextPtrOrBool2 = *(void**)((uint8*)ObjectArray::FindClassFast("Pawn").GetChildProperties().GetAddress() + 0x18);
+			const int32 OffsetToCheck = Off::FField::Owner + 0x8;
+			void* PossibleNextPtrOrBool0 = *(void**)((uint8*)ObjectArray::FindClassFast("Actor").GetChildProperties().GetAddress() + OffsetToCheck);
+			void* PossibleNextPtrOrBool1 = *(void**)((uint8*)ObjectArray::FindClassFast("ActorComponent").GetChildProperties().GetAddress() + OffsetToCheck);
+			void* PossibleNextPtrOrBool2 = *(void**)((uint8*)ObjectArray::FindClassFast("Pawn").GetChildProperties().GetAddress() + OffsetToCheck);
 
 			auto IsValidPtr = [](void* a) -> bool
 			{
@@ -550,7 +551,7 @@ namespace OffsetFinder
 			VectorChildName = VectorChild.GetName();
 
 			if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
-				return Off::FField::Name;
+return Off::FField::Name;
 		}
 
 		return OffsetNotFound;
@@ -569,7 +570,7 @@ namespace OffsetFinder
 		{
 			Infos[0] = { ObjectArray::FindObjectFast("EAlphaBlendOption").GetAddress(), 0x10 };
 			Infos[1] = { ObjectArray::FindObjectFast("EUpdateRateShiftBucket").GetAddress(), 0x8 };
-		
+
 			Ret = FindOffset(Infos) - 0x8;
 		}
 
@@ -640,6 +641,48 @@ namespace OffsetFinder
 
 		Infos.push_back({ ObjectArray::FindObjectFast("PlayerController").GetAddress(), ObjectArray::FindObjectFastInOuter("WasInputKeyJustReleased", "PlayerController").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("Controller").GetAddress(), ObjectArray::FindObjectFastInOuter("UnPossess", "Controller").GetAddress() });
+
+		auto PrintThingAtOffset = [](void* Object, int Offset)
+		{
+			if (!Object)
+			{
+				std::cout << std::format("Obj[0x{:02X}] -> NULL!", Offset) << std::endl;
+				return;
+			}
+
+			void* SomeObject = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(Object) + Offset);
+
+			if ((uintptr_t(UEFField(SomeObject).GetClass().GetAddress()) & 0x140000000) == 0x140000000)
+			{
+				std::cout << std::format("Obj[0x{:02X}] -> FField: {}", Offset, UEFField(SomeObject).GetName()) << std::endl;
+			}
+			else if (UEObject(SomeObject).GetIndex() < ObjectArray::Num())
+			{
+				std::cout << std::format("Obj[0x{:02X}] -> UObject: {}", Offset, UEObject(SomeObject).GetName()) << std::endl;
+			}
+			else
+			{
+				std::cout << std::format("Obj[0x{:02X}] -> Neither FField nor UObject!", Offset) << std::endl;
+			}
+		};
+
+		printf("PlayerController:\n");
+		PrintThingAtOffset(Infos[0].first, 0x40);
+		PrintThingAtOffset(Infos[0].first, 0x58);
+		PrintThingAtOffset(Infos[0].first, 0x60);
+		PrintThingAtOffset(Infos[0].first, 0x68);
+		PrintThingAtOffset(Infos[0].first, 0x98);
+		PrintThingAtOffset(Infos[0].first, 0xA8);
+		PrintThingAtOffset(Infos[0].first, 0xB8);
+
+		printf("Controller:\n");
+		PrintThingAtOffset(Infos[1].first, 0x40);
+		PrintThingAtOffset(Infos[1].first, 0x58);
+		PrintThingAtOffset(Infos[1].first, 0x60);
+		PrintThingAtOffset(Infos[1].first, 0x68);
+		PrintThingAtOffset(Infos[1].first, 0x98);
+		PrintThingAtOffset(Infos[1].first, 0xA8);
+		PrintThingAtOffset(Infos[1].first, 0xB8);
 
 		if (FindOffset(Infos) == OffsetNotFound)
 		{
