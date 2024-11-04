@@ -551,7 +551,7 @@ namespace OffsetFinder
 			VectorChildName = VectorChild.GetName();
 
 			if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
-return Off::FField::Name;
+				return Off::FField::Name;
 		}
 
 		return OffsetNotFound;
@@ -642,48 +642,6 @@ return Off::FField::Name;
 		Infos.push_back({ ObjectArray::FindObjectFast("PlayerController").GetAddress(), ObjectArray::FindObjectFastInOuter("WasInputKeyJustReleased", "PlayerController").GetAddress() });
 		Infos.push_back({ ObjectArray::FindObjectFast("Controller").GetAddress(), ObjectArray::FindObjectFastInOuter("UnPossess", "Controller").GetAddress() });
 
-		auto PrintThingAtOffset = [](void* Object, int Offset)
-		{
-			if (!Object)
-			{
-				std::cout << std::format("Obj[0x{:02X}] -> NULL!", Offset) << std::endl;
-				return;
-			}
-
-			void* SomeObject = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(Object) + Offset);
-
-			if ((uintptr_t(UEFField(SomeObject).GetClass().GetAddress()) & 0x140000000) == 0x140000000)
-			{
-				std::cout << std::format("Obj[0x{:02X}] -> FField: {}", Offset, UEFField(SomeObject).GetName()) << std::endl;
-			}
-			else if (UEObject(SomeObject).GetIndex() < ObjectArray::Num())
-			{
-				std::cout << std::format("Obj[0x{:02X}] -> UObject: {}", Offset, UEObject(SomeObject).GetName()) << std::endl;
-			}
-			else
-			{
-				std::cout << std::format("Obj[0x{:02X}] -> Neither FField nor UObject!", Offset) << std::endl;
-			}
-		};
-
-		printf("PlayerController:\n");
-		PrintThingAtOffset(Infos[0].first, 0x40);
-		PrintThingAtOffset(Infos[0].first, 0x58);
-		PrintThingAtOffset(Infos[0].first, 0x60);
-		PrintThingAtOffset(Infos[0].first, 0x68);
-		PrintThingAtOffset(Infos[0].first, 0x98);
-		PrintThingAtOffset(Infos[0].first, 0xA8);
-		PrintThingAtOffset(Infos[0].first, 0xB8);
-
-		printf("Controller:\n");
-		PrintThingAtOffset(Infos[1].first, 0x40);
-		PrintThingAtOffset(Infos[1].first, 0x58);
-		PrintThingAtOffset(Infos[1].first, 0x60);
-		PrintThingAtOffset(Infos[1].first, 0x68);
-		PrintThingAtOffset(Infos[1].first, 0x98);
-		PrintThingAtOffset(Infos[1].first, 0xA8);
-		PrintThingAtOffset(Infos[1].first, 0xB8);
-
 		if (FindOffset(Infos) == OffsetNotFound)
 		{
 			Infos.clear();
@@ -764,38 +722,6 @@ return Off::FField::Name;
 		}
 
 		return 0x0;
-	}
-
-	inline int32_t FindNumParamsOffset()
-	{
-		std::vector<std::pair<void*, uint8_t>> Infos;
-
-		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), 0x1 });
-		Infos.push_back({ ObjectArray::FindObjectFast("SetViewTargetWithBlend").GetAddress(), 0x5 });
-		Infos.push_back({ ObjectArray::FindObjectFast("SetHapticsByValue").GetAddress(), 0x3 });
-		Infos.push_back({ ObjectArray::FindObjectFast("SphereTraceSingleForObjects").GetAddress(), 0xE });
-
-		return FindOffset<1>(Infos);
-	}
-
-	inline int32_t FindParamSizeOffset()
-	{
-		std::vector<std::pair<void*, uint16_t>> Infos;
-
-		// TODO (encryqed) : Fix it anyways somehow, for some reason its one byte off? Idk why i just add a byte manually
-		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), 0x10 });
-		Infos.push_back({ ObjectArray::FindObjectFast("SetViewTargetWithBlend").GetAddress(), 0x15 });
-		Infos.push_back({ ObjectArray::FindObjectFast("SetHapticsByValue").GetAddress(), 0x9 });
-		Infos.push_back({ ObjectArray::FindObjectFast("SphereTraceSingleForObjects").GetAddress(), 0x109 });
-
-		int ParamSizeOffset = FindOffset<1>(Infos);
-
-		if (Settings::Internal::bUseFProperty)
-		{
-			return ParamSizeOffset + 0x1;
-		}
-
-		return ParamSizeOffset;
 	}
 
 	/* UClass */
