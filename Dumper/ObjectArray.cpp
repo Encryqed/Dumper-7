@@ -323,7 +323,6 @@ void ObjectArray::Init(bool bScanAllMemory)
 	if (!bScanAllMemory)
 	{
 		ObjectArray::Init(true);
-		return;
 	}
 
 	if (!bScanAllMemory)
