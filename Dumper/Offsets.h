@@ -18,6 +18,15 @@ namespace Off
 			void InitPE(int32 Index);
 		}
 
+		namespace PostRender
+		{
+			inline int32 PRIndex;
+			inline int32 PROffset;
+
+			void InitPR();
+			void InitPR(int32 Index);
+		}
+
 		namespace World
 		{
 			inline int32 GWorld = 0x0;

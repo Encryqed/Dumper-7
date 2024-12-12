@@ -451,6 +451,8 @@ void DumpspaceGenerator::GeneratedStaticOffsets()
 	DSGen::addOffset("OFFSET_GWORLD", Off::InSDK::World::GWorld);
 	DSGen::addOffset("OFFSET_PROCESSEVENT", Off::InSDK::ProcessEvent::PEOffset);
 	DSGen::addOffset("INDEX_PROCESSEVENT", Off::InSDK::ProcessEvent::PEIndex);
+	DSGen::addOffset("OFFSET_POSTRENDER", Off::InSDK::PostRender::PROffset);
+	DSGen::addOffset("INDEX_POSTRENDER", Off::InSDK::PostRender::PRIndex);
 }
 
 void DumpspaceGenerator::Generate()

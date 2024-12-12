@@ -68,6 +68,50 @@ void Off::InSDK::ProcessEvent::InitPE(int32 Index)
 	std::cout << std::format("VFT-Offset: 0x{:X}\n", uintptr_t(VFT) - Imagebase);
 }
 
+void Off::InSDK::PostRender::InitPR()
+{
+	void** Vft = *(void***)ObjectArray::FindClassFast("GameViewportClient").GetDefaultObject().GetAddress();
+
+	auto IsPostRender = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
+		{
+			return FindPatternInRange({ 0x48, 0x8B, 0x01, 0x48, 0xFF, 0xA0 }, FuncAddress, 10) &&
+				*(uint32_t*)(FuncAddress + 6) == (Index + 1) * 8;
+		};
+
+	const void* PostRenderAddr = nullptr;
+	int32_t PostRenderIdx = 0;
+
+	auto [FuncPtr, FuncIdx] = IterateVTableFunctions(Vft, IsPostRender);
+
+	PostRenderAddr = FuncPtr;
+	PostRenderIdx = FuncIdx;
+
+	if (FuncPtr)
+	{
+		Off::InSDK::PostRender::PRIndex = PostRenderIdx;
+		Off::InSDK::PostRender::PROffset = GetOffset(PostRenderAddr);
+
+		std::cout << std::format("PR-Offset: 0x{:X}\n", Off::InSDK::PostRender::PROffset);
+		std::cout << std::format("PR-Index: 0x{:X}\n\n", PostRenderIdx);
+		return;
+	}
+
+	std::cout << "\nCouldn't find PostRender!\n\n" << std::endl;
+}
+
+void Off::InSDK::PostRender::InitPR(int32 Index)
+{
+	Off::InSDK::PostRender::PRIndex = Index;
+
+	void** VFT = *(void***)ObjectArray::FindClassFast("GameViewportClient").GetDefaultObject().GetAddress();
+
+	uintptr_t Imagebase = GetImageBase();
+
+	Off::InSDK::PostRender::PROffset = uintptr_t(VFT[Off::InSDK::PostRender::PRIndex]) - Imagebase;
+
+	std::cout << std::format("VFT-Offset: 0x{:X}\n", uintptr_t(VFT) - Imagebase);
+}
+
 /* UWorld */
 void Off::InSDK::World::InitGWorld()
 {

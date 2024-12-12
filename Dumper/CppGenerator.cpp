@@ -2780,8 +2780,10 @@ namespace Offsets
 	constexpr int32 GWorld            = 0x{:08X};
 	constexpr int32 ProcessEvent      = 0x{:08X};
 	constexpr int32 ProcessEventIdx   = 0x{:08X};
+	constexpr int32 PostRender		  = 0x{:08X};
+	constexpr int32 PostRenderIdx     = 0x{:08X};
 }}
-)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::World::GWorld, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex);
+)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::World::GWorld, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex, Off::InSDK::PostRender::PROffset, Off::InSDK::PostRender::PRIndex);
 
 
 
