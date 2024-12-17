@@ -196,7 +196,10 @@ void Off::Init()
 	auto OverwriteIfInvalidOffset = [](int32& Offset, int32 DefaultValue)
 	{
 		if (Offset == OffsetFinder::OffsetNotFound)
+		{
+			std::cout << std::format("Defaulting to offset: 0x{:X}\n", DefaultValue);
 			Offset = DefaultValue;
+		}
 	};
 
 	Off::UObject::Flags = OffsetFinder::FindUObjectFlagsOffset();
@@ -216,7 +219,7 @@ void Off::Init()
 
 	Off::UObject::Name = OffsetFinder::FindUObjectNameOffset();
 	OverwriteIfInvalidOffset(Off::UObject::Name, (Off::UObject::Class + sizeof(void*))); // Default to right after Class
-	std::cout << std::format("Off::UObject::Name: 0x{:X}\n", Off::UObject::Name);
+	std::cout << std::format("Off::UObject::Name: 0x{:X}\n\n", Off::UObject::Name);
 
 	OverwriteIfInvalidOffset(Off::UObject::Outer, (Off::UObject::Name + sizeof(int32) + sizeof(int32)));  // Default to right after Name
 

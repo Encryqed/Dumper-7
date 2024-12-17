@@ -212,7 +212,6 @@ namespace OffsetFinder
 				Info.NumNamesWithLowCmpIdx += (ValueAtOffset <= LowComparisonIndexUpperCap);
 			}
 		}
-		std::cout << "\n\n";
 
 		int32 FirstValidOffset = -1;
 		for (int i = 0x0; i < ArrayLength; i++)
@@ -231,7 +230,7 @@ namespace OffsetFinder
 				}
 
 				/* This shouldn't be the case, so log it as an info but continue, as the first offset is still likely the right one. */
-				std::cout << std::format("Dumper-7: Another UObject::Name offset (0x{:04X}) is also considered valid", Info.Offset);
+				std::cout << std::format("Dumper-7: Another UObject::Name offset (0x{:04X}) is also considered valid\n", Info.Offset);
 			}
 		}
 
