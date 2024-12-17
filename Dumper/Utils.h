@@ -285,6 +285,14 @@ inline bool IsInAnyModules(const uintptr_t Address)
 	return false;
 }
 
+// The processor (x86-64) only translates 52bits (or 57 bits) of a virtual address into a physical address and the unused bits need to be all 0 or all 1.
+inline bool IsValidVirtualAddress(const uintptr_t Address)
+{
+	constexpr uint64_t BitMask = 0b1111'1111ull << 56;
+
+	return (Address & BitMask) == BitMask || (Address & BitMask) == 0x0;
+}
+
 inline bool IsInProcessRange(const uintptr_t Address)
 {
 	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
@@ -299,18 +307,19 @@ inline bool IsInProcessRange(const void* Address)
 {
 	return IsInProcessRange(reinterpret_cast<const uintptr_t>(Address));
 }
-inline bool IsBadReadPtr(const void* p)
+inline bool IsBadReadPtr(const void* Ptr)
 {
-	MEMORY_BASIC_INFORMATION mbi;
+	if(!IsValidVirtualAddress(reinterpret_cast<const uintptr_t>(Ptr)))
+		return true;
 
-	if (VirtualQuery(p, &mbi, sizeof(mbi)))
+	MEMORY_BASIC_INFORMATION Mbi;
+
+	if (VirtualQuery(Ptr, &Mbi, sizeof(Mbi)))
 	{
-		constexpr DWORD mask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
-		bool b = !(mbi.Protect & mask);
-		if (mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS))
-			b = true;
+		constexpr DWORD AccessibleMask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
+		constexpr DWORD InaccessibleMask = (PAGE_GUARD | PAGE_NOACCESS);
 
-		return b;
+		return !(Mbi.Protect & AccessibleMask) || (Mbi.Protect & InaccessibleMask);
 	}
 
 	return true;

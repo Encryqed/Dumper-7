@@ -40,6 +40,14 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 		.MaxChunksOffset = 0x08,
 		.NumChunksOffset = 0x0C,
 	},
+	FChunkedFixedUObjectArrayLayout // DeltaForce
+	{
+		.ObjectsOffset = 0x20,
+		.MaxElementsOffset = 0x10,
+		.NumElementsOffset = 0x4,
+		.MaxChunksOffset = 0x0,
+		.NumChunksOffset = 0x14,
+	},
 	FChunkedFixedUObjectArrayLayout // Mutliversus
 	{
 		.ObjectsOffset = 0x18,
