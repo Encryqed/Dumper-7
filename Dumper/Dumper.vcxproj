@@ -202,6 +202,7 @@
     <ClInclude Include="NameArray.h" />
     <ClInclude Include="CollisionManagerTest.h" />
     <ClInclude Include="UnicodeNames.h" />
+    <ClInclude Include="UnrealContainers.h" />
     <ClInclude Include="UnrealObjects.h" />
     <ClInclude Include="UnrealTypes.h" />
     <ClInclude Include="UtfN.hpp" />

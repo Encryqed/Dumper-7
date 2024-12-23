@@ -243,5 +243,8 @@
     <ClInclude Include="UtfN.hpp">
       <Filter>Utils\Encoding</Filter>
     </ClInclude>
+    <ClInclude Include="UnrealContainers.h">
+      <Filter>Engine\Public</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

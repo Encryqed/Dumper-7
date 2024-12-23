@@ -38,13 +38,16 @@ std::string MakeNameValid(std::string&& Name)
 		Name[0] = 'm';
 	}
 
-	for (int i = 1; i < Name.length(); i++)
+	std::u32string Utf32Name = UtfN::Utf8StringToUtf32String<std::u32string>(Name);
+
+
+	for (auto It = UtfN::utf32_iterator<std::u32string::iterator>(Utf32Name); It; ++It)
 	{
-		if (!IsUnicodeCharXIDContinue(Name[i]))
-			Name[i] = '_';
+		if (!IsUnicodeCharXIDContinue((*It).Get()))
+			It.Replace('_');
 	}
 
-	return Name;
+	return  UtfN::Utf32StringToUtf8String<std::string>(Utf32Name);;
 }
 
 
