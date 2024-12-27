@@ -152,13 +152,14 @@ namespace PackageManagerUtils
 			GetPropertyDependency(Prop.Cast<UEMapProperty>().GetKeyProperty(), Store);
 			GetPropertyDependency(Prop.Cast<UEMapProperty>().GetValueProperty(), Store);
 		}
-		else if (Prop.IsA(EClassCastFlags::OptionalProperty))
+		else if (Prop.IsA(EClassCastFlags::OptionalProperty) && !Prop.IsA(EClassCastFlags::ObjectPropertyBase))
 		{
 			GetPropertyDependency(Prop.Cast<UEOptionalProperty>().GetValueProperty(), Store);
 		}
-		else if (Prop.IsA(EClassCastFlags::DelegateProperty))
+		else if (Prop.IsA(EClassCastFlags::DelegateProperty) || Prop.IsA(EClassCastFlags::MulticasTMulticastInlineDelegateProperty))
 		{
-			UEFunction SignatureFunction = Prop.Cast<UEDelegateProperty>().GetSignatureFunction();
+			const bool bIsNormalDeleage = !Prop.IsA(EClassCastFlags::MulticasTMulticastInlineDelegateProperty);
+			UEFunction SignatureFunction = bIsNormalDeleage ? Prop.Cast<UEDelegateProperty>().GetSignatureFunction() : Prop.Cast<UEMulticastInlineDelegateProperty>().GetSignatureFunction();
 
 			if (!SignatureFunction)
 				return;

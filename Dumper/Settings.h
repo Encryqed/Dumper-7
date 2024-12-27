@@ -5,6 +5,12 @@
 
 namespace Settings
 {
+	namespace EngineCore
+	{
+		/* A special setting to fix UEnum::Names where the type is sometimes TArray<FName> and sometimes TArray<TPair<FName, Some8ByteData>> */
+		constexpr bool bCheckEnumNamesInUEnum = false;
+	}
+
 	namespace Generator
 	{
 		//Auto generated if no override is provided
@@ -58,7 +64,7 @@ R"(
 		constexpr bool bShouldCheckForDuplicatedNames = true;
 
 		/* Whether EditorOnly should be excluded from the mapping file. */
-		constexpr bool bExcludeEditorOnlyProperties = false;
+		constexpr bool bExcludeEditorOnlyProperties = true;
 
 		/* Which compression method to use when generating the file. */
 		constexpr EUsmapCompressionMethod CompressionMethod = EUsmapCompressionMethod::ZStandard;
@@ -85,8 +91,11 @@ R"(
 	//* * * * * * * * * * * * * * * * * * * * *//
 	namespace Internal
 	{
-		// UEEnum::Names
-		inline bool bIsEnumNameOnly = false;
+		/* Whether UEnum::Names stores only the name of the enum value, or a Pair<Name, Value> */
+		inline bool bIsEnumNameOnly = false; // EDemoPlayFailure
+
+		/* Whether the 'Value' component in the Pair<Name, Value> UEnum::Names is a uint8 value, rather than the default int64 */
+		inline bool bIsSmallEnumValue = false;
 
 		/* Whether TWeakObjectPtr contains 'TagAtLastTest' */
 		inline bool bIsWeakObjectPtrWithoutTag = false;
@@ -104,7 +113,7 @@ R"(
 		inline bool bUseCasePreservingName = false;
 
 		/* Whether this games uses FNameOutlineNumber, moving the 'Number' component from FName into FNameEntry inside of FNamePool */
-		inline bool bUseUoutlineNumberName = false;
+		inline bool bUseOutlineNumberName = false;
 
 
 		/* Whether this games' engine version uses a contexpr flag to determine whether a FFieldVariant holds a UObject* or FField* */

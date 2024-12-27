@@ -268,6 +268,8 @@ public:
 
 	std::string GetCppType() const;
 
+	std::string GetPropClassName() const;
+
 	std::string StringifyFlags() const;
 
 public:
@@ -387,6 +389,16 @@ public:
 };
 
 class UEDelegateProperty : public UEProperty
+{
+	using UEProperty::UEProperty;
+
+public:
+	UEFunction GetSignatureFunction() const;
+
+	std::string GetCppType() const;
+};
+
+class UEMulticastInlineDelegateProperty : public UEProperty
 {
 	using UEProperty::UEProperty;
 

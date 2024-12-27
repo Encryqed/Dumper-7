@@ -80,6 +80,9 @@ void EnumManager::InitInternal()
 {
 	for (auto Obj : ObjectArray())
 	{
+		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
+			continue;
+
 		if (Obj.IsA(EClassCastFlags::Struct))
 		{
 			UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
@@ -144,12 +147,12 @@ void EnumManager::InitInternal()
 			{
 				auto& [Name, Value] = NameValuePairs[i];
 
-				std::string NameWitPrefix = Name.ToString();
+				std::wstring NameWitPrefix = Name.ToWString();
 
-				if (!NameWitPrefix.ends_with("_MAX"))
+				if (!NameWitPrefix.ends_with(L"_MAX"))
 					EnumMaxValue = max(EnumMaxValue, Value);
 
-				auto [NameIndex, bWasInserted] = UniqueEnumValueNames.FindOrAdd(MakeNameValid(NameWitPrefix.substr(NameWitPrefix.find_last_of("::") + 1)));
+				auto [NameIndex, bWasInserted] = UniqueEnumValueNames.FindOrAdd(MakeNameValid(NameWitPrefix.substr(NameWitPrefix.find_last_of(L"::") + 1)));
 
 				EnumCollisionInfo CurrentEnumValueInfo;
 				CurrentEnumValueInfo.MemberName = NameIndex;
@@ -203,6 +206,7 @@ void EnumManager::InitIllegalNames()
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("OUT").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("TRUE").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("FALSE").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("DELETE").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("PF_MAX").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("SW_MAX").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("MM_MAX").first);

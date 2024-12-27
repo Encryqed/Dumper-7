@@ -325,13 +325,13 @@ std::string UEObject::GetFullName(int32& OutNameLength) const
 
 		for (UEObject Outer = GetOuter(); Outer; Outer = Outer.GetOuter())
 		{
-			Temp = Outer.GetName() + "." + Temp;
+			Temp = Outer.GetName() + '.' + Temp;
 		}
 
 		std::string Name = GetName();
 		OutNameLength = Name.size() + 1;
 
-		Name = GetClass().GetName() + " " + Temp + Name;
+		Name = GetClass().GetName() + ' ' + Temp + Name;
 
 		return Name;
 	}
@@ -428,55 +428,74 @@ std::vector<std::pair<FName, int64>> UEEnum::GetNameValuePairs() const
 {
 	struct alignas(0x4) Name08Byte { uint8 Pad[0x08]; };
 	struct alignas(0x4) Name16Byte { uint8 Pad[0x10]; };
+	struct alignas(0x4) UInt8As64  { uint8 Bytes[0x8]; inline operator int64() const { return Bytes[0]; }; };
 
-	std::vector<std::pair<FName, int64>> Ret;
-
-	if (!Settings::Internal::bIsEnumNameOnly)
+	static auto GetNameValuePairsWithIndex = []<typename NameType, typename ValueType>(const TArray<TPair<NameType, ValueType>>& EnumNameValuePairs)
 	{
+		std::vector<std::pair<FName, int64>> Ret;
+
+		for (int i = 0; i < EnumNameValuePairs.Num(); i++)
+		{
+			Ret.push_back({ FName(&EnumNameValuePairs[i].First), EnumNameValuePairs[i].Second });
+		}
+
+		return Ret;
+	};
+
+	static auto GetNameValuePairs = []<typename NameType>(const TArray<NameType>& EnumNameValuePairs)
+	{
+		std::vector<std::pair<FName, int64>> Ret;
+
+		for (int i = 0; i < EnumNameValuePairs.Num(); i++)
+		{
+			Ret.push_back({ FName(&EnumNameValuePairs[i]), i });
+		}
+
+		return Ret;
+	};
+
+
+	if constexpr (Settings::EngineCore::bCheckEnumNamesInUEnum)
+	{
+		static auto SetIsNamesOnlyIfDevsTookCrack = [&]<typename NameType>(const TArray<TPair<NameType, UInt8As64>>& EnumNames)
+		{
+			/* This is a hacky workaround for UEnum::Names which somtimes store the enum-value and sometimes don't. I've seem much of UE, but what drugs did some devs take???? */
+			Settings::Internal::bIsEnumNameOnly = EnumNames[0].Second != 0 || EnumNames[1].Second != 1;
+		};
+
 		if (Settings::Internal::bUseCasePreservingName)
 		{
-			auto& Names = *reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(Object + Off::UEnum::Names);
-
-			for (int i = 0; i < Names.Num(); i++)
-			{
-				Ret.push_back({ FName(&Names[i].First), Names[i].Second });
-			}
+			SetIsNamesOnlyIfDevsTookCrack(*reinterpret_cast<TArray<TPair<Name16Byte, UInt8As64>>*>(Object + Off::UEnum::Names));
 		}
 		else
 		{
-			auto& Names = *reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(Object + Off::UEnum::Names);
-
-			for (int i = 0; i < Names.Num(); i++)
-			{
-				Ret.push_back({ FName(&Names[i].First), Names[i].Second });
-			}
+			SetIsNamesOnlyIfDevsTookCrack(*reinterpret_cast<TArray<TPair<Name08Byte, UInt8As64>>*>(Object + Off::UEnum::Names));
 		}
+	}
+
+	if (Settings::Internal::bIsEnumNameOnly)
+	{
+		if (Settings::Internal::bUseCasePreservingName)
+			return GetNameValuePairs(*reinterpret_cast<TArray<Name16Byte>*>(Object + Off::UEnum::Names));
+		
+		return GetNameValuePairs(*reinterpret_cast<TArray<Name08Byte>*>(Object + Off::UEnum::Names));
 	}
 	else
 	{
-		auto& NameOnly = *reinterpret_cast<TArray<FName>*>(Object + Off::UEnum::Names);
+		/* This only applies very very rarely on weir UE4.13 or UE4.14 games where the devs didn't know what they were doing. */
+		if (Settings::Internal::bIsSmallEnumValue)
+		{
+			if (Settings::Internal::bUseCasePreservingName)
+				return GetNameValuePairsWithIndex(*reinterpret_cast<TArray<TPair<Name16Byte, UInt8As64>>*>(Object + Off::UEnum::Names));
+
+			return GetNameValuePairsWithIndex(*reinterpret_cast<TArray<TPair<Name08Byte, UInt8As64>>*>(Object + Off::UEnum::Names));
+		}
 
 		if (Settings::Internal::bUseCasePreservingName)
-		{
-			auto& Names = *reinterpret_cast<TArray<Name16Byte>*>(Object + Off::UEnum::Names);
-
-			for (int i = 0; i < Names.Num(); i++)
-			{
-				Ret.push_back({ FName(&Names[i]), i });
-			}
-		}
-		else
-		{
-			auto& Names = *reinterpret_cast<TArray<Name08Byte>*>(Object + Off::UEnum::Names);
-
-			for (int i = 0; i < Names.Num(); i++)
-			{
-				Ret.push_back({ FName(&Names[i]), i });
-			}
-		}
+			return GetNameValuePairsWithIndex(*reinterpret_cast<TArray<TPair<Name16Byte, int64>>*>(Object + Off::UEnum::Names));
+		
+		return GetNameValuePairsWithIndex(*reinterpret_cast<TArray<TPair<Name08Byte, int64>>*>(Object + Off::UEnum::Names));
 	}
-
-	return Ret;
 }
 
 std::string UEEnum::GetSingleName(int32 Index) const
@@ -909,7 +928,7 @@ int32 UEProperty::GetAlignment() const
 	{
 		return 0x1; // size in PropertyFixup (alignment isn't greater than size)
 	}
-	else if (TypeFlags & EClassCastFlags::MulticastInlineDelegateProperty)
+	else if (TypeFlags & EClassCastFlags::MulticasTMulticastInlineDelegateProperty)
 	{
 		return 0x8;  // alignof member TArray<FName>
 	}
@@ -938,7 +957,7 @@ int32 UEProperty::GetAlignment() const
 
 				for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
 				{
-					if (!Prop.IsA(EClassCastFlags::OptionalProperty))
+					if (!Prop.IsA(EClassCastFlags::OptionalProperty) || Prop.IsA(EClassCastFlags::ObjectPropertyBase))
 						continue;
 
 					UEOptionalProperty Optional = Prop.Cast<UEOptionalProperty>();
@@ -1090,6 +1109,11 @@ std::string UEProperty::GetCppType() const
 	}
 }
 
+std::string UEProperty::GetPropClassName() const
+{
+	return GetClass().first ? GetClass().first.GetName() : GetClass().second.GetName();
+}
+
 std::string UEProperty::StringifyFlags() const
 {
 	return StringifyPropertyFlags(GetPropertyFlags());
@@ -1217,6 +1241,17 @@ UEFunction UEDelegateProperty::GetSignatureFunction() const
 std::string UEDelegateProperty::GetCppType() const
 {
 	return "TDeleage<GetCppTypeIsNotImplementedForDelegates>";
+}
+
+UEFunction UEMulticastInlineDelegateProperty::GetSignatureFunction() const
+{
+	// Uses "Off::DelegateProperty::SignatureFunction" on purpose
+	return UEFunction(*reinterpret_cast<void**>(Base + Off::DelegateProperty::SignatureFunction));
+}
+
+std::string UEMulticastInlineDelegateProperty::GetCppType() const
+{
+	return "TMulticastInlineDelegate<GetCppTypeIsNotImplementedForDelegates>";
 }
 
 UEProperty UEMapProperty::GetKeyProperty() const

@@ -189,14 +189,38 @@ inline PEB* GetPEB()
 	return reinterpret_cast<TEB*>(_NtCurrentTeb())->ProcessEnvironmentBlock;
 }
 
-inline uintptr_t GetImageBase()
+inline LDR_DATA_TABLE_ENTRY* GetModuleLdrTableEntry(const char* SearchModuleName)
 {
-	return reinterpret_cast<uintptr_t>(GetPEB()->ImageBaseAddress);
+	PEB* Peb = GetPEB();
+	PEB_LDR_DATA* Ldr = Peb->Ldr;
+
+	int NumEntriesLeft = Ldr->Length;
+
+	for (LIST_ENTRY* P = Ldr->InMemoryOrderModuleList.Flink; P && NumEntriesLeft-- > 0; P = P->Flink)
+	{
+		LDR_DATA_TABLE_ENTRY* Entry = reinterpret_cast<LDR_DATA_TABLE_ENTRY*>(P);
+
+		std::wstring WideModuleName(Entry->BaseDllName.Buffer, Entry->BaseDllName.Length >> 1);
+		std::string ModuleName = std::string(WideModuleName.begin(), WideModuleName.end());
+
+		if (str_tolower(ModuleName) == str_tolower(SearchModuleName))
+			return Entry;
+	}
+
+	return nullptr;
 }
 
-inline std::pair<uintptr_t, uintptr_t> GetImageBaseAndSize()
+inline uintptr_t GetModuleBase(const char* const ModuleName = nullptr)
 {
-	uintptr_t ImageBase = GetImageBase();
+	if (ModuleName == nullptr)
+		return reinterpret_cast<uintptr_t>(GetPEB()->ImageBaseAddress);
+
+	return reinterpret_cast<uintptr_t>(GetModuleLdrTableEntry(ModuleName)->DllBase);
+}
+
+inline std::pair<uintptr_t, uintptr_t> GetImageBaseAndSize(const char* const ModuleName = nullptr)
+{
+	uintptr_t ImageBase = GetModuleBase(ModuleName);
 	PIMAGE_NT_HEADERS NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase)->e_lfanew);
 
 	return { ImageBase, NtHeader->OptionalHeader.SizeOfImage };
@@ -233,7 +257,7 @@ inline uintptr_t GetOffset(const uintptr_t Address)
 	static uintptr_t ImageBase = 0x0;
 
 	if (ImageBase == 0x0)
-		ImageBase = GetImageBase();
+		ImageBase = GetModuleBase();
 
 	return Address > ImageBase ? (Address - ImageBase) : 0x0;
 }
@@ -243,40 +267,7 @@ inline uintptr_t GetOffset(const void* Address)
 	return GetOffset(reinterpret_cast<const uintptr_t>(Address));
 }
 
-inline bool IsInProcessRange(const uintptr_t Address)
-{
-	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
-
-	return Address > ImageBase && Address < (ImageBase + ImageSize);
-}
-
-inline bool IsInProcessRange(const void* Address)
-{
-	return IsInProcessRange(reinterpret_cast<const uintptr_t>(Address));
-}
-inline bool IsBadReadPtr(const void* p)
-{
-	MEMORY_BASIC_INFORMATION mbi;
-
-	if (VirtualQuery(p, &mbi, sizeof(mbi)))
-	{
-		constexpr DWORD mask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
-		bool b = !(mbi.Protect & mask);
-		if (mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS))
-			b = true;
-
-		return b;
-	}
-
-	return true;
-};
-
-inline bool IsBadReadPtr(const uintptr_t Ptr)
-{
-	return IsBadReadPtr(reinterpret_cast<const void*>(Ptr));
-}
-
-inline LDR_DATA_TABLE_ENTRY* GetModuleLdrTableEntry(const char* SearchModuleName)
+inline bool IsInAnyModules(const uintptr_t Address)
 {
 	PEB* Peb = GetPEB();
 	PEB_LDR_DATA* Ldr = Peb->Ldr;
@@ -287,14 +278,56 @@ inline LDR_DATA_TABLE_ENTRY* GetModuleLdrTableEntry(const char* SearchModuleName
 	{
 		LDR_DATA_TABLE_ENTRY* Entry = reinterpret_cast<LDR_DATA_TABLE_ENTRY*>(P);
 
-		std::wstring WideModuleName(Entry->BaseDllName.Buffer, Entry->BaseDllName.Length >> 1);
-		std::string ModuleName = std::string(WideModuleName.begin(), WideModuleName.end());
-
-		if (str_tolower(ModuleName) == str_tolower(SearchModuleName))
-			return Entry;
+		if (reinterpret_cast<void*>(Address) > Entry->DllBase && reinterpret_cast<void*>(Address) < ((PCHAR)Entry->DllBase + Entry->SizeOfImage))
+			return true;
 	}
 
-	return nullptr;
+	return false;
+}
+
+// The processor (x86-64) only translates 52bits (or 57 bits) of a virtual address into a physical address and the unused bits need to be all 0 or all 1.
+inline bool IsValidVirtualAddress(const uintptr_t Address)
+{
+	constexpr uint64_t BitMask = 0b1111'1111ull << 56;
+
+	return (Address & BitMask) == BitMask || (Address & BitMask) == 0x0;
+}
+
+inline bool IsInProcessRange(const uintptr_t Address)
+{
+	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
+
+	if (Address >= ImageBase && Address < (ImageBase + ImageSize))
+		return true;
+
+	return IsInAnyModules(Address);
+}
+
+inline bool IsInProcessRange(const void* Address)
+{
+	return IsInProcessRange(reinterpret_cast<const uintptr_t>(Address));
+}
+inline bool IsBadReadPtr(const void* Ptr)
+{
+	if(!IsValidVirtualAddress(reinterpret_cast<const uintptr_t>(Ptr)))
+		return true;
+
+	MEMORY_BASIC_INFORMATION Mbi;
+
+	if (VirtualQuery(Ptr, &Mbi, sizeof(Mbi)))
+	{
+		constexpr DWORD AccessibleMask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
+		constexpr DWORD InaccessibleMask = (PAGE_GUARD | PAGE_NOACCESS);
+
+		return !(Mbi.Protect & AccessibleMask) || (Mbi.Protect & InaccessibleMask);
+	}
+
+	return true;
+};
+
+inline bool IsBadReadPtr(const uintptr_t Ptr)
+{
+	return IsBadReadPtr(reinterpret_cast<const void*>(Ptr));
 }
 
 inline void* GetModuleAddress(const char* SearchModuleName)
@@ -378,7 +411,7 @@ inline PIMAGE_THUNK_DATA GetImportAddress(uintptr_t ModuleBase, const char* Modu
 /* Gets the address at which a pointer to an imported function is stored */
 inline PIMAGE_THUNK_DATA GetImportAddress(const char* SearchModuleName, const char* ModuleToImportFrom, const char* SearchFunctionName)
 {
-	const uintptr_t SearchModule = SearchModuleName ? reinterpret_cast<uintptr_t>(GetModuleAddress(SearchModuleName)) : GetImageBase();
+	const uintptr_t SearchModule = SearchModuleName ? reinterpret_cast<uintptr_t>(GetModuleAddress(SearchModuleName)) : GetModuleBase();
 
 	return GetImportAddress(SearchModule, ModuleToImportFrom, SearchFunctionName);
 }
@@ -937,8 +970,6 @@ inline MemAddress FindByStringInAllSections(const CharType* RefStr, uintptr_t St
 		SearchRange -= OffsetFromMemoryEnd;
 
 	const int32_t RefStrLen = StrlenHelper(RefStr);
-
-	const uintptr_t OtherStringRef = GetImageBase() + 0x4AF5973;
 
 	for (uintptr_t i = 0; i < SearchRange; i++)
 	{

@@ -55,13 +55,13 @@ void Off::InSDK::ProcessEvent::InitPE()
 	std::cout << "\nCouldn't find ProcessEvent!\n\n" << std::endl;
 }
 
-void Off::InSDK::ProcessEvent::InitPE(int32 Index)
+void Off::InSDK::ProcessEvent::InitPE(int32 Index, const char* const ModuleName)
 {
 	Off::InSDK::ProcessEvent::PEIndex = Index;
 
 	void** VFT = *reinterpret_cast<void***>(ObjectArray::GetByIndex(0).GetAddress());
 
-	uintptr_t Imagebase = GetImageBase();
+	uintptr_t Imagebase = GetModuleBase(ModuleName);
 
 	Off::InSDK::ProcessEvent::PEOffset = uintptr_t(VFT[Off::InSDK::ProcessEvent::PEIndex]) - Imagebase;
 
@@ -193,7 +193,36 @@ void Off::InSDK::Text::InitTextOffsets()
 
 void Off::Init()
 {
-	OffsetFinder::InitUObjectOffsets();
+	auto OverwriteIfInvalidOffset = [](int32& Offset, int32 DefaultValue)
+	{
+		if (Offset == OffsetFinder::OffsetNotFound)
+		{
+			std::cout << std::format("Defaulting to offset: 0x{:X}\n", DefaultValue);
+			Offset = DefaultValue;
+		}
+	};
+
+	Off::UObject::Flags = OffsetFinder::FindUObjectFlagsOffset();
+	OverwriteIfInvalidOffset(Off::UObject::Flags, sizeof(void*)); // Default to right after VTable
+	std::cout << std::format("Off::UObject::Flags: 0x{:X}\n", Off::UObject::Flags);
+
+	Off::UObject::Index = OffsetFinder::FindUObjectIndexOffset();
+	OverwriteIfInvalidOffset(Off::UObject::Index, (Off::UObject::Flags + sizeof(int32))); // Default to right after Flags
+	std::cout << std::format("Off::UObject::Index: 0x{:X}\n", Off::UObject::Index);
+
+	Off::UObject::Class = OffsetFinder::FindUObjectClassOffset();
+	OverwriteIfInvalidOffset(Off::UObject::Class, (Off::UObject::Index + sizeof(int32))); // Default to right after Index
+	std::cout << std::format("Off::UObject::Class: 0x{:X}\n", Off::UObject::Class);
+
+	Off::UObject::Outer = OffsetFinder::FindUObjectOuterOffset();
+	std::cout << std::format("Off::UObject::Outer: 0x{:X}\n", Off::UObject::Outer);
+
+	Off::UObject::Name = OffsetFinder::FindUObjectNameOffset();
+	OverwriteIfInvalidOffset(Off::UObject::Name, (Off::UObject::Class + sizeof(void*))); // Default to right after Class
+	std::cout << std::format("Off::UObject::Name: 0x{:X}\n\n", Off::UObject::Name);
+
+	OverwriteIfInvalidOffset(Off::UObject::Outer, (Off::UObject::Name + sizeof(int32) + sizeof(int32)));  // Default to right after Name
+
 
 	OffsetFinder::InitFNameSettings();
 
@@ -203,7 +232,7 @@ void Off::Init()
 	std::cout << std::format("Off::UStruct::Children: 0x{:X}\n", Off::UStruct::Children);
 
 	Off::UField::Next = OffsetFinder::FindUFieldNextOffset();
-	std::cout << std::format("Off::Field::Next: 0x{:X}\n", Off::UField::Next);
+	std::cout << std::format("Off::UField::Next: 0x{:X}\n", Off::UField::Next);
 
 	Off::UStruct::SuperStruct = OffsetFinder::FindSuperOffset();
 	std::cout << std::format("Off::UStruct::SuperStruct: 0x{:X}\n", Off::UStruct::SuperStruct);
@@ -219,7 +248,7 @@ void Off::Init()
 
 	if (Settings::Internal::bUseFProperty)
 	{
-		std::cout << std::format("Game uses FProperty system\n\n");
+		std::cout << std::format("\nGame uses FProperty system\n\n");
 
 		Off::UStruct::ChildProperties = OffsetFinder::FindChildPropertiesOffset();
 		std::cout << std::format("Off::UStruct::ChildProperties: 0x{:X}\n", Off::UStruct::ChildProperties);
@@ -228,7 +257,7 @@ void Off::Init()
 
 		Off::FField::Next = OffsetFinder::FindFFieldNextOffset();
 		std::cout << std::format("Off::FField::Next: 0x{:X}\n", Off::FField::Next);
-
+		
 		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
 		std::cout << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
 
@@ -244,10 +273,10 @@ void Off::Init()
 	std::cout << std::format("Off::UClass::ClassDefaultObject: 0x{:X}\n", Off::UClass::ClassDefaultObject);
 
 	Off::UEnum::Names = OffsetFinder::FindEnumNamesOffset();
-	std::cout << std::format("Off::UEnum::Names: 0x{:X}\n", Off::UEnum::Names);
+	std::cout << std::format("Off::UEnum::Names: 0x{:X}\n", Off::UEnum::Names) << std::endl;
 
 	Off::UFunction::FunctionFlags = OffsetFinder::FindFunctionFlagsOffset();
-	std::cout << std::format("Off::UFunction::FunctionFlags: 0x{:X}\n", Off::UFunction::FunctionFlags) << std::endl;
+	std::cout << std::format("Off::UFunction::FunctionFlags: 0x{:X}\n", Off::UFunction::FunctionFlags);
 
 	Off::UFunction::ExecFunction = OffsetFinder::FindFunctionNativeFuncOffset();
 	std::cout << std::format("Off::UFunction::ExecFunction: 0x{:X}\n", Off::UFunction::ExecFunction) << std::endl;
@@ -288,7 +317,7 @@ void Off::Init()
 
 	Off::ByteProperty::Enum = Off::InSDK::Properties::PropertySize;
 	Off::BoolProperty::Base = Off::InSDK::Properties::PropertySize;
-	Off::ObjectProperty::PropertyClass = Off::InSDK::Properties::PropertySize;
+	Off::ObjectProperty::PropertyClass = Off::InSDK::Properties::PropertySize; 
 	Off::StructProperty::Struct = Off::InSDK::Properties::PropertySize;
 	Off::EnumProperty::Base = Off::InSDK::Properties::PropertySize;
 	Off::DelegateProperty::SignatureFunction = Off::InSDK::Properties::PropertySize;

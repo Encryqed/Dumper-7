@@ -428,6 +428,8 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 
 	/* Header is done, now write the payload to the file */
 	InUsmap.write(static_cast<const char*>(CompressedBuffer), static_cast<uint32>(CompressedSize));
+
+	free(CompressedBuffer);
 }
 
 void MappingGenerator::Generate()

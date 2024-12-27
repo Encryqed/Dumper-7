@@ -12,7 +12,7 @@ private:
 private:
 	static inline int32 FNameEntryLengthShiftCount = 0x0;
 
-	static inline std::string(*GetStr)(uint8* NameEntry) = nullptr;
+	static inline std::wstring(*GetStr)(uint8* NameEntry) = nullptr;
 
 private:
 	uint8* Address;
@@ -23,6 +23,7 @@ public:
 	FNameEntry(void* Ptr);
 
 public:
+	std::wstring GetWString();
 	std::string GetString();
 	void* GetAddress();
 
@@ -53,7 +54,7 @@ public:
 	static bool TryFindNamePool();
 
 	static bool TryInit(bool bIsTestOnly = false);
-	static bool TryInit(int32 OffsetOverride, bool bIsNamePool);
+	static bool TryInit(int32 OffsetOverride, bool bIsNamePool, const char* const ModuleName = nullptr);
 
 	/* Initializes the GNames offset, but doesn't call NameArray::InitializeNameArray() or NameArray::InitializedNamePool() */
 	static bool SetGNamesWithoutCommiting();

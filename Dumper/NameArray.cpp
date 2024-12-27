@@ -10,12 +10,20 @@ FNameEntry::FNameEntry(void* Ptr)
 {
 }
 
+std::wstring FNameEntry::GetWString()
+{
+	if (!Address)
+		return L"";
+
+	return GetStr(Address);
+}
+
 std::string FNameEntry::GetString()
 {
 	if (!Address)
 		return "";
 
-	return GetStr(Address);
+	return UtfN::WStringToString(GetWString());
 }
 
 void* FNameEntry::GetAddress()
@@ -62,11 +70,11 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 		if (FNameEntryLengthShiftCount == MaxAllowedShiftCount)
 		{
 			std::cout << "\Dumper-7: Error, couldn't get FNameEntryLengthShiftCount!\n" << std::endl;
-			GetStr = [](uint8* NameEntry)->std::string { return "Invalid FNameEntryLengthShiftCount!"; };
+			GetStr = [](uint8* NameEntry) -> std::wstring { return L"Invalid FNameEntryLengthShiftCount!"; };
 			return;
 		}
 
-		GetStr = [](uint8* NameEntry) -> std::string
+		GetStr = [](uint8* NameEntry) -> std::wstring
 		{
 			const uint16 HeaderWithoutNumber = *reinterpret_cast<uint16*>(NameEntry + Off::FNameEntry::NamePool::HeaderOffset);
 			const int32 NameLen = HeaderWithoutNumber >> FNameEntry::FNameEntryLengthShiftCount;
@@ -79,18 +87,15 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 				const int32 Number = *reinterpret_cast<int32*>(NameEntry + EntryIdOffset + sizeof(int32));
 
 				if (Number > 0)
-					return NameArray::GetNameEntry(NextEntryIndex).GetString() + "_" + std::to_string(Number - 1);
+					return NameArray::GetNameEntry(NextEntryIndex).GetWString() + L'_' + std::to_wstring(Number - 1);
 
-				return NameArray::GetNameEntry(NextEntryIndex).GetString();
+				return NameArray::GetNameEntry(NextEntryIndex).GetWString();
 			}
 
 			if (HeaderWithoutNumber & NameWideMask)
-			{
-				std::wstring WString(reinterpret_cast<const wchar_t*>(NameEntry + Off::FNameEntry::NamePool::StringOffset), NameLen);
-				return std::string(WString.begin(), WString.end());
-			}
+				return std::wstring(reinterpret_cast<const wchar_t*>(NameEntry + Off::FNameEntry::NamePool::StringOffset), NameLen);
 
-			return std::string(reinterpret_cast<const char*>(NameEntry + Off::FNameEntry::NamePool::StringOffset), NameLen);
+			return UtfN::StringToWString(std::string(reinterpret_cast<const char*>(NameEntry + Off::FNameEntry::NamePool::StringOffset), NameLen));
 		};
 	}
 	else
@@ -119,18 +124,15 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 			}
 		}
 
-		GetStr = [](uint8* NameEntry) -> std::string
+		GetStr = [](uint8* NameEntry) -> std::wstring
 		{
 			const int32 NameIdx = *reinterpret_cast<int32*>(NameEntry + Off::FNameEntry::NameArray::IndexOffset);
 			const void* NameString = reinterpret_cast<void*>(NameEntry + Off::FNameEntry::NameArray::StringOffset);
 
 			if (NameIdx & NameWideMask)
-			{
-				std::wstring WString(reinterpret_cast<const wchar_t*>(NameString));
-				return std::string(WString.begin(), WString.end());
-			}
+				return std::wstring(reinterpret_cast<const wchar_t*>(NameString));
 
-			return reinterpret_cast<const char*>(NameString);
+			return UtfN::StringToWString<std::string>(reinterpret_cast<const char*>(NameString));
 		};
 	}
 }
@@ -352,7 +354,7 @@ bool NameArray::TryFindNameArray()
 
 	void* EnterCriticalSectionAddress = GetImportAddress(nullptr, "kernel32.dll", "EnterCriticalSection");
 
-	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), GetImageBase());
+	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), GetModuleBase());
 
 	if (Address == 0x0)
 		return false;
@@ -473,7 +475,7 @@ bool NameArray::TryFindNamePool()
 
 bool NameArray::TryInit(bool bIsTestOnly)
 {
-	uintptr_t ImageBase = GetImageBase();
+	uintptr_t ImageBase = GetModuleBase();
 
 	uint8* GNamesAddress = nullptr;
 
@@ -529,9 +531,9 @@ bool NameArray::TryInit(bool bIsTestOnly)
 }
 
 
-bool NameArray::TryInit(int32 OffsetOverride, bool bIsNamePool)
+bool NameArray::TryInit(int32 OffsetOverride, bool bIsNamePool, const char* const ModuleName)
 {
-	uintptr_t ImageBase = GetImageBase();
+	uintptr_t ImageBase = GetModuleBase(ModuleName);
 
 	uint8* GNamesAddress = nullptr;
 
@@ -643,7 +645,7 @@ void NameArray::PostInit()
 		}
 		Off::InSDK::NameArray::FNamePoolBlockOffsetBits = NameArray::FNameBlockOffsetBits;
 
-		std::cout << "\nNameArray::FNameBlockOffsetBits: 0x" << std::hex << NameArray::FNameBlockOffsetBits << "\n" << std::endl;
+		std::cout << "NameArray::FNameBlockOffsetBits: 0x" << std::hex << NameArray::FNameBlockOffsetBits << "\n" << std::endl;
 	}
 }
 

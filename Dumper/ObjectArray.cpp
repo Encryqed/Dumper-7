@@ -6,24 +6,11 @@
 #include "Offsets.h"
 #include "Utils.h"
 
+#include "Offsets.h"
+
+
 namespace fs = std::filesystem;
 
-
-struct FFixedUObjectArrayLayout
-{
-	int32 ObjectsOffset;
-	int32 MaxObjectsOffset;
-	int32 NumObjectsOffset;
-};
-
-struct FChunkedFixedUObjectArrayLayout
-{
-	int32 ObjectsOffset;
-	int32 MaxElementsOffset;
-	int32 NumElementsOffset;
-	int32 MaxChunksOffset;
-	int32 NumChunksOffset;
-};
 
 constexpr inline std::array FFixedUObjectArrayLayouts =
 {
@@ -52,10 +39,26 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 		.NumElementsOffset = 0x04,
 		.MaxChunksOffset = 0x08,
 		.NumChunksOffset = 0x0C,
+	},
+	FChunkedFixedUObjectArrayLayout // DeltaForce
+	{
+		.ObjectsOffset = 0x20,
+		.MaxElementsOffset = 0x10,
+		.NumElementsOffset = 0x4,
+		.MaxChunksOffset = 0x0,
+		.NumChunksOffset = 0x14,
+	},
+	FChunkedFixedUObjectArrayLayout // Mutliversus
+	{
+		.ObjectsOffset = 0x18,
+		.MaxElementsOffset = 0x10,
+		.NumElementsOffset = 0x00, // first
+		.MaxChunksOffset = 0x14,
+		.NumChunksOffset = 0x20,
 	}
 };
 
-bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLayout& Layout, int32*)
+bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLayout& Layout)
 {
 	/* It is assumed that the FUObjectItem layout is constant amongst all games using FFixedUObjectArray for ObjObjects. */
 	struct FUObjectItem
@@ -96,7 +99,7 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLay
 	return true;
 }
 
-bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectArrayLayout& Layout, int32* OutObjectsPtrOffset)
+bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectArrayLayout& Layout)
 {
 	void* Objects = *reinterpret_cast<void**>(Address + Layout.ObjectsOffset);
 	const int32 MaxElements = *reinterpret_cast<const int32*>(Address + Layout.MaxElementsOffset);
@@ -137,10 +140,7 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectA
 		if (!ObjectsPtrButDecrypted[i] || IsBadReadPtr(ObjectsPtrButDecrypted[i]))
 			return false;
 	}
-
-	if (OutObjectsPtrOffset)
-		*OutObjectsPtrOffset = Layout.ObjectsOffset;
-
+	
 	return true;
 }
 
@@ -210,12 +210,12 @@ void ObjectArray::InitializeChunkSize(uint8_t* ChunksPtr)
 }
 
 /* We don't speak about this function... */
-void ObjectArray::Init(bool bScanAllMemory)
+void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 {
 	if (!bScanAllMemory)
 		std::cout << "\nDumper-7 by me, you & him\n\n\n";
 
-	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
+	const auto [ImageBase, ImageSize] = GetImageBaseAndSize(ModuleName);
 
 	uintptr_t SearchBase = ImageBase;
 	DWORD SearchRange = ImageSize;
@@ -241,12 +241,25 @@ void ObjectArray::Init(bool bScanAllMemory)
 	if (!bScanAllMemory)
 		std::cout << "Searching for GObjects...\n\n";
 
-	auto MatchesAnyLayout = [](const auto& ObjectArrayLayouts, uintptr_t Address, int32* OutObjectsPtrOffset = nullptr)
+	auto MatchesAnyLayout = []<typename ArrayLayoutType, size_t Size>(const std::array<ArrayLayoutType, Size>& ObjectArrayLayouts, uintptr_t Address)
 	{
-		for (const auto& Layout : ObjectArrayLayouts)
+		for (const ArrayLayoutType& Layout : ObjectArrayLayouts)
 		{
-			if (IsAddressValidGObjects(Address, Layout, OutObjectsPtrOffset))
-				return true;
+			if (!IsAddressValidGObjects(Address, Layout))
+				continue;
+
+			if constexpr (std::is_same_v<ArrayLayoutType, FFixedUObjectArrayLayout>)
+			{
+				Off::FUObjectArray::bIsChunked = false;
+				Off::FUObjectArray::FixedLayout = Layout;
+			}
+			else
+			{
+				Off::FUObjectArray::bIsChunked = true;
+				Off::FUObjectArray::ChunkedFixedLayout = Layout;
+			}
+
+			return true;
 		}
 		
 		return false;
@@ -259,7 +272,6 @@ void ObjectArray::Init(bool bScanAllMemory)
 		if (MatchesAnyLayout(FFixedUObjectArrayLayouts, CurrentAddress))
 		{
 			GObjects = reinterpret_cast<uint8_t*>(SearchBase + i);
-			Off::FUObjectArray::Num = 0xC;
 			NumElementsPerChunk = -1;
 
 			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
@@ -276,18 +288,17 @@ void ObjectArray::Init(bool bScanAllMemory)
 				return *reinterpret_cast<void**>(ChunkPtr + FUObjectItemOffset + (Index * FUObjectItemSize));
 			};
 
-			uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::Ptr));
+			uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
 
 			ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
 
 			return;
 		}
-		else if (MatchesAnyLayout(FChunkedFixedUObjectArrayLayouts, CurrentAddress, &Off::FUObjectArray::Ptr))
+		else if (MatchesAnyLayout(FChunkedFixedUObjectArrayLayouts, CurrentAddress))
 		{
 			GObjects = reinterpret_cast<uint8_t*>(SearchBase + i);
 			NumElementsPerChunk = 0x10000;
 			SizeOfFUObjectItem = 0x18;
-			Off::FUObjectArray::Num = 0x14;
 			FUObjectItemInitialOffset = 0x0;
 
 			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
@@ -310,11 +321,11 @@ void ObjectArray::Init(bool bScanAllMemory)
 				return *reinterpret_cast<void**>(ItemPtr + FUObjectItemOffset);
 			};
 			
-			uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::Ptr));
+			uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
 
 			ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
 
-			ObjectArray::InitializeChunkSize(GObjects + Off::FUObjectArray::Ptr);
+			ObjectArray::InitializeChunkSize(GObjects + Off::FUObjectArray::GetObjectsOffset());
 
 			return;
 		}
@@ -334,57 +345,59 @@ void ObjectArray::Init(bool bScanAllMemory)
 	}
 }
 
-void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, bool bIsChunked)
+void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& ObjectArrayLayout, const char* const ModuleName)
 {
-	GObjects = reinterpret_cast<uint8_t*>(GetImageBase() + GObjectsOffset);
-
+	GObjects = reinterpret_cast<uint8_t*>(GetModuleBase(ModuleName) + GObjectsOffset);
 	Off::InSDK::ObjArray::GObjects = GObjectsOffset;
 
 	std::cout << "GObjects: 0x" << (void*)GObjects << "\n" << std::endl;
 
-	if (!bIsChunked)
+	Off::FUObjectArray::bIsChunked = false;
+	Off::FUObjectArray::FixedLayout = ObjectArrayLayout.IsValid() ? ObjectArrayLayout : FFixedUObjectArrayLayouts[0];
+
+	ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 	{
-		Off::FUObjectArray::Num = 0xC;
+		if (Index < 0 || Index > Num())
+			return nullptr;
 
-		ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
-		{
-			if (Index < 0 || Index > Num())
-				return nullptr;
+		uint8_t* ItemPtr = *reinterpret_cast<uint8_t**>(ObjectsArray) + (Index * FUObjectItemSize);
 
-			uint8_t* ItemPtr = *reinterpret_cast<uint8_t**>(ObjectsArray) + (Index * FUObjectItemSize);
+		return *reinterpret_cast<void**>(ItemPtr + FUObjectItemOffset);
+	};
 
-			return *reinterpret_cast<void**>(ItemPtr + FUObjectItemOffset);
-		};
+	uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
 
-		uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects));
+	ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
+}
 
-		ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
-	}
-	else
-	{
-		Off::FUObjectArray::Num = 0x14;
+void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, const FChunkedFixedUObjectArrayLayout& ObjectArrayLayout, const char* const ModuleName)
+{
+	GObjects = reinterpret_cast<uint8_t*>(GetModuleBase(ModuleName) + GObjectsOffset);
+	Off::InSDK::ObjArray::GObjects = GObjectsOffset;
 
-		ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
-		{
-			if (Index < 0 || Index > Num())
-				return nullptr;
-
-			const int32 ChunkIndex = Index / PerChunk;
-			const int32 InChunkIdx = Index % PerChunk;
-
-			uint8_t* Chunk = (*reinterpret_cast<uint8_t***>(ObjectsArray))[ChunkIndex];
-			uint8_t* ItemPtr = reinterpret_cast<uint8_t*>(Chunk) + (InChunkIdx * FUObjectItemSize);
-
-			return *reinterpret_cast<void**>(ItemPtr + FUObjectItemOffset);
-		};
-
-		uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects));
-
-		ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
-	}
+	Off::FUObjectArray::bIsChunked = true;
+	Off::FUObjectArray::ChunkedFixedLayout = ObjectArrayLayout.IsValid() ? ObjectArrayLayout : FChunkedFixedUObjectArrayLayouts[0];
 
 	NumElementsPerChunk = ElementsPerChunk;
 	Off::InSDK::ObjArray::ChunkSize = ElementsPerChunk;
+
+	ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
+	{
+		if (Index < 0 || Index > Num())
+			return nullptr;
+
+		const int32 ChunkIndex = Index / PerChunk;
+		const int32 InChunkIdx = Index % PerChunk;
+
+		uint8_t* Chunk = (*reinterpret_cast<uint8_t***>(ObjectsArray))[ChunkIndex];
+		uint8_t* ItemPtr = reinterpret_cast<uint8_t*>(Chunk) + (InChunkIdx * FUObjectItemSize);
+
+		return *reinterpret_cast<void**>(ItemPtr + FUObjectItemOffset);
+	};
+
+	uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
+
+	ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
 }
 
 void ObjectArray::DumpObjects(const fs::path& Path, bool bWithPathname)
@@ -410,20 +423,51 @@ void ObjectArray::DumpObjects(const fs::path& Path, bool bWithPathname)
 	DumpStream.close();
 }
 
+void ObjectArray::DumpObjectsWithProperties(const fs::path& Path, bool bWithPathname)
+{
+	std::ofstream DumpStream(Path / "GObjects-Dump-WithProperties.txt");
+
+	DumpStream << "Object dump by Dumper-7\n\n";
+	DumpStream << (!Settings::Generator::GameVersion.empty() && !Settings::Generator::GameName.empty() ? (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName) + "\n\n" : "");
+	DumpStream << "Count: " << Num() << "\n\n\n";
+
+	for (auto Object : ObjectArray())
+	{
+		if (!bWithPathname)
+		{
+			DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
+		}
+		else
+		{
+			DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetPathName());
+		}
+
+		if (Object.IsA(EClassCastFlags::Struct))
+		{
+			for (UEProperty Prop : Object.Cast<UEStruct>().GetProperties())
+			{
+				DumpStream << std::format("[{:08X}] {{{}}}\t{} {}\n", Prop.GetOffset(), Prop.GetAddress(), Prop.GetPropClassName(), Prop.GetName());
+			}
+		}
+	}
+
+	DumpStream.close();
+}
+
 
 int32 ObjectArray::Num()
 {
-	return *reinterpret_cast<int32*>(GObjects + Off::FUObjectArray::Num);
+	return *reinterpret_cast<int32*>(GObjects + Off::FUObjectArray::GetNumElementsOffset());
 }
 
 template<typename UEType>
 static UEType ObjectArray::GetByIndex(int32 Index)
 {
-	return UEType(ByIndex(GObjects + Off::FUObjectArray::Ptr, Index, SizeOfFUObjectItem, FUObjectItemInitialOffset, NumElementsPerChunk));
+	return UEType(ByIndex(GObjects + Off::FUObjectArray::GetObjectsOffset(), Index, SizeOfFUObjectItem, FUObjectItemInitialOffset, NumElementsPerChunk));
 }
 
 template<typename UEType>
-UEType ObjectArray::FindObject(std::string FullName, EClassCastFlags RequiredType)
+UEType ObjectArray::FindObject(const std::string& FullName, EClassCastFlags RequiredType)
 {
 	for (UEObject Object : ObjectArray())
 	{
@@ -437,7 +481,7 @@ UEType ObjectArray::FindObject(std::string FullName, EClassCastFlags RequiredTyp
 }
 
 template<typename UEType>
-UEType ObjectArray::FindObjectFast(std::string Name, EClassCastFlags RequiredType)
+UEType ObjectArray::FindObjectFast(const std::string& Name, EClassCastFlags RequiredType)
 {
 	auto ObjArray = ObjectArray();
 
@@ -453,7 +497,7 @@ UEType ObjectArray::FindObjectFast(std::string Name, EClassCastFlags RequiredTyp
 }
 
 template<typename UEType>
-static UEType ObjectArray::FindObjectFastInOuter(std::string Name, std::string Outer)
+static UEType ObjectArray::FindObjectFastInOuter(const std::string& Name, std::string Outer)
 {
 	auto ObjArray = ObjectArray();
 
@@ -468,28 +512,28 @@ static UEType ObjectArray::FindObjectFastInOuter(std::string Name, std::string O
 	return UEType();
 }
 
-UEClass ObjectArray::FindClass(std::string FullName)
+UEClass ObjectArray::FindClass(const std::string& FullName)
 {
 	return FindObject<UEClass>(FullName, EClassCastFlags::Class);
 }
 
-UEClass ObjectArray::FindClassFast(std::string Name)
+UEClass ObjectArray::FindClassFast(const std::string& Name)
 {
 	return FindObjectFast<UEClass>(Name, EClassCastFlags::Class);
 }
 
 ObjectArray::ObjectsIterator ObjectArray::begin()
 {
-	return ObjectsIterator(*this);
+	return ObjectsIterator();
 }
 ObjectArray::ObjectsIterator ObjectArray::end()
 {
-	return ObjectsIterator(*this, Num());
+	return ObjectsIterator(Num());
 }
 
 
-ObjectArray::ObjectsIterator::ObjectsIterator(ObjectArray& Array, int32 StartIndex)
-	: IteratedArray(Array), CurrentIndex(StartIndex), CurrentObject(ObjectArray::GetByIndex(StartIndex))
+ObjectArray::ObjectsIterator::ObjectsIterator(int32 StartIndex)
+	: CurrentIndex(StartIndex), CurrentObject(ObjectArray::GetByIndex(StartIndex))
 {
 }
 

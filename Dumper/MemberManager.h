@@ -220,23 +220,45 @@ public:
 	static inline void InitReservedNames()
 	{
 		/* UObject reserved names */
-		MemberNames.AddReservedName("Flags", false);
-		MemberNames.AddReservedName("Index", false);
-		MemberNames.AddReservedName("Class", false);
-		MemberNames.AddReservedName("Name", false);
-		MemberNames.AddReservedName("Outer", false);
+		MemberNames.AddReservedClassName("Flags", false);
+		MemberNames.AddReservedClassName("Index", false);
+		MemberNames.AddReservedClassName("Class", false);
+		MemberNames.AddReservedClassName("Name", false);
+		MemberNames.AddReservedClassName("Outer", false);
 
 		/* UFunction reserved names */
-		MemberNames.AddReservedName("FunctionFlags", false);
+		MemberNames.AddReservedClassName("FunctionFlags", false);
 
 		/* Function-body reserved names */
-		MemberNames.AddReservedName("Func", true);
-		MemberNames.AddReservedName("Parms", true);
-		MemberNames.AddReservedName("Params", true);
-		MemberNames.AddReservedName("Flgs", true);
+		MemberNames.AddReservedClassName("Func", true);
+		MemberNames.AddReservedClassName("Parms", true);
+		MemberNames.AddReservedClassName("Params", true);
+		MemberNames.AddReservedClassName("Flgs", true);
 
-		MemberNames.AddReservedName("IN", true);
-		MemberNames.AddReservedName("OUT", true);
+
+		/* Reserved C++ keywords, typedefs and macros */
+		MemberNames.AddReservedName("int");
+		MemberNames.AddReservedName("float");
+		MemberNames.AddReservedName("double");
+		MemberNames.AddReservedName("long");
+		MemberNames.AddReservedName("unsigned");
+		MemberNames.AddReservedName("operator");
+		MemberNames.AddReservedName("return");
+
+		MemberNames.AddReservedName("int8");
+		MemberNames.AddReservedName("int16");
+		MemberNames.AddReservedName("int32");
+		MemberNames.AddReservedName("int64");
+		MemberNames.AddReservedName("uint8");
+		MemberNames.AddReservedName("uint16");
+		MemberNames.AddReservedName("uint32");
+		MemberNames.AddReservedName("uint64");
+
+		MemberNames.AddReservedName("TRUE");
+		MemberNames.AddReservedName("FALSE");
+
+		MemberNames.AddReservedName("IN");
+		MemberNames.AddReservedName("OUT");
 	}
 
 	static inline void Init()
@@ -263,7 +285,7 @@ public:
 
 	static inline void AddStructToNameContainer(UEStruct Struct)
 	{
-		MemberNames.AddStructToNameContainer(Struct, (Struct.IsA(EClassCastFlags::Class) || Struct.IsA(EClassCastFlags::Function)));
+		MemberNames.AddStructToNameContainer(Struct, (!Struct.IsA(EClassCastFlags::Class) && !Struct.IsA(EClassCastFlags::Function)));
 	}
 
 	template<typename UEType>
