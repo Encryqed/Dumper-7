@@ -248,7 +248,7 @@ void Off::Init()
 
 	if (Settings::Internal::bUseFProperty)
 	{
-		std::cout << std::format("Game uses FProperty system\n\n");
+		std::cout << std::format("\nGame uses FProperty system\n\n");
 
 		Off::UStruct::ChildProperties = OffsetFinder::FindChildPropertiesOffset();
 		std::cout << std::format("Off::UStruct::ChildProperties: 0x{:X}\n", Off::UStruct::ChildProperties);
@@ -273,10 +273,10 @@ void Off::Init()
 	std::cout << std::format("Off::UClass::ClassDefaultObject: 0x{:X}\n", Off::UClass::ClassDefaultObject);
 
 	Off::UEnum::Names = OffsetFinder::FindEnumNamesOffset();
-	std::cout << std::format("Off::UEnum::Names: 0x{:X}\n", Off::UEnum::Names);
+	std::cout << std::format("Off::UEnum::Names: 0x{:X}\n", Off::UEnum::Names) << std::endl;
 
 	Off::UFunction::FunctionFlags = OffsetFinder::FindFunctionFlagsOffset();
-	std::cout << std::format("Off::UFunction::FunctionFlags: 0x{:X}\n", Off::UFunction::FunctionFlags) << std::endl;
+	std::cout << std::format("Off::UFunction::FunctionFlags: 0x{:X}\n", Off::UFunction::FunctionFlags);
 
 	Off::UFunction::ExecFunction = OffsetFinder::FindFunctionNativeFuncOffset();
 	std::cout << std::format("Off::UFunction::ExecFunction: 0x{:X}\n", Off::UFunction::ExecFunction) << std::endl;

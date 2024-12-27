@@ -467,7 +467,7 @@ static UEType ObjectArray::GetByIndex(int32 Index)
 }
 
 template<typename UEType>
-UEType ObjectArray::FindObject(std::string FullName, EClassCastFlags RequiredType)
+UEType ObjectArray::FindObject(const std::string& FullName, EClassCastFlags RequiredType)
 {
 	for (UEObject Object : ObjectArray())
 	{
@@ -481,7 +481,7 @@ UEType ObjectArray::FindObject(std::string FullName, EClassCastFlags RequiredTyp
 }
 
 template<typename UEType>
-UEType ObjectArray::FindObjectFast(std::string Name, EClassCastFlags RequiredType)
+UEType ObjectArray::FindObjectFast(const std::string& Name, EClassCastFlags RequiredType)
 {
 	auto ObjArray = ObjectArray();
 
@@ -497,7 +497,7 @@ UEType ObjectArray::FindObjectFast(std::string Name, EClassCastFlags RequiredTyp
 }
 
 template<typename UEType>
-static UEType ObjectArray::FindObjectFastInOuter(std::string Name, std::string Outer)
+static UEType ObjectArray::FindObjectFastInOuter(const std::string& Name, std::string Outer)
 {
 	auto ObjArray = ObjectArray();
 
@@ -512,28 +512,28 @@ static UEType ObjectArray::FindObjectFastInOuter(std::string Name, std::string O
 	return UEType();
 }
 
-UEClass ObjectArray::FindClass(std::string FullName)
+UEClass ObjectArray::FindClass(const std::string& FullName)
 {
 	return FindObject<UEClass>(FullName, EClassCastFlags::Class);
 }
 
-UEClass ObjectArray::FindClassFast(std::string Name)
+UEClass ObjectArray::FindClassFast(const std::string& Name)
 {
 	return FindObjectFast<UEClass>(Name, EClassCastFlags::Class);
 }
 
 ObjectArray::ObjectsIterator ObjectArray::begin()
 {
-	return ObjectsIterator(*this);
+	return ObjectsIterator();
 }
 ObjectArray::ObjectsIterator ObjectArray::end()
 {
-	return ObjectsIterator(*this, Num());
+	return ObjectsIterator(Num());
 }
 
 
-ObjectArray::ObjectsIterator::ObjectsIterator(ObjectArray& Array, int32 StartIndex)
-	: IteratedArray(Array), CurrentIndex(StartIndex), CurrentObject(ObjectArray::GetByIndex(StartIndex))
+ObjectArray::ObjectsIterator::ObjectsIterator(int32 StartIndex)
+	: CurrentIndex(StartIndex), CurrentObject(ObjectArray::GetByIndex(StartIndex))
 {
 }
 

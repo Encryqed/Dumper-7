@@ -150,6 +150,7 @@ namespace OffsetFinder
 
 		return OffsetNotFound;
 	}
+
 	inline int32_t FindUObjectNameOffset()
 	{
 		/*
@@ -178,6 +179,7 @@ namespace OffsetFinder
 		constexpr auto LowComparisonIndexUpperCap = 0x10; // The upper limit of what is considered a "low" comparison index
 		constexpr auto MaxLlowedNamesWithLowCmpIdx = 0x40;
 
+
 		int ArrayLength = 0x0;
 		for (int i = sizeof(void*); i <= 0x40; i += 0x4)
 		{
@@ -199,8 +201,25 @@ namespace OffsetFinder
 
 		auto GetDataAtOffsetAsInt = [](void* Ptr, int32 Offset) -> uint32 { return *reinterpret_cast<int32*>(reinterpret_cast<uintptr_t>(Ptr) + Offset); };
 
+
+		int NumObjectsConsidered = 0;
+
 		for (UEObject Object : ObjectArray())
 		{
+			constexpr auto X86SmallPageSize = 0x1000;
+			constexpr auto MaxAccessedSizeInUObject = 0x44;
+
+			/*
+			* Purpose: Make sure all offsets in the UObject::Name finder can be accessed
+			* Reasoning: Objects are allocated in Blocks, these allocations are page-aligned in both size and base. If an object + MaxAccessedSizeInUObject goes past the page-bounds
+			*            it might also go past the extends of an allocation. There's no reliable way of getting the size of UObject without knowing it's offsets first.
+			*/
+			const bool bIsGoingPastPageBounds = (reinterpret_cast<uintptr_t>(Object.GetAddress()) & (X86SmallPageSize - 1)) > (X86SmallPageSize - MaxAccessedSizeInUObject);
+			if (bIsGoingPastPageBounds)
+				continue;
+
+			NumObjectsConsidered++;
+
 			for (int i = 0x0; i < ArrayLength; i++)
 			{
 				ValueInfo& Info = PossibleOffset[i];
@@ -218,7 +237,7 @@ namespace OffsetFinder
 		{
 			ValueInfo& Info = PossibleOffset[i];
 
-			const auto AverageValue = (Info.TotalValue / ObjectArray::Num());
+			const auto AverageValue = (Info.TotalValue / NumObjectsConsidered);
 
 			if (Info.bIsValidCmpIdxRange && Info.NumNamesWithLowCmpIdx <= MaxLlowedNamesWithLowCmpIdx
 					&& AverageValue >= MinAllowedAverageComparisonIndexValue && AverageValue <= MaxAllowedAverageComparisonIndexValue)
@@ -916,7 +935,6 @@ namespace OffsetFinder
 		SearchStart = sizeof(UObject) + sizeof(FURL)
 		SearchEnd = offsetof(ULevel, OwningWorld)
 		*/
-
 		int32 SearchStart = ObjectArray::FindClassFast("Object").GetStructSize() + ObjectArray::FindObjectFast<UEStruct>("URL", EClassCastFlags::Struct).GetStructSize();
 		int32 SearchEnd = Level.GetClass().FindMember("OwningWorld").GetOffset();
 

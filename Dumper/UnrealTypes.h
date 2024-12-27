@@ -14,7 +14,7 @@
 
 using namespace UC;
 
-extern std::string MakeNameValid(std::string&& Name);
+extern std::string MakeNameValid(std::wstring&& Name);
 
 /*
 template<typename ValueType, typename KeyType>
@@ -220,7 +220,7 @@ public:
 private:
 	inline static void(*AppendString)(const void*, FString&) = nullptr;
 
-	inline static std::string(*ToStr)(const void* Name) = nullptr;
+	inline static std::wstring(*ToStr)(const void* Name) = nullptr;
 
 private:
 	const uint8* Address;
@@ -238,6 +238,9 @@ public:
 
 public:
 	inline const void* GetAddress() const { return Address; }
+
+	std::wstring ToWString() const;
+	std::wstring ToRawWString() const;
 
 	std::string ToString() const;
 	std::string ToRawString() const;

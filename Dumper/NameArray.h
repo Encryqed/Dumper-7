@@ -12,7 +12,7 @@ private:
 private:
 	static inline int32 FNameEntryLengthShiftCount = 0x0;
 
-	static inline std::string(*GetStr)(uint8* NameEntry) = nullptr;
+	static inline std::wstring(*GetStr)(uint8* NameEntry) = nullptr;
 
 private:
 	uint8* Address;
@@ -23,6 +23,7 @@ public:
 	FNameEntry(void* Ptr);
 
 public:
+	std::wstring GetWString();
 	std::string GetString();
 	void* GetAddress();
 

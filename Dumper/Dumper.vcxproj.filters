@@ -153,27 +153,6 @@
     <ClInclude Include="HashStringTable.h">
       <Filter>GeneratorRewrite\Public</Filter>
     </ClInclude>
-    <ClInclude Include="HashStringTableTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratorTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="StructManagerTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="CollisionManagerTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="MemberManagerTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="TestBase.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="EnumManagerTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
     <ClInclude Include="CollisionManager.h">
       <Filter>GeneratorRewrite\Public\Managers</Filter>
     </ClInclude>
@@ -207,12 +186,6 @@
     <ClInclude Include="Generator.h">
       <Filter>GeneratorRewrite\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="PackageManagerTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="CppGeneratorTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
     <ClInclude Include="Settings.h">
       <Filter>GeneratorRewrite</Filter>
     </ClInclude>
@@ -245,6 +218,33 @@
     </ClInclude>
     <ClInclude Include="UnrealContainers.h">
       <Filter>Engine\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="CollisionManagerTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="CppGeneratorTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="EnumManagerTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="HashStringTableTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="MemberManagerTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="PackageManagerTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="StructManagerTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratorTest.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="TestBase.h">
+      <Filter>Tests</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

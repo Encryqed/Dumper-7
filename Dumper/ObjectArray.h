@@ -53,26 +53,25 @@ public:
 	static UEType GetByIndex(int32 Index);
 
 	template<typename UEType = UEObject>
-	static UEType FindObject(std::string FullName, EClassCastFlags RequiredType = EClassCastFlags::None);
+	static UEType FindObject(const std::string& FullName, EClassCastFlags RequiredType = EClassCastFlags::None);
 
 	template<typename UEType = UEObject>
-	static UEType FindObjectFast(std::string Name, EClassCastFlags RequiredType = EClassCastFlags::None);
+	static UEType FindObjectFast(const std::string& Name, EClassCastFlags RequiredType = EClassCastFlags::None);
 
 	template<typename UEType = UEObject>
-	static UEType FindObjectFastInOuter(std::string Name, std::string Outer);
+	static UEType FindObjectFastInOuter(const std::string& Name, std::string Outer);
 
-	static UEClass FindClass(std::string FullName);
+	static UEClass FindClass(const std::string& FullName);
 
-	static UEClass FindClassFast(std::string Name);
+	static UEClass FindClassFast(const std::string& Name);
 
 	class ObjectsIterator
 	{
-		ObjectArray& IteratedArray;
 		UEObject CurrentObject;
 		int32 CurrentIndex;
 
 	public:
-		ObjectsIterator(ObjectArray& Array, int32 StartIndex = 0);
+		ObjectsIterator(int32 StartIndex = 0);
 
 		UEObject operator*();
 		ObjectsIterator& operator++();
@@ -90,5 +89,6 @@ public:
 	}
 };
 
-
+#ifndef InitObjectArrayDecryption
 #define InitObjectArrayDecryption(DecryptionLambda) ObjectArray::InitDecryption(DecryptionLambda, #DecryptionLambda)
+#endif

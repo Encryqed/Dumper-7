@@ -147,12 +147,12 @@ void EnumManager::InitInternal()
 			{
 				auto& [Name, Value] = NameValuePairs[i];
 
-				std::string NameWitPrefix = Name.ToString();
+				std::wstring NameWitPrefix = Name.ToWString();
 
-				if (!NameWitPrefix.ends_with("_MAX"))
+				if (!NameWitPrefix.ends_with(L"_MAX"))
 					EnumMaxValue = max(EnumMaxValue, Value);
 
-				auto [NameIndex, bWasInserted] = UniqueEnumValueNames.FindOrAdd(MakeNameValid(NameWitPrefix.substr(NameWitPrefix.find_last_of("::") + 1)));
+				auto [NameIndex, bWasInserted] = UniqueEnumValueNames.FindOrAdd(MakeNameValid(NameWitPrefix.substr(NameWitPrefix.find_last_of(L"::") + 1)));
 
 				EnumCollisionInfo CurrentEnumValueInfo;
 				CurrentEnumValueInfo.MemberName = NameIndex;

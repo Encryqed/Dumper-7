@@ -1091,7 +1091,7 @@ namespace UtfN
 	UTF_CONSTEXPR20 UTF_NODISCARD
 		utf16_char_string Utf8StringToUtf16String(const utf8_char_string& StringToConvert)
 	{
-		return Utf32StringToUtf16String<utf16_char_string>(utf8_iterator<inner_iterator>(StringToConvert));
+		return Utf8StringToUtf16String<utf16_char_string>(utf8_iterator<inner_iterator>(StringToConvert));
 	}
 
 	template<typename utf16_char_string, typename utf8_char_type, size_t cstr_lenght,
@@ -1230,7 +1230,7 @@ namespace UtfN
 
 		for (const utf_char16 Char : StringIteratorToConvert)
 		{
-			RetString += Utf16PairToUtf32(Char);
+			RetString += Utf16PairToUtf32(Char).Get();
 		}
 
 		return RetString;
@@ -1265,12 +1265,12 @@ namespace UtfN
 	}
 
 
-	template<typename wstring_type = std::wstring,
+	template<typename wstring_type = std::wstring, typename string_type = std::string,
 		typename = decltype(std::begin(std::declval<wstring_type>())), // has 'begin()'
 		typename = decltype(std::end(std::declval<wstring_type>()))    // has 'end()'
 	>
 	UTF_CONSTEXPR20 UTF_NODISCARD
-		std::string WStringToString(const wstring_type& WideString)
+		string_type WStringToString(const wstring_type& WideString)
 	{
 		using char_type = typename std::decay<decltype(*std::begin(std::declval<wstring_type>()))>::type;
 
@@ -1281,12 +1281,37 @@ namespace UtfN
 		if UTF_IF_CONSTEXPR (sizeof(char_type) == 0x2) // UTF-16
 		{
 			using type_to_use = typename std::conditional<sizeof(char_type) == 2, wstring_type, dummy_2byte_str>::type;
-			return Utf16StringToUtf8String<std::string, type_to_use>(UtfImpl::Utils::ForceCastIfMissmatch<const type_to_use&, const wstring_type&>(WideString));
+			return Utf16StringToUtf8String<string_type, type_to_use>(UtfImpl::Utils::ForceCastIfMissmatch<const type_to_use&, const wstring_type&>(WideString));
 		}
 		else // UTF-32
 		{
 			using type_to_use = typename std::conditional<sizeof(char_type) == 4, wstring_type, dummy_4byte_str>::type;
-			return Utf32StringToUtf8String<std::string, type_to_use>(UtfImpl::Utils::ForceCastIfMissmatch<const type_to_use&, const wstring_type&>(WideString));
+			return Utf32StringToUtf8String<string_type, type_to_use>(UtfImpl::Utils::ForceCastIfMissmatch<const type_to_use&, const wstring_type&>(WideString));
+		}
+	}
+
+	template<typename string_type = std::string, typename wstring_type = std::wstring,
+		typename = decltype(std::begin(std::declval<string_type>())), // has 'begin()'
+		typename = decltype(std::end(std::declval<string_type>()))    // has 'end()'
+	>
+	UTF_CONSTEXPR20 UTF_NODISCARD
+		wstring_type StringToWString(const string_type& NarrowString)
+	{
+		using char_type = typename std::decay<decltype(*std::begin(std::declval<wstring_type>()))>::type;
+
+		// Workaround to missing 'if constexpr (...)' in Cpp14. Satisfies the requirements of conversion-functions. Safe because the incorrect function is never going to be invoked.
+		struct dummy_2byte_str { uint16_t* begin() const { return nullptr; };   uint16_t* end() const { return nullptr; }; };
+		struct dummy_4byte_str { uint32_t* begin() const { return nullptr; };   uint32_t* end() const { return nullptr; }; };
+
+		if UTF_IF_CONSTEXPR(sizeof(char_type) == 0x2) // UTF-16
+		{
+			using type_to_use = typename std::conditional<sizeof(char_type) == 2, wstring_type, dummy_2byte_str>::type;
+			return Utf8StringToUtf16String<type_to_use, string_type>(NarrowString);
+		}
+		else // UTF-32
+		{
+			using type_to_use = typename std::conditional<sizeof(char_type) == 4, wstring_type, dummy_4byte_str>::type;
+			return Utf8StringToUtf32String<type_to_use, string_type>(NarrowString);
 		}
 	}
 
