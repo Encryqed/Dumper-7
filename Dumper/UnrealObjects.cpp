@@ -856,7 +856,7 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::NameProperty)
 	{
-		return 0x4; // FName is a bunch of int32s
+		return alignof(int32); // FName is a bunch of int32s
 	}
 	else if (TypeFlags & EClassCastFlags::StrProperty)
 	{
@@ -864,7 +864,7 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::TextProperty)
 	{
-		return 0x8; // alignof member FString
+		return alignof(FString); // alignof member FString
 	}
 	else if (TypeFlags & EClassCastFlags::BoolProperty)
 	{
@@ -884,19 +884,19 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::WeakObjectProperty)
 	{
-		return 0x4; // TWeakObjectPtr is a bunch of int32s
+		return alignof(int32); // TWeakObjectPtr is a bunch of int32s
 	}
 	else if (TypeFlags & EClassCastFlags::LazyObjectProperty)
 	{
-		return 0x4; // TLazyObjectPtr is a bunch of int32s
+		return alignof(int32); // TLazyObjectPtr is a bunch of int32s
 	}
 	else if (TypeFlags & EClassCastFlags::SoftClassProperty)
 	{
-		return 0x8; // alignof member FString
+		return alignof(FString); // alignof member FString
 	}
 	else if (TypeFlags & EClassCastFlags::SoftObjectProperty)
 	{
-		return 0x8; // alignof member FString
+		return alignof(FString); // alignof member FString
 	}
 	else if (TypeFlags & EClassCastFlags::ObjectProperty)
 	{
@@ -922,7 +922,7 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::FieldPathProperty)
 	{
-		return 0x8; // alignof member TArray<FName> and ptr;
+		return alignof(TArray<int>); // alignof member TArray<FName> and ptr;
 	}
 	else if (TypeFlags & EClassCastFlags::MulticastSparseDelegateProperty)
 	{
@@ -930,7 +930,7 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::MulticasTMulticastInlineDelegateProperty)
 	{
-		return 0x8;  // alignof member TArray<FName>
+		return alignof(TArray<int>);  // alignof member TArray<FName>
 	}
 	else if (TypeFlags & EClassCastFlags::OptionalProperty)
 	{
