@@ -4507,7 +4507,7 @@ public:
 	/* TDelegate<Ret(Args...)> */
 	PredefinedStruct TDelegateSpezialiation = PredefinedStruct{
 		.CustomTemplateText = "template<typename Ret, typename... Args>",
-		.UniqueName = "TDelegate<Ret(Args...)>", .Size = 0x0, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "TDelegate<Ret(Args...)>", .Size = PropertySizes::DelegateProperty, .Alignment = 0x1, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	TDelegateSpezialiation.Properties =
