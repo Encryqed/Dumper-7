@@ -1093,7 +1093,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else if (Flags & EClassCastFlags::FieldPathProperty)
 	{
-		return std::format("TFieldPath<struct {}>", Member.Cast<UEFieldPathProperty>().GetFielClass().GetCppName());
+		return std::format("TFieldPath<class {}>", Member.Cast<UEFieldPathProperty>().GetFielClass().GetCppName());
 	}
 	else if (Flags & EClassCastFlags::OptionalProperty)
 	{
@@ -1843,7 +1843,7 @@ void CppGenerator::InitPredefinedMembers()
 		},
 	};
 
-	std::string PropertyTypePtr = Settings::Internal::bUseFProperty ? "struct FProperty*" : "class UProperty*";
+	std::string PropertyTypePtr = Settings::Internal::bUseFProperty ? "class FProperty*" : "class UProperty*";
 
 	std::vector<PredefinedMember> PropertyMembers =
 	{
