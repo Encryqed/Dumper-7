@@ -5,6 +5,7 @@
 #include <string>
 #include <algorithm>
 #include <functional>
+#include <codecvt>
 
 /* Credits: https://en.cppreference.com/w/cpp/string/byte/tolower */
 inline std::string str_tolower(std::string S)
@@ -1083,3 +1084,16 @@ namespace FileNameHelper
 		}
 	}
 }
+
+
+inline std::string wstringToUtf8(const std::wstring& wstr)
+{
+	std::wstring_convert<std::codecvt_utf8<wchar_t> > strCnv;
+	return strCnv.to_bytes(wstr);
+}
+inline std::wstring utf8ToWstring(const std::string& str)
+{
+	std::wstring_convert< std::codecvt_utf8<wchar_t> > strCnv;
+	return strCnv.from_bytes(str);
+}
+
