@@ -1394,6 +1394,9 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 {
 	namespace CppSettings = Settings::CppGenerator;
 
+	/* Write the utf8 BOM to indicate that this is a utf8 encoded file. */
+	File << "\xEF\xBB\xBF";
+
 	File << R"(#pragma once
 
 /*
