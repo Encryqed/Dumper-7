@@ -1552,7 +1552,8 @@ void CppGenerator::Generate()
 		if (Package.IsEmpty())
 			continue;
 
-		std::string FileName = Settings::CppGenerator::FilePrefix + Package.GetName();
+		const std::string FileName = Settings::CppGenerator::FilePrefix + Package.GetName();
+		const std::u8string U8FileName = reinterpret_cast<const std::u8string&>(FileName);
 
 		StreamType ClassesFile;
 		StreamType StructsFile;
@@ -1562,7 +1563,7 @@ void CppGenerator::Generate()
 		/* Create files and handles namespaces and includes */
 		if (Package.HasClasses())
 		{
-			ClassesFile = StreamType(Subfolder / (FileName + "_classes.hpp"));
+			ClassesFile = StreamType(Subfolder / (U8FileName + u8"_classes.hpp"));
 
 			if (!ClassesFile.is_open())
 				std::cout << "Error opening file \"" << (FileName + "_classes.hpp") << "\"" << std::endl;
@@ -1575,7 +1576,7 @@ void CppGenerator::Generate()
 
 		if (Package.HasStructs() || Package.HasEnums())
 		{
-			StructsFile = StreamType(Subfolder / (FileName + "_structs.hpp"));
+			StructsFile = StreamType(Subfolder / (U8FileName + u8"_structs.hpp"));
 
 			if (!StructsFile.is_open())
 				std::cout << "Error opening file \"" << (FileName + "_structs.hpp") << "\"" << std::endl;
@@ -1588,7 +1589,7 @@ void CppGenerator::Generate()
 
 		if (Package.HasParameterStructs())
 		{
-			ParametersFile = StreamType(Subfolder / (FileName + "_parameters.hpp"));
+			ParametersFile = StreamType(Subfolder / (U8FileName + u8"_parameters.hpp"));
 
 			if (!ParametersFile.is_open())
 				std::cout << "Error opening file \"" << (FileName + "_parameters.hpp") << "\"" << std::endl;
@@ -1598,7 +1599,7 @@ void CppGenerator::Generate()
 
 		if (Package.HasFunctions())
 		{
-			FunctionsFile = StreamType(Subfolder / (FileName + "_functions.cpp"));
+			FunctionsFile = StreamType(Subfolder / (U8FileName + u8"_functions.cpp"));
 
 			if (!FunctionsFile.is_open())
 				std::cout << "Error opening file \"" << (FileName + "_functions.cpp") << "\"" << std::endl;
