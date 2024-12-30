@@ -1552,7 +1552,7 @@ void CppGenerator::Generate()
 		if (Package.IsEmpty())
 			continue;
 
-		std::string FileName = Settings::CppGenerator::FilePrefix + Package.GetName();
+		std::wstring FileName = ConvertUtf8ToWideStr(Settings::CppGenerator::FilePrefix + Package.GetName());
 
 		StreamType ClassesFile;
 		StreamType StructsFile;
@@ -1562,10 +1562,10 @@ void CppGenerator::Generate()
 		/* Create files and handles namespaces and includes */
 		if (Package.HasClasses())
 		{
-			ClassesFile = StreamType(Subfolder / (FileName + "_classes.hpp"));
+			ClassesFile = StreamType(Subfolder / (FileName + L"_classes.hpp"));
 
 			if (!ClassesFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_classes.hpp") << "\"" << std::endl;
+				std::wcout << L"Error opening file \"" << (FileName + L"_classes.hpp") << L"\"" << std::endl;
 
 			WriteFileHead(ClassesFile, Package, EFileType::Classes);
 
@@ -1575,10 +1575,10 @@ void CppGenerator::Generate()
 
 		if (Package.HasStructs() || Package.HasEnums())
 		{
-			StructsFile = StreamType(Subfolder / (FileName + "_structs.hpp"));
+			StructsFile = StreamType(Subfolder / (FileName + L"_structs.hpp"));
 
 			if (!StructsFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_structs.hpp") << "\"" << std::endl;
+				std::wcout << L"Error opening file \"" << (FileName + L"_structs.hpp") << L"\"" << std::endl;
 
 			WriteFileHead(StructsFile, Package, EFileType::Structs);
 
@@ -1588,20 +1588,20 @@ void CppGenerator::Generate()
 
 		if (Package.HasParameterStructs())
 		{
-			ParametersFile = StreamType(Subfolder / (FileName + "_parameters.hpp"));
+			ParametersFile = StreamType(Subfolder / (FileName + L"_parameters.hpp"));
 
 			if (!ParametersFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_parameters.hpp") << "\"" << std::endl;
+				std::wcout << L"Error opening file \"" << (FileName + L"_parameters.hpp") << L"\"" << std::endl;
 
 			WriteFileHead(ParametersFile, Package, EFileType::Parameters);
 		}
 
 		if (Package.HasFunctions())
 		{
-			FunctionsFile = StreamType(Subfolder / (FileName + "_functions.cpp"));
+			FunctionsFile = StreamType(Subfolder / (FileName + L"_functions.cpp"));
 
 			if (!FunctionsFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_functions.cpp") << "\"" << std::endl;
+				std::wcout << L"Error opening file \"" << (FileName + L"_functions.cpp") << L"\"" << std::endl;
 
 			WriteFileHead(FunctionsFile, Package, EFileType::Functions);
 		}

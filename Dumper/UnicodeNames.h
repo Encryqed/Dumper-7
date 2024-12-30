@@ -434,6 +434,22 @@ static std::string ConvertWideStrToUtf8(const std::wstring& WStr)
     return Str;
 }
 
+static std::wstring ConvertUtf8ToWideStr(const std::string& Utf8Str)
+{
+    if (Utf8Str.empty())
+        return L"";
+
+    const int NewNumCharacters = MultiByteToWideChar(CP_UTF8, 0, Utf8Str.c_str(), Utf8Str.length(), NULL, 0);
+
+    if (NewNumCharacters == 0x0)
+        return L"";
+
+    std::wstring wStr(NewNumCharacters, '\0');
+    MultiByteToWideChar(CP_UTF8, 0, Utf8Str.c_str(), Utf8Str.length(), wStr.data(), NewNumCharacters);
+
+    return wStr;
+}
+
 //static std::string ConvertWideStrToUtf8(const wchar_t* WStr)
 //{
 //    const int NewNumCharacters = WideCharToMultiByte(CP_UTF8, 0, WStr, -1, NULL, 0, NULL, NULL);
