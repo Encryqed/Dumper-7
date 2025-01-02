@@ -2763,15 +2763,16 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 		std::sort(Members.begin(), Members.end(), ComparePredefinedMembers);
 	};
 
-	std::string CustomIncludes = R"(#include <string>
-#include <iostream>
-#include <Windows.h>
+	std::string CustomIncludes = R"(#define VC_EXTRALEAN
+#define WIN32_LEAN_AND_MEAN
+
+#include <string>
 #include <functional>
 #include <type_traits>
 )";
 
 	WriteFileHead(BasicHpp, nullptr, EFileType::BasicHpp, "Basic file containing structs required by the SDK", CustomIncludes);
-	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp");
+	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp", "#include <Windows.h>");
 
 
 	/* use namespace of UnrealContainers */
@@ -2811,9 +2812,7 @@ namespace InSDKUtils
 
 
 	/* Custom 'GetImageBase' function */
-	BasicHpp << std::format(R"(	inline uintptr_t GetImageBase()
-{}
-)", CppSettings::GetImageBaseFuncBody);
+	BasicHpp << "\tuintptr_t GetImageBase();\n\n";
 
 
 	/* GetVirtualFunction(const void* ObjectInstance, int32 Index) function */
@@ -2831,6 +2830,10 @@ namespace InSDKUtils
 
 	BasicHpp << "}\n\n";
 	// End Namespace 'InSDKUtils'
+
+	/* Custom 'GetImageBase' function */
+	BasicCpp << std::format(R"(uintptr_t InSDKUtils::GetImageBase()
+{})", Settings::CppGenerator::GetImageBaseFuncBody);
 
 	if constexpr (!Settings::CppGenerator::XORString)
 	{
@@ -4931,7 +4934,7 @@ using TActorBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<Under
 void CppGenerator::GenerateUnrealContainers(StreamType& UEContainersHeader)
 {
 	WriteFileHead(UEContainersHeader, nullptr, EFileType::UnrealContainers, 
-		"Container implementations with iterators. See https://github.com/Fischsalat/UnrealContainers", "#include <string>\n#include <stdexcept>");
+		"Container implementations with iterators. See https://github.com/Fischsalat/UnrealContainers", "#include <string>\n#include <stdexcept>\n#include <iostream>");
 
 
 	UEContainersHeader << R"(
