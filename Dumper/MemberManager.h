@@ -237,13 +237,25 @@ public:
 
 
 		/* Reserved C++ keywords, typedefs and macros */
+		MemberNames.AddReservedName("byte");
+		MemberNames.AddReservedName("short");
 		MemberNames.AddReservedName("int");
 		MemberNames.AddReservedName("float");
 		MemberNames.AddReservedName("double");
 		MemberNames.AddReservedName("long");
+		MemberNames.AddReservedName("signed");
 		MemberNames.AddReservedName("unsigned");
 		MemberNames.AddReservedName("operator");
 		MemberNames.AddReservedName("return");
+
+		MemberNames.AddReservedName("struct");
+		MemberNames.AddReservedName("class");
+		MemberNames.AddReservedName("for");
+		MemberNames.AddReservedName("while");
+		MemberNames.AddReservedName("this");
+		MemberNames.AddReservedName("private");
+		MemberNames.AddReservedName("public");
+		MemberNames.AddReservedName("const");
 
 		MemberNames.AddReservedName("int8");
 		MemberNames.AddReservedName("int16");
@@ -256,6 +268,8 @@ public:
 
 		MemberNames.AddReservedName("TRUE");
 		MemberNames.AddReservedName("FALSE");
+		MemberNames.AddReservedName("true");
+		MemberNames.AddReservedName("false");
 
 		MemberNames.AddReservedName("IN");
 		MemberNames.AddReservedName("OUT");
