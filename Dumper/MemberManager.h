@@ -273,6 +273,9 @@ public:
 
 		MemberNames.AddReservedName("IN");
 		MemberNames.AddReservedName("OUT");
+
+		MemberNames.AddReservedName("min");
+		MemberNames.AddReservedName("max");
 	}
 
 	static inline void Init()
