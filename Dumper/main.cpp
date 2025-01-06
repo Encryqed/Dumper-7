@@ -24,7 +24,7 @@ enum class EFortToastType : uint8
         EFortToastType_MAX             = 3,
 };
 
-DWORD MainThread(HMODULE Module)
+int MainThread()
 {
 	AllocConsole();
 	FILE* Dummy;
@@ -70,20 +70,6 @@ DWORD MainThread(HMODULE Module)
 
 	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 
-	while (true)
-	{
-		if (GetAsyncKeyState(VK_F6) & 1)
-		{
-			fclose(stdout);
-			if (Dummy) fclose(Dummy);
-			FreeConsole();
-
-			FreeLibraryAndExitThread(Module, 0);
-		}
-
-		Sleep(100);
-	}
-
 	return 0;
 }
 
@@ -92,7 +78,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 	switch (reason)
 	{
 	case DLL_PROCESS_ATTACH:
-		CreateThread(0, 0, (LPTHREAD_START_ROUTINE)MainThread, hModule, 0, 0);
+		MainThread();
 		break;
 	}
 

@@ -64,29 +64,32 @@ FName::FName(const void* Ptr)
 
 void FName::Init(bool bForceGNames)
 {
-	constexpr std::array<const char*, 5> PossibleSigs = 
-	{ 
-		"48 8D ? ? 48 8D ? ? E8",
-		"48 8D ? ? ? 48 8D ? ? E8",
-		"48 8D ? ? 49 8B ? E8",
-		"48 8D ? ? ? 49 8B ? E8",
-		"48 8D ? ? 48 8B ? E8"
-		"48 8D ? ? ? 48 8B ? E8",
-	};
-
-	MemAddress StringRef = FindByStringInAllSections("ForwardShadingQuality_");
-
-	int i = 0;
-	while (!AppendString && i < PossibleSigs.size())
+	if (bForceGNames)
 	{
-		AppendString = static_cast<void(*)(const void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1 /* auto */));
+		constexpr std::array<const char*, 5> PossibleSigs =
+		{
+			"48 8D ? ? 48 8D ? ? E8",
+			"48 8D ? ? ? 48 8D ? ? E8",
+			"48 8D ? ? 49 8B ? E8",
+			"48 8D ? ? ? 49 8B ? E8",
+			"48 8D ? ? 48 8B ? E8"
+			"48 8D ? ? ? 48 8B ? E8",
+		};
 
-		i++;
+		MemAddress StringRef = FindByStringInAllSections("ForwardShadingQuality_");
+
+		int i = 0;
+		while (!AppendString && i < PossibleSigs.size())
+		{
+			AppendString = static_cast<void(*)(const void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1 /* auto */));
+
+			i++;
+		}
+
+		Off::InSDK::Name::AppendNameToString = AppendString ? GetOffset(AppendString) : 0x0;
 	}
 
-	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? GetOffset(AppendString) : 0x0;
-
-	if (!AppendString || bForceGNames)
+	if (!AppendString)
 	{
 		const bool bInitializedSuccessfully = NameArray::TryInit();
 
