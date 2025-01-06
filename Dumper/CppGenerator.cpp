@@ -2028,7 +2028,7 @@ void CppGenerator::InitPredefinedMembers()
 		auto AssignValueIfObjectIsFound = [](const std::string& ClassName, std::vector<PredefinedMember>&& Members) -> void
 		{
 			if (UEClass Class = ObjectArray::FindClassFast(ClassName))
-					PredefinedMembers[Class.GetIndex()].Members = std::move(Members);
+				PredefinedMembers[Class.GetIndex()].Members = std::move(Members);
 		};
 
 		AssignValueIfObjectIsFound("Property", std::move(PropertyMembers));
