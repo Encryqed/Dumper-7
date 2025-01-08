@@ -2539,14 +2539,12 @@ std::format(R"({{{}
 
 	UEStruct Vector = ObjectArray::FindObjectFast<UEStruct>("Vector");
 
-	const bool bUseDoublesForVector = Vector.GetStructSize() > 0xC;
-
 	PredefinedElements& FVectorPredefs = PredefinedMembers[Vector.GetIndex()];
 
 	FVectorPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = std::format("using UnderlayingType = {}", (bUseDoublesForVector ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.Type = std::format("using UnderlayingType = {}", (Settings::Internal::bUseLargeWorldCoordinates ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
 			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF,
 		}
 	});
@@ -2745,12 +2743,210 @@ R"({
 		},
 	};
 
+	UEStruct Vector2D = ObjectArray::FindObjectFast<UEStruct>("Vector2D");
+
+	PredefinedElements& FVector2DPredefs = PredefinedMembers[Vector2D.GetIndex()];
+	FVector2DPredefs.Members.push_back(PredefinedMember{
+		PredefinedMember{
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = std::format("using UnderlayingType = {}", (Settings::Internal::bUseLargeWorldCoordinates ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF,
+		}
+	});
+
+	FVector2DPredefs.Functions =
+	{
+		/* const operators */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D", .NameWithParams = "operator+(const FVector2D& Other)", .Body =
+R"({
+	return { X + Other.X, Y + Other.Y };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D", .NameWithParams = "operator-(const FVector2D& Other)", .Body =
+R"({
+	return { X - Other.X, Y - Other.Y  };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D", .NameWithParams = "operator*(float Scalar)", .Body =
+R"({
+	return { X * Scalar, Y * Scalar };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D", .NameWithParams = "operator*(const FVector2D& Other)", .Body =
+R"({
+	return { X * Other.X, Y * Other.Y };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D", .NameWithParams = "operator/(float Scalar)", .Body =
+R"({
+	if (Scalar == 0.0f)
+		return *this;
+
+	return { X / Scalar, Y / Scalar };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D", .NameWithParams = "operator/(const FVector2D& Other)", .Body =
+R"({
+	if (Other.X == 0.0f || Other.Y == 0.0f)
+		return *this;
+
+	return { X / Other.X, Y / Other.Y };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator==(const FVector2D& Other)", .Body =
+R"({
+	return X == Other.X && Y == Other.Y;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator!=(const FVector2D& Other)", .Body =
+R"({
+	return X != Other.X || Y != Other.Y;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+
+		/* Non-const operators */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D&", .NameWithParams = "operator+=(const FVector2D& Other)", .Body =
+R"({
+	*this = *this + Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D&", .NameWithParams = "operator-=(const FVector2D& Other)", .Body =
+R"({
+	*this = *this - Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D&", .NameWithParams = "operator*=(float Scalar)", .Body =
+R"({
+	*this = *this * Scalar;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D&", .NameWithParams = "operator*=(const FVector2D& Other)", .Body =
+R"({
+	*this = *this * Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D&", .NameWithParams = "operator/=(float Scalar)", .Body =
+R"({
+	*this = *this / Scalar;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FVector2D&", .NameWithParams = "operator/=(const FVector2D& Other)", .Body =
+R"({
+	*this = *this / Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+
+		/* Const functions */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "IsZero()", .Body =
+R"({
+	return X == 0.0 && Y == 0.0;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "UnderlayingType", .NameWithParams = "Dot(const FVector2D& Other)", .Body =
+R"({
+	return (X * Other.X) + (Y * Other.Y);
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "UnderlayingType", .NameWithParams = "Magnitude()", .Body =
+R"({
+	return std::sqrt((X * X) + (Y * Y));
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "FVector2D", .NameWithParams = "GetNormalized()", .Body =
+R"({
+	return *this / Magnitude();
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceTo(const FVector2D& Other)", .Body =
+R"({
+	FVector2D DiffVector = Other - *this;
+	return DiffVector.Magnitude();
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+
+
+		/* Non-const functions */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "FVector2D&", .NameWithParams = "Normalize()", .Body =
+R"({
+	*this /= Magnitude();
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+	};
+
 	SortFunctions(UObjectPredefs.Functions);
 	SortFunctions(UClassPredefs.Functions);
 	SortFunctions(UEnginePredefs.Functions);
 	SortFunctions(UGameEnginePredefs.Functions);
 	SortFunctions(UWorldPredefs.Functions);
 	SortFunctions(FVectorPredefs.Functions);
+	SortFunctions(FVector2DPredefs.Functions);
 }
 
 
