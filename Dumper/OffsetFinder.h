@@ -714,13 +714,17 @@ namespace OffsetFinder
 		Infos.push_back({ ObjectArray::FindObjectFast("ToggleSpeaking").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
 		Infos.push_back({ ObjectArray::FindObjectFast("SwitchLevel").GetAddress(), EFunctionFlags::Exec | EFunctionFlags::Native | EFunctionFlags::Public });
 
-		int32 Ret = FindOffset(Infos);
+		// Some games don't have APlayerController::SwitchLevel(), so we replace it with APlayerController::FOV() which has the same FunctionFlags
+		if (Infos[2].first == nullptr)
+			Infos[2].first = ObjectArray::FindObjectFast("FOV").GetAddress();
 
-		if (Ret == OffsetNotFound)
-		{
-			for (auto& [_, Flags] : Infos)
-				Flags = Flags | EFunctionFlags::RequiredAPI;
-		}
+		const int32 Ret = FindOffset(Infos);
+
+		if (Ret != OffsetNotFound)
+			return Ret;
+
+		for (auto& [_, Flags] : Infos)
+			Flags |= EFunctionFlags::RequiredAPI;
 
 		return FindOffset(Infos);
 	}
@@ -731,11 +735,15 @@ namespace OffsetFinder
 
 		uintptr_t WasInputKeyJustPressed = reinterpret_cast<uintptr_t>(ObjectArray::FindObjectFast("WasInputKeyJustPressed").GetAddress());
 		uintptr_t ToggleSpeaking = reinterpret_cast<uintptr_t>(ObjectArray::FindObjectFast("ToggleSpeaking").GetAddress());
-		uintptr_t SwitchLevel = reinterpret_cast<uintptr_t>(ObjectArray::FindObjectFast("SwitchLevel").GetAddress());
+		uintptr_t SwitchLevel_Or_FOV = reinterpret_cast<uintptr_t>(ObjectArray::FindObjectFast("SwitchLevel").GetAddress());
+
+		// Some games don't have APlayerController::SwitchLevel(), so we replace it with APlayerController::FOV() which has the same FunctionFlags
+		if (SwitchLevel_Or_FOV == NULL)
+			SwitchLevel_Or_FOV = reinterpret_cast<uintptr_t>(ObjectArray::FindObjectFast("FOV").GetAddress());
 
 		for (int i = 0x40; i < 0x140; i += 8)
 		{
-			if (IsInProcessRange(*reinterpret_cast<uintptr_t*>(WasInputKeyJustPressed + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(ToggleSpeaking + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(SwitchLevel + i)))
+			if (IsInProcessRange(*reinterpret_cast<uintptr_t*>(WasInputKeyJustPressed + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(ToggleSpeaking + i)) && IsInProcessRange(*reinterpret_cast<uintptr_t*>(SwitchLevel_Or_FOV + i)))
 				return i;
 		}
 
