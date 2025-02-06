@@ -286,7 +286,7 @@ enum class EClassCastFlags : uint64
 	VRestValueProperty					= 0x0800000000000000,
 };
 
-enum class EClassFlags
+enum class EClassFlags : long long
 {
 	None						= 0x00000000u,
 	Abstract					= 0x00000001u,
