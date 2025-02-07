@@ -248,6 +248,10 @@ public:
 		MemberNames.AddReservedName("operator");
 		MemberNames.AddReservedName("return");
 
+		MemberNames.AddReservedName("or");
+		MemberNames.AddReservedName("and");
+		MemberNames.AddReservedName("xor");
+
 		MemberNames.AddReservedName("struct");
 		MemberNames.AddReservedName("class");
 		MemberNames.AddReservedName("for");
