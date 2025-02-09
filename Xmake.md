@@ -12,7 +12,7 @@ I also reccomend this extention for VSCode: https://marketplace.visualstudio.com
 xmake f -p windows -a <arch> -m <build_mode>
 
 # Examples
-xmake f -p windows -a x64 -m release # As release 
+xmake f -p windows -a x64 -m release # As Release 
 xmake f -p windows -a x64 -m debug # as Debug
 ```
 
