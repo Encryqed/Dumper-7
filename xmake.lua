@@ -1,6 +1,6 @@
 set_project("Dumper-7")
 add_rules("mode.debug", "mode.release")
-set_languages("c++latest")
+set_languages("c++latest", "clatest")
 
 target("Dumper-7")
     set_kind("shared")
@@ -10,6 +10,16 @@ target("Dumper-7")
 
     add_cxflags("/wd4244", "/wd4267")
 
-    add_syslinks("User32", "Ntdll")
+    add_links(
+        "kernel32", "user32", "gdi32", "winspool", "comdlg32",
+        "advapi32", "shell32", "ole32", "oleaut32", "uuid",
+        "odbc32", "odbccp32", "ntdll"
+    )
 
-    set_targetdir("Build/$(mode)/")
+    if is_mode("release") then
+        set_runtimes("MD")
+    else
+        set_runtimes("MDd")
+    end
+
+    set_targetdir("Build/" .. (is_mode("release") and "Release" or "Debug") .. "/")
