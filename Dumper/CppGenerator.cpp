@@ -5429,6 +5429,8 @@ namespace UC
 		inline int32 Num() const { return NumElements; }
 		inline int32 Max() const { return MaxElements; }
 
+		inline const ArrayElementType* GetDataPtr() const { return Data; }
+
 		inline bool IsValidIndex(int32 Index) const { return Data && Index >= 0 && Index < NumElements; }
 
 		inline bool IsValid() const { return Data && NumElements > 0 && MaxElements >= NumElements; }
