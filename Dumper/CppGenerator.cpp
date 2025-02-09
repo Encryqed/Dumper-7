@@ -4817,7 +4817,10 @@ enum class EObjectFlags : int32
 	StrongRefOnFrame				= 0x01000000,
 	NonPIEDuplicateTransient		= 0x02000000,
 	Dynamic							= 0x04000000,
-	WillBeLoaded					= 0x08000000, 
+	WillBeLoaded					= 0x08000000,
+	HasExternalPackage				= 0x10000000,
+	MirroredGarbage					= 0x40000000,
+	AllocatedInSharedPage			= 0x80000000,
 };
 )";
 
