@@ -5,7 +5,7 @@ And for extra info on Xmake's commands visit: https://xmake.io/#/getting_started
 
 <br>
 
-I also reccomend this extention for VSCode: https://marketplace.visualstudio.com/items?itemName=tboox.xmake-vscode
+I also recommend this extention for VSCode: https://marketplace.visualstudio.com/items?itemName=tboox.xmake-vscode
 
 ## To configure the project
 ```bash
