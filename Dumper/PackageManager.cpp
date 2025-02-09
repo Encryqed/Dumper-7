@@ -156,9 +156,9 @@ namespace PackageManagerUtils
 		{
 			GetPropertyDependency(Prop.Cast<UEOptionalProperty>().GetValueProperty(), Store);
 		}
-		else if (Prop.IsA(EClassCastFlags::DelegateProperty) || Prop.IsA(EClassCastFlags::MulticasTMulticastInlineDelegateProperty))
+		else if (Prop.IsA(EClassCastFlags::DelegateProperty) || Prop.IsA(EClassCastFlags::MulticastInlineDelegateProperty))
 		{
-			const bool bIsNormalDeleage = !Prop.IsA(EClassCastFlags::MulticasTMulticastInlineDelegateProperty);
+			const bool bIsNormalDeleage = !Prop.IsA(EClassCastFlags::MulticastInlineDelegateProperty);
 			UEFunction SignatureFunction = bIsNormalDeleage ? Prop.Cast<UEDelegateProperty>().GetSignatureFunction() : Prop.Cast<UEMulticastInlineDelegateProperty>().GetSignatureFunction();
 
 			if (!SignatureFunction)

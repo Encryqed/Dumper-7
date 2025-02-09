@@ -1084,7 +1084,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 
 		return "TDelegate<void()>";
 	}
-	else if (Flags & EClassCastFlags::MulticasTMulticastInlineDelegateProperty)
+	else if (Flags & EClassCastFlags::MulticastInlineDelegateProperty)
 	{
 		if (UEFunction SignatureFunc = Member.Cast<UEMulticastInlineDelegateProperty>().GetSignatureFunction()) [[likely]]
 			return std::format("TMulticastInlineDelegate<{}>", GetFunctionSignature(SignatureFunc));
@@ -4962,14 +4962,14 @@ enum class EClassCastFlags : uint64
 	SetProperty							= 0x0000800000000000,
 	EnumProperty						= 0x0001000000000000,
 	USparseDelegateFunction				= 0x0002000000000000,
-	FMulticasTMulticastInlineDelegateProperty	= 0x0004000000000000,
-	FMulticastSparseDelegateProperty	= 0x0008000000000000,
-	FFieldPathProperty					= 0x0010000000000000,
-	FLargeWorldCoordinatesRealProperty	= 0x0080000000000000,
-	FOptionalProperty					= 0x0100000000000000,
-	FVValueProperty						= 0x0200000000000000,
+	MulticastInlineDelegateProperty	    = 0x0004000000000000,
+	MulticastSparseDelegateProperty	    = 0x0008000000000000,
+	FieldPathProperty					= 0x0010000000000000,
+	LargeWorldCoordinatesRealProperty	= 0x0080000000000000,
+	OptionalProperty					= 0x0100000000000000,
+	VValueProperty						= 0x0200000000000000,
 	UVerseVMClass						= 0x0400000000000000,
-	FVRestValueProperty					= 0x0800000000000000,
+	VRestValueProperty					= 0x0800000000000000,
 };
 )";
 
