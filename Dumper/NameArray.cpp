@@ -69,7 +69,7 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 
 		if (FNameEntryLengthShiftCount == MaxAllowedShiftCount)
 		{
-			std::cout << "\Dumper-7: Error, couldn't get FNameEntryLengthShiftCount!\n" << std::endl;
+			std::cout << "\\Dumper-7: Error, couldn't get FNameEntryLengthShiftCount!\n" << std::endl;
 			GetStr = [](uint8* NameEntry) -> std::wstring { return L"Invalid FNameEntryLengthShiftCount!"; };
 			return;
 		}

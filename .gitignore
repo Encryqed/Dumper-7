@@ -353,3 +353,9 @@ MigrationBackup/
 
 # JetBrains
 .idea/
+
+# Xmake
+.xmake/
+
+# VSCode
+.vscode/
