@@ -3572,8 +3572,7 @@ R"({
 R"({
 	if (IsWide())
 	{
-		std::wstring WideString(Name.WideName);
-		return std::string(WideString.begin(), WideString.end());
+		return UtfN::Utf16StringToUtf8String<std::string>(Name.WideName, wcslen(Name.WideName));
 	}
 
 	return Name.AnsiName;
