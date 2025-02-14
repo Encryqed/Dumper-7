@@ -61,8 +61,10 @@ public:
 	template<typename UEType = UEObject>
 	static UEType FindObjectFastInOuter(const std::string& Name, std::string Outer);
 
-	static UEClass FindClass(const std::string& FullName);
+	static UEStruct FindStruct(const std::string& FullName);
+	static UEStruct FindStructFast(const std::string& Name);
 
+	static UEClass FindClass(const std::string& FullName);
 	static UEClass FindClassFast(const std::string& Name);
 
 	class ObjectsIterator

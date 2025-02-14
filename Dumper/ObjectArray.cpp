@@ -512,6 +512,16 @@ static UEType ObjectArray::FindObjectFastInOuter(const std::string& Name, std::s
 	return UEType();
 }
 
+UEStruct ObjectArray::FindStruct(const std::string& Name)
+{
+	return FindObjectFast<UEClass>(Name, EClassCastFlags::Struct);
+}
+
+UEStruct ObjectArray::FindStructFast(const std::string& Name)
+{
+	return FindObjectFast<UEClass>(Name, EClassCastFlags::Struct);
+}
+
 UEClass ObjectArray::FindClass(const std::string& FullName)
 {
 	return FindObject<UEClass>(FullName, EClassCastFlags::Class);

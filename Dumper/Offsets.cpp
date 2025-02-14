@@ -246,6 +246,8 @@ void Off::Init()
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
 	std::cout << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
 
+	// Castflags become available for use
+
 	if (Settings::Internal::bUseFProperty)
 	{
 		std::cout << std::format("\nGame uses FProperty system\n\n");
