@@ -229,7 +229,7 @@ int32_t OffsetFinder::FindUObjectOuterOffset()
 			LowestFoundOffset = Offset;
 	}
 
-	return LowestFoundOffset == OffsetNotFound ? OffsetNotFound : LowestFoundOffset;
+	return LowestFoundOffset == 0xFFFF ? OffsetNotFound : LowestFoundOffset;
 }
 
 void OffsetFinder::FixupHardcodedOffsets()
