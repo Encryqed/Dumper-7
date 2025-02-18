@@ -214,15 +214,16 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 
 		std::string Type = GetMemberTypeString(Param);
 
-		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
+		const bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
 
 		ParamInfo PInfo;
 		PInfo.Type = Type;
 
 		const bool bIsRef = Param.HasPropertyFlags(EPropertyFlags::ReferenceParm);
 		const bool bIsOut = bIsRef || Param.HasPropertyFlags(EPropertyFlags::OutParm);
+		const bool bIsRet = Param.IsReturnParam();
 
-		if (bIsConst && (!bIsOut || bIsRef))
+		if (bIsConst && (!bIsOut || bIsRef || bIsRet))
 			Type = "const " + Type;
 
 		if (Param.IsReturnParam())
