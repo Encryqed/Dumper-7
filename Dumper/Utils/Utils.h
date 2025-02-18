@@ -1,10 +1,12 @@
 #pragma once
+
 #include <Windows.h>
 #include <iostream>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <functional>
+
 
 /* Credits: https://en.cppreference.com/w/cpp/string/byte/tolower */
 inline std::string str_tolower(std::string S)

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Enums.h"
+#include "Unreal/Enums.h"
+#include "Unreal/UnrealObjects.h"
 
-#include "UnrealObjects.h"
-#include "DependencyManager.h"
+#include "Managers/DependencyManager.h"
 #include "HashStringTable.h"
 
 

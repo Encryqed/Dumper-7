@@ -1,12 +1,16 @@
 #pragma once
-#include "ObjectArray.h"
-#include "EnumWrapper.h"
-#include "StructManager.h"
-#include "StructWrapper.h"
-#include "MemberWrappers.h"
-#include "PackageManager.h"
 
-#include "ExternalDependencies/Dumpspace/DSGen.h"
+#include "Unreal/ObjectArray.h"
+
+#include "Managers/StructManager.h"
+#include "Managers/PackageManager.h"
+
+#include "Wrappers/EnumWrapper.h"
+#include "Wrappers/StructWrapper.h"
+#include "Wrappers/MemberWrappers.h"
+
+#include "Utils/Dumpspace/DSGen.h"
+
 
 class DumpspaceGenerator
 {

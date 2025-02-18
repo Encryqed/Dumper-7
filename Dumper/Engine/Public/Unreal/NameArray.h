@@ -1,5 +1,6 @@
 #pragma once
-#include "UnrealTypes.h"
+
+#include "Unreal/UnrealTypes.h"
 
 class FNameEntry
 {

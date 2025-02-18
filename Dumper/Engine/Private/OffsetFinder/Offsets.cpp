@@ -1,12 +1,14 @@
+
 #include <format>
 
 #include "Utils.h"
 
-#include "Offsets.h"
-#include "ObjectArray.h"
-#include "OffsetFinder.h"
+#include "OffsetFinder/Offsets.h"
+#include "OffsetFinder/OffsetFinder.h"
 
-#include "NameArray.h"
+#include "Unreal/ObjectArray.h"
+#include "Unreal/NameArray.h"
+
 
 void Off::InSDK::ProcessEvent::InitPE()
 {

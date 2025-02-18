@@ -1,12 +1,13 @@
-#include "MappingGenerator.h"
-#include "PackageManager.h"
-#include "Settings.h"
-#include "ExternalDependencies/Compression/zstd.h"
-
-#include "Utils.h"
 
 #include <iostream>
 #include <string>
+
+#include "Generators/MappingGenerator.h"
+#include "Managers/PackageManager.h"
+#include "Utils/Compression/zstd.h"
+
+#include "Settings.h"
+#include "Utils.h"
 
 EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 {

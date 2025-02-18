@@ -1,9 +1,11 @@
-#include "Generator.h"
+
+#include "Generators/Generator.h"
+#include "Managers/StructManager.h"
+#include "Managers/EnumManager.h"
+#include "Managers/MemberManager.h"
+#include "Managers/PackageManager.h"
+
 #include "HashStringTable.h"
-#include "StructManager.h"
-#include "EnumManager.h"
-#include "MemberManager.h"
-#include "PackageManager.h"
 #include "Utils.h"
 
 inline void InitWeakObjectPtrSettings()

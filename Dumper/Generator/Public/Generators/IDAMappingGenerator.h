@@ -1,9 +1,11 @@
 #pragma once
+
 #include <iostream>
 #include <string>
 
+#include "Unreal/ObjectArray.h"
 #include "PredefinedMembers.h"
-#include "ObjectArray.h"
+
 
 class IDAMappingGenerator
 {

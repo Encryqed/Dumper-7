@@ -81,6 +81,7 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessToFile>false</PreprocessToFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Public;$(ProjectDir)Generator\Public;$(ProjectDir)Utils;$(ProjectDir)Platform\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -98,6 +99,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Public;$(ProjectDir)Generator\Public;$(ProjectDir)Utils;$(ProjectDir)Platform\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -116,6 +118,7 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessToFile>false</PreprocessToFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Public;$(ProjectDir)Generator\Public;$(ProjectDir)Utils;$(ProjectDir)Platform\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -134,6 +137,7 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Public;$(ProjectDir)Generator\Public;$(ProjectDir)Utils;$(ProjectDir)Platform\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -143,12 +147,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\Private\OffsetFinder\OffsetFinder.cpp" />
     <ClCompile Include="Generator\Private\Generators\DumpspaceGenerator.cpp" />
-    <ClCompile Include="Engine\Private\NameArray.cpp" />
-    <ClCompile Include="Engine\Private\ObjectArray.cpp" />
-    <ClCompile Include="Engine\Private\Offsets.cpp" />
-    <ClCompile Include="Engine\Private\UnrealObjects.cpp" />
-    <ClCompile Include="Engine\Private\UnrealTypes.cpp" />
+    <ClCompile Include="Engine\Private\Unreal\NameArray.cpp" />
+    <ClCompile Include="Engine\Private\Unreal\ObjectArray.cpp" />
+    <ClCompile Include="Engine\Private\OffsetFinder\Offsets.cpp" />
+    <ClCompile Include="Engine\Private\Unreal\UnrealObjects.cpp" />
+    <ClCompile Include="Engine\Private\Unreal\UnrealTypes.cpp" />
     <ClCompile Include="Utils\Compression\zstd.c" />
     <ClCompile Include="Utils\Dumpspace\DSGen.cpp" />
     <ClCompile Include="Generator\Private\Generators\CppGenerator.cpp" />
@@ -174,7 +179,7 @@
     <ClInclude Include="Generator\Public\Generators\CppGenerator.h" />
     <ClInclude Include="Generator\Public\Managers\DependencyManager.h" />
     <ClInclude Include="Generator\Public\Managers\EnumManager.h" />
-    <ClInclude Include="Engine\Public\Enums.h" />
+    <ClInclude Include="Engine\Public\Unreal\Enums.h" />
     <ClInclude Include="Generator\Public\Wrappers\EnumWrapper.h" />
     <ClInclude Include="Utils\Json\json.hpp" />
     <ClInclude Include="Generator\Public\Generators\Generator.h" />
@@ -183,21 +188,21 @@
     <ClInclude Include="Generator\Public\Generators\MappingGenerator.h" />
     <ClInclude Include="Generator\Public\Wrappers\MemberWrappers.h" />
     <ClInclude Include="Generator\Public\Managers\CollisionManager.h" />
-    <ClInclude Include="Engine\Public\ObjectArray.h" />
-    <ClInclude Include="Engine\Public\OffsetFinder.h" />
-    <ClInclude Include="Engine\Public\Offsets.h" />
+    <ClInclude Include="Engine\Public\Unreal\ObjectArray.h" />
+    <ClInclude Include="Engine\Public\OffsetFinder\OffsetFinder.h" />
+    <ClInclude Include="Engine\Public\OffsetFinder\Offsets.h" />
     <ClInclude Include="Generator\Public\Managers\MemberManager.h" />
     <ClInclude Include="Generator\Public\Managers\PackageManager.h" />
     <ClInclude Include="Generator\Public\PredefinedMembers.h" />
-    <ClInclude Include="Generator\Settings.h" />
+    <ClInclude Include="Settings.h" />
     <ClInclude Include="Generator\Public\Managers\StructManager.h" />
-    <ClInclude Include="Engine\Public\NameArray.h" />
+    <ClInclude Include="Engine\Public\Unreal\NameArray.h" />
     <ClInclude Include="Utils\Encoding\UnicodeNames.h" />
-    <ClInclude Include="Engine\Public\UnrealContainers.h" />
-    <ClInclude Include="Engine\Public\UnrealObjects.h" />
-    <ClInclude Include="Engine\Public\UnrealTypes.h" />
+    <ClInclude Include="Engine\Public\Unreal\UnrealContainers.h" />
+    <ClInclude Include="Engine\Public\Unreal\UnrealObjects.h" />
+    <ClInclude Include="Engine\Public\Unreal\UnrealTypes.h" />
     <ClInclude Include="Utils\Encoding\UtfN.hpp" />
-    <ClInclude Include="Platform\Utils.h" />
+    <ClInclude Include="Utils\Utils.h" />
     <ClInclude Include="Generator\Public\Wrappers\StructWrapper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

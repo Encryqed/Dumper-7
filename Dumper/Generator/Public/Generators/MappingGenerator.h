@@ -1,9 +1,11 @@
 #pragma once
-#include "ObjectArray.h"
-#include "MemberWrappers.h"
-#include "EnumWrapper.h"
 
 #include <fstream>
+
+#include "Unreal/ObjectArray.h"
+#include "Wrappers/MemberWrappers.h"
+#include "Wrappers/EnumWrapper.h"
+
 
 /*
 * USMAP-Header:

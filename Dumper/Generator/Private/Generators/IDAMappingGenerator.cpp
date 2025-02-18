@@ -1,6 +1,7 @@
-#include "IDAMappingGenerator.h"
 
 #include <fstream>
+
+#include "Generators/IDAMappingGenerator.h"
 
 
 std::string IDAMappingGenerator::MangleFunctionName(const std::string& ClassName, const std::string& FunctionName)

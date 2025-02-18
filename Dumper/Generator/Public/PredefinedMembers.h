@@ -3,8 +3,8 @@
 #include <vector>
 #include <unordered_map>
 
-#include "Enums.h"
-#include "UnrealObjects.h"
+#include "Unreal/Enums.h"
+#include "Unreal/UnrealObjects.h"
 
 struct PredefinedMember
 {

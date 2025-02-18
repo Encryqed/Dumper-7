@@ -1,7 +1,9 @@
-#include "NameArray.h"
 
-/* DEBUG */
-#include "ObjectArray.h"
+#include <format>
+
+#include "Unreal/ObjectArray.h"
+#include "Unreal/NameArray.h"
+
 
 uint8* NameArray::GNames = nullptr;
 

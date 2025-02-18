@@ -1,7 +1,9 @@
 #pragma once
+
 #include <string>
 
-#include "Enums.h"
+#include "Unreal/Enums.h"
+
 
 namespace Settings
 {

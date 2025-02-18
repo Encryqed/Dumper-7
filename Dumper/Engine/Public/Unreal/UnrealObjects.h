@@ -2,8 +2,9 @@
 
 #include <vector>
 #include <unordered_map>
-#include "Enums.h"
-#include "UnrealTypes.h"
+
+#include "Unreal/Enums.h"
+#include "Unreal/UnrealTypes.h"
 
 class UEClass;
 class UEFField;

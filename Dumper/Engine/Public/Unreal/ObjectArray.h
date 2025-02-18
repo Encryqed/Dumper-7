@@ -1,10 +1,11 @@
 #pragma once
+
 #include <string>
 #include <vector>
 #include <filesystem>
-#include "UnrealObjects.h"
 
-#include "Offsets.h"
+#include "Unreal/UnrealObjects.h"
+#include "OffsetFinder/Offsets.h"
 
 namespace fs = std::filesystem;
 

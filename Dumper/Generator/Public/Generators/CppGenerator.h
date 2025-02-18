@@ -1,20 +1,21 @@
 #pragma once
+
 #include <filesystem>
-#include "DependencyManager.h"
-#include "StructManager.h"
-#include "MemberManager.h"
-#include "HashStringTable.h"
-#include "StructWrapper.h"
-#include "MemberWrappers.h"
-#include "EnumWrapper.h"
-#include "PackageManager.h"
-
-#include "Generator.h"
-
 #include <fstream>
 
-namespace fs = std::filesystem;
+#include "Managers/DependencyManager.h"
+#include "Managers/StructManager.h"
+#include "Managers/MemberManager.h"
+#include "Wrappers/StructWrapper.h"
+#include "Wrappers/MemberWrappers.h"
+#include "Wrappers/EnumWrapper.h"
+#include "Managers/PackageManager.h"
 
+#include "HashStringTable.h"
+#include "Generator.h"
+
+
+namespace fs = std::filesystem;
 
 class CppGenerator
 {

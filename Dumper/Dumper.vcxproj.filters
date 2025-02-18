@@ -2,21 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="Engine\Private\ObjectArray.cpp">
-      <Filter>Engine\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Private\Offsets.cpp">
-      <Filter>Engine\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Private\UnrealObjects.cpp">
-      <Filter>Engine\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Private\NameArray.cpp">
-      <Filter>Engine\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Private\UnrealTypes.cpp">
-      <Filter>Engine\Private</Filter>
-    </ClCompile>
     <ClCompile Include="Generator\Private\Managers\CollisionManager.cpp">
       <Filter>Generator\Private\Managers</Filter>
     </ClCompile>
@@ -67,6 +52,24 @@
     </ClCompile>
     <ClCompile Include="Generator\Private\Generators\DumpspaceGenerator.cpp">
       <Filter>Generator\Private\Generators</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\OffsetFinder\Offsets.cpp">
+      <Filter>Engine\Private\OffsetFinder</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\Unreal\NameArray.cpp">
+      <Filter>Engine\Private\Unreal</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\Unreal\ObjectArray.cpp">
+      <Filter>Engine\Private\Unreal</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\Unreal\UnrealObjects.cpp">
+      <Filter>Engine\Private\Unreal</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\Unreal\UnrealTypes.cpp">
+      <Filter>Engine\Private\Unreal</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\OffsetFinder\OffsetFinder.cpp">
+      <Filter>Engine\Private\OffsetFinder</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -124,29 +127,20 @@
     <Filter Include="Platform">
       <UniqueIdentifier>{4dec28e1-d87c-4f69-82ae-603871d83532}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\Private\OffsetFinder">
+      <UniqueIdentifier>{11187eea-81fe-46e6-bef6-50834d0acbcd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Private\Unreal">
+      <UniqueIdentifier>{0ed132d4-92ff-4361-959d-6fd6f0d32a10}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Public\OffsetFinder">
+      <UniqueIdentifier>{6e7170b5-e9e8-472a-a89a-a3a252996297}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Public\Unreal">
+      <UniqueIdentifier>{6a98b5e0-152b-44ed-a5f7-03f0b6fea706}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Engine\Public\ObjectArray.h">
-      <Filter>Engine\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Public\Offsets.h">
-      <Filter>Engine\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Public\UnrealTypes.h">
-      <Filter>Engine\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Public\Enums.h">
-      <Filter>Engine\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Public\UnrealObjects.h">
-      <Filter>Engine\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Public\OffsetFinder.h">
-      <Filter>Engine\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Engine\Public\NameArray.h">
-      <Filter>Engine\Public</Filter>
-    </ClInclude>
     <ClInclude Include="Generator\Public\HashStringTable.h">
       <Filter>Generator\Public</Filter>
     </ClInclude>
@@ -183,7 +177,7 @@
     <ClInclude Include="Generator\Public\Generators\Generator.h">
       <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="Generator\Settings.h">
+    <ClInclude Include="Settings.h">
       <Filter>Generator</Filter>
     </ClInclude>
     <ClInclude Include="Generator\Public\Generators\MappingGenerator.h">
@@ -213,11 +207,32 @@
     <ClInclude Include="Utils\Encoding\UtfN.hpp">
       <Filter>Utils\Encoding</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\Public\UnrealContainers.h">
-      <Filter>Engine\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Platform\Utils.h">
+    <ClInclude Include="Utils\Utils.h">
       <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Public\Unreal\UnrealContainers.h">
+      <Filter>Engine\Public\Unreal</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Public\OffsetFinder\Offsets.h">
+      <Filter>Engine\Public\OffsetFinder</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Public\OffsetFinder\OffsetFinder.h">
+      <Filter>Engine\Public\OffsetFinder</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Public\Unreal\Enums.h">
+      <Filter>Engine\Public\Unreal</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Public\Unreal\NameArray.h">
+      <Filter>Engine\Public\Unreal</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Public\Unreal\ObjectArray.h">
+      <Filter>Engine\Public\Unreal</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Public\Unreal\UnrealObjects.h">
+      <Filter>Engine\Public\Unreal</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Public\Unreal\UnrealTypes.h">
+      <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

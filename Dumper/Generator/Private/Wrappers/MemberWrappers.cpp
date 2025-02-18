@@ -1,4 +1,4 @@
-#include "MemberWrappers.h"
+#include "Wrappers/MemberWrappers.h"
 
 
 PropertyWrapper::PropertyWrapper(const std::shared_ptr<StructWrapper>& Str, const PredefinedMember* Predef)

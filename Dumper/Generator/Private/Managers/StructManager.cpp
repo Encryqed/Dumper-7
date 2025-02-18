@@ -1,5 +1,7 @@
-#include "StructManager.h"
-#include "ObjectArray.h"
+
+#include "Unreal/ObjectArray.h"
+#include "Managers/StructManager.h"
+
 
 StructInfoHandle::StructInfoHandle(const StructInfo& InInfo)
 	: Info(&InInfo)

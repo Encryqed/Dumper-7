@@ -1,8 +1,9 @@
+
 #include <format>
 
-#include "UnrealObjects.h"
-#include "Offsets.h"
-#include "ObjectArray.h"
+#include "Unreal/UnrealObjects.h"
+#include "Unreal/ObjectArray.h"
+#include "OffsetFinder/Offsets.h"
 
 
 void* UEFFieldClass::GetAddress()

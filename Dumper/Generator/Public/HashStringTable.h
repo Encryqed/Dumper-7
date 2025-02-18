@@ -1,9 +1,11 @@
 #pragma once
-#include "Enums.h"
 
 #include <cassert>
 #include <format>
 #include <iostream>
+
+#include "Unreal/Enums.h"
+
 
 #define WINDOWS_IGNORE_PACKING_MISMATCH
 

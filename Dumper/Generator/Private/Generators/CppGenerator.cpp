@@ -1,11 +1,11 @@
-#include <vector>
 
+#include <vector>
 #include <array>
 
-#include "CppGenerator.h"
-#include "ObjectArray.h"
-#include "MemberWrappers.h"
-#include "MemberManager.h"
+#include "Unreal/ObjectArray.h"
+#include "Generators/CppGenerator.h"
+#include "Wrappers/MemberWrappers.h"
+#include "Managers/MemberManager.h"
 
 #include "Settings.h"
 

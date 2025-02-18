@@ -1,7 +1,8 @@
-#include "MemberManager.h"
-#include "MemberWrappers.h"
 
 #include <algorithm>
+
+#include "Managers/MemberManager.h"
+#include "Wrappers/MemberWrappers.h"
 
 
 MemberManager::MemberManager(UEStruct Str)

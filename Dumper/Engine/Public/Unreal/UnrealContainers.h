@@ -1,9 +1,11 @@
 #pragma once
+
 #include <string>
 #include <stdexcept>
 
 #include "Enums.h"
-#include "UtfN.hpp"
+#include "Encoding/UtfN.hpp"
+
 
 namespace UC
 {

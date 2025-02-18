@@ -1,8 +1,11 @@
 #pragma once
-#include "ObjectArray.h"
-#include "CollisionManager.h"
-#include "StructManager.h"
-#include "MemberManager.h"
+
+#include "Unreal/ObjectArray.h"
+
+#include "Managers/CollisionManager.h"
+#include "Managers/StructManager.h"
+#include "Managers/MemberManager.h"
+
 #include "PredefinedMembers.h"
 
 

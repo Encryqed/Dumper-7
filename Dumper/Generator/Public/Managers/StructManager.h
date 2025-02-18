@@ -1,9 +1,11 @@
 #pragma once
+
 #include <unordered_map>
 #include <unordered_set>
+
+#include "Unreal/UnrealObjects.h"
 #include "HashStringTable.h"
-#include "UnrealObjects.h"
-#include "ObjectArray.h" /* for debug print */
+
 
 /*
 struct alignas(0x08) Parent

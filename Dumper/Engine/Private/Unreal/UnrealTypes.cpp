@@ -1,9 +1,11 @@
+
 #include <format>
 
-#include "UnrealTypes.h"
-#include "NameArray.h"
+#include "Unreal/UnrealTypes.h"
+#include "Unreal/NameArray.h"
 
-#include "UnicodeNames.h"
+#include "Encoding/UnicodeNames.h"
+
 
 std::string MakeNameValid(std::wstring&& Name)
 {

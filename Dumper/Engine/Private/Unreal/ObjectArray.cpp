@@ -1,16 +1,15 @@
+
 #include <iostream>
 #include <fstream>
 #include <format>
 #include <filesystem>
-#include "ObjectArray.h"
-#include "Offsets.h"
-#include "Utils.h"
 
-#include "Offsets.h"
+#include "Unreal/ObjectArray.h"
+#include "OffsetFinder/Offsets.h"
+#include "Utils.h"
 
 
 namespace fs = std::filesystem;
-
 
 constexpr inline std::array FFixedUObjectArrayLayouts =
 {

@@ -1,4 +1,5 @@
-#include "DumpspaceGenerator.h"
+
+#include "Generators/DumpspaceGenerator.h"
 
 std::string DumpspaceGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 {

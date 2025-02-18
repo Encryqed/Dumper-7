@@ -1,8 +1,10 @@
 #pragma once
+
 #include <memory>
-#include "ObjectArray.h"
-#include "CollisionManager.h"
-#include "StructWrapper.h"
+
+#include "Unreal/ObjectArray.h"
+#include "Managers/CollisionManager.h"
+#include "Wrappers/StructWrapper.h"
 
 class PropertyWrapper
 {

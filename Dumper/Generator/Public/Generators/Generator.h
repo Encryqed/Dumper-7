@@ -1,9 +1,10 @@
 #pragma once
+
 #include <filesystem>
 
-#include "ObjectArray.h"
-#include "DependencyManager.h"
-#include "MemberManager.h"
+#include "Unreal/ObjectArray.h"
+#include "Managers/DependencyManager.h"
+#include "Managers/MemberManager.h"
 #include "HashStringTable.h"
 
 

@@ -1,8 +1,11 @@
-#include "PackageManager.h"
-#include "ObjectArray.h"
+
+#include "Unreal/ObjectArray.h"
+
+#include "Managers/PackageManager.h"
 
 /* Required for marking cyclic-headers in the StructManager */
-#include "StructManager.h"
+#include "Managers/StructManager.h"
+
 
 inline void BooleanOrEqual(bool& b1, bool b2)
 {

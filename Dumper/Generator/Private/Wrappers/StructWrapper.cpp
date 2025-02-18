@@ -1,6 +1,5 @@
-#include "StructWrapper.h"
-#include "StructManager.h"
-#include "MemberManager.h"
+#include "Wrappers/StructWrapper.h"
+#include "Managers/MemberManager.h"
 
 StructWrapper::StructWrapper(const PredefinedStruct* const Predef)
     : PredefStruct(Predef), InfoHandle()

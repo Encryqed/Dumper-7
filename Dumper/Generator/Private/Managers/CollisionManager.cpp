@@ -1,4 +1,4 @@
-#include "CollisionManager.h"
+#include "Managers/CollisionManager.h"
 
 
 NameInfo::NameInfo(HashStringTableIndex NameIdx, ECollisionType CurrentType)

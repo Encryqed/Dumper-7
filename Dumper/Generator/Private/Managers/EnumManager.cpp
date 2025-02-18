@@ -1,4 +1,4 @@
-#include "EnumManager.h"
+#include "Managers/EnumManager.h"
 
 namespace EnumInitHelper
 {

@@ -1,6 +1,8 @@
 #pragma once
+
 #include <unordered_map>
 #include <memory>
+
 #include "ObjectArray.h"
 #include "HashStringTable.h"
 #include "CollisionManager.h"
