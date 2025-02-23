@@ -184,106 +184,6 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 	return OutMembers;
 }
 
-std::string CppGenerator::GenerateFunctionInHeader(const MemberManager& Members)
-{
-	std::string AllFuntionsText;
-
-	bool bIsFirstIteration = true;
-	bool bDidSwitch = false;
-	bool bWasLastFuncStatic = false;
-	bool bWasLastFuncInline = false;
-	bool bWaslastFuncConst = false;
-
-	for (const FunctionWrapper& Func : Members.IterateFunctions())
-	{
-		if (bWasLastFuncInline != Func.HasInlineBody() && !bIsFirstIteration)
-		{
-			AllFuntionsText += "\npublic:\n";
-			bDidSwitch = true;
-		}
-
-		if ((bWasLastFuncStatic != Func.IsStatic() || bWaslastFuncConst != Func.IsConst()) && !bIsFirstIteration && !bDidSwitch)
-			AllFuntionsText += '\n';
-
-		bWasLastFuncStatic = Func.IsStatic();
-		bWasLastFuncInline = Func.HasInlineBody();
-		bWaslastFuncConst = Func.IsConst();
-		bIsFirstIteration = false;
-		bDidSwitch = false;
-
-		const bool bIsConstFunc = Func.IsConst() && !Func.IsStatic();
-
-		if (Func.IsPredefined())
-		{
-			AllFuntionsText += std::format("\t{}{} {}{}", Func.IsStatic() ? "static " : "", Func.GetPredefFuncReturnType(), Func.GetPredefFuncNameWithParams(), bIsConstFunc ? " const" : "");
-
-			AllFuntionsText += (Func.HasInlineBody() ? ("\n\t" + Func.GetPredefFunctionInlineBody()) : ";") + "\n";
-			continue;
-		}
-
-		MemberManager FuncParams = Func.GetMembers();
-
-		std::string RetType = "void";
-		std::string Params;
-
-		bool bIsFirstParam = true;
-
-		for (const PropertyWrapper& Param : FuncParams.IterateMembers())
-		{
-			if (!Param.HasPropertyFlags(EPropertyFlags::Parm))
-				continue;
-
-			std::string Type = GetMemberTypeString(Param);
-
-			if (Param.IsReturnParam())
-			{
-				RetType = Type;
-				continue;
-			}
-
-			bool bIsRef = false;
-			bool bIsOut = false;
-			bool bIsConstParam = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
-			bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
-		
-			if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
-			{
-				Type += "&";
-				bIsRef = true;
-				bIsOut = true;
-			}
-
-			if (!bIsRef && Param.HasPropertyFlags(EPropertyFlags::OutParm))
-			{
-				Type += "*";
-				bIsOut = true;
-			}
-
-			if (!bIsOut && bIsConstParam)
-				Type = "const " + Type;
-
-			if (!bIsOut && !bIsRef && bIsMoveType)
-			{
-				Type += "&";
-
-				if (!bIsConstParam)
-					Type = "const " + Type;
-			}
-
-			if (!bIsFirstParam)
-				Params += ", ";
-
-			Params += Type + " " + Param.GetName();
-
-			bIsFirstParam = false;
-		}
-
-		AllFuntionsText += std::format("\t{}{} {}({}){};\n", Func.IsStatic() ? "static " : "", RetType, Func.GetName(), Params, bIsConstFunc ? " const" : "");
-	}
-
-	return AllFuntionsText;
-}
-
 CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrapper& Func)
 {
 	FunctionInfo RetFuncInfo;
@@ -314,12 +214,15 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 
 		std::string Type = GetMemberTypeString(Param);
 
-		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
+		const bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
 
 		ParamInfo PInfo;
-		PInfo.Type = Type;
 
-		if (bIsConst)
+		const bool bIsRef = Param.HasPropertyFlags(EPropertyFlags::ReferenceParm);
+		const bool bIsOut = bIsRef || Param.HasPropertyFlags(EPropertyFlags::OutParm);
+		const bool bIsRet = Param.IsReturnParam();
+
+		if (bIsConst && (!bIsOut || bIsRef || bIsRet))
 			Type = "const " + Type;
 
 		if (Param.IsReturnParam())
@@ -336,22 +239,10 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 			continue;
 		}
 
-		bool bIsRef = false;
-		bool bIsOut = false;
-		bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::TextProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
+		const bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::TextProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
 
-		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
-		{
-			Type += "&";
-			bIsRef = true;
-			bIsOut = true;
-		}
-
-		if (!bIsRef && Param.HasPropertyFlags(EPropertyFlags::OutParm))
-		{
-			Type += "*";
-			bIsOut = true;
-		}
+		if (bIsOut)
+			Type += bIsRef ? '&' : '*';
 
 		if (!bIsOut && !bIsRef && bIsMoveType)
 		{
@@ -370,6 +261,7 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 		PInfo.bIsConst = bIsConst;
 		PInfo.PropFlags = Param.GetPropertyFlags();
 		PInfo.Name = ParamName;
+		PInfo.Type = Type;
 		RetFuncInfo.UnrealFuncParams.push_back(PInfo);
 
 		if (!bIsFirstParam)
@@ -1127,7 +1019,7 @@ std::string CppGenerator::GetFunctionSignature(UEFunction Func)
 	{
 		std::string Type = GetMemberTypeString(Param);
 
-		bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
+		const bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
 
 		if (Param.HasPropertyFlags(EPropertyFlags::ReturnParm))
 		{
@@ -1137,22 +1029,15 @@ std::string CppGenerator::GetFunctionSignature(UEFunction Func)
 			continue;
 		}
 
-		bool bIsRef = false;
-		bool bIsOut = false;
-		bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
+		const bool bIsRef = Param.HasPropertyFlags(EPropertyFlags::ReferenceParm);
+		const bool bIsOut = bIsRef || Param.HasPropertyFlags(EPropertyFlags::OutParm);
+		const bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
 
-		if (Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
-		{
-			Type += "&";
-			bIsRef = true;
-			bIsOut = true;
-		}
+		if (bIsConst && (!bIsOut || bIsRef))
+			Type = "const " + Type;
 
-		if (!bIsRef && Param.HasPropertyFlags(EPropertyFlags::OutParm))
-		{
-			Type += "*";
-			bIsOut = true;
-		}
+		if (bIsOut)
+			Type += bIsRef ? '&' : '*';
 
 		if (!bIsOut && !bIsRef && bIsMoveType)
 		{
