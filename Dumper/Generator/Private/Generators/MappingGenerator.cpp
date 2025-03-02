@@ -4,9 +4,9 @@
 
 #include "Generators/MappingGenerator.h"
 #include "Managers/PackageManager.h"
-#include "Utils/Compression/zstd.h"
+#include "Compression/zstd.h"
 
-#include "Settings.h"
+#include "../Settings.h"
 #include "Utils.h"
 
 EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)

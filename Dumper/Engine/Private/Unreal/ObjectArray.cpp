@@ -336,7 +336,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 		return;
 	}
 
-	if (!bScanAllMemory)
+	if (GObjects == nullptr)
 	{
 		std::cout << "\nGObjects couldn't be found!\n\n\n";
 		Sleep(3000);

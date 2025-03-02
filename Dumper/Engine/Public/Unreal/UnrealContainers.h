@@ -334,7 +334,7 @@ namespace UC
 		{
 			if (*this)
 			{
-				return UtfN::Utf16StringToUtf8String<std::string>(Data, NumElements  - 1); // Excluse null-terminator
+				return UtfN::Utf16StringToUtf8String<std::string>(Data, NumElements  - 1); // Exclude null-terminator
 			}
 
 			return "";

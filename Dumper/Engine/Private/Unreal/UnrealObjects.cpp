@@ -929,7 +929,7 @@ int32 UEProperty::GetAlignment() const
 	{
 		return 0x1; // size in PropertyFixup (alignment isn't greater than size)
 	}
-	else if (TypeFlags & EClassCastFlags::MulticasTMulticastInlineDelegateProperty)
+	else if (TypeFlags & EClassCastFlags::MulticastInlineDelegateProperty)
 	{
 		return alignof(TArray<int>);  // alignof member TArray<FName>
 	}

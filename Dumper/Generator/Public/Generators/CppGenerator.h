@@ -61,6 +61,7 @@ private:
         BasicCpp,
 
         UnrealContainers,
+        UnicodeLib,
 
         PropertyFixup,
         SdkHpp,
@@ -137,6 +138,13 @@ private:
     * See https://github.com/Fischsalat/UnrealContainers/blob/master/UnrealContainers/UnrealContainersNoAlloc.h 
     */
     static void GenerateUnrealContainers(StreamType& UEContainersHeader);
+
+    /*
+    * Creates the UtfN.hpp file for the SDK.
+    *
+    * See https://github.com/Fischsalat/UTF-N
+    */
+    static void GenerateUnicodeLib(StreamType& UnicodeLib);
 
 public:
     static void Generate();
