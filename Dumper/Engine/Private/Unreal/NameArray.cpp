@@ -45,7 +45,7 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 		Off::FNameEntry::NamePool::StringOffset = NameEntryStringOffset;
 		Off::FNameEntry::NamePool::HeaderOffset = NameEntryStringOffset == 6 ? 4 : 0;
 
-		uint8* AssumedBytePropertyEntry = *reinterpret_cast<uint8* const*>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen;
+		const uint8* AssumedBytePropertyEntry = *reinterpret_cast<uint8* const*>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen;
 
 		/* Check if there's pading after an FNameEntry. Check if there's up to 0x4 bytes padding. */
 		for (int i = 0; i < 0x4; i++)
@@ -225,7 +225,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 				if (!bFoundFirstPtr)
 				{
 					bFoundFirstPtr = true;
-					Off::NameArray::ChunksStart = i + 8 + j + (i % 8);
+					Off::NameArray::ChunksStart = ChunkOffset;
 				}
 			}
 			else

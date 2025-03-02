@@ -139,6 +139,9 @@
     <Filter Include="Engine\Public\Unreal">
       <UniqueIdentifier>{6a98b5e0-152b-44ed-a5f7-03f0b6fea706}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Platform\Windows">
+      <UniqueIdentifier>{3e389fbc-05a6-4aff-8109-d20ec71394fa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Generator\Public\HashStringTable.h">
@@ -233,6 +236,12 @@
     </ClInclude>
     <ClInclude Include="Engine\Public\Unreal\UnrealTypes.h">
       <Filter>Engine\Public\Unreal</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Windows\Memory.h">
+      <Filter>Platform\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Platform.h">
+      <Filter>Platform</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
