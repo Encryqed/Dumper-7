@@ -1,20 +1,16 @@
+
 #include <Windows.h>
 #include <iostream>
 #include <chrono>
 #include <fstream>
 
-#include "CppGenerator.h"
-#include "MappingGenerator.h"
-#include "IDAMappingGenerator.h"
-#include "DumpspaceGenerator.h"
+#include "Generators/CppGenerator.h"
+#include "Generators/MappingGenerator.h"
+#include "Generators/IDAMappingGenerator.h"
+#include "Generators/DumpspaceGenerator.h"
 
-#include "StructManager.h"
-#include "EnumManager.h"
+#include "Generators/Generator.h"
 
-#include "Generator.h"
-
-
-#include "UnicodeNames.h"
 
 enum class EFortToastType : uint8
 {

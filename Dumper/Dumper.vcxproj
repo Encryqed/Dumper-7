@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -81,6 +81,7 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessToFile>false</PreprocessToFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Public;$(ProjectDir)Generator\Public;$(ProjectDir)Utils;$(ProjectDir)Platform\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -98,6 +99,7 @@
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Public;$(ProjectDir)Generator\Public;$(ProjectDir)Utils;$(ProjectDir)Platform\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -116,6 +118,7 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <PreprocessToFile>false</PreprocessToFile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Public;$(ProjectDir)Generator\Public;$(ProjectDir)Utils;$(ProjectDir)Platform\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -134,6 +137,7 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Engine\Public;$(ProjectDir)Generator\Public;$(ProjectDir)Utils;$(ProjectDir)Platform\Public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -143,71 +147,63 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="DumpspaceGenerator.cpp" />
-    <ClCompile Include="ExternalDependencies\Compression\zstd.c" />
-    <ClCompile Include="ExternalDependencies\Dumpspace\DSGen.cpp" />
-    <ClCompile Include="CppGenerator.cpp" />
-    <ClCompile Include="DependencyManager.cpp" />
-    <ClCompile Include="EnumManager.cpp" />
-    <ClCompile Include="EnumWrapper.cpp" />
-    <ClCompile Include="Generator.cpp" />
-    <ClCompile Include="HashStringTable.cpp" />
-    <ClCompile Include="IDAMappingGenerator.cpp" />
+    <ClCompile Include="Engine\Private\OffsetFinder\OffsetFinder.cpp" />
+    <ClCompile Include="Generator\Private\Generators\DumpspaceGenerator.cpp" />
+    <ClCompile Include="Engine\Private\Unreal\NameArray.cpp" />
+    <ClCompile Include="Engine\Private\Unreal\ObjectArray.cpp" />
+    <ClCompile Include="Engine\Private\OffsetFinder\Offsets.cpp" />
+    <ClCompile Include="Engine\Private\Unreal\UnrealObjects.cpp" />
+    <ClCompile Include="Engine\Private\Unreal\UnrealTypes.cpp" />
+    <ClCompile Include="Utils\Compression\zstd.c" />
+    <ClCompile Include="Utils\Dumpspace\DSGen.cpp" />
+    <ClCompile Include="Generator\Private\Generators\CppGenerator.cpp" />
+    <ClCompile Include="Generator\Private\Managers\DependencyManager.cpp" />
+    <ClCompile Include="Generator\Private\Managers\EnumManager.cpp" />
+    <ClCompile Include="Generator\Private\Wrappers\EnumWrapper.cpp" />
+    <ClCompile Include="Generator\Private\Generators\Generator.cpp" />
+    <ClCompile Include="Generator\Private\HashStringTable.cpp" />
+    <ClCompile Include="Generator\Private\Generators\IDAMappingGenerator.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="MappingGenerator.cpp" />
-    <ClCompile Include="MemberWrappers.cpp" />
-    <ClCompile Include="CollisionManager.cpp" />
-    <ClCompile Include="ObjectArray.cpp" />
-    <ClCompile Include="Offsets.cpp" />
-    <ClCompile Include="MemberManager.cpp" />
-    <ClCompile Include="PackageManager.cpp" />
-    <ClCompile Include="StructManager.cpp" />
-    <ClCompile Include="NameArray.cpp" />
-    <ClCompile Include="UnrealObjects.cpp" />
-    <ClCompile Include="UnrealTypes.cpp" />
-    <ClCompile Include="StructWrapper.cpp" />
+    <ClCompile Include="Generator\Private\Generators\MappingGenerator.cpp" />
+    <ClCompile Include="Generator\Private\Wrappers\MemberWrappers.cpp" />
+    <ClCompile Include="Generator\Private\Managers\CollisionManager.cpp" />
+    <ClCompile Include="Generator\Private\Managers\MemberManager.cpp" />
+    <ClCompile Include="Generator\Private\Managers\PackageManager.cpp" />
+    <ClCompile Include="Generator\Private\Managers\StructManager.cpp" />
+    <ClCompile Include="Generator\Private\Wrappers\StructWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CollisionManagerTest.h" />
-    <ClInclude Include="CppGeneratorTest.h" />
-    <ClInclude Include="DumpspaceGenerator.h" />
-    <ClInclude Include="EnumManagerTest.h" />
-    <ClInclude Include="ExternalDependencies\Compression\zstd.h" />
-    <ClInclude Include="ExternalDependencies\Dumpspace\DSGen.h" />
-    <ClInclude Include="CppGenerator.h" />
-    <ClInclude Include="DependencyManager.h" />
-    <ClInclude Include="EnumManager.h" />
-    <ClInclude Include="Enums.h" />
-    <ClInclude Include="EnumWrapper.h" />
-    <ClInclude Include="ExternalDependencies\Json\json.hpp" />
-    <ClInclude Include="Generator.h" />
-    <ClInclude Include="GeneratorTest.h" />
-    <ClInclude Include="HashStringTable.h" />
-    <ClInclude Include="HashStringTableTest.h" />
-    <ClInclude Include="IDAMappingGenerator.h" />
-    <ClInclude Include="MappingGenerator.h" />
-    <ClInclude Include="MemberManagerTest.h" />
-    <ClInclude Include="MemberWrappers.h" />
-    <ClInclude Include="CollisionManager.h" />
-    <ClInclude Include="ObjectArray.h" />
-    <ClInclude Include="OffsetFinder.h" />
-    <ClInclude Include="Offsets.h" />
-    <ClInclude Include="MemberManager.h" />
-    <ClInclude Include="PackageManager.h" />
-    <ClInclude Include="PackageManagerTest.h" />
-    <ClInclude Include="PredefinedMembers.h" />
+    <ClInclude Include="Generator\Public\Generators\DumpspaceGenerator.h" />
+    <ClInclude Include="Utils\Compression\zstd.h" />
+    <ClInclude Include="Utils\Dumpspace\DSGen.h" />
+    <ClInclude Include="Generator\Public\Generators\CppGenerator.h" />
+    <ClInclude Include="Generator\Public\Managers\DependencyManager.h" />
+    <ClInclude Include="Generator\Public\Managers\EnumManager.h" />
+    <ClInclude Include="Engine\Public\Unreal\Enums.h" />
+    <ClInclude Include="Generator\Public\Wrappers\EnumWrapper.h" />
+    <ClInclude Include="Utils\Json\json.hpp" />
+    <ClInclude Include="Generator\Public\Generators\Generator.h" />
+    <ClInclude Include="Generator\Public\HashStringTable.h" />
+    <ClInclude Include="Generator\Public\Generators\IDAMappingGenerator.h" />
+    <ClInclude Include="Generator\Public\Generators\MappingGenerator.h" />
+    <ClInclude Include="Generator\Public\Wrappers\MemberWrappers.h" />
+    <ClInclude Include="Generator\Public\Managers\CollisionManager.h" />
+    <ClInclude Include="Engine\Public\Unreal\ObjectArray.h" />
+    <ClInclude Include="Engine\Public\OffsetFinder\OffsetFinder.h" />
+    <ClInclude Include="Engine\Public\OffsetFinder\Offsets.h" />
+    <ClInclude Include="Generator\Public\Managers\MemberManager.h" />
+    <ClInclude Include="Generator\Public\Managers\PackageManager.h" />
+    <ClInclude Include="Generator\Public\PredefinedMembers.h" />
     <ClInclude Include="Settings.h" />
-    <ClInclude Include="StructManager.h" />
-    <ClInclude Include="NameArray.h" />
-    <ClInclude Include="StructManagerTest.h" />
-    <ClInclude Include="TestBase.h" />
-    <ClInclude Include="UnicodeNames.h" />
-    <ClInclude Include="UnrealContainers.h" />
-    <ClInclude Include="UnrealObjects.h" />
-    <ClInclude Include="UnrealTypes.h" />
-    <ClInclude Include="UtfN.hpp" />
-    <ClInclude Include="Utils.h" />
-    <ClInclude Include="StructWrapper.h" />
+    <ClInclude Include="Generator\Public\Managers\StructManager.h" />
+    <ClInclude Include="Engine\Public\Unreal\NameArray.h" />
+    <ClInclude Include="Utils\Encoding\UnicodeNames.h" />
+    <ClInclude Include="Engine\Public\Unreal\UnrealContainers.h" />
+    <ClInclude Include="Engine\Public\Unreal\UnrealObjects.h" />
+    <ClInclude Include="Engine\Public\Unreal\UnrealTypes.h" />
+    <ClInclude Include="Utils\Encoding\UtfN.hpp" />
+    <ClInclude Include="Utils\Utils.h" />
+    <ClInclude Include="Generator\Public\Wrappers\StructWrapper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

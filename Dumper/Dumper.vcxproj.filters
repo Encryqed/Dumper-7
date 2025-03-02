@@ -2,71 +2,74 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="ObjectArray.cpp">
-      <Filter>Engine\Private</Filter>
+    <ClCompile Include="Generator\Private\Managers\CollisionManager.cpp">
+      <Filter>Generator\Private\Managers</Filter>
     </ClCompile>
-    <ClCompile Include="Offsets.cpp">
-      <Filter>Engine\Private</Filter>
+    <ClCompile Include="Generator\Private\Managers\DependencyManager.cpp">
+      <Filter>Generator\Private\Managers</Filter>
     </ClCompile>
-    <ClCompile Include="UnrealObjects.cpp">
-      <Filter>Engine\Private</Filter>
+    <ClCompile Include="Generator\Private\Managers\EnumManager.cpp">
+      <Filter>Generator\Private\Managers</Filter>
     </ClCompile>
-    <ClCompile Include="NameArray.cpp">
-      <Filter>Engine\Private</Filter>
+    <ClCompile Include="Generator\Private\Managers\MemberManager.cpp">
+      <Filter>Generator\Private\Managers</Filter>
     </ClCompile>
-    <ClCompile Include="UnrealTypes.cpp">
-      <Filter>Engine\Private</Filter>
+    <ClCompile Include="Generator\Private\Managers\StructManager.cpp">
+      <Filter>Generator\Private\Managers</Filter>
     </ClCompile>
-    <ClCompile Include="CollisionManager.cpp">
-      <Filter>GeneratorRewrite\Private\Managers</Filter>
+    <ClCompile Include="Generator\Private\Wrappers\EnumWrapper.cpp">
+      <Filter>Generator\Private\Wrappers</Filter>
     </ClCompile>
-    <ClCompile Include="DependencyManager.cpp">
-      <Filter>GeneratorRewrite\Private\Managers</Filter>
+    <ClCompile Include="Generator\Private\Wrappers\MemberWrappers.cpp">
+      <Filter>Generator\Private\Wrappers</Filter>
     </ClCompile>
-    <ClCompile Include="EnumManager.cpp">
-      <Filter>GeneratorRewrite\Private\Managers</Filter>
+    <ClCompile Include="Generator\Private\Wrappers\StructWrapper.cpp">
+      <Filter>Generator\Private\Wrappers</Filter>
     </ClCompile>
-    <ClCompile Include="MemberManager.cpp">
-      <Filter>GeneratorRewrite\Private\Managers</Filter>
+    <ClCompile Include="Generator\Private\Generators\CppGenerator.cpp">
+      <Filter>Generator\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="StructManager.cpp">
-      <Filter>GeneratorRewrite\Private\Managers</Filter>
+    <ClCompile Include="Generator\Private\Generators\Generator.cpp">
+      <Filter>Generator\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="EnumWrapper.cpp">
-      <Filter>GeneratorRewrite\Private\Wrappers</Filter>
+    <ClCompile Include="Generator\Private\HashStringTable.cpp">
+      <Filter>Generator\Private</Filter>
     </ClCompile>
-    <ClCompile Include="MemberWrappers.cpp">
-      <Filter>GeneratorRewrite\Private\Wrappers</Filter>
+    <ClCompile Include="Generator\Private\Managers\PackageManager.cpp">
+      <Filter>Generator\Private\Managers</Filter>
     </ClCompile>
-    <ClCompile Include="StructWrapper.cpp">
-      <Filter>GeneratorRewrite\Private\Wrappers</Filter>
+    <ClCompile Include="Generator\Private\Generators\MappingGenerator.cpp">
+      <Filter>Generator\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="CppGenerator.cpp">
-      <Filter>GeneratorRewrite\Private\Generators</Filter>
+    <ClCompile Include="Generator\Private\Generators\IDAMappingGenerator.cpp">
+      <Filter>Generator\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="Generator.cpp">
-      <Filter>GeneratorRewrite\Private\Generators</Filter>
-    </ClCompile>
-    <ClCompile Include="HashStringTable.cpp">
-      <Filter>GeneratorRewrite\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="PackageManager.cpp">
-      <Filter>GeneratorRewrite\Private\Managers</Filter>
-    </ClCompile>
-    <ClCompile Include="MappingGenerator.cpp">
-      <Filter>GeneratorRewrite\Private\Generators</Filter>
-    </ClCompile>
-    <ClCompile Include="IDAMappingGenerator.cpp">
-      <Filter>GeneratorRewrite\Private\Generators</Filter>
-    </ClCompile>
-    <ClCompile Include="ExternalDependencies\Dumpspace\DSGen.cpp">
+    <ClCompile Include="Utils\Dumpspace\DSGen.cpp">
       <Filter>Utils\Dumpspace</Filter>
     </ClCompile>
-    <ClCompile Include="ExternalDependencies\Compression\zstd.c">
+    <ClCompile Include="Utils\Compression\zstd.c">
       <Filter>Utils\Compression</Filter>
     </ClCompile>
-    <ClCompile Include="DumpspaceGenerator.cpp">
-      <Filter>GeneratorRewrite\Private\Generators</Filter>
+    <ClCompile Include="Generator\Private\Generators\DumpspaceGenerator.cpp">
+      <Filter>Generator\Private\Generators</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\OffsetFinder\Offsets.cpp">
+      <Filter>Engine\Private\OffsetFinder</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\Unreal\NameArray.cpp">
+      <Filter>Engine\Private\Unreal</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\Unreal\ObjectArray.cpp">
+      <Filter>Engine\Private\Unreal</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\Unreal\UnrealObjects.cpp">
+      <Filter>Engine\Private\Unreal</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\Unreal\UnrealTypes.cpp">
+      <Filter>Engine\Private\Unreal</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Private\OffsetFinder\OffsetFinder.cpp">
+      <Filter>Engine\Private\OffsetFinder</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -82,31 +85,31 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{da88a5f5-413a-4b03-9503-d846f46c9162}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GeneratorRewrite">
+    <Filter Include="Generator">
       <UniqueIdentifier>{0b1b2a6f-5a40-495a-8226-c3a327549ed4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GeneratorRewrite\Public">
+    <Filter Include="Generator\Public">
       <UniqueIdentifier>{73815208-262e-4c07-ad93-0ffc74b48976}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GeneratorRewrite\Private">
+    <Filter Include="Generator\Private">
       <UniqueIdentifier>{d7d31e29-fabc-4f1a-94be-53c5f4940c91}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GeneratorRewrite\Public\Managers">
+    <Filter Include="Generator\Public\Managers">
       <UniqueIdentifier>{94e86c4a-a3b6-4bff-823c-cc84621b8862}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GeneratorRewrite\Private\Managers">
+    <Filter Include="Generator\Private\Managers">
       <UniqueIdentifier>{93439fa6-5477-4ea1-be46-bd0fee46237b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GeneratorRewrite\Public\Wrappers">
+    <Filter Include="Generator\Public\Wrappers">
       <UniqueIdentifier>{4cae6d93-ad23-4c27-9bb0-3d556ffebd69}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GeneratorRewrite\Private\Wrappers">
+    <Filter Include="Generator\Private\Wrappers">
       <UniqueIdentifier>{23b14467-832b-4850-87dd-b450adf2c145}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GeneratorRewrite\Private\Generators">
+    <Filter Include="Generator\Private\Generators">
       <UniqueIdentifier>{53bc2117-a7ae-49a1-8463-74f51d3a94df}</UniqueIdentifier>
     </Filter>
-    <Filter Include="GeneratorRewrite\Public\Generators">
+    <Filter Include="Generator\Public\Generators">
       <UniqueIdentifier>{de34ddb1-4f8d-4224-8d8e-a7cd966d3d86}</UniqueIdentifier>
     </Filter>
     <Filter Include="Utils\Compression">
@@ -118,133 +121,118 @@
     <Filter Include="Utils\Json">
       <UniqueIdentifier>{34aabb03-f73e-4107-b4ee-e7afa15b111d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Tests">
-      <UniqueIdentifier>{ae8563d1-816c-4218-9877-a95f062ca4ff}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Utils\Encoding">
       <UniqueIdentifier>{6b25c48b-0bb2-4044-85fc-d02953c8f851}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Platform">
+      <UniqueIdentifier>{4dec28e1-d87c-4f69-82ae-603871d83532}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Private\OffsetFinder">
+      <UniqueIdentifier>{11187eea-81fe-46e6-bef6-50834d0acbcd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Private\Unreal">
+      <UniqueIdentifier>{0ed132d4-92ff-4361-959d-6fd6f0d32a10}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Public\OffsetFinder">
+      <UniqueIdentifier>{6e7170b5-e9e8-472a-a89a-a3a252996297}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Public\Unreal">
+      <UniqueIdentifier>{6a98b5e0-152b-44ed-a5f7-03f0b6fea706}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ObjectArray.h">
-      <Filter>Engine\Public</Filter>
+    <ClInclude Include="Generator\Public\HashStringTable.h">
+      <Filter>Generator\Public</Filter>
     </ClInclude>
-    <ClInclude Include="Offsets.h">
-      <Filter>Engine\Public</Filter>
+    <ClInclude Include="Generator\Public\Managers\CollisionManager.h">
+      <Filter>Generator\Public\Managers</Filter>
     </ClInclude>
-    <ClInclude Include="UnrealTypes.h">
-      <Filter>Engine\Public</Filter>
+    <ClInclude Include="Generator\Public\Managers\EnumManager.h">
+      <Filter>Generator\Public\Managers</Filter>
     </ClInclude>
-    <ClInclude Include="Enums.h">
-      <Filter>Engine\Public</Filter>
+    <ClInclude Include="Generator\Public\Managers\MemberManager.h">
+      <Filter>Generator\Public\Managers</Filter>
     </ClInclude>
-    <ClInclude Include="UnrealObjects.h">
-      <Filter>Engine\Public</Filter>
+    <ClInclude Include="Generator\Public\Managers\PackageManager.h">
+      <Filter>Generator\Public\Managers</Filter>
     </ClInclude>
-    <ClInclude Include="Utils.h">
-      <Filter>Utils</Filter>
+    <ClInclude Include="Generator\Public\Wrappers\StructWrapper.h">
+      <Filter>Generator\Public\Wrappers</Filter>
     </ClInclude>
-    <ClInclude Include="OffsetFinder.h">
-      <Filter>Engine\Public</Filter>
+    <ClInclude Include="Generator\Public\Wrappers\EnumWrapper.h">
+      <Filter>Generator\Public\Wrappers</Filter>
     </ClInclude>
-    <ClInclude Include="NameArray.h">
-      <Filter>Engine\Public</Filter>
+    <ClInclude Include="Generator\Public\Wrappers\MemberWrappers.h">
+      <Filter>Generator\Public\Wrappers</Filter>
     </ClInclude>
-    <ClInclude Include="HashStringTable.h">
-      <Filter>GeneratorRewrite\Public</Filter>
+    <ClInclude Include="Generator\Public\Managers\DependencyManager.h">
+      <Filter>Generator\Public\Managers</Filter>
     </ClInclude>
-    <ClInclude Include="CollisionManager.h">
-      <Filter>GeneratorRewrite\Public\Managers</Filter>
+    <ClInclude Include="Generator\Public\Managers\StructManager.h">
+      <Filter>Generator\Public\Managers</Filter>
     </ClInclude>
-    <ClInclude Include="EnumManager.h">
-      <Filter>GeneratorRewrite\Public\Managers</Filter>
+    <ClInclude Include="Generator\Public\Generators\CppGenerator.h">
+      <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="MemberManager.h">
-      <Filter>GeneratorRewrite\Public\Managers</Filter>
-    </ClInclude>
-    <ClInclude Include="PackageManager.h">
-      <Filter>GeneratorRewrite\Public\Managers</Filter>
-    </ClInclude>
-    <ClInclude Include="StructWrapper.h">
-      <Filter>GeneratorRewrite\Public\Wrappers</Filter>
-    </ClInclude>
-    <ClInclude Include="EnumWrapper.h">
-      <Filter>GeneratorRewrite\Public\Wrappers</Filter>
-    </ClInclude>
-    <ClInclude Include="MemberWrappers.h">
-      <Filter>GeneratorRewrite\Public\Wrappers</Filter>
-    </ClInclude>
-    <ClInclude Include="DependencyManager.h">
-      <Filter>GeneratorRewrite\Public\Managers</Filter>
-    </ClInclude>
-    <ClInclude Include="StructManager.h">
-      <Filter>GeneratorRewrite\Public\Managers</Filter>
-    </ClInclude>
-    <ClInclude Include="CppGenerator.h">
-      <Filter>GeneratorRewrite\Public\Generators</Filter>
-    </ClInclude>
-    <ClInclude Include="Generator.h">
-      <Filter>GeneratorRewrite\Public\Generators</Filter>
+    <ClInclude Include="Generator\Public\Generators\Generator.h">
+      <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
     <ClInclude Include="Settings.h">
-      <Filter>GeneratorRewrite</Filter>
+      <Filter>Generator</Filter>
     </ClInclude>
-    <ClInclude Include="MappingGenerator.h">
-      <Filter>GeneratorRewrite\Public\Generators</Filter>
+    <ClInclude Include="Generator\Public\Generators\MappingGenerator.h">
+      <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="IDAMappingGenerator.h">
-      <Filter>GeneratorRewrite\Public\Generators</Filter>
+    <ClInclude Include="Generator\Public\Generators\IDAMappingGenerator.h">
+      <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="PredefinedMembers.h">
-      <Filter>GeneratorRewrite\Public</Filter>
+    <ClInclude Include="Generator\Public\PredefinedMembers.h">
+      <Filter>Generator\Public</Filter>
     </ClInclude>
-    <ClInclude Include="ExternalDependencies\Dumpspace\DSGen.h">
+    <ClInclude Include="Utils\Dumpspace\DSGen.h">
       <Filter>Utils\Dumpspace</Filter>
     </ClInclude>
-    <ClInclude Include="ExternalDependencies\Compression\zstd.h">
+    <ClInclude Include="Utils\Compression\zstd.h">
       <Filter>Utils\Compression</Filter>
     </ClInclude>
-    <ClInclude Include="ExternalDependencies\Json\json.hpp">
+    <ClInclude Include="Utils\Json\json.hpp">
       <Filter>Utils\Json</Filter>
     </ClInclude>
-    <ClInclude Include="DumpspaceGenerator.h">
-      <Filter>GeneratorRewrite\Public\Generators</Filter>
+    <ClInclude Include="Generator\Public\Generators\DumpspaceGenerator.h">
+      <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="UnicodeNames.h">
+    <ClInclude Include="Utils\Encoding\UnicodeNames.h">
       <Filter>Utils</Filter>
     </ClInclude>
-    <ClInclude Include="UtfN.hpp">
+    <ClInclude Include="Utils\Encoding\UtfN.hpp">
       <Filter>Utils\Encoding</Filter>
     </ClInclude>
-    <ClInclude Include="UnrealContainers.h">
-      <Filter>Engine\Public</Filter>
+    <ClInclude Include="Utils\Utils.h">
+      <Filter>Platform</Filter>
     </ClInclude>
-    <ClInclude Include="CollisionManagerTest.h">
-      <Filter>Tests</Filter>
+    <ClInclude Include="Engine\Public\Unreal\UnrealContainers.h">
+      <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
-    <ClInclude Include="CppGeneratorTest.h">
-      <Filter>Tests</Filter>
+    <ClInclude Include="Engine\Public\OffsetFinder\Offsets.h">
+      <Filter>Engine\Public\OffsetFinder</Filter>
     </ClInclude>
-    <ClInclude Include="EnumManagerTest.h">
-      <Filter>Tests</Filter>
+    <ClInclude Include="Engine\Public\OffsetFinder\OffsetFinder.h">
+      <Filter>Engine\Public\OffsetFinder</Filter>
     </ClInclude>
-    <ClInclude Include="HashStringTableTest.h">
-      <Filter>Tests</Filter>
+    <ClInclude Include="Engine\Public\Unreal\Enums.h">
+      <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
-    <ClInclude Include="MemberManagerTest.h">
-      <Filter>Tests</Filter>
+    <ClInclude Include="Engine\Public\Unreal\NameArray.h">
+      <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
-    <ClInclude Include="PackageManagerTest.h">
-      <Filter>Tests</Filter>
+    <ClInclude Include="Engine\Public\Unreal\ObjectArray.h">
+      <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
-    <ClInclude Include="StructManagerTest.h">
-      <Filter>Tests</Filter>
+    <ClInclude Include="Engine\Public\Unreal\UnrealObjects.h">
+      <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
-    <ClInclude Include="GeneratorTest.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="TestBase.h">
-      <Filter>Tests</Filter>
+    <ClInclude Include="Engine\Public\Unreal\UnrealTypes.h">
+      <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
