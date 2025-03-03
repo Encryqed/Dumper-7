@@ -23,13 +23,29 @@ constexpr std::string GetTypeFromSize(uint8 Size)
 		return "uint64";
 	default:
 		return "INVALID_TYPE_SIZE_FOR_BIT_PADDING";
-		break;
 	}
 }
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
 {
-	return std::format("\t{:{}} {:{}} // {}\n", Type, 45, Name + ";", 50, std::move(Comment));
+	//<tab><--45 chars--><-------50 chars----->
+	//     Type          MemberName;           // Comment
+	int NumSpacesToComment;
+
+	if (Type.length() < 45)
+	{
+		NumSpacesToComment = 50;
+	}
+	else if ((Type.length() + Name.length()) > 95)
+	{
+		NumSpacesToComment = 1;
+	}
+	else
+	{
+		NumSpacesToComment = 50 - (Type.length() - 45);
+	}
+
+	return std::format("\t{:{}} {:{}} // {}\n", Type, 45, Name + ";", NumSpacesToComment, std::move(Comment));
 }
 
 std::string CppGenerator::MakeMemberStringWithoutName(const std::string& Type)
@@ -49,7 +65,7 @@ std::string CppGenerator::GenerateBitPadding(uint8 UnderlayingSizeBytes, const u
 
 std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex)
 {
-	constexpr uint64 EstimatedCharactersPerLine = 0x80;
+	constexpr uint64 EstimatedCharactersPerLine = 0xF0;
 
 	const bool bIsUnion = Struct.IsUnion();
 
@@ -102,7 +118,6 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		const int32 CurrentPropertyEnd = MemberOffset + MemberSize;
 
 		std::string Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, Member.GetFlagsOrCustomComment());
-
 
 		const bool bIsBitField = Member.IsBitField();
 
@@ -1121,7 +1136,7 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 	WriteFileHead(NameCollisionsFile, nullptr, EFileType::NameCollisionsInl, "FORWARD DECLARATIONS");
 
 
-	const StructManager::OverrideMaptType& StructInfoMap = StructManager::GetStructInfos();
+	const StructManager::OverrideMapType& StructInfoMap = StructManager::GetStructInfos();
 	const EnumManager::OverrideMaptType& EnumInfoMap = EnumManager::GetEnumInfos();
 
 	std::unordered_map<int32 /* PackageIdx */, std::pair<std::string, int32>> PackagesAndForwardDeclarations;
@@ -1252,7 +1267,7 @@ void CppGenerator::GenerateDebugAssertions(StreamType& AssertionStream)
 
 void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
 {
-	WriteFileHead(SdkHpp, nullptr, EFileType::SdkHpp, "Includes the entire SDK, include files directly for faster compilation!");
+	WriteFileHead(SdkHpp, nullptr, EFileType::SdkHpp, "Includes the entire SDK. Include files directly for faster compilation!");
 
 
 	auto ForEachElementCallback = [&SdkHpp](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
