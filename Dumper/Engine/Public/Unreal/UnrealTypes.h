@@ -17,6 +17,15 @@ using namespace UC;
 
 extern std::string MakeNameValid(std::wstring&& Name);
 
+template<typename Type>
+struct TImplementedInterface
+{
+	Type InterfaceClass;
+	int32 PointerOffset;
+	bool bImplementedByK2;
+};
+
+using FImplementedInterface = TImplementedInterface<class UEClass>;
 
 class FFreableString : public FString
 {
@@ -55,7 +64,6 @@ private:
 		this->Data = nullptr;
 	}
 };
-
 
 class FName
 {

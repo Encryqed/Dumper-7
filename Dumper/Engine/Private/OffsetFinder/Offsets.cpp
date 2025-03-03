@@ -276,6 +276,9 @@ void Off::Init()
 	Off::UClass::ClassDefaultObject = OffsetFinder::FindDefaultObjectOffset();
 	std::cout << std::format("Off::UClass::ClassDefaultObject: 0x{:X}\n", Off::UClass::ClassDefaultObject);
 
+	Off::UClass::ImplementedInterfaces = OffsetFinder::FindImplementedInterfacesOffset();
+	std::cout << std::format("Off::UClass::ImplementedInterfaces: 0x{:X}\n", Off::UClass::ImplementedInterfaces);
+
 	Off::UEnum::Names = OffsetFinder::FindEnumNamesOffset();
 	std::cout << std::format("Off::UEnum::Names: 0x{:X}\n", Off::UEnum::Names) << std::endl;
 

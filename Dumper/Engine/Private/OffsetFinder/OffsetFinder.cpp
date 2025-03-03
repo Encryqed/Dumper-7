@@ -651,6 +651,26 @@ int32_t OffsetFinder::FindDefaultObjectOffset()
 	return FindOffset(Infos, 0x28, 0x200);
 }
 
+int32_t OffsetFinder::FindImplementedInterfacesOffset()
+{
+	UEClass Interface_AssetUserDataClass = ObjectArray::FindClassFast("Interface_AssetUserData");
+
+	const uint8_t* ActorComponentClassPtr = reinterpret_cast<const uint8_t*>(ObjectArray::FindClassFast("ActorComponent").GetAddress());
+
+	for (int i = Off::UClass::ClassDefaultObject; i <= (0x350 - 0x10); i += sizeof(void*))
+	{
+		const auto& ActorArray = *reinterpret_cast<const TArray<FImplementedInterface>*>(ActorComponentClassPtr + i);
+
+		if (ActorArray.IsValid() && !IsBadReadPtr(ActorArray.GetDataPtr()))
+		{
+			if (ActorArray[0].InterfaceClass == Interface_AssetUserDataClass)
+				return i;
+		}
+	}
+
+	return OffsetNotFound;
+}
+
 /* Property */
 int32_t OffsetFinder::FindElementSizeOffset()
 {
@@ -826,7 +846,7 @@ int32_t OffsetFinder::FindLevelActorsOffset()
 	int32 SearchStart = ObjectArray::FindClassFast("Object").GetStructSize() + ObjectArray::FindObjectFast<UEStruct>("URL", EClassCastFlags::Struct).GetStructSize();
 	int32 SearchEnd = Level.GetClass().FindMember("OwningWorld").GetOffset();
 
-	for (int i = SearchStart; i <= (SearchEnd - 0x10); i += 8)
+	for (int i = SearchStart; i <= (SearchEnd - 0x10); i += sizeof(void*))
 	{
 		const TArray<void*>& ActorArray = *reinterpret_cast<TArray<void*>*>(Lvl + i);
 

@@ -664,6 +664,11 @@ UEObject UEClass::GetDefaultObject() const
 	return UEObject(*reinterpret_cast<void**>(Object + Off::UClass::ClassDefaultObject));
 }
 
+TArray<FImplementedInterface> UEClass::GetImplementedInterfaces() const
+{
+	return *reinterpret_cast<TArray<FImplementedInterface>*>(Object + Off::UClass::ImplementedInterfaces);
+}
+
 UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string& FuncName) const
 {
 	for (UEStruct Struct = *this; Struct; Struct = Struct.GetSuper())

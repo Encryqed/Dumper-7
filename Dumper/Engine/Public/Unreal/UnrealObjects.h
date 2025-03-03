@@ -226,6 +226,7 @@ public:
 	bool IsType(EClassCastFlags TypeFlag) const;
 	bool HasType(UEClass TypeClass) const;
 	UEObject GetDefaultObject() const;
+	TArray<FImplementedInterface> GetImplementedInterfaces() const;
 
 	UEFunction GetFunction(const std::string& ClassName, const std::string& FuncName) const;
 };
