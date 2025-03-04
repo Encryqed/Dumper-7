@@ -9,8 +9,8 @@ namespace Settings
 {
 	namespace EngineCore
 	{
-		/* A special setting to fix UEnum::Names where the type is sometimes TArray<FName> and sometimes TArray<TPair<FName, Some8ByteData>> */
-		constexpr bool bCheckEnumNamesInUEnum = false;
+		/* A special setting to fix UEnum::Names where the type is sometimes TArray<FName> and sometimes TArray<TPair<FName, Some8BitData>> */
+		constexpr bool bCheckEnumNamesInUEnum = true;
 	}
 
 	namespace Generator

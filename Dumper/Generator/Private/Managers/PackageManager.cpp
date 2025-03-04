@@ -544,7 +544,6 @@ void PackageManager::HandleCycles()
 
 	FindCycle(CleanedUpOnCycleFoundCallback);
 
-
 	/* Actually remove the cycle form our dependency-graph. Couldn't be done before as it would've invalidated the iterator */
 	for (const CycleInfo& Cycle : HandledPackages)
 	{

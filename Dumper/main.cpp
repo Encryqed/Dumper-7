@@ -1,4 +1,3 @@
-
 #include <Windows.h>
 #include <iostream>
 #include <chrono>
@@ -10,7 +9,6 @@
 #include "Generators/DumpspaceGenerator.h"
 
 #include "Generators/Generator.h"
-
 
 enum class EFortToastType : uint8
 {
@@ -54,10 +52,9 @@ DWORD MainThread(HMODULE Module)
 	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
 	Generator::Generate<CppGenerator>();
-	Generator::Generate<MappingGenerator>();
+	/*Generator::Generate<MappingGenerator>();
 	Generator::Generate<IDAMappingGenerator>();
-	Generator::Generate<DumpspaceGenerator>();
-
+	Generator::Generate<DumpspaceGenerator>();*/
 
 	auto t_C = std::chrono::high_resolution_clock::now();
 

@@ -9,7 +9,7 @@ namespace OffsetFinder
 	constexpr int32 OffsetNotFound = -1;
 
 	template<int Alignement = 4, typename T>
-	inline int32_t FindOffset(const std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = 0x28, int MaxOffset = 0x1A0)
+	inline int32_t FindOffset(const std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = 0x18, int MaxOffset = 0x1A0)
 	{
 		int32_t HighestFoundOffset = MinOffset;
 

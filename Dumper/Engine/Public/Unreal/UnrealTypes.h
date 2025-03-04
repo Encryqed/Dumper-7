@@ -68,7 +68,12 @@ public:
 	};
 
 private:
+	// Ughhh i know this looks ugly but i have no idea how to make this look better
+#if defined(_WIN64)
 	inline static void(*AppendString)(const void*, FString&) = nullptr;
+#elif defined(_WIN32)
+	inline static void(__thiscall* AppendString)(const void*, FString&) = nullptr;
+#endif
 
 	inline static std::wstring(*ToStr)(const void* Name) = nullptr;
 

@@ -19,6 +19,7 @@ inline void InitWeakObjectPtrSettings()
 	}
 
 	UEProperty Asset = LoadAsset.FindMember("Asset", EClassCastFlags::SoftObjectProperty);
+
 	if (!Asset)
 	{
 		std::cout << "\nDumper-7: 'Asset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
@@ -33,7 +34,7 @@ inline void InitWeakObjectPtrSettings()
 
 	Settings::Internal::bIsWeakObjectPtrWithoutTag = Asset.GetSize() <= (SizeOfSoftObjectPath + SizeOfFFWeakObjectPtr);
 
-	//std::cout << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
+	// std::cout << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
 }
 
 inline void InitLargeWorldCoordinateSettings()
@@ -86,11 +87,11 @@ void Generator::InitEngineCore()
 	FName::Init();
 	Off::Init();
 	PropertySizes::Init();
-	Off::InSDK::ProcessEvent::InitPE(); //Must be at this position, relies on offsets initialized in Off::Init()
+	Off::InSDK::ProcessEvent::InitPE(); // Must be at this position, relies on offsets initialized in Off::Init()
 
-	Off::InSDK::World::InitGWorld(); //Must be at this position, relies on offsets initialized in Off::Init()
+	Off::InSDK::World::InitGWorld(); // Must be at this position, relies on offsets initialized in Off::Init()
 
-	Off::InSDK::Text::InitTextOffsets(); //Must be at this position, relies on offsets initialized in Off::InitPE()
+	Off::InSDK::Text::InitTextOffsets(); // Must be at this position, relies on offsets initialized in Off::InitPE()
 
 	InitSettings();
 }
