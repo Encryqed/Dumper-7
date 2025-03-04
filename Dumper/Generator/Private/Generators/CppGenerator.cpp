@@ -444,13 +444,13 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , StructName
 , FuncInfo.FuncNameWithParams
 , bIsConstFunc ? " const" : ""
-, Func.IsStatic() ? "StaticClass()" : "Class"
+, Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class"
 , FixedOuterName
 , FixedFunctionName
 , bHasParams ? ParamVarCreationString : ""
 , bHasParamsToInit ? ParamAssignments : ""
 , bIsNativeFunc ? StoreFunctionFlagsString : ""
-, Func.IsStatic() ? "GetDefaultObj()->" : "UObject::"
+, Func.IsStatic() ? "GetDefaultObj()->" : Func.IsInInterface() ? "AsUObject()->" : "UObject::"
 , bHasParams ? "&Parms" : "nullptr"
 , bIsNativeFunc ? RestoreFunctionFlagsString : ""
 , bHasOutRefParamsToInit ? OutRefAssignments : ""
@@ -468,6 +468,9 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 
 	static PredefinedFunction StaticClass;
 	static PredefinedFunction GetDefaultObj;
+
+	static PredefinedFunction Interface_AsObject;
+	static PredefinedFunction Interface_AsObject_Const;
 
 	if (StaticClass.NameWithParams.empty())
 		StaticClass = {
@@ -489,6 +492,35 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		.bIsConst = false,
 		.bIsBodyInline = true,
 	};
+	if (Interface_AsObject.NameWithParams.empty())
+	{
+		Interface_AsObject = {
+		.CustomComment = "UObject inheritance was removed from interfaces to avoid virtual inheritance in the SDK.",
+		.ReturnType = "class UObject*",
+		.NameWithParams = "AsUObject()",
+
+		.bIsStatic = false,
+		.bIsConst = false,
+		.bIsBodyInline = true,
+		};
+
+		Interface_AsObject.Body = "{\n\treturn reinterpret_cast<UObject*>(this);\n}";
+	}
+
+	if (Interface_AsObject_Const.NameWithParams.empty())
+	{
+		Interface_AsObject_Const = {
+		.CustomComment = "UObject inheritance was removed from interfaces to avoid virtual inheritance in the SDK.",
+		.ReturnType = "const class UObject*",
+		.NameWithParams = "AsUObject()",
+
+		.bIsStatic = false,
+		.bIsConst = true,
+		.bIsBodyInline = true,
+		};
+
+		Interface_AsObject_Const.Body = "{\n\treturn reinterpret_cast<const UObject*>(this);\n}";
+	}
 
 	std::string InHeaderFunctionText;
 
@@ -497,6 +529,8 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	bool bWasLastFuncStatic = false;
 	bool bWasLastFuncInline = false;
 	bool bWaslastFuncConst = false;
+
+	const bool bIsInterface = Struct.IsInterface();
 
 	for (const FunctionWrapper& Func : Members.IterateFunctions())
 	{
@@ -576,12 +610,20 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	GetDefaultObj.Body = std::format(
 R"({{
 	return GetDefaultObjImpl<{}>();
-}})", StructName);
+}})",StructName);
 
 
 	std::shared_ptr<StructWrapper> CurrentStructPtr = std::make_shared<StructWrapper>(Struct);
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &GetDefaultObj), StructName, FunctionFile, ParamFile);
+
+	if (bIsInterface)
+	{
+		InHeaderFunctionText += '\n';
+
+		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &Interface_AsObject), StructName, FunctionFile, ParamFile);
+		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &Interface_AsObject_Const), StructName, FunctionFile, ParamFile);
+	}
 
 	return InHeaderFunctionText;
 }
@@ -603,7 +645,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	StructWrapper Super = Struct.GetSuper();
 
-	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction();
+	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction() && !Struct.IsInterface();
 
 	/* Ignore UFunctions with a valid Super field, parameter structs are not supposed inherit from eachother. */
 	if (bHasValidSuper)
@@ -1134,7 +1176,6 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 	namespace CppSettings = Settings::CppGenerator;
 
 	WriteFileHead(NameCollisionsFile, nullptr, EFileType::NameCollisionsInl, "FORWARD DECLARATIONS");
-
 
 	const StructManager::OverrideMapType& StructInfoMap = StructManager::GetStructInfos();
 	const EnumManager::OverrideMaptType& EnumInfoMap = EnumManager::GetEnumInfos();

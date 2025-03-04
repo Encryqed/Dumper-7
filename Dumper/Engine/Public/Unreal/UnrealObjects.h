@@ -191,9 +191,10 @@ public:
 	int32 GetMinAlignment() const;
 	int32 GetStructSize() const;
 
+	bool HasType(UEStruct Type) const;
+
 	std::vector<UEProperty> GetProperties() const;
 	std::vector<UEFunction> GetFunctions() const;
-
 
 	UEProperty FindMember(const std::string& MemberName, EClassCastFlags TypeFlags = EClassCastFlags::None) const;
 
@@ -224,7 +225,6 @@ public:
 	EClassCastFlags GetCastFlags() const;
 	std::string StringifyCastFlags() const;
 	bool IsType(EClassCastFlags TypeFlag) const;
-	bool HasType(UEClass TypeClass) const;
 	UEObject GetDefaultObject() const;
 	TArray<FImplementedInterface> GetImplementedInterfaces() const;
 

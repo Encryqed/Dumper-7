@@ -126,6 +126,7 @@ public:
 
     bool IsStatic() const;
     bool IsConst() const;
+    bool IsInInterface() const;
     bool IsPredefined() const;
     bool HasInlineBody() const;
     bool HasCustomTemplateText() const;

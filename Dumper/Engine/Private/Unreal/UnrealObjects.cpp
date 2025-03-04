@@ -541,6 +541,20 @@ int32 UEStruct::GetStructSize() const
 	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
 }
 
+bool UEStruct::HasType(UEStruct Type) const
+{
+	if (Type == nullptr)
+		return false;
+
+	for (UEStruct S = *this; S; S = S.GetSuper())
+	{
+		if (S == Type)
+			return true;
+	}
+
+	return false;
+}
+
 std::vector<UEProperty> UEStruct::GetProperties() const
 {
 	std::vector<UEProperty> Properties;
@@ -643,20 +657,6 @@ std::string UEClass::StringifyCastFlags() const
 bool UEClass::IsType(EClassCastFlags TypeFlag) const
 {
 	return (TypeFlag != EClassCastFlags::None ? (GetCastFlags() & TypeFlag) : true);
-}
-
-bool UEClass::HasType(UEClass TypeClass) const
-{
-	if (TypeClass == nullptr)
-		return false;
-
-	for (UEStruct S = *this; S; S = S.GetSuper())
-	{
-		if (S == TypeClass)
-			return true;
-	}
-
-	return false;
 }
 
 UEObject UEClass::GetDefaultObject() const
