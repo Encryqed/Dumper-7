@@ -3826,7 +3826,7 @@ R"({
 
 	SortMembers(FName.Properties);
 
-	const char* GetRawStringWithAppendString = std::format(
+	std::string GetRawStringWithAppendString = std::format(
 		R"({{
 	thread_local FAllocatedString TempString(1024);
 
@@ -3840,7 +3840,7 @@ R"({
 
 	return OutputString;
 }}
-)", Settings::Is32Bit() ? "__thiscall" : "").c_str();
+)", Settings::Is32Bit() ? "__thiscall" : "");
 
 	constexpr const char* GetRawStringWithNameArray =
 		R"({
@@ -4074,7 +4074,7 @@ R"({
 	GenerateStruct(&FText, BasicHpp, BasicCpp, BasicHpp);
 
 
-	constexpr int32 FWeakObjectPtrSize = sizeof(void*);
+	constexpr int32 FWeakObjectPtrSize = 0x08;
 
 	/* class FWeakObjectPtr */
 	PredefinedStruct FWeakObjectPtr = PredefinedStruct{
@@ -4613,7 +4613,7 @@ public:
 	/* TMulticastInlineDelegate */
 	PredefinedStruct TMulticastInlineDelegate = PredefinedStruct{
 		.CustomTemplateText = "template<typename FunctionSignature>",
-		.UniqueName = "TMulticastInlineDelegate", .Size = 0x10, .Alignment = 0x8, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "TMulticastInlineDelegate", .Size = sizeof(TArray<int>), .Alignment = alignof(TArray<int>), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	TMulticastInlineDelegate.Properties =
@@ -4637,7 +4637,7 @@ public:
 	{
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "TArray<FScriptDelegate>", .Name = "InvocationList", .Offset = 0x0, .Size = 0x10, .ArrayDim = 0x1, .Alignment = 0x8,
+			.Type = "TArray<FScriptDelegate>", .Name = "InvocationList", .Offset = 0x0, .Size = sizeof(TArray<int>), .ArrayDim = 0x1, .Alignment = alignof(TArray<int>),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		}
 	};
@@ -4981,7 +4981,7 @@ public:
 /*
 * A wrapper for a Byte-Array of padding, that inherited from UObject allows for casting to the actual underlaiyng type and access to basic UObject functionality. For cyclic classes.
 */
-template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8, class BaseClassType = class UObject>
+template<typename UnderlayingClassType, int32 Size, int32 Align = sizeof(void*), class BaseClassType = class UObject>
 struct alignas(Align) TCyclicClassFixup : public BaseClassType
 {
 private:
@@ -5785,12 +5785,17 @@ namespace UC
 	template<typename T0, typename T1> inline Iterators::TMapIterator<T0, T1> begin(const TMap<T0, T1>& Map) { return Iterators::TMapIterator<T0, T1>(Map, Map.GetAllocationFlags(), 0); }
 	template<typename T0, typename T1> inline Iterators::TMapIterator<T0, T1> end  (const TMap<T0, T1>& Map) { return Iterators::TMapIterator<T0, T1>(Map, Map.GetAllocationFlags(), Map.NumAllocated()); }
 
+#if defined(_WIN64)
 	static_assert(sizeof(TArray<int32>) == 0x10, "TArray has a wrong size!");
 	static_assert(sizeof(TSet<int32>) == 0x50, "TSet has a wrong size!");
 	static_assert(sizeof(TMap<int32, int32>) == 0x50, "TMap has a wrong size!");
+#elif defined(_WIN32)
+	static_assert(sizeof(TArray<int32>) == 0x0C, "TArray has a wrong size!");
+	static_assert(sizeof(TSet<int32>) == 0x3C, "TSet has a wrong size!");
+	static_assert(sizeof(TMap<int32, int32>) == 0x3C, "TMap has a wrong size!");
+#endif
 }
 )";
-
 
 	WriteFileEnd(UEContainersHeader, EFileType::UnrealContainers);
 }

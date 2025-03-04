@@ -859,7 +859,7 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::ClassProperty)
 	{
-		return alignof(void*); // 0x04 / 0x8
+		return alignof(void*); // 0x4 / 0x8
 	}
 	else if (TypeFlags & EClassCastFlags::NameProperty)
 	{

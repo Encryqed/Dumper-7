@@ -1,4 +1,3 @@
-
 #include "Unreal/ObjectArray.h"
 #include "Managers/StructManager.h"
 
