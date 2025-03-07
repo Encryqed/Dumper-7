@@ -19,19 +19,19 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: Build solution
-      run: msbuild Dumper-7.sln /p:Configuration=Release /p:Platform=x64
+    - name: Build Dumper Project
+      run: msbuild .\Dumper\Dumper.vcxproj /p:Configuration=Release /p:Platform=x64 /p:WarningLevel=0
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: build-artifacts
         path: |
-          **/*.exe
-          **/*.dll
-          **/*.pdb
-          **/*.lib
-          **/*.obj
-          **/*.tlb
-          **/*.map
-          **/*.exp
+          .\x64\Release\*.exe
+          .\x64\Release\*.dll
+          .\x64\Release\*.pdb
+          .\x64\Release\*.lib
+          .\x64\Release\*.obj
+          .\x64\Release\*.tlb
+          .\x64\Release\*.map
+          .\x64\Release\*.exp
