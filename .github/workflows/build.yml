@@ -27,11 +27,11 @@ jobs:
       with:
         name: build-artifacts
         path: |
-          .\x64\Release\*.exe
-          .\x64\Release\*.dll
-          .\x64\Release\*.pdb
-          .\x64\Release\*.lib
-          .\x64\Release\*.obj
-          .\x64\Release\*.tlb
-          .\x64\Release\*.map
-          .\x64\Release\*.exp
+          .\Dumper\x64\Release\*.exe
+          .\Dumper\x64\Release\*.dll
+          .\Dumper\x64\Release\*.pdb
+          .\Dumper\x64\Release\*.lib
+          .\Dumper\x64\Release\*.obj
+          .\Dumper\x64\Release\*.tlb
+          .\Dumper\x64\Release\*.map
+          .\Dumper\x64\Release\*.exp
