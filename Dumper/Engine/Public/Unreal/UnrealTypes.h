@@ -20,9 +20,13 @@ extern std::string MakeNameValid(std::wstring&& Name);
 template<typename Type>
 struct TImplementedInterface
 {
-	Type InterfaceClass;
+public:
+	void* InterfaceClass;
 	int32 PointerOffset;
 	bool bImplementedByK2;
+
+public:
+	std::string GetInterfaceVTableCppName() const;
 };
 
 using FImplementedInterface = TImplementedInterface<class UEClass>;
@@ -34,7 +38,7 @@ public:
 
 	FFreableString(uint32_t NumElementsToReserve)
 	{
-		if (NumElementsToReserve > 0x1000000)
+		if (NumElementsToReserve > 0x100000)
 			return;
 
 		this->Data = static_cast<wchar_t*>(malloc(sizeof(wchar_t) * NumElementsToReserve));
@@ -58,10 +62,12 @@ public:
 private:
 	inline void FreeArray()
 	{
+		if (this->Data)
+			free(this->Data);
+
+		this->Data = nullptr;
 		this->NumElements = 0;
 		this->MaxElements = 0;
-		if (this->Data) free(this->Data);
-		this->Data = nullptr;
 	}
 };
 

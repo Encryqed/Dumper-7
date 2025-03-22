@@ -174,7 +174,7 @@ namespace PackageManagerUtils
 		}
 	}
 
-	std::unordered_set<int32> GetDependencies(UEStruct Struct, int32 StructIndex)
+	std::unordered_set<int32> GetDependencies(UEStruct Struct)
 	{
 		std::unordered_set<int32> Dependencies;
 
@@ -272,7 +272,7 @@ void PackageManager::InitDependencies()
 			DependencyListType& PackageDependencyList = bIsClass ? Info.PackageDependencies.ClassesDependencies : Info.PackageDependencies.StructsDependencies;
 			DependencyManager& ClassOrStructDependencyList = bIsClass ? Info.ClassesSorted : Info.StructsSorted;
 
-			std::unordered_set<int32> Dependencies = PackageManagerUtils::GetDependencies(ObjAsStruct, StructIdx);
+			std::unordered_set<int32> Dependencies = PackageManagerUtils::GetDependencies(ObjAsStruct);
 
 			ClassOrStructDependencyList.SetExists(StructIdx);
 
@@ -308,7 +308,7 @@ void PackageManager::InitDependencies()
 			{
 				Info.Functions.push_back(Func.GetIndex());
 
-				std::unordered_set<int32> ParamDependencies = PackageManagerUtils::GetDependencies(Func, Func.GetIndex());
+				std::unordered_set<int32> ParamDependencies = PackageManagerUtils::GetDependencies(Func);
 
 				BooleanOrEqual(Info.bHasParams, Func.HasMembers());
 
@@ -317,6 +317,28 @@ void PackageManager::InitDependencies()
 				/* Add dependencies to ParamDependencies and add enums only to class dependencies (forwarddeclaration of enum classes defaults to int) */
 				PackageManagerUtils::SetPackageDependencies(Info.PackageDependencies.ParametersDependencies, ParamDependencies, FuncPackageIndex, true);
 				PackageManagerUtils::AddEnumPackageDependencies(Info.PackageDependencies.ClassesDependencies, ParamDependencies, FuncPackageIndex, true);
+			}
+
+			for (const FImplementedInterface& Interface : ObjAsStruct.Cast<UEClass>().GetImplementedInterfaces())
+			{
+				if (Interface.bImplementedByK2)
+					continue;
+
+				const int32 InterfacePackageIdx = UEClass(Interface.InterfaceClass).GetPackageIndex();
+
+
+				if (InterfacePackageIdx == StructPackageIdx)
+				{
+					/* In-file sorting is only required if the super-class is inside of the same package */
+					ClassOrStructDependencyList.AddDependency(Obj.GetIndex(), UEClass(Interface.InterfaceClass).GetIndex());
+				}
+				else
+				{
+					/* A package can't depend on itself, super of a structs will always be in _"structs" file, same for classes and "_classes" files */
+					RequirementInfo& ReqInfo = PackageDependencyList[InterfacePackageIdx];
+					BooleanOrEqual(ReqInfo.bShouldIncludeStructs, !bIsClass);
+					BooleanOrEqual(ReqInfo.bShouldIncludeClasses, bIsClass);
+				}
 			}
 		}
 		else if (bIsEnum)

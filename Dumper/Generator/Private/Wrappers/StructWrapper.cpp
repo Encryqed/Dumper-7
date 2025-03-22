@@ -102,9 +102,23 @@ bool StructWrapper::IsFunction() const
 
 bool StructWrapper::IsInterface() const
 {
-    static UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
+    return bIsUnrealStruct && Struct.IsInterfaceClass();
+}
 
-    return bIsUnrealStruct && Struct.IsA(EClassCastFlags::Class) && Struct.HasType(InterfaceClass);
+bool StructWrapper::HasNativeInterfaces() const
+{
+    if (!IsUnrealStruct() || !IsClass())
+        return false;
+
+    const auto& Interfaces = GetInterfaces();
+
+    for (const auto& Interface : Interfaces)
+    {
+        if (!Interface.bImplementedByK2)
+            return true;
+    }
+
+    return false;
 }
 
 bool StructWrapper::IsAClassWithType(UEClass TypeClass) const
@@ -145,4 +159,11 @@ std::string StructWrapper::GetCustomTemplateText() const
     assert(!IsUnrealStruct() && "StructWrapper doesn't contain PredefStruct. Illegal call to 'GetCustomTemplateText()'.");
 
     return PredefStruct->CustomTemplateText;
+}
+
+std::vector<FImplementedInterface> StructWrapper::GetInterfaces() const
+{
+    assert(IsUnrealStruct() && IsClass() && "StructWrapper doesn't contain PredefStruct. Illegal call to 'GetCustomTemplateText()'.");
+
+    return Struct.Cast<UEClass>().GetImplementedInterfaces();
 }

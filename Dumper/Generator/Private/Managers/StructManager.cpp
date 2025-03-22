@@ -57,8 +57,6 @@ void StructManager::InitAlignmentsAndNames()
 {
 	constexpr int32 DefaultClassAlignment = 0x8;
 
-	const UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
-
 	for (auto Obj : ObjectArray())
 	{
 		if (!Obj.IsA(EClassCastFlags::Struct) /* || Obj.IsA(EClassCastFlags::Function)*/)
@@ -71,12 +69,12 @@ void StructManager::InitAlignmentsAndNames()
 		NewOrExistingInfo.Name = UniqueNameTable.FindOrAdd(Obj.GetCppName(), !Obj.IsA(EClassCastFlags::Function)).first;
 
 		// Interfaces inherit from UObject by default, but as a workaround to no virtual-inheritance we make them empty
-		if (ObjAsStruct.HasType(InterfaceClass))
+		if (ObjAsStruct.IsInterfaceClass())
 		{
-			NewOrExistingInfo.Alignment = 0x1;
+			NewOrExistingInfo.Alignment = alignof(void*);
 			NewOrExistingInfo.bHasReusedTrailingPadding = false;
-			NewOrExistingInfo.bIsFinal = true;
-			NewOrExistingInfo.Size = 0x0;
+			NewOrExistingInfo.bIsFinal = false;
+			NewOrExistingInfo.Size = sizeof(void*);
 
 			continue;
 		}
@@ -111,7 +109,7 @@ void StructManager::InitAlignmentsAndNames()
 
 	for (auto Obj : ObjectArray())
 	{
-		if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function) || Obj.Cast<UEStruct>().HasType(InterfaceClass))
+		if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function) || Obj.Cast<UEStruct>().IsInterfaceClass())
 			continue;
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
@@ -150,11 +148,9 @@ void StructManager::InitAlignmentsAndNames()
 
 void StructManager::InitSizesAndIsFinal()
 {
-	const UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
-
 	for (auto Obj : ObjectArray())
 	{
-		if (!Obj.IsA(EClassCastFlags::Struct) || Obj.Cast<UEStruct>().HasType(InterfaceClass))
+		if (!Obj.IsA(EClassCastFlags::Struct) || Obj.Cast<UEStruct>().IsInterfaceClass())
 			continue;
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();

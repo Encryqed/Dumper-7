@@ -63,6 +63,17 @@ std::string CppGenerator::GenerateBitPadding(uint8 UnderlayingSizeBytes, const u
 	return MakeMemberString(GetTypeFromSize(UnderlayingSizeBytes), std::format("BitPad_{:X}_{:X} : {:X}", Offset, PrevBitPropertyEndBit, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, UnderlayingSizeBytes, std::move(Reason)));
 }
 
+void CppGenerator::AddInterfaceVftMember(UEClass InterfaceClass)
+{
+	PredefinedMember IntefaceVftMember = {
+		.Comment = "NOT AUTO-GENERATED PROPERTY",
+		.Type = "void*", .Name = InterfaceClass.GetInterfaceVftName(), .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+		.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+	};
+
+	PredefinedMembers[InterfaceClass.GetIndex()].Members.push_back(std::move(IntefaceVftMember));
+}
+
 std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex)
 {
 	constexpr uint64 EstimatedCharactersPerLine = 0xF0;
@@ -106,7 +117,6 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 	uint64 PrevNumBitsInUnderlayingType = 0x8;
 
 	const int32 SuperTrailingPaddingSize = SuperSize - SuperLastMemberEnd;
-	bool bIsFirstSizedMember = true;
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
@@ -130,8 +140,6 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 		if (MemberOffset > PrevPropertyEnd && !bIsUnion)
 			OutMembers += GenerateBytePadding(PrevPropertyEnd, MemberOffset - PrevPropertyEnd, "Fixing Size After Last Property [ Dumper-7 ]");
-
-		bIsFirstSizedMember = Member.IsZeroSizedMember() || Member.IsStatic();
 
 		if (bIsBitField)
 		{
@@ -645,7 +653,11 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	StructWrapper Super = Struct.GetSuper();
 
-	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction() && !Struct.IsInterface();
+	const bool bIsInterface = Struct.IsInterface();
+	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction() && !bIsInterface;
+
+	if (bIsInterface)
+		AddInterfaceVftMember(Struct.GetUnrealStruct().Cast<UEClass>());
 
 	/* Ignore UFunctions with a valid Super field, parameter structs are not supposed inherit from eachother. */
 	if (bHasValidSuper)
@@ -668,7 +680,23 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	const bool bIsUnion = Struct.IsUnion();
 
 	const bool bHasReusedTrailingPadding = Struct.HasReusedTrailingPadding();
+	const bool bhasNativeInterfaces = Struct.HasNativeInterfaces();
 
+	std::string InheritanceStr = bHasValidSuper ? (" : public " + UniqueSuperName) : "";
+
+	std::vector<FImplementedInterface> ImplementedInterfaces;
+
+	if (bhasNativeInterfaces)
+	{
+		ImplementedInterfaces = Struct.GetInterfaces();
+
+		auto [InterfaceStr, NumNativeInterfaces] = GetInterfacInheritanceString(Struct, ImplementedInterfaces);
+
+		InheritanceStr += (", " + InterfaceStr);
+
+		// Add the size of the VTables to the inherited size
+		SuperSize += (sizeof(void*) * NumNativeInterfaces);
+	}
 
 	StructFile << std::format(R"(
 // {}
@@ -685,7 +713,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
   , Struct.ShouldUseExplicitAlignment() || bHasReusedTrailingPadding ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
   , UniqueName
   , Struct.IsFinal() ? " final" : ""
-  , bHasValidSuper ? (" : public " + UniqueSuperName) : "");
+  , InheritanceStr);
 
 	MemberManager Members = Struct.GetMembers();
 
@@ -718,7 +746,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 		if (Struct.HasCustomTemplateText())
 			return;
 
-		std::string UniquePrefixedName = StructNameOverride.empty() ? GetStructPrefixedName(Struct) : StructNameOverride;
+		const std::string UniquePrefixedName = StructNameOverride.empty() ? GetStructPrefixedName(Struct) : StructNameOverride;
 
 		const int32 StructSize = Struct.GetSize();
 
@@ -732,14 +760,21 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	if constexpr (Settings::Debug::bGenerateInlineAssertionsForStructMembers)
 	{
-		std::string UniquePrefixedName = StructNameOverride.empty() ? GetStructPrefixedName(Struct) : StructNameOverride;
+		const std::string UniquePrefixedName = StructNameOverride.empty() ? GetStructPrefixedName(Struct) : StructNameOverride;
+
+		for (const FImplementedInterface& Interface : ImplementedInterfaces)
+		{
+			if (Interface.bImplementedByK2)
+				continue;
+
+			StructFile << std::format("static_assert(offsetof({0}, {1}) == 0x{2:06X}, \"Interface VFT '{0}::{1}' has a wrong offset!\");\n",
+				UniquePrefixedName, Interface.GetInterfaceVTableCppName(), Interface.PointerOffset);
+		}
 
 		for (const PropertyWrapper& Member : Members.IterateMembers())
 		{
 			if (Member.IsBitField() || Member.IsZeroSizedMember() || Member.IsStatic())
 				continue;
-
-			std::string MemberName = Member.GetName();
 
 			StructFile << std::format("static_assert(offsetof({0}, {1}) == 0x{2:06X}, \"Member '{0}::{1}' has a wrong offset!\");\n", UniquePrefixedName, Member.GetName(), Member.GetOffset());
 		}
@@ -1059,6 +1094,29 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		/* When changing this also change 'GetUnknownProperties()' */
 		return (Class ? Class.GetCppName() : FieldClass.GetCppName()) + "_";
 	}
+}
+
+std::pair<std::string, int> CppGenerator::GetInterfacInheritanceString(const StructWrapper& Struct, const std::vector<FImplementedInterface>& Interfaces)
+{
+	std::string InterfaceStr;
+	int NumNativeInterfaces = 0;
+
+	for (const FImplementedInterface& Interface : Interfaces)
+	{
+		if (!Interface.bImplementedByK2 && Interface.InterfaceClass)
+		{
+			InterfaceStr += GetStructPrefixedName(UEClass(Interface.InterfaceClass));
+			InterfaceStr += ", ";
+
+			NumNativeInterfaces++;
+		}
+	}
+
+	// Remove last ", " from the end
+	InterfaceStr.pop_back();
+	InterfaceStr.pop_back();
+
+	return { InterfaceStr, NumNativeInterfaces };
 }
 
 std::string CppGenerator::GetFunctionSignature(UEFunction Func)
