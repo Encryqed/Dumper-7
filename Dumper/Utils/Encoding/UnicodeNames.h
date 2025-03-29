@@ -9,6 +9,8 @@
 // Tables taken from the llvm-project repository on github
 // LLVMs license: https://llvm.org/LICENSE.txt
 
+using UnicodeCharRange = std::pair<char32_t, char32_t>;
+
 template<uint32_t Size>
 class UnicodeRangeTable
 {
@@ -18,8 +20,6 @@ public:
     friend constexpr bool IsUnicodeCharXIDContinue(char32_t Character);
     friend constexpr bool IsUnicodeCharXIDContinueWithoutXIDStart(char32_t Character);
 
-private:
-    using UnicodeCharRange = std::pair<char32_t, char32_t>;
 
 private:
     std::array<UnicodeCharRange, Size> CharRanges;
@@ -42,7 +42,7 @@ private:
 
 
 // Unicode 15.1 XID_Start
-constexpr UnicodeRangeTable XIDStartRanges = {{
+constexpr UnicodeCharRange XIDStartRangesData[] = {
     { 0x0041, 0x005A },   { 0x0061, 0x007A },   { 0x00AA, 0x00AA },
     { 0x00B5, 0x00B5 },   { 0x00BA, 0x00BA },   { 0x00C0, 0x00D6 },
     { 0x00D8, 0x00F6 },   { 0x00F8, 0x02C1 },   { 0x02C6, 0x02D1 },
@@ -266,13 +266,13 @@ constexpr UnicodeRangeTable XIDStartRanges = {{
     { 0x2B740, 0x2B81D }, { 0x2B820, 0x2CEA1 }, { 0x2CEB0, 0x2EBE0 },
     { 0x2EBF0, 0x2EE5D }, { 0x2F800, 0x2FA1D }, { 0x30000, 0x3134A },
     { 0x31350, 0x323AF }
-}};
+};
 
 // Unicode 15.1 XID_Continue, excluding XID_Start
 // The Unicode Property XID_Continue is a super set of XID_Start.
 // To save Space, the table below only contains the codepoints
 // that are not also in XID_Start.
-constexpr UnicodeRangeTable XIDContinueRanges = {{
+constexpr UnicodeCharRange XIDContinueRangesData[] = {
     { 0x0030, 0x0039 },   { 0x005F, 0x005F },   { 0x00B7, 0x00B7 },
     { 0x0300, 0x036F },   { 0x0387, 0x0387 },   { 0x0483, 0x0487 },
     { 0x0591, 0x05BD },   { 0x05BF, 0x05BF },   { 0x05C1, 0x05C2 },
@@ -399,7 +399,11 @@ constexpr UnicodeRangeTable XIDContinueRanges = {{
     { 0x1E140, 0x1E149 }, { 0x1E2AE, 0x1E2AE }, { 0x1E2EC, 0x1E2F9 },
     { 0x1E4EC, 0x1E4F9 }, { 0x1E8D0, 0x1E8D6 }, { 0x1E944, 0x1E94A },
     { 0x1E950, 0x1E959 }, { 0x1FBF0, 0x1FBF9 }, { 0xE0100, 0xE01EF },
-}};
+};
+
+// Создание объектов с автоматическим вычислением размера
+constexpr UnicodeRangeTable XIDStartRanges(XIDStartRangesData);
+constexpr UnicodeRangeTable XIDContinueRanges(XIDContinueRangesData);
 
 /* Checks a character for the XID_Start property. XID_Start -> valid start character for a C++ name. */
 constexpr inline bool IsUnicodeCharXIDStart(char32_t Character)
