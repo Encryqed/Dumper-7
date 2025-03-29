@@ -67,52 +67,52 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Replace -fasm-blocks to more compatibility option
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fasm")
     
-    # Дополнительные флаги для подавления ошибок со static_cast между несвязанными типами
+    # Additional flags to suppress errors with static_cast between unrelated types
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-microsoft-cast")
     
-    # Игнорирование регистра в именах файлов
+    # Ignore case in file names
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-nonportable-include-path")
     
-    # Отключение строгих проверок для заголовочных файлов
+    # Disable strict checks for header files
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=header-guard -Wno-error=pragma-once-outside-header")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=invalid-token-paste -Wno-ignored-attributes")
     
-    # Отключение предупреждений о Microsoft-специфичных атрибутах
+    # Disable warnings about Microsoft-specific attributes
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-microsoft-enum-forward-reference -Wno-microsoft-goto")
     
-    # Отключение ошибок сужения значений в перечислениях
+    # Disable errors about narrowing conversions in enums
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-c++11-narrowing -Wno-narrowing")
     
-    # Разрешение неполных типов и C-style приведений
+    # Allow incomplete types and C-style casts
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-incompatible-pointer-types -Wno-incompatible-function-pointer-types")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-cast-function-type -Wno-cast-qual")
     
-    # Отключение ошибок с битовыми полями
+    # Disable errors with bit fields
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-bitfield-constant-conversion")
     
-    # Отключение ошибок с FSetBitIterator
+    # Disable errors with FSetBitIterator
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDISABLE_FSETBITITERATOR_DECREMENT")
     
-    # Используем компилятор в режиме максимальной совместимости с MSVC
+    # Use the compiler in maximum compatibility mode with MSVC
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fdelayed-template-parsing")
     
-    # Специальные макросы и определения для UE4 SDK на Clang
+    # Special macros and definitions for UE4 SDK on Clang
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCLANG_WORKAROUNDS")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSTRUCTURE_SIZE_PARANOIA=0")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS")
     
-    # Макросы для обхода ошибки с InvalidUseOfTDelegate
+    # Macros to workaround InvalidUseOfTDelegate errors
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEFINE_INVALIDUSEOFTDELEGATE")
     
-    # Отключение стандартных проверок Clang для C++
+    # Disable standard Clang checks for C++
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-inconsistent-missing-override -Wno-overloaded-virtual")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-dynamic-class-memaccess -Wno-unused-value")
     
-    # Игнорирование ошибок преобразования типов, которые очень часты в UE4 SDK
+    # Ignore type conversion errors that are very frequent in UE4 SDK
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=incompatible-pointer-types")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=reinterpret-base-class")
     
-    # Игнорирование большинства стандартных ошибок Clang при компиляции UE4 SDK
+    # Ignore most standard Clang errors when compiling UE4 SDK
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error")
 
 # GCC specific options
