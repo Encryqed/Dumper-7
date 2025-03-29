@@ -16,20 +16,6 @@
             }
         },
         {
-            "name": "clang-cl",
-            "displayName": "Clang-CL",
-            "description": "Configuration using Clang-CL compiler",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
-            "cacheVariables": {
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-                "CMAKE_C_COMPILER": "clang-cl.exe",
-                "CMAKE_CXX_COMPILER": "clang-cl.exe",
-                "CMAKE_C_FLAGS": "-m64",
-                "CMAKE_CXX_FLAGS": "-m64"
-            }
-        },
-        {
             "name": "vs2022",
             "displayName": "MSVC 2022",
             "description": "Debug configuration using MSVC 2022 (x64)",
@@ -82,20 +68,6 @@
             "description": "Debug configuration using Clang",
             "displayName": "Debug",
             "configurePreset": "clang",
-            "configuration": "Debug"
-        },
-        {
-            "name": "clang-cl-Release",
-            "description": "Release configuration using Clang-CL",
-            "displayName": "Release",
-            "configurePreset": "clang-cl",
-            "configuration": "Release"
-        },
-        {
-            "name": "clang-cl-Debug",
-            "description": "Debug configuration using Clang-CL",
-            "displayName": "Debug",
-            "configurePreset": "clang-cl",
             "configuration": "Debug"
         },
         {
