@@ -401,7 +401,7 @@ constexpr UnicodeCharRange XIDContinueRangesData[] = {
     { 0x1E950, 0x1E959 }, { 0x1FBF0, 0x1FBF9 }, { 0xE0100, 0xE01EF },
 };
 
-// Создание объектов с автоматическим вычислением размера
+// Create objects with automatic size calculation
 constexpr UnicodeRangeTable XIDStartRanges(XIDStartRangesData);
 constexpr UnicodeRangeTable XIDContinueRanges(XIDContinueRangesData);
 
