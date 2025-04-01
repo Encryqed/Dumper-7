@@ -1,4 +1,3 @@
-
 #include <format>
 
 #include "Utils.h"
