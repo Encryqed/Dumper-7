@@ -3230,7 +3230,7 @@ class UClass* StaticBPGeneratedClassImpl()
 template<class ClassType>
 ClassType* GetDefaultObjImpl()
 {
-	return static_cast<ClassType*>(ClassType::StaticClass()->DefaultObject);
+	return reinterpret_cast<ClassType*>(ClassType::StaticClass()->DefaultObject);
 }
 
 )";

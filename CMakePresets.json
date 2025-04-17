@@ -1,0 +1,116 @@
+{
+    "version": 8,
+    "configurePresets": [
+        {
+            "name": "clang",
+            "displayName": "Clang",
+            "description": "Configuration using Clang compiler",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "clang.exe",
+                "CMAKE_CXX_COMPILER": "clang++.exe",
+                "CMAKE_C_FLAGS": "-m64",
+                "CMAKE_CXX_FLAGS": "-m64"
+            }
+        },
+        {
+            "name": "vs2022",
+            "displayName": "MSVC 2022",
+            "description": "Debug configuration using MSVC 2022 (x64)",
+            "generator": "Visual Studio 17 2022",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            }
+        },
+        {
+            "name": "vs2019",
+            "displayName": "MSVC 2019",
+            "description": "Debug configuration using MSVC 2019 (x64)",
+            "generator": "Visual Studio 16 2019",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            }
+        },
+        {
+            "name": "vs2017",
+            "displayName": "MSVC 2017",
+            "description": "Debug configuration using MSVC 2017 (x64)",
+            "generator": "Visual Studio 15 2017",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "clang-Release",
+            "description": "Release configuration using Clang",
+            "displayName": "Release",
+            "configurePreset": "clang",
+            "configuration": "Release"
+        },
+        {
+            "name": "clang-Debug",
+            "description": "Debug configuration using Clang",
+            "displayName": "Debug",
+            "configurePreset": "clang",
+            "configuration": "Debug"
+        },
+        {
+            "name": "vs2019-Release",
+            "description": "Release configuration using MSVC 2019",
+            "displayName": "Release",
+            "configurePreset": "vs2019",
+            "configuration": "Release"
+        },
+        {
+            "name": "vs2019-Debug",
+            "description": "Debug configuration using MSVC 2019",
+            "displayName": "Debug",
+            "configurePreset": "vs2019",
+            "configuration": "Debug"
+        },
+        {
+            "name": "vs2022-Release",
+            "description": "Release configuration using MSVC 2022",
+            "displayName": "Release",
+            "configurePreset": "vs2022",
+            "configuration": "Release"
+        },
+        {
+            "name": "vs2022-Debug",
+            "description": "Debug configuration using MSVC 2022",
+            "displayName": "Debug",
+            "configurePreset": "vs2022",
+            "configuration": "Debug"
+        },
+        {
+            "name": "vs2017-Release",
+            "description": "Release configuration using MSVC 2017",
+            "displayName": "Release",
+            "configurePreset": "vs2017",
+            "configuration": "Release"
+        },
+        {
+            "name": "vs2017-Debug",
+            "description": "Debug configuration using MSVC 2017",
+            "displayName": "Debug",
+            "configurePreset": "vs2017",
+            "configuration": "Debug"
+        }
+    ]
+}
