@@ -91,9 +91,6 @@ private:
     static std::string GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason);
     static std::string GenerateBitPadding(uint8 UnderlayingSizeBytes, const uint8 PrevBitPropertyEndBit, const int32 Offset, const int32 PadSize, std::string&& Reason);
 
-    static void AddInterfaceVftMember(UEClass InterfaceClass);
-
-    //static std::string GenerateSingleMember(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex = -1);
     static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex = -1);
     static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func);
 
@@ -109,8 +106,6 @@ private: /* utility functions */
     static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false /* const USomeClass* Member; */);
     static std::string GetMemberTypeString(UEProperty Member, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false);
     static std::string GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex = -1);
-
-    static std::pair<std::string, int> GetInterfacInheritanceString(const StructWrapper& Struct, const std::vector<FImplementedInterface>& Interfaces);
 
     static std::string GetFunctionSignature(UEFunction Func);
 

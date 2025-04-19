@@ -154,6 +154,7 @@ std::string UEFField::GetValidName() const
 std::string UEFField::GetCppName() const
 {
 	static UEClass ActorClass = ObjectArray::FindClassFast("Actor");
+	static UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
 
 	std::string Temp = GetValidName();
 
@@ -163,7 +164,7 @@ std::string UEFField::GetCppName() const
 		{
 			return 'A' + Temp;
 		}
-		else if (Cast<UEClass>().IsInterfaceClass())
+		else if (Cast<UEClass>().HasType(InterfaceClass))
 		{
 			return 'I' + Temp;
 		}
@@ -238,7 +239,7 @@ bool UEObject::HasAnyFlags(EObjectFlags Flags) const
 
 bool UEObject::IsA(EClassCastFlags TypeFlags) const
 {
-	return GetClass().IsType(TypeFlags);
+	return (TypeFlags != EClassCastFlags::None ? GetClass().IsType(TypeFlags) : true);
 }
 
 bool UEObject::IsA(UEClass Class) const
@@ -290,11 +291,15 @@ std::string UEObject::GetValidName() const
 std::string UEObject::GetCppName() const
 {
 	static UEClass ActorClass = nullptr;
+	static UEClass InterfaceClass = nullptr;
 
 	if (ActorClass == nullptr)
 		ActorClass = ObjectArray::FindClassFast("Actor");
 
-	const std::string Temp = GetValidName();
+	if (InterfaceClass == nullptr)
+		InterfaceClass = ObjectArray::FindClassFast("Interface");
+
+	std::string Temp = GetValidName();
 
 	if (IsA(EClassCastFlags::Class))
 	{
@@ -302,7 +307,7 @@ std::string UEObject::GetCppName() const
 		{
 			return 'A' + Temp;
 		}
-		else if (Cast<UEClass>().IsInterfaceClass())
+		else if (Cast<UEClass>().HasType(InterfaceClass))
 		{
 			return 'I' + Temp;
 		}
@@ -550,13 +555,6 @@ bool UEStruct::HasType(UEStruct Type) const
 	return false;
 }
 
-bool UEStruct::IsInterfaceClass() const
-{
-	static UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
-
-	return IsA(EClassCastFlags::Class) && HasType(InterfaceClass);
-}
-
 std::vector<UEProperty> UEStruct::GetProperties() const
 {
 	std::vector<UEProperty> Properties;
@@ -666,19 +664,9 @@ UEObject UEClass::GetDefaultObject() const
 	return UEObject(*reinterpret_cast<void**>(Object + Off::UClass::ClassDefaultObject));
 }
 
-std::vector<FImplementedInterface> UEClass::GetImplementedInterfaces() const
+TArray<FImplementedInterface> UEClass::GetImplementedInterfaces() const
 {
-	const auto& Interfaces = *reinterpret_cast<TArray<FImplementedInterface>*>(Object + Off::UClass::ImplementedInterfaces);
-
-	return std::vector<FImplementedInterface>(Interfaces.GetDataPtr(), Interfaces.GetDataPtr() + Interfaces.Num());
-}
-
-std::string UEClass::GetInterfaceVftName() const
-{
-	if (IsInterfaceClass())
-		return GetCppName() + "_VFT";
-
-	return "INVALID_CALL_TO_UEClass_GetInterfaceVftName_FOR_NON_INTERFACE_CLASS";
+	return *reinterpret_cast<TArray<FImplementedInterface>*>(Object + Off::UClass::ImplementedInterfaces);
 }
 
 UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string& FuncName) const

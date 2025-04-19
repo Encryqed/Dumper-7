@@ -9,7 +9,7 @@
 
 namespace PackageManagerUtils
 {
-	std::unordered_set<int32> GetDependencies(UEStruct Struct);
+	std::unordered_set<int32> GetDependencies(UEStruct Struct, int32 StructIndex);
 }
 
 class PackageInfoHandle;

@@ -56,8 +56,6 @@ public:
     bool IsFunction() const;
     bool IsInterface() const;
 
-    bool HasNativeInterfaces() const;
-
     bool IsAClassWithType(UEClass TypeClass) const;
 
     bool IsValid() const;
@@ -67,8 +65,6 @@ public:
 
     bool HasCustomTemplateText() const;
     std::string GetCustomTemplateText() const;
-
-    std::vector<FImplementedInterface> GetInterfaces() const;
 
     MemberManager GetMembers() const;
 };

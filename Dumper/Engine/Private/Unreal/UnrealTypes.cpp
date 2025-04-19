@@ -6,8 +6,6 @@
 
 #include "Encoding/UnicodeNames.h"
 
-#include "Unreal/UnrealObjects.h"
-
 
 std::string MakeNameValid(std::wstring&& Name)
 {
@@ -58,12 +56,6 @@ std::string MakeNameValid(std::wstring&& Name)
 	}
 
 	return  UtfN::Utf32StringToUtf8String<std::string>(Utf32Name);;
-}
-
-
-std::string FImplementedInterface::GetInterfaceVTableCppName() const
-{
-	return UEClass(InterfaceClass).GetCppName() + "_VFT";
 }
 
 

@@ -192,7 +192,6 @@ public:
 	int32 GetStructSize() const;
 
 	bool HasType(UEStruct Type) const;
-	bool IsInterfaceClass() const;
 
 	std::vector<UEProperty> GetProperties() const;
 	std::vector<UEFunction> GetFunctions() const;
@@ -227,9 +226,7 @@ public:
 	std::string StringifyCastFlags() const;
 	bool IsType(EClassCastFlags TypeFlag) const;
 	UEObject GetDefaultObject() const;
-	std::vector<FImplementedInterface> GetImplementedInterfaces() const;
-
-	std::string GetInterfaceVftName() const;
+	TArray<FImplementedInterface> GetImplementedInterfaces() const;
 
 	UEFunction GetFunction(const std::string& ClassName, const std::string& FuncName) const;
 };
