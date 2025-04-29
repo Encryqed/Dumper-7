@@ -75,7 +75,6 @@ CollisionInfoIterator EnumInfoHandle::GetMemberCollisionInfoIterator() const
 	return CollisionInfoIterator(Info->MemberInfos);
 }
 
-
 void EnumManager::InitInternal()
 {
 	for (auto Obj : ObjectArray())

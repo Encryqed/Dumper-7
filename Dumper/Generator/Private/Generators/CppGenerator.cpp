@@ -1593,7 +1593,7 @@ void CppGenerator::InitPredefinedMembers()
 	{
 		PredefinedMember {
 			.Comment = "So, here's a RowMap. Good luck with it.",
-			.Type = "TMap<class FName, uint8*>", .Name = "RowMap", .Offset = Off::InSDK::UDataTable::RowMap, .Size = sizeof(TMap<int, int>), .ArrayDim = 0x1, .Alignment = sizeof(TMap<int, int>),
+			.Type = "TMap<class FName, uint8*>", .Name = "RowMap", .Offset = Off::InSDK::UDataTable::RowMap, .Size = sizeof(TMap<int, int>), .ArrayDim = 0x1, .Alignment = alignof(TMap<int, int>),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
@@ -1743,7 +1743,7 @@ void CppGenerator::InitPredefinedMembers()
 		},
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "ElementSize", .Offset = Off::Property::ElementSize, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = sizeof(int32),
+			.Type = "int32", .Name = "ElementSize", .Offset = Off::Property::ElementSize, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
 			.bIsStatic = false, .bIsZeroSizeMember = false,  .bIsBitField = false, .BitIndex = 0xFF
 		},
 		PredefinedMember {
@@ -4213,7 +4213,7 @@ public:
 	{
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "FWeakObjectPtr", .Name = "WeakPtr", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.Type = "FWeakObjectPtr", .Name = "WeakPtr", .Offset = 0x0, .Size = FWeakObjectPtrSize, .ArrayDim = 0x1, .Alignment = alignof(int32),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 		PredefinedMember {
