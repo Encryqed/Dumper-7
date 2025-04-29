@@ -232,10 +232,6 @@ void StructManager::Init()
 	const UEObject UObjectClass = ObjectArray::FindClassFast("Object");
 	StructInfoOverrides.find(UObjectClass.GetIndex())->second.Alignment = sizeof(void*);
 
-	/* Fuck you??? TODO (encryqed): idk fix that or something */
-	//const UEObject UOClassClass = ObjectArray::FindClassFast("Class");
-	//StructInfoOverrides.find(UOClassClass.GetIndex())->second.Alignment = 0x8;
-
 	/* I still hate whoever decided to call "UStruct" "Ustruct" on some UE versions. */
 	if (const UEObject UStructClass = ObjectArray::FindClassFast("struct"))
 		StructInfoOverrides.find(UStructClass.GetIndex())->second.Name = UniqueNameTable.FindOrAdd(std::string("UStruct"), false).first;

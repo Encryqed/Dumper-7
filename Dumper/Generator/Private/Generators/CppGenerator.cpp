@@ -1367,6 +1367,11 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	File << "\n";
 
+	if constexpr (Settings::Is32Bit())
+	{
+		File << "#pragma pack(push, 0x4)\n";
+	}
+
 	if constexpr (CppSettings::SDKNamespaceName)
 	{
 		File << std::format("namespace {}", CppSettings::SDKNamespaceName);
@@ -1396,6 +1401,11 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 			File << "\n";
 
 		File << "}\n\n";
+	}
+
+	if constexpr (Settings::Is32Bit())
+	{
+		File << "#pragma pack(pop)\n";
 	}
 }
 
@@ -4363,7 +4373,7 @@ public:
 
 	/* class FScriptInterface */
 	PredefinedStruct FScriptInterface = PredefinedStruct{
-		.UniqueName = "FScriptInterface", .Size = 0x10, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "FScriptInterface", .Size = sizeof(void*) + sizeof(void*), .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
 	FScriptInterface.Properties =

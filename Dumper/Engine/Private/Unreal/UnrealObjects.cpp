@@ -831,7 +831,7 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::UInt64Property)
 	{
-		return alignof(uint64); // 0x8
+		return sizeof(void*); // 0x4 on 32bit or 0x8 on 64bit
 	}
 	else if (TypeFlags & EClassCastFlags::Int8Property)
 	{
@@ -847,7 +847,7 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::Int64Property)
 	{
-		return alignof(int64); // 0x8
+		return sizeof(void*); // 0x4 on 32bit or 0x8 on 64bit
 	}
 	else if (TypeFlags & EClassCastFlags::FloatProperty)
 	{
@@ -855,7 +855,7 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::DoubleProperty)
 	{
-		return alignof(double); // 0x8
+		return sizeof(void*); // 0x4 on 32bit or 0x8 on 64bit
 	}
 	else if (TypeFlags & EClassCastFlags::ClassProperty)
 	{
