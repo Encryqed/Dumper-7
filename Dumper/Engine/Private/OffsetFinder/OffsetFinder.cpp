@@ -420,7 +420,7 @@ int32_t OffsetFinder::FindUFieldNextOffset()
 	const auto HighestUObjectOffset = std::max({ Off::UObject::Index, Off::UObject::Name, Off::UObject::Flags, Off::UObject::Outer, Off::UObject::Class });
 #define max(a,b)            (((a) > (b)) ? (a) : (b))
 
-	return GetValidPointerOffset(KismetSystemLibraryChild, KismetStringLibraryChild, Align(HighestUObjectOffset + 0x4, 0x4), 0x60);
+	return GetValidPointerOffset(KismetSystemLibraryChild, KismetStringLibraryChild, Align(HighestUObjectOffset + 0x4, static_cast<int>(sizeof(void*))), 0x60);
 }
 
 /* FField */
