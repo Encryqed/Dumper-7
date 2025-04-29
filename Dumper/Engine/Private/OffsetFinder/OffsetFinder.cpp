@@ -580,7 +580,15 @@ int32_t OffsetFinder::FindMinAlignmentOffset()
 	std::vector<std::pair<void*, int32_t>> Infos;
 
 	Infos.push_back({ ObjectArray::FindObjectFast("Transform").GetAddress(), 0x10 });
-	Infos.push_back({ ObjectArray::FindObjectFast("InterpCurveLinearColor").GetAddress(), 0x04 });
+
+	if constexpr (Settings::Is32Bit())
+	{
+		Infos.push_back({ ObjectArray::FindObjectFast("InterpCurveLinearColor").GetAddress(), 0x04 });
+	}
+	else
+	{
+		Infos.push_back({ ObjectArray::FindObjectFast("PlayerController").GetAddress(), 0x8 });
+	}
 
 	return FindOffset(Infos);
 }
