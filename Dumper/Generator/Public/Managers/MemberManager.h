@@ -250,15 +250,23 @@ public:
 		MemberNames.AddReservedName("operator");
 		MemberNames.AddReservedName("return");
 
+		/* Logical operators */
+		MemberNames.AddReservedName("if");
+    	MemberNames.AddReservedName("else");
 		MemberNames.AddReservedName("or");
 		MemberNames.AddReservedName("and");
 		MemberNames.AddReservedName("xor");
 
+		/* Additional reserved names */
 		MemberNames.AddReservedName("struct");
 		MemberNames.AddReservedName("class");
 		MemberNames.AddReservedName("for");
 		MemberNames.AddReservedName("while");
+		MemberNames.AddReservedName("switch");
+		MemberNames.AddReservedName("case");
 		MemberNames.AddReservedName("this");
+		MemberNames.AddReservedName("default");
+		MemberNames.AddReservedName("override");
 		MemberNames.AddReservedName("private");
 		MemberNames.AddReservedName("public");
 		MemberNames.AddReservedName("const");
