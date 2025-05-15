@@ -240,7 +240,7 @@ void CollisionManager::AddStructToNameContainer(UEStruct Struct, bool bIsStruct)
 		const auto [It, bInserted] = TranslationMap.emplace(KeyFunctions::GetKeyForCollisionInfo(Struct, Member), Index);
 		
 		if (!bInserted)
-			std::cout << "Error, no insertion took place, key {0x" << std::hex << KeyFunctions::GetKeyForCollisionInfo(Struct, Member) << "} duplicated!" << std::endl;
+			std::cerr << "Error, no insertion took place, key {0x" << std::hex << KeyFunctions::GetKeyForCollisionInfo(Struct, Member) << "} duplicated!" << std::endl;
 	};
 
 	for (UEProperty Prop : Struct.GetProperties())
@@ -261,7 +261,7 @@ std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 
 	std::string Name = MemberNames.GetStringEntry(Info.Name).GetName();
 
-	//std::cout << "Nm: " << Name << "\nInfo:" << Info.DebugStringify() << "\n";
+	//std::cerr << "Nm: " << Name << "\nInfo:" << Info.DebugStringify() << "\n";
 
 	// Order of sub-if-statements matters
 	if (OwnCollisionType == ECollisionType::MemberName)

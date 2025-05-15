@@ -169,7 +169,7 @@ inline std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const Ch
 
     if (!Str || Length <= 0 || Length > StringEntry::MaxStringLength)
     {
-        std::cout << std::format("Error on line {{{:d}}}: {}\n", __LINE__, !Str ? "!Str" : Length <= 0 ? "Length <= 0" : "Length > MaxStringLength") << std::endl;
+        std::cerr << std::format("Error on line {{{:d}}}: {}\n", __LINE__, !Str ? "!Str" : Length <= 0 ? "Length <= 0" : "Length > MaxStringLength") << std::endl;
         return { HashStringTableIndex(-1), false };
     }
 
@@ -227,15 +227,15 @@ void HashStringTable::DebugPrintStats() const
         TotalMemoryUsed += Bucket.Size;
         TotalMemoryAllocated += Bucket.SizeMax;
 
-        std::cout << std::format("Bucket[{:02d}] = {{ Data = {:p}, Size = {:05X}, SizeMax = {:05X} }}\n", i, static_cast<void*>(Bucket.Data), Bucket.Size, Bucket.SizeMax);
+        std::cerr << std::format("Bucket[{:02d}] = {{ Data = {:p}, Size = {:05X}, SizeMax = {:05X} }}\n", i, static_cast<void*>(Bucket.Data), Bucket.Size, Bucket.SizeMax);
     }
 
-    std::cout << std::endl;
+    std::cerr << std::endl;
 
-    std::cout << std::format("TotalMemoryUsed: {:X}\n", TotalMemoryUsed);
-    std::cout << std::format("TotalMemoryAllocated: {:X}\n", TotalMemoryAllocated);
-    std::cout << std::format("Percentage of allocation in use: {:.3f}\n", static_cast<double>(TotalMemoryUsed) / TotalMemoryAllocated);
+    std::cerr << std::format("TotalMemoryUsed: {:X}\n", TotalMemoryUsed);
+    std::cerr << std::format("TotalMemoryAllocated: {:X}\n", TotalMemoryAllocated);
+    std::cerr << std::format("Percentage of allocation in use: {:.3f}\n", static_cast<double>(TotalMemoryUsed) / TotalMemoryAllocated);
 
-    std::cout << "\n" << std::endl;
+    std::cerr << "\n" << std::endl;
 }
 

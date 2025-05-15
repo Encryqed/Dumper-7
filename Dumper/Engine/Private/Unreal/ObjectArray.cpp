@@ -212,7 +212,7 @@ void ObjectArray::InitializeChunkSize(uint8_t* ChunksPtr)
 void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 {
 	if (!bScanAllMemory)
-		std::cout << "\nDumper-7 by me, you & him\n\n\n";
+		std::cerr << "\nDumper-7 by me, you & him\n\n\n";
 
 	const auto [ImageBase, ImageSize] = GetImageBaseAndSize(ModuleName);
 
@@ -238,7 +238,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 	SearchRange -= 0x50;
 
 	if (!bScanAllMemory)
-		std::cout << "Searching for GObjects...\n\n";
+		std::cerr << "Searching for GObjects...\n\n";
 
 	auto MatchesAnyLayout = []<typename ArrayLayoutType, size_t Size>(const std::array<ArrayLayoutType, Size>& ObjectArrayLayouts, uintptr_t Address)
 	{
@@ -275,7 +275,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 
 			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
 
-			std::cout << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
+			std::cerr << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 			{
@@ -302,7 +302,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 
 			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
 
-			std::cout << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
+			std::cerr << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 			{
@@ -338,7 +338,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 
 	if (GObjects == nullptr)
 	{
-		std::cout << "\nGObjects couldn't be found!\n\n\n";
+		std::cerr << "\nGObjects couldn't be found!\n\n\n";
 		Sleep(3000);
 		exit(1);
 	}
@@ -349,7 +349,7 @@ void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& Obj
 	GObjects = reinterpret_cast<uint8_t*>(GetModuleBase(ModuleName) + GObjectsOffset);
 	Off::InSDK::ObjArray::GObjects = GObjectsOffset;
 
-	std::cout << "GObjects: 0x" << (void*)GObjects << "\n" << std::endl;
+	std::cerr << "GObjects: 0x" << (void*)GObjects << "\n" << std::endl;
 
 	Off::FUObjectArray::bIsChunked = false;
 	Off::FUObjectArray::FixedLayout = ObjectArrayLayout.IsValid() ? ObjectArrayLayout : FFixedUObjectArrayLayouts[0];

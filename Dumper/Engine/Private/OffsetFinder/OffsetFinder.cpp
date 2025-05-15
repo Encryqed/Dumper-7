@@ -195,7 +195,7 @@ int32_t OffsetFinder::FindUObjectNameOffset()
 			}
 
 			/* This shouldn't be the case, so log it as an info but continue, as the first offset is still likely the right one. */
-			std::cout << std::format("Dumper-7: Another UObject::Name offset (0x{:04X}) is also considered valid\n", Info.Offset);
+			std::cerr << std::format("Dumper-7: Another UObject::Name offset (0x{:04X}) is also considered valid\n", Info.Offset);
 		}
 	}
 
@@ -265,7 +265,7 @@ void OffsetFinder::FixupHardcodedOffsets()
 
 		if (IsValidPtr(PossibleNextPtrOrBool0) && IsValidPtr(PossibleNextPtrOrBool1) && IsValidPtr(PossibleNextPtrOrBool2))
 		{
-			std::cout << "Applaying fix to hardcoded offsets \n" << std::endl;
+			std::cerr << "Applaying fix to hardcoded offsets \n" << std::endl;
 
 			Settings::Internal::bUseMaskForFieldOwner = true;
 
@@ -868,7 +868,7 @@ int32_t OffsetFinder::FindDatatableRowMapOffset()
 
 	if (!DataTable)
 	{
-		std::cout << "\nDumper-7: [DataTable] Couldn't find \"DataTable\" class, assuming default layout.\n" << std::endl;
+		std::cerr << "\nDumper-7: [DataTable] Couldn't find \"DataTable\" class, assuming default layout.\n" << std::endl;
 		return (Off::UObject::Outer + UObjectOuterSize + RowStructSize);
 	}
 
@@ -876,7 +876,7 @@ int32_t OffsetFinder::FindDatatableRowMapOffset()
 
 	if (!RowStructProp)
 	{
-		std::cout << "\nDumper-7: [DataTable] Couldn't find \"RowStruct\" property, assuming default layout.\n" << std::endl;
+		std::cerr << "\nDumper-7: [DataTable] Couldn't find \"RowStruct\" property, assuming default layout.\n" << std::endl;
 		return (Off::UObject::Outer + UObjectOuterSize + RowStructSize);
 	}
 

@@ -1511,7 +1511,7 @@ void CppGenerator::Generate()
 			ClassesFile = StreamType(Subfolder / (U8FileName + u8"_classes.hpp"));
 
 			if (!ClassesFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_classes.hpp") << "\"" << std::endl;
+				std::cerr << "Error opening file \"" << (FileName + "_classes.hpp") << "\"" << std::endl;
 
 			WriteFileHead(ClassesFile, Package, EFileType::Classes);
 
@@ -1524,7 +1524,7 @@ void CppGenerator::Generate()
 			StructsFile = StreamType(Subfolder / (U8FileName + u8"_structs.hpp"));
 
 			if (!StructsFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_structs.hpp") << "\"" << std::endl;
+				std::cerr << "Error opening file \"" << (FileName + "_structs.hpp") << "\"" << std::endl;
 
 			WriteFileHead(StructsFile, Package, EFileType::Structs);
 
@@ -1537,7 +1537,7 @@ void CppGenerator::Generate()
 			ParametersFile = StreamType(Subfolder / (U8FileName + u8"_parameters.hpp"));
 
 			if (!ParametersFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_parameters.hpp") << "\"" << std::endl;
+				std::cerr << "Error opening file \"" << (FileName + "_parameters.hpp") << "\"" << std::endl;
 
 			WriteFileHead(ParametersFile, Package, EFileType::Parameters);
 		}
@@ -1547,7 +1547,7 @@ void CppGenerator::Generate()
 			FunctionsFile = StreamType(Subfolder / (U8FileName + u8"_functions.cpp"));
 
 			if (!FunctionsFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_functions.cpp") << "\"" << std::endl;
+				std::cerr << "Error opening file \"" << (FileName + "_functions.cpp") << "\"" << std::endl;
 
 			WriteFileHead(FunctionsFile, Package, EFileType::Functions);
 		}
