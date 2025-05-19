@@ -105,7 +105,7 @@ R"(
 		/* Whether this games' engine version uses FProperty rather than UProperty */
 		inline bool bUseFProperty = false;
 
-		/* Whether this games' engine version uses FNamePool rather than TNameEntryArray */
+		/* Whether this game's engine version uses FNamePool rather than TNameEntryArray */
 		inline bool bUseNamePool = false;
 
 		/* Whether UObject::Name or UObject::Class is first. Affects the calculation of the size of FName in fixup code. Not used after Off::Init(); */
@@ -117,11 +117,22 @@ R"(
 		/* Whether this games uses FNameOutlineNumber, moving the 'Number' component from FName into FNameEntry inside of FNamePool */
 		inline bool bUseOutlineNumberName = false;
 
+		/* Whether this game uses the 'FFieldPathProperty' cast flags for a custom property 'FObjectPtrProperty' */
+		inline bool bIsObjPtrInsteadOfFieldPathProperty = false;
 
 		/* Whether this games' engine version uses a contexpr flag to determine whether a FFieldVariant holds a UObject* or FField* */
 		inline bool bUseMaskForFieldOwner = false;
 
 		/* Whether this games' engine version uses double for FVector, instead of float. Aka, whether the engine version is UE5.0 or higher. */
 		inline bool bUseLargeWorldCoordinates = false;
+
+		/* Whether this game uses uint8 for UEProperty::ArrayDim, instead of int32 */
+		inline bool bUseUint8ArrayDim = false;
 	}
+
+	extern void InitWeakObjectPtrSettings();
+	extern void InitLargeWorldCoordinateSettings();
+
+	extern void InitObjectPtrPropertySettings();
+	extern void InitArrayDimSizeSettings();
 }

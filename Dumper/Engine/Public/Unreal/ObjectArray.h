@@ -35,7 +35,6 @@ private:
 
 private:
 	static void InitializeFUObjectItem(uint8_t* FirstItemPtr);
-	static void InitializeChunkSize(uint8_t* GObjects);
 
 public:
 	static void InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), const char* DecryptionLambdaAsStr);
@@ -49,6 +48,9 @@ public:
 	static void DumpObjectsWithProperties(const fs::path& Path, bool bWithPathname = false);
 
 	static int32 Num();
+	static int32 Max();
+	static int32 NumChunks();
+	static int32 MaxChunks();
 
 	template<typename UEType = UEObject>
 	static UEType GetByIndex(int32 Index);

@@ -1042,6 +1042,14 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else if (Flags & EClassCastFlags::FieldPathProperty)
 	{
+		if (Settings::Internal::bIsObjPtrInsteadOfFieldPathProperty)
+		{
+			if (UEClass PropertyClass = Member.Cast<UEObjectProperty>().GetPropertyClass())
+				return std::format("class {}*", GetStructPrefixedName(PropertyClass));
+
+			return "class UObject*";
+		}
+
 		return std::format("TFieldPath<class {}>", Member.Cast<UEFieldPathProperty>().GetFielClass().GetCppName());
 	}
 	else if (Flags & EClassCastFlags::OptionalProperty)
@@ -1130,8 +1138,6 @@ std::unordered_map<std::string, UEProperty> CppGenerator::GetUnknownProperties()
 		for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
 		{
 			std::string TypeName = GetMemberTypeString(Prop);
-
-			auto [Class, FieldClass] = Prop.GetClass();
 
 			/* Relies on unknown names being post-fixed with an underscore by 'GetMemberTypeString()' */
 			if (TypeName.back() == '_')

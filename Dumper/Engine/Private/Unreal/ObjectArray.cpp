@@ -39,14 +39,6 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 		.MaxChunksOffset = 0x08,
 		.NumChunksOffset = 0x0C,
 	},
-	FChunkedFixedUObjectArrayLayout // DeltaForce
-	{
-		.ObjectsOffset = 0x20,
-		.MaxElementsOffset = 0x10,
-		.NumElementsOffset = 0x4,
-		.MaxChunksOffset = 0x0,
-		.NumChunksOffset = 0x14,
-	},
 	FChunkedFixedUObjectArrayLayout // Mutliversus
 	{
 		.ObjectsOffset = 0x18,
@@ -114,35 +106,38 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectA
 	if (MaxChunks > 0x5FF || MaxChunks < 0x6)
 		return false;
 
+	if (NumElements <= 0 || MaxElements <= 0)
+		return false;
+
 	if (NumElements > MaxElements || NumChunks > MaxChunks)
 		return false;
 
-	/* There are never too many or too few chunks for all elements. Two different chunk-sizes (0x10000, 0x10400) occure on different UE versions and are checked for.*/
-	const bool bNumChunksFitsNumElements = ((NumElements / 0x10000) + 1) == NumChunks || ((NumElements / 0x10400) + 1) == NumChunks;
+	const int32_t ElementsPerChunk = MaxElements / MaxChunks;
+
+	if (ElementsPerChunk < 0x8000 || ElementsPerChunk > 0x100000 )
+		return false;
+
+	const bool bNumChunksFitsNumElements = ((NumElements / ElementsPerChunk) + 1) == NumChunks;
 
 	if (!bNumChunksFitsNumElements)
 		return false;
 
-	/* Same as above for the max number of elements/chunks. */
-	const bool bMaxChunksFitsMaxElements = (MaxElements / 0x10000) == MaxChunks || (MaxElements / 0x10400) == MaxChunks;
+	const bool bMaxChunksFitsMaxElements = (MaxElements / ElementsPerChunk) == MaxChunks;
 
 	if (!bMaxChunksFitsMaxElements)
 		return false;
 
-	/* The chunk-pointer must always be valid (especially because it's already decrypted [if it was encrypted at all]) */
 	if (!ObjectsPtrButDecrypted || IsBadReadPtr(ObjectsPtrButDecrypted))
 		return false;
 
-	/* Check if every chunk-pointer is valid. */
 	for (int i = 0; i < NumChunks; i++)
 	{
 		if (!ObjectsPtrButDecrypted[i] || IsBadReadPtr(ObjectsPtrButDecrypted[i]))
 			return false;
 	}
-	
+
 	return true;
 }
-
 
 
 void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
@@ -156,7 +151,7 @@ void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 		}
 	}
 
-	for (int i = FUObjectItemInitialOffset + 0x8; i <= 0x38; i += 4)
+	for (int i = FUObjectItemInitialOffset + sizeof(void*); i <= 0x38; i += 4)
 	{
 		void* SecondObject = *reinterpret_cast<uint8**>(FirstItemPtr + i);
 		void* ThirdObject  = *reinterpret_cast<uint8**>(FirstItemPtr + (i * 2) - FUObjectItemInitialOffset);
@@ -170,6 +165,8 @@ void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 
 	Off::InSDK::ObjArray::FUObjectItemInitialOffset = FUObjectItemInitialOffset;
 	Off::InSDK::ObjArray::FUObjectItemSize = SizeOfFUObjectItem;
+
+	std::cerr << "Off::InSDK::ObjArray::FUObjectItemSize: " << Off::InSDK::ObjArray::FUObjectItemSize << "\n";
 }
 
 void ObjectArray::InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), const char* DecryptionLambdaAsStr)
@@ -178,35 +175,6 @@ void ObjectArray::InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), c
 	DecryptionLambdaStr = DecryptionLambdaAsStr;
 }
 
-void ObjectArray::InitializeChunkSize(uint8_t* ChunksPtr)
-{
-	int IndexOffset = 0x0;
-	uint8* ObjAtIdx374 = (uint8*)ByIndex(ChunksPtr, 0x374, SizeOfFUObjectItem, FUObjectItemInitialOffset, 0x10000);
-	uint8* ObjAtIdx106 = (uint8*)ByIndex(ChunksPtr, 0x106, SizeOfFUObjectItem, FUObjectItemInitialOffset, 0x10000);
-
-	for (int i = 0x8; i < 0x20; i++)
-	{
-		if (*reinterpret_cast<int32*>(ObjAtIdx374 + i) == 0x374 && *reinterpret_cast<int32*>(ObjAtIdx106 + i) == 0x106)
-		{
-			IndexOffset = i;
-			break;
-		}
-	}
-
-	int IndexToCheck = 0x10400;
-	while (ObjectArray::Num() > IndexToCheck)
-	{
-		if (void* Obj = ByIndex(ChunksPtr, IndexToCheck, SizeOfFUObjectItem, FUObjectItemInitialOffset, 0x10000))
-		{
-			const bool bHasBiggerChunkSize = (*reinterpret_cast<int32*>((uint8*)Obj + IndexOffset) != IndexToCheck);
-			NumElementsPerChunk = bHasBiggerChunkSize ? 0x10400 : 0x10000;
-			break;
-		}
-		IndexToCheck += 0x10400;
-	}
-
-	Off::InSDK::ObjArray::ChunkSize = NumElementsPerChunk;
-}
 
 /* We don't speak about this function... */
 void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
@@ -275,7 +243,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 
 			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
 
-			std::cerr << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
+			std::cerr << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << "\n\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 			{
@@ -296,13 +264,16 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 		else if (MatchesAnyLayout(FChunkedFixedUObjectArrayLayouts, CurrentAddress))
 		{
 			GObjects = reinterpret_cast<uint8_t*>(SearchBase + i);
-			NumElementsPerChunk = 0x10000;
+			
+			NumElementsPerChunk = Max() / MaxChunks();
+			Off::InSDK::ObjArray::ChunkSize = NumElementsPerChunk;
+
 			SizeOfFUObjectItem = 0x18;
 			FUObjectItemInitialOffset = 0x0;
 
 			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
 
-			std::cerr << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << std::dec << "\n\n";
+			std::cerr << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << "\n\n";
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 			{
@@ -323,8 +294,6 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 			uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
 
 			ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
-
-			ObjectArray::InitializeChunkSize(GObjects + Off::FUObjectArray::GetObjectsOffset());
 
 			return;
 		}
@@ -366,6 +335,8 @@ void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& Obj
 
 	uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
 
+	std::cerr << "Overwrote FFixedUObjectArray GObjects to offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << "\n" << std::endl;
+
 	ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
 }
 
@@ -395,6 +366,8 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, const FChun
 	};
 
 	uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
+
+	std::cerr << "Overwrote FChunkedFixedUObjectArray GObjects to offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << "\n" << std::endl;
 
 	ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
 }
@@ -445,7 +418,7 @@ void ObjectArray::DumpObjectsWithProperties(const fs::path& Path, bool bWithPath
 		{
 			for (UEProperty Prop : Object.Cast<UEStruct>().GetProperties())
 			{
-				DumpStream << std::format("[{:08X}] {{{}}}\t{} {}\n", Prop.GetOffset(), Prop.GetAddress(), Prop.GetPropClassName(), Prop.GetName());
+				DumpStream << std::format("[{:08X}] {{{}}}     {} {}\n", Prop.GetOffset(), Prop.GetAddress(), Prop.GetPropClassName(), Prop.GetName());
 			}
 		}
 	}
@@ -457,6 +430,21 @@ void ObjectArray::DumpObjectsWithProperties(const fs::path& Path, bool bWithPath
 int32 ObjectArray::Num()
 {
 	return *reinterpret_cast<int32*>(GObjects + Off::FUObjectArray::GetNumElementsOffset());
+}
+
+int32 ObjectArray::Max()
+{
+	return *reinterpret_cast<int32*>(GObjects + Off::FUObjectArray::GetMaxElementsOffset());
+}
+
+int32 ObjectArray::NumChunks()
+{
+	return *reinterpret_cast<int32*>(GObjects + Off::FUObjectArray::GetNumChunksOffset());
+}
+
+int32 ObjectArray::MaxChunks()
+{
+	return *reinterpret_cast<int32*>(GObjects + Off::FUObjectArray::GetMaxChunksOffset());
 }
 
 template<typename UEType>
