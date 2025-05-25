@@ -1050,7 +1050,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 			return "class UObject*";
 		}
 
-		return std::format("TFieldPath<class {}>", Member.Cast<UEFieldPathProperty>().GetFielClass().GetCppName());
+		return std::format("TFieldPath<class {}>", Member.Cast<UEFieldPathProperty>().GetFieldClass().GetCppName());
 	}
 	else if (Flags & EClassCastFlags::OptionalProperty)
 	{

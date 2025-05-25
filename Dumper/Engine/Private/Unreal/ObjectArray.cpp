@@ -46,7 +46,15 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 		.NumElementsOffset = 0x00, // first
 		.MaxChunksOffset = 0x14,
 		.NumChunksOffset = 0x20,
-	}
+	},
+	FChunkedFixedUObjectArrayLayout // Splitgate 2
+	{
+		.ObjectsOffset = 0x00,
+		.MaxElementsOffset = 0x10,
+		.NumElementsOffset = 0x14,
+		.MaxChunksOffset = 0xC,
+		.NumChunksOffset = 0x08,
+	},
 };
 
 bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLayout& Layout)
@@ -112,9 +120,15 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectA
 	if (NumElements > MaxElements || NumChunks > MaxChunks)
 		return false;
 
+	if ((MaxElements % 0x10) != 0)
+		return false;
+
 	const int32_t ElementsPerChunk = MaxElements / MaxChunks;
 
-	if (ElementsPerChunk < 0x8000 || ElementsPerChunk > 0x100000 )
+	if ((ElementsPerChunk % 0x10) != 0)
+		return false;
+
+	if (ElementsPerChunk < 0x8000 || ElementsPerChunk > 0x80000)
 		return false;
 
 	const bool bNumChunksFitsNumElements = ((NumElements / ElementsPerChunk) + 1) == NumChunks;
@@ -166,7 +180,7 @@ void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 	Off::InSDK::ObjArray::FUObjectItemInitialOffset = FUObjectItemInitialOffset;
 	Off::InSDK::ObjArray::FUObjectItemSize = SizeOfFUObjectItem;
 
-	std::cerr << "Off::InSDK::ObjArray::FUObjectItemSize: " << Off::InSDK::ObjArray::FUObjectItemSize << "\n";
+	std::cerr << "Off::InSDK::ObjArray::FUObjectItemSize: " << Off::InSDK::ObjArray::FUObjectItemSize << "\n" << std::endl;
 }
 
 void ObjectArray::InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), const char* DecryptionLambdaAsStr)

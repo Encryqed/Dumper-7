@@ -62,6 +62,7 @@ void Settings::InitObjectPtrPropertySettings()
 	if (!ObjectPtrPropertyClass)
 	{
 		// The class doesn't exist, this so FieldPathProperty couldn't have been replaced with ObjectPtrProperty
+		std::cerr << std::format("\nDumper-7: bIsObjPtrInsteadOfFieldPathProperty = {}\n", Settings::Internal::bIsObjPtrInsteadOfFieldPathProperty) << std::endl;
 		Settings::Internal::bIsObjPtrInsteadOfFieldPathProperty = false;
 		return;
 	}

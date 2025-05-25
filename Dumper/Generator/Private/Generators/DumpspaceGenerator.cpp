@@ -285,7 +285,7 @@ std::string DumpspaceGenerator::GetMemberTypeStr(UEProperty Property, std::strin
 			return "UObject";
 		}
 
-		if (UEFFieldClass PropertyClass = Member.Cast<UEFieldPathProperty>().GetFielClass())
+		if (UEFFieldClass PropertyClass = Member.Cast<UEFieldPathProperty>().GetFieldClass())
 		{
 			OutSubtypes.push_back(ManualCreateMemberType(DSGen::ET_Struct, PropertyClass.GetCppName()));
 		}

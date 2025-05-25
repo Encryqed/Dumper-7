@@ -12,6 +12,7 @@ namespace OffsetFinder
 	inline int32_t FindOffset(const std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = 0x28, int MaxOffset = 0x1A0)
 	{
 		int32_t HighestFoundOffset = MinOffset;
+		bool bFoundOffset = false;
 
 		for (int i = 0; i < ObjectValuePair.size(); i++)
 		{
@@ -27,6 +28,8 @@ namespace OffsetFinder
 
 				if (TypedValueAtOffset == ObjectValuePair[i].second && j >= HighestFoundOffset)
 				{
+					bFoundOffset = true;
+
 					if (j > HighestFoundOffset)
 					{
 						HighestFoundOffset = j;
@@ -37,7 +40,8 @@ namespace OffsetFinder
 			}
 		}
 
-		return HighestFoundOffset != MinOffset ? HighestFoundOffset : OffsetNotFound;
+		//return HighestFoundOffset != MinOffset ? HighestFoundOffset : OffsetNotFound;
+		return bFoundOffset ? HighestFoundOffset : OffsetNotFound;
 	}
 
 	template<bool bCheckForVft = true>

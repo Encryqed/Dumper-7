@@ -450,7 +450,7 @@ class UEFieldPathProperty : public UEProperty
 	using UEProperty::UEProperty;
 
 public:
-	UEFFieldClass GetFielClass() const;
+	UEFFieldClass GetFieldClass() const;
 
 	std::string GetCppType() const;
 };

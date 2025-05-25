@@ -1321,14 +1321,14 @@ std::string UEEnumProperty::GetCppType() const
 	return GetUnderlayingProperty().GetCppType();
 }
 
-UEFFieldClass UEFieldPathProperty::GetFielClass() const
+UEFFieldClass UEFieldPathProperty::GetFieldClass() const
 {
 	return UEFFieldClass(*reinterpret_cast<void**>(Base + Off::FieldPathProperty::FieldClass));
 }
 
 std::string UEFieldPathProperty::GetCppType() const
 {
-	return std::format("TFieldPath<struct {}>", GetFielClass().GetCppName());
+	return std::format("TFieldPath<struct {}>", GetFieldClass().GetCppName());
 }
 
 UEProperty UEOptionalProperty::GetValueProperty() const
