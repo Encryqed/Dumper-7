@@ -47,14 +47,6 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 		.MaxChunksOffset = 0x14,
 		.NumChunksOffset = 0x20,
 	},
-	FChunkedFixedUObjectArrayLayout // Splitgate 2
-	{
-		.ObjectsOffset = 0x00,
-		.MaxElementsOffset = 0x10,
-		.NumElementsOffset = 0x14,
-		.MaxChunksOffset = 0xC,
-		.NumChunksOffset = 0x08,
-	},
 };
 
 bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLayout& Layout)

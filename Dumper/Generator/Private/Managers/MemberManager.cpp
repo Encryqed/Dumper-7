@@ -185,4 +185,8 @@ void MemberManager::InitReservedNames()
 	MemberNames.AddReservedName("OUT");
 	MemberNames.AddReservedName("CreateObject");
 	MemberNames.AddReservedName("CreateWindow");
+
+	MemberNames.AddReservedName("NO_ERROR");
+	MemberNames.AddReservedName("EVENT_MAX");
+	MemberNames.AddReservedName("EVENT_MAX");
 }
