@@ -1,9 +1,7 @@
-
 #include <algorithm>
 
 #include "Managers/MemberManager.h"
 #include "Wrappers/MemberWrappers.h"
-
 
 MemberManager::MemberManager(UEStruct Str)
 	: Struct(std::make_shared<StructWrapper>(Str))

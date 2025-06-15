@@ -15,9 +15,9 @@ constexpr inline std::array FFixedUObjectArrayLayouts =
 {
 	FFixedUObjectArrayLayout // Default UE4.11 - UE4.20
 	{
-		.ObjectsOffset = 0x0,
-		.MaxObjectsOffset = 0x8,
-		.NumObjectsOffset = 0xC
+		.ObjectsOffset = 0x0,								// 0x00
+		.MaxObjectsOffset = sizeof(void*),					// 0x08 (64bit) OR 0x04 (32bit)
+		.NumObjectsOffset = sizeof(void*) + sizeof(int)		// 0x0C (64bit) OR 0x08 (32bit)
 	}
 };
 
@@ -55,14 +55,14 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLay
 	struct FUObjectItem
 	{
 		void* Object;
-		uint8_t Pad[0x10];
+		int32 Pad1;
+		int32 Pad2;
+		//uint8_t Pad[0x10];
 	};
-
 
 	void* Objects = *reinterpret_cast<void**>(Address + Layout.ObjectsOffset);
 	const int32 MaxElements = *reinterpret_cast<const int32*>(Address + Layout.MaxObjectsOffset);
 	const int32 NumElements = *reinterpret_cast<const int32*>(Address + Layout.NumObjectsOffset);
-
 
 	FUObjectItem* ObjectsButDecrypted = (FUObjectItem*)ObjectArray::DecryptPtr(Objects);
 
@@ -81,8 +81,8 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLay
 	if (IsBadReadPtr(ObjectsButDecrypted[5].Object))
 		return false;
 
-	const uintptr_t FithObject = reinterpret_cast<uintptr_t>(ObjectsButDecrypted[0x5].Object);
-	const int32 IndexOfFithobject = *reinterpret_cast<int32_t*>(FithObject + 0xC);
+	const uintptr_t FifthObject = reinterpret_cast<uintptr_t>(ObjectsButDecrypted[0x5].Object);
+	const int32 IndexOfFithobject = *reinterpret_cast<int32_t*>(FifthObject + sizeof(void*) + sizeof(int32)); // FifthObject -> InternalIndex
 
 	if (IndexOfFithobject != 0x5)
 		return false;
@@ -274,7 +274,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 			NumElementsPerChunk = Max() / MaxChunks();
 			Off::InSDK::ObjArray::ChunkSize = NumElementsPerChunk;
 
-			SizeOfFUObjectItem = 0x18;
+			SizeOfFUObjectItem = sizeof(void*) + sizeof(int32) + sizeof(int32);
 			FUObjectItemInitialOffset = 0x0;
 
 			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;

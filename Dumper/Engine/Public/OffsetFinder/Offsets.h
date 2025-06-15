@@ -1,7 +1,7 @@
 #pragma once
+
 #include "Unreal/Enums.h"
 #include "../Settings.h"
-
 
 struct FFixedUObjectArrayLayout
 {

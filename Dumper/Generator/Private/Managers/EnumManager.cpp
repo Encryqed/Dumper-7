@@ -75,7 +75,6 @@ CollisionInfoIterator EnumInfoHandle::GetMemberCollisionInfoIterator() const
 	return CollisionInfoIterator(Info->MemberInfos);
 }
 
-
 void EnumManager::InitInternal()
 {
 	for (auto Obj : ObjectArray())
@@ -146,7 +145,7 @@ void EnumManager::InitInternal()
 			for (int i = 0; i < NameValuePairs.size(); i++)
 			{
 				auto& [Name, Value] = NameValuePairs[i];
-
+					
 				std::wstring NameWitPrefix = Name.ToWString();
 
 				if (!NameWitPrefix.ends_with(L"_MAX"))
