@@ -734,11 +734,12 @@ int32_t OffsetFinder::FindOffsetInternalOffset()
 {
 	std::vector<std::pair<void*, int32_t>> Infos;
 
-	UEStruct Color = ObjectArray::FindStructFast("Color");
+	const UEStruct Color = ObjectArray::FindStructFast("Color");
+	const UEStruct Guid = ObjectArray::FindStructFast("Guid");
 
 	Infos.push_back({ Color.FindMember("B").GetAddress(), 0x00 });
 	Infos.push_back({ Color.FindMember("G").GetAddress(), 0x01 });
-	Infos.push_back({ Color.FindMember("R").GetAddress(), 0x02 });
+	Infos.push_back({ Guid.FindMember("B").GetAddress(), 0x04 });
 
 	// Thanks to the ue5 dev who decided FColor::R should be spelled FColor::r
 	if (Infos[2].first == nullptr) [[unlikely]]
