@@ -13,12 +13,21 @@ void Off::InSDK::ProcessEvent::InitPE()
 {
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
+#if defined(_WIN64)
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 	{
 		return FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
 			&& FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
 	};
+#elif defined(_WIN32)
+	/* Primary, and more reliable, check for ProcessEvent */
+	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
+	{
+		return FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x4, 0x0, 0x0 }, FuncAddress, 0x400)
+			&& FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
+	};
+#endif
 
 	const void* ProcessEventAddr = nullptr;
 	int32_t ProcessEventIdx = 0;
@@ -105,7 +114,7 @@ void Off::InSDK::Text::InitTextOffsets()
 
 	auto IsValidPtr = [](void* a) -> bool
 	{
-		return !IsBadReadPtr(a) && (uintptr_t(a) & 0x1) == 0; // realistically, there wont be any pointers to unaligned memory
+		return !IsBadReadPtr(a) /* && (uintptr_t(a) & 0x1) == 0*/; // realistically, there wont be any pointers to unaligned memory
 	};
 
 
@@ -174,13 +183,13 @@ void Off::InSDK::Text::InitTextOffsets()
 	/* Search for a pointer pointing to a int32 Value (FString::NumElements) equal to StringLength */
 	for (int32 i = StartOffset; i < MaxOffset; i += sizeof(int32))
 	{
-		wchar_t* PosibleStringPtr = *reinterpret_cast<wchar_t**>((FTextDataPtr + i) - 0x8);
+		wchar_t* PosibleStringPtr = *reinterpret_cast<wchar_t**>((FTextDataPtr + i) - sizeof(void*));
 		const int32 PossibleLength = *reinterpret_cast<int32*>(FTextDataPtr + i);
 
 		/* Check if our length matches and see if the data before the length is a pointer to our StringText */
 		if (PossibleLength == StringLength && PosibleStringPtr && IsValidPtr(PosibleStringPtr) && memcmp(StringText, PosibleStringPtr, StringLengthBytes) == 0)
 		{
-			Off::InSDK::Text::InTextDataStringOffset = (i - 0x8);
+			Off::InSDK::Text::InTextDataStringOffset = (i - sizeof(void*));
 			break;
 		}
 	}
@@ -222,10 +231,14 @@ void Off::Init()
 
 	OverwriteIfInvalidOffset(Off::UObject::Outer, (Off::UObject::Name + sizeof(int32) + sizeof(int32)));  // Default to right after Name
 
-
+	
 	OffsetFinder::InitFNameSettings();
 
 	::NameArray::PostInit();
+
+	// Castflags needs to stay here since the FindChildOffset() uses CastFlags
+	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
+	std::cout << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
 
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cerr << std::format("Off::UStruct::Children: 0x{:X}\n", Off::UStruct::Children);
@@ -328,7 +341,7 @@ void Off::Init()
 	Off::FieldPathProperty::FieldClass = Off::InSDK::Properties::PropertySize;
 	Off::OptionalProperty::ValueProperty = Off::InSDK::Properties::PropertySize;
 
-	Off::ClassProperty::MetaClass = Off::InSDK::Properties::PropertySize + 0x8; //0x8 inheritance from ObjectProperty
+	Off::ClassProperty::MetaClass = Off::InSDK::Properties::PropertySize + sizeof(void*); // 0x4 / 0x8 inheritance from ObjectProperty
 }
 
 void PropertySizes::Init()

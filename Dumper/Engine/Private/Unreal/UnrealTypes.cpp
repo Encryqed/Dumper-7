@@ -66,6 +66,7 @@ FName::FName(const void* Ptr)
 
 void FName::Init(bool bForceGNames)
 {
+#if defined(_WIN64)
 	constexpr std::array<const char*, 5> PossibleSigs = 
 	{ 
 		"48 8D ? ? 48 8D ? ? E8",
@@ -75,15 +76,18 @@ void FName::Init(bool bForceGNames)
 		"48 8D ? ? 48 8B ? E8"
 		"48 8D ? ? ? 48 8B ? E8",
 	};
+#elif defined(_WIN32)
+	constexpr std::array<const char*, 1> PossibleSigs = 
+	{
+		"8D 44 24 ? 8D 4C 24 ? 50 E8",
+	};
+#endif
 
 	MemAddress StringRef = FindByStringInAllSections("ForwardShadingQuality_");
 
-	int i = 0;
-	while (!AppendString && i < PossibleSigs.size())
+	for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
 	{
-		AppendString = static_cast<void(*)(const void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1 /* auto */));
-
-		i++;
+		AppendString = static_cast<decltype(AppendString)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1/* auto */));
 	}
 
 	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? GetOffset(AppendString) : 0x0;
@@ -160,7 +164,7 @@ void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bI
 		return;
 	}
 
-	AppendString = reinterpret_cast<void(*)(const void*, FString&)>(GetModuleBase(ModuleName) + OverrideOffset);
+	AppendString = reinterpret_cast<decltype(AppendString)>(GetModuleBase(ModuleName) + OverrideOffset);
 
 	Off::InSDK::Name::AppendNameToString = OverrideOffset;
 	Off::InSDK::Name::bIsUsingAppendStringOverToString = OverrideType == EOffsetOverrideType::AppendString;
@@ -196,7 +200,7 @@ void FName::InitFallback()
 	int i = 0;
 	while (!AppendString && i < PossibleSigs.size())
 	{
-		AppendString = static_cast<void(*)(const void*, FString&)>(Conv_NameToStringAddress.RelativePattern(PossibleSigs[i], 0x90, -1 /* auto */));
+		AppendString = static_cast<decltype(AppendString)>(Conv_NameToStringAddress.RelativePattern(PossibleSigs[i], 0x90, -1 /* auto */));
 
 		i++;
 	}

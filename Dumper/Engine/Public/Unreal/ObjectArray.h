@@ -22,7 +22,7 @@ private:
 private:
 	static inline uint8* GObjects = nullptr;
 	static inline uint32 NumElementsPerChunk = 0x10000;
-	static inline uint32 SizeOfFUObjectItem = 0x18;
+	static inline uint32 SizeOfFUObjectItem = sizeof(void*) + sizeof(int32) + sizeof(int32);
 	static inline uint32 FUObjectItemInitialOffset = 0x0;
 
 public:
