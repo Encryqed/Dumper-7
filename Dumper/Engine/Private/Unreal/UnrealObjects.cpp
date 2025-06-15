@@ -66,6 +66,11 @@ void* UEFField::GetAddress()
 	return Field;
 }
 
+const void* UEFField::GetAddress() const
+{
+	return Field;
+}
+
 EObjectFlags UEFField::GetFlags() const
 {
 	return *reinterpret_cast<EObjectFlags*>(Field + Off::FField::Flags);
@@ -192,6 +197,11 @@ bool UEFField::operator!=(const UEFField& Other) const
 void(*UEObject::PE)(void*, void*, void*) = nullptr;
 
 void* UEObject::GetAddress()
+{
+	return Object;
+}
+
+const void* UEObject::GetAddress() const
 {
 	return Object;
 }
@@ -575,7 +585,6 @@ std::vector<UEProperty> UEStruct::GetProperties() const
 
 		return Properties;
 	}
-
 	for (UEField Field = GetChild(); Field; Field = Field.GetNext())
 	{
 		if (Field.IsA(EClassCastFlags::Property))
@@ -737,12 +746,15 @@ void* UEProperty::GetAddress()
 	return Base;
 }
 
+const void* UEProperty::GetAddress() const
+{
+	return Base;
+}
+
 std::pair<UEClass, UEFFieldClass> UEProperty::GetClass() const
 {
 	if (Settings::Internal::bUseFProperty)
-	{
 		return { UEClass(0), UEFField(Base).GetClass() };
-	}
 
 	return { UEObject(Base).GetClass(), UEFFieldClass(0) };
 }
@@ -780,6 +792,9 @@ FName UEProperty::GetFName() const
 
 int32 UEProperty::GetArrayDim() const
 {
+	if (Settings::Internal::bUseUint8ArrayDim)
+		return *reinterpret_cast<uint8*>(Base + Off::Property::ArrayDim);
+
 	return *reinterpret_cast<int32*>(Base + Off::Property::ArrayDim);
 }
 
@@ -1105,6 +1120,9 @@ std::string UEProperty::GetCppType() const
 	}
 	else if (TypeFlags & EClassCastFlags::FieldPathProperty)
 	{
+		if (Settings::Internal::bIsObjPtrInsteadOfFieldPathProperty)
+			return Cast<UEObjectProperty>().GetCppType();
+
 		return Cast<UEFieldPathProperty>().GetCppType();
 	}
 	else if (TypeFlags & EClassCastFlags::DelegateProperty)
@@ -1309,14 +1327,14 @@ std::string UEEnumProperty::GetCppType() const
 	return GetUnderlayingProperty().GetCppType();
 }
 
-UEFFieldClass UEFieldPathProperty::GetFielClass() const
+UEFFieldClass UEFieldPathProperty::GetFieldClass() const
 {
 	return UEFFieldClass(*reinterpret_cast<void**>(Base + Off::FieldPathProperty::FieldClass));
 }
 
 std::string UEFieldPathProperty::GetCppType() const
 {
-	return std::format("TFieldPath<struct {}>", GetFielClass().GetCppName());
+	return std::format("TFieldPath<struct {}>", GetFieldClass().GetCppName());
 }
 
 UEProperty UEOptionalProperty::GetValueProperty() const

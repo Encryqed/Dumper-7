@@ -273,7 +273,18 @@ std::string DumpspaceGenerator::GetMemberTypeStr(UEProperty Property, std::strin
 	}
 	else if (Flags & EClassCastFlags::FieldPathProperty)
 	{
-		if (UEFFieldClass PropertyClass = Member.Cast<UEFieldPathProperty>().GetFielClass())
+
+		if (Settings::Internal::bIsObjPtrInsteadOfFieldPathProperty)
+		{
+			OutExtendedType = "*";
+
+			if (UEClass PropertyClass = Member.Cast<UEObjectProperty>().GetPropertyClass())
+				return GetStructPrefixedName(PropertyClass);
+
+			return "UObject";
+		}
+
+		if (UEFFieldClass PropertyClass = Member.Cast<UEFieldPathProperty>().GetFieldClass())
 		{
 			OutSubtypes.push_back(ManualCreateMemberType(DSGen::ET_Struct, PropertyClass.GetCppName()));
 		}
@@ -445,6 +456,8 @@ DSGen::FunctionHolder DumpspaceGenerator::GenearateFunction(const FunctionWrappe
 
 void DumpspaceGenerator::GeneratedStaticOffsets()
 {
+	DSGen::addOffset("Dumper", 7);
+
 	DSGen::addOffset("OFFSET_GOBJECTS", Off::InSDK::ObjArray::GObjects);
 	DSGen::addOffset(Off::InSDK::Name::bIsUsingAppendStringOverToString ? "OFFSET_APPENDSTRING" : "OFFSET_TOSTRING", Off::InSDK::Name::AppendNameToString);
 	DSGen::addOffset("OFFSET_GNAMES", Off::InSDK::NameArray::GNames);

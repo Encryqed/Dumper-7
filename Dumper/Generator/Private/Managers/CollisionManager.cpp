@@ -20,7 +20,7 @@ void NameInfo::InitCollisionData(const NameInfo& Existing, ECollisionType Curren
 			SuperMemberNameCollisionCount++;
 			return;
 		}
-		MemberNameCollisionCount++;
+		MemberNameCollisionCount = Existing.MemberNameCollisionCount + 1;
 		break;
 	case ECollisionType::FunctionName:
 		if (bIsSuper)
@@ -28,10 +28,10 @@ void NameInfo::InitCollisionData(const NameInfo& Existing, ECollisionType Curren
 			SuperFuncNameCollisionCount++;
 			return;
 		}
-		FunctionNameCollisionCount++;
+		FunctionNameCollisionCount = Existing.FunctionNameCollisionCount + 1;
 		break;
 	case ECollisionType::ParameterName:
-		ParamNameCollisionCount++;
+		ParamNameCollisionCount = Existing.ParamNameCollisionCount + 1;
 		break;
 	default:
 		break;
