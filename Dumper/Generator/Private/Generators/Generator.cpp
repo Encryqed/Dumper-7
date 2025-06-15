@@ -14,14 +14,14 @@ inline void InitWeakObjectPtrSettings()
 
 	if (!LoadAsset)
 	{
-		std::cout << "\nDumper-7: 'LoadAsset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
+		std::cerr << "\nDumper-7: 'LoadAsset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
 		return;
 	}
 
 	UEProperty Asset = LoadAsset.FindMember("Asset", EClassCastFlags::SoftObjectProperty);
 	if (!Asset)
 	{
-		std::cout << "\nDumper-7: 'Asset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
+		std::cerr << "\nDumper-7: 'Asset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
 		return;
 	}
 
@@ -33,7 +33,7 @@ inline void InitWeakObjectPtrSettings()
 
 	Settings::Internal::bIsWeakObjectPtrWithoutTag = Asset.GetSize() <= (SizeOfSoftObjectPath + SizeOfFFWeakObjectPtr);
 
-	//std::cout << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
+	//std::cerr << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
 }
 
 inline void InitLargeWorldCoordinateSettings()
@@ -42,7 +42,7 @@ inline void InitLargeWorldCoordinateSettings()
 
 	if (!FVectorStruct) [[unlikely]]
 	{
-		std::cout << "\nSomething went horribly wrong, FVector wasn't even found!\n\n" << std::endl;
+		std::cerr << "\nSomething went horribly wrong, FVector wasn't even found!\n\n" << std::endl;
 		return;
 	}
 
@@ -50,14 +50,14 @@ inline void InitLargeWorldCoordinateSettings()
 
 	if (!XProperty) [[unlikely]]
 	{
-		std::cout << "\nSomething went horribly wrong, FVector::X wasn't even found!\n\n" << std::endl;
+		std::cerr << "\nSomething went horribly wrong, FVector::X wasn't even found!\n\n" << std::endl;
 		return;
 	}
 
 	/* Check the underlaying type of FVector::X. If it's double we're on UE5.0, or higher, and using large world coordinates. */
 	Settings::Internal::bUseLargeWorldCoordinates = XProperty.IsA(EClassCastFlags::DoubleProperty);
 
-	//std::cout << std::format("\nDumper-7: bUseLargeWorldCoordinates = {}\n", Settings::Internal::bUseLargeWorldCoordinates) << std::endl;
+	//std::cerr << std::format("\nDumper-7: bUseLargeWorldCoordinates = {}\n", Settings::Internal::bUseLargeWorldCoordinates) << std::endl;
 }
 
 inline void InitSettings()
@@ -136,8 +136,8 @@ bool Generator::SetupDumperFolder()
 	}
 	catch (const std::filesystem::filesystem_error& fe)
 	{
-		std::cout << "Could not create required folders! Info: \n";
-		std::cout << fe.what() << std::endl;
+		std::cerr << "Could not create required folders! Info: \n";
+		std::cerr << fe.what() << std::endl;
 		return false;
 	}
 
@@ -177,8 +177,8 @@ bool Generator::SetupFolders(std::string& FolderName, fs::path& OutFolder, std::
 	}
 	catch (const std::filesystem::filesystem_error& fe)
 	{
-		std::cout << "Could not create required folders! Info: \n";
-		std::cout << fe.what() << std::endl;
+		std::cerr << "Could not create required folders! Info: \n";
+		std::cerr << fe.what() << std::endl;
 		return false;
 	}
 

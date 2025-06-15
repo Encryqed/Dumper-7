@@ -24,12 +24,12 @@ DWORD MainThread(HMODULE Module)
 {
 	AllocConsole();
 	FILE* Dummy;
-	freopen_s(&Dummy, "CONOUT$", "w", stdout);
+	freopen_s(&Dummy, "CONOUT$", "w", stderr);
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
 	auto t_1 = std::chrono::high_resolution_clock::now();
 
-	std::cout << "Started Generation [Dumper-7]!\n";
+	std::cerr << "Started Generation [Dumper-7]!\n";
 
 	Generator::InitEngineCore();
 	Generator::InitInternal();
@@ -50,8 +50,8 @@ DWORD MainThread(HMODULE Module)
 		Settings::Generator::GameVersion = Version.ToString();
 	}
 
-	std::cout << "GameName: " << Settings::Generator::GameName << "\n";
-	std::cout << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
+	std::cerr << "GameName: " << Settings::Generator::GameName << "\n";
+	std::cerr << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
 	Generator::Generate<CppGenerator>();
 	Generator::Generate<MappingGenerator>();
@@ -64,7 +64,7 @@ DWORD MainThread(HMODULE Module)
 	auto ms_int_ = std::chrono::duration_cast<std::chrono::milliseconds>(t_C - t_1);
 	std::chrono::duration<double, std::milli> ms_double_ = t_C - t_1;
 
-	std::cout << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
+	std::cerr << "\n\nGenerating SDK took (" << ms_double_.count() << "ms)\n\n\n";
 
 	while (true)
 	{

@@ -358,7 +358,7 @@ inline PIMAGE_THUNK_DATA GetImportAddress(uintptr_t ModuleBase, const char* Modu
 
 	PIMAGE_IMPORT_DESCRIPTOR ImportTable = reinterpret_cast<PIMAGE_IMPORT_DESCRIPTOR>(ModuleBase + NtHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
-	//std::cout << "ModuleName: " << (SearchModuleName ? SearchModuleName : "Default") << std::endl;
+	//std::cerr << "ModuleName: " << (SearchModuleName ? SearchModuleName : "Default") << std::endl;
 
 	/* Loop all modules and if we found the right one, loop all imports to get the one we need */
 	for (PIMAGE_IMPORT_DESCRIPTOR Import = ImportTable; Import && Import->Characteristics != 0x0; Import++)
@@ -368,7 +368,7 @@ inline PIMAGE_THUNK_DATA GetImportAddress(uintptr_t ModuleBase, const char* Modu
 
 		const char* Name = reinterpret_cast<const char*>(ModuleBase + Import->Name);
 
-		//std::cout << "Name: " << str_tolower(Name) << std::endl;
+		//std::cerr << "Name: " << str_tolower(Name) << std::endl;
 
 		if (str_tolower(Name) != str_tolower(ModuleToImportFrom))
 			continue;
@@ -397,7 +397,7 @@ inline PIMAGE_THUNK_DATA GetImportAddress(uintptr_t ModuleBase, const char* Modu
 			PIMAGE_IMPORT_BY_NAME NameData = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(ModuleBase + NameThunk->u1.ForwarderString);
 			PIMAGE_IMPORT_BY_NAME FunctionData = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(FuncThunk->u1.AddressOfData);
 
-			//std::cout << "IMPORT: " << std::string(NameData->Name) << std::endl;
+			//std::cerr << "IMPORT: " << std::string(NameData->Name) << std::endl;
 
 			if (std::string(NameData->Name) == SearchFunctionName)
 				return FuncThunk;
@@ -552,7 +552,7 @@ inline void* FindPatternInRange(const char* Signature, const uint8_t* Start, uin
 
 inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearchAllSections = false, uintptr_t StartAddress = 0x0)
 {
-	//std::cout << "StartAddr: " << StartAddress << "\n";
+	//std::cerr << "StartAddr: " << StartAddress << "\n";
 
 	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
 
@@ -1047,7 +1047,7 @@ inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress
 		{
 			if (strncmp(reinterpret_cast<const char*>(RefStr), reinterpret_cast<const char*>(PossibleStringAddress), RefStrLen) == 0 && IsValidExecFunctionNotSetupFunc(PossibleExecFuncAddress))
 			{
-				// std::cout << "FoundStr ref: " << reinterpret_cast<const char*>(PossibleStringAddress) << "\n";
+				// std::cerr << "FoundStr ref: " << reinterpret_cast<const char*>(PossibleStringAddress) << "\n";
 
 				return { PossibleExecFuncAddress };
 			}
