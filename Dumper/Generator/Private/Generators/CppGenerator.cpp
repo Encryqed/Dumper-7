@@ -22,13 +22,29 @@ constexpr std::string GetTypeFromSize(uint8 Size)
 		return "uint64";
 	default:
 		return "INVALID_TYPE_SIZE_FOR_BIT_PADDING";
-		break;
 	}
 }
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
 {
-	return std::format("\t{:{}} {:{}} // {}\n", Type, 45, Name + ";", 50, std::move(Comment));
+	//<tab><--45 chars--><-------50 chars----->
+	//     Type          MemberName;           // Comment
+	int NumSpacesToComment;
+
+	if (Type.length() < 45)
+	{
+		NumSpacesToComment = 50;
+	}
+	else if ((Type.length() + Name.length()) > 95)
+	{
+		NumSpacesToComment = 1;
+	}
+	else
+	{
+		NumSpacesToComment = 50 - (Type.length() - 45);
+	}
+
+	return std::format("\t{:{}} {:{}} // {}\n", Type, 45, Name + ";", NumSpacesToComment, std::move(Comment));
 }
 
 std::string CppGenerator::MakeMemberStringWithoutName(const std::string& Type)
@@ -48,7 +64,7 @@ std::string CppGenerator::GenerateBitPadding(uint8 UnderlayingSizeBytes, const u
 
 std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex)
 {
-	constexpr uint64 EstimatedCharactersPerLine = 0x80;
+	constexpr uint64 EstimatedCharactersPerLine = 0xF0;
 
 	const bool bIsUnion = Struct.IsUnion();
 
@@ -101,7 +117,6 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		const int32 CurrentPropertyEnd = MemberOffset + MemberSize;
 
 		std::string Comment = std::format("0x{:04X}(0x{:04X})({})", MemberOffset, MemberSize, Member.GetFlagsOrCustomComment());
-
 
 		const bool bIsBitField = Member.IsBitField();
 
@@ -428,13 +443,13 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , StructName
 , FuncInfo.FuncNameWithParams
 , bIsConstFunc ? " const" : ""
-, Func.IsStatic() ? "StaticClass()" : "Class"
+, Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class"
 , FixedOuterName
 , FixedFunctionName
 , bHasParams ? ParamVarCreationString : ""
 , bHasParamsToInit ? ParamAssignments : ""
 , bIsNativeFunc ? StoreFunctionFlagsString : ""
-, Func.IsStatic() ? "GetDefaultObj()->" : "UObject::"
+, Func.IsStatic() ? "GetDefaultObj()->" : Func.IsInInterface() ? "AsUObject()->" : "UObject::"
 , bHasParams ? "&Parms" : "nullptr"
 , bIsNativeFunc ? RestoreFunctionFlagsString : ""
 , bHasOutRefParamsToInit ? OutRefAssignments : ""
@@ -452,6 +467,9 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 
 	static PredefinedFunction StaticClass;
 	static PredefinedFunction GetDefaultObj;
+
+	static PredefinedFunction Interface_AsObject;
+	static PredefinedFunction Interface_AsObject_Const;
 
 	if (StaticClass.NameWithParams.empty())
 		StaticClass = {
@@ -473,6 +491,35 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		.bIsConst = false,
 		.bIsBodyInline = true,
 	};
+	if (Interface_AsObject.NameWithParams.empty())
+	{
+		Interface_AsObject = {
+		.CustomComment = "UObject inheritance was removed from interfaces to avoid virtual inheritance in the SDK.",
+		.ReturnType = "class UObject*",
+		.NameWithParams = "AsUObject()",
+
+		.bIsStatic = false,
+		.bIsConst = false,
+		.bIsBodyInline = true,
+		};
+
+		Interface_AsObject.Body = "{\n\treturn reinterpret_cast<UObject*>(this);\n}";
+	}
+
+	if (Interface_AsObject_Const.NameWithParams.empty())
+	{
+		Interface_AsObject_Const = {
+		.CustomComment = "UObject inheritance was removed from interfaces to avoid virtual inheritance in the SDK.",
+		.ReturnType = "const class UObject*",
+		.NameWithParams = "AsUObject()",
+
+		.bIsStatic = false,
+		.bIsConst = true,
+		.bIsBodyInline = true,
+		};
+
+		Interface_AsObject_Const.Body = "{\n\treturn reinterpret_cast<const UObject*>(this);\n}";
+	}
 
 	std::string InHeaderFunctionText;
 
@@ -481,6 +528,8 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	bool bWasLastFuncStatic = false;
 	bool bWasLastFuncInline = false;
 	bool bWaslastFuncConst = false;
+
+	const bool bIsInterface = Struct.IsInterface();
 
 	for (const FunctionWrapper& Func : Members.IterateFunctions())
 	{
@@ -560,12 +609,20 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	GetDefaultObj.Body = std::format(
 R"({{
 	return GetDefaultObjImpl<{}>();
-}})", StructName);
+}})",StructName);
 
 
 	std::shared_ptr<StructWrapper> CurrentStructPtr = std::make_shared<StructWrapper>(Struct);
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &GetDefaultObj), StructName, FunctionFile, ParamFile);
+
+	if (bIsInterface)
+	{
+		InHeaderFunctionText += '\n';
+
+		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &Interface_AsObject), StructName, FunctionFile, ParamFile);
+		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &Interface_AsObject_Const), StructName, FunctionFile, ParamFile);
+	}
 
 	return InHeaderFunctionText;
 }
@@ -587,7 +644,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	StructWrapper Super = Struct.GetSuper();
 
-	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction();
+	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction() && !Struct.IsInterface();
 
 	/* Ignore UFunctions with a valid Super field, parameter structs are not supposed inherit from eachother. */
 	if (bHasValidSuper)
@@ -1119,8 +1176,7 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 
 	WriteFileHead(NameCollisionsFile, nullptr, EFileType::NameCollisionsInl, "FORWARD DECLARATIONS");
 
-
-	const StructManager::OverrideMaptType& StructInfoMap = StructManager::GetStructInfos();
+	const StructManager::OverrideMapType& StructInfoMap = StructManager::GetStructInfos();
 	const EnumManager::OverrideMaptType& EnumInfoMap = EnumManager::GetEnumInfos();
 
 	std::unordered_map<int32 /* PackageIdx */, std::pair<std::string, int32>> PackagesAndForwardDeclarations;
@@ -1251,7 +1307,7 @@ void CppGenerator::GenerateDebugAssertions(StreamType& AssertionStream)
 
 void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
 {
-	WriteFileHead(SdkHpp, nullptr, EFileType::SdkHpp, "Includes the entire SDK, include files directly for faster compilation!");
+	WriteFileHead(SdkHpp, nullptr, EFileType::SdkHpp, "Includes the entire SDK. Include files directly for faster compilation!");
 
 
 	auto ForEachElementCallback = [&SdkHpp](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
@@ -1464,7 +1520,7 @@ void CppGenerator::Generate()
 			ClassesFile = StreamType(Subfolder / (U8FileName + u8"_classes.hpp"));
 
 			if (!ClassesFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_classes.hpp") << "\"" << std::endl;
+				std::cerr << "Error opening file \"" << (FileName + "_classes.hpp") << "\"" << std::endl;
 
 			WriteFileHead(ClassesFile, Package, EFileType::Classes);
 
@@ -1477,7 +1533,7 @@ void CppGenerator::Generate()
 			StructsFile = StreamType(Subfolder / (U8FileName + u8"_structs.hpp"));
 
 			if (!StructsFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_structs.hpp") << "\"" << std::endl;
+				std::cerr << "Error opening file \"" << (FileName + "_structs.hpp") << "\"" << std::endl;
 
 			WriteFileHead(StructsFile, Package, EFileType::Structs);
 
@@ -1490,7 +1546,7 @@ void CppGenerator::Generate()
 			ParametersFile = StreamType(Subfolder / (U8FileName + u8"_parameters.hpp"));
 
 			if (!ParametersFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_parameters.hpp") << "\"" << std::endl;
+				std::cerr << "Error opening file \"" << (FileName + "_parameters.hpp") << "\"" << std::endl;
 
 			WriteFileHead(ParametersFile, Package, EFileType::Parameters);
 		}
@@ -1500,7 +1556,7 @@ void CppGenerator::Generate()
 			FunctionsFile = StreamType(Subfolder / (U8FileName + u8"_functions.cpp"));
 
 			if (!FunctionsFile.is_open())
-				std::cout << "Error opening file \"" << (FileName + "_functions.cpp") << "\"" << std::endl;
+				std::cerr << "Error opening file \"" << (FileName + "_functions.cpp") << "\"" << std::endl;
 
 			WriteFileHead(FunctionsFile, Package, EFileType::Functions);
 		}
@@ -3125,7 +3181,7 @@ class UClass* StaticBPGeneratedClassImpl()
 template<class ClassType>
 ClassType* GetDefaultObjImpl()
 {
-	return static_cast<ClassType*>(ClassType::StaticClass()->DefaultObject);
+	return reinterpret_cast<ClassType*>(ClassType::StaticClass()->DefaultObject);
 }
 
 )";

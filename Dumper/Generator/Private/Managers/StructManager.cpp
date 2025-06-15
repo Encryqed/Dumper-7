@@ -55,6 +55,8 @@ void StructManager::InitAlignmentsAndNames()
 {
 	constexpr int32 DefaultClassAlignment = sizeof(void*);
 
+	const UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
+
 	for (auto Obj : ObjectArray())
 	{
 		if (!Obj.IsA(EClassCastFlags::Struct) /* || Obj.IsA(EClassCastFlags::Function)*/)
@@ -65,6 +67,17 @@ void StructManager::InitAlignmentsAndNames()
 		// Add name to override info
 		StructInfo& NewOrExistingInfo = StructInfoOverrides[Obj.GetIndex()];
 		NewOrExistingInfo.Name = UniqueNameTable.FindOrAdd(Obj.GetCppName(), !Obj.IsA(EClassCastFlags::Function)).first;
+
+		// Interfaces inherit from UObject by default, but as a workaround to no virtual-inheritance we make them empty
+		if (ObjAsStruct.HasType(InterfaceClass))
+		{
+			NewOrExistingInfo.Alignment = 0x1;
+			NewOrExistingInfo.bHasReusedTrailingPadding = false;
+			NewOrExistingInfo.bIsFinal = true;
+			NewOrExistingInfo.Size = 0x0;
+
+			continue;
+		}
 
 		int32 MinAlignment = ObjAsStruct.GetMinAlignment();
 		int32 HighestMemberAlignment = 0x1; // starting at 0x1 when checking **all**, not just struct-properties
@@ -96,7 +109,7 @@ void StructManager::InitAlignmentsAndNames()
 
 	for (auto Obj : ObjectArray())
 	{
-		if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function))
+		if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function) || Obj.Cast<UEStruct>().HasType(InterfaceClass))
 			continue;
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
@@ -135,9 +148,11 @@ void StructManager::InitAlignmentsAndNames()
 
 void StructManager::InitSizesAndIsFinal()
 {
+	const UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
+
 	for (auto Obj : ObjectArray())
 	{
-		if (!Obj.IsA(EClassCastFlags::Struct))
+		if (!Obj.IsA(EClassCastFlags::Struct) || Obj.Cast<UEStruct>().HasType(InterfaceClass))
 			continue;
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
@@ -186,7 +201,7 @@ void StructManager::InitSizesAndIsFinal()
 
 			if (It == StructInfoOverrides.end())
 			{
-				std::cout << "\n\n\nDumper-7: Error, struct wasn't found in 'StructInfoOverrides'! Exiting...\n\n\n" << std::endl;
+				std::cerr << "\n\n\nDumper-7: Error, struct wasn't found in 'StructInfoOverrides'! Exiting...\n\n\n" << std::endl;
 				Sleep(10000);
 				exit(1);
 			}

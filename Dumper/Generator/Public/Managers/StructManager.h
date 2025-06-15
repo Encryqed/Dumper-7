@@ -81,7 +81,7 @@ private:
 	friend class StructManagerTest;
 
 public:
-	using OverrideMaptType = std::unordered_map<int32 /*StructIdx*/, StructInfo>;
+	using OverrideMapType = std::unordered_map<int32 /*StructIdx*/, StructInfo>;
 	using CycleInfoListType = std::unordered_map<int32 /*StructIdx*/, std::unordered_set<int32 /* Packages cyclic with this structs' package */>>;
 
 private:
@@ -89,7 +89,7 @@ private:
 	static inline HashStringTable UniqueNameTable;
 
 	/* Map containing infos on all structs/classes. Implemented due to bugs/inconsistencies in Unreal's reflection system */
-	static inline OverrideMaptType StructInfoOverrides;
+	static inline OverrideMapType StructInfoOverrides;
 
 	/* Map containing infos on all structs/classes that are within a packages that has cyclic dependencies */
 	static inline CycleInfoListType CyclicStructsAndPackages;
@@ -110,7 +110,7 @@ private:
 	}
 
 public:
-	static inline const OverrideMaptType& GetStructInfos()
+	static inline const OverrideMapType& GetStructInfos()
 	{
 		return StructInfoOverrides;
 	}

@@ -311,6 +311,11 @@ bool FunctionWrapper::IsConst() const
     return bIsUnrealFunction ? Function.HasFlags(EFunctionFlags::Const) : PredefFunction->bIsConst;
 }
 
+bool FunctionWrapper::IsInInterface() const
+{
+    return bIsUnrealFunction && Struct->IsInterface();
+}
+
 bool FunctionWrapper::HasInlineBody() const
 {
     return !bIsUnrealFunction && PredefFunction->bIsBodyInline;

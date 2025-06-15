@@ -1,5 +1,3 @@
-#pragma once
-
 #include <vector>
 
 #include "OffsetFinder/OffsetFinder.h"
@@ -197,7 +195,7 @@ int32_t OffsetFinder::FindUObjectNameOffset()
 			}
 
 			/* This shouldn't be the case, so log it as an info but continue, as the first offset is still likely the right one. */
-			std::cout << std::format("Dumper-7: Another UObject::Name offset (0x{:04X}) is also considered valid\n", Info.Offset);
+			std::cerr << std::format("Dumper-7: Another UObject::Name offset (0x{:04X}) is also considered valid\n", Info.Offset);
 		}
 	}
 
@@ -267,7 +265,7 @@ void OffsetFinder::FixupHardcodedOffsets()
 
 		if (IsValidPtr(PossibleNextPtrOrBool0) && IsValidPtr(PossibleNextPtrOrBool1) && IsValidPtr(PossibleNextPtrOrBool2))
 		{
-			std::cout << "Applaying fix to hardcoded offsets \n" << std::endl;
+			std::cerr << "Applaying fix to hardcoded offsets \n" << std::endl;
 
 			Settings::Internal::bUseMaskForFieldOwner = true;
 
@@ -659,6 +657,26 @@ int32_t OffsetFinder::FindDefaultObjectOffset()
 	return FindOffset(Infos, 0x28, 0x200);
 }
 
+int32_t OffsetFinder::FindImplementedInterfacesOffset()
+{
+	UEClass Interface_AssetUserDataClass = ObjectArray::FindClassFast("Interface_AssetUserData");
+
+	const uint8_t* ActorComponentClassPtr = reinterpret_cast<const uint8_t*>(ObjectArray::FindClassFast("ActorComponent").GetAddress());
+
+	for (int i = Off::UClass::ClassDefaultObject; i <= (0x350 - 0x10); i += sizeof(void*))
+	{
+		const auto& ActorArray = *reinterpret_cast<const TArray<FImplementedInterface>*>(ActorComponentClassPtr + i);
+
+		if (ActorArray.IsValid() && !IsBadReadPtr(ActorArray.GetDataPtr()))
+		{
+			if (ActorArray[0].InterfaceClass == Interface_AssetUserDataClass)
+				return i;
+		}
+	}
+
+	return OffsetNotFound;
+}
+
 /* Property */
 int32_t OffsetFinder::FindElementSizeOffset()
 {
@@ -858,7 +876,7 @@ int32_t OffsetFinder::FindDatatableRowMapOffset()
 
 	if (!DataTable)
 	{
-		std::cout << "\nDumper-7: [DataTable] Couldn't find \"DataTable\" class, assuming default layout.\n" << std::endl;
+		std::cerr << "\nDumper-7: [DataTable] Couldn't find \"DataTable\" class, assuming default layout.\n" << std::endl;
 		return (Off::UObject::Outer + UObjectOuterSize + RowStructSize);
 	}
 
@@ -866,7 +884,7 @@ int32_t OffsetFinder::FindDatatableRowMapOffset()
 
 	if (!RowStructProp)
 	{
-		std::cout << "\nDumper-7: [DataTable] Couldn't find \"RowStruct\" property, assuming default layout.\n" << std::endl;
+		std::cerr << "\nDumper-7: [DataTable] Couldn't find \"RowStruct\" property, assuming default layout.\n" << std::endl;
 		return (Off::UObject::Outer + UObjectOuterSize + RowStructSize);
 	}
 

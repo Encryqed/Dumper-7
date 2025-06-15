@@ -205,6 +205,7 @@ namespace Off
 	{
 		inline int32 CastFlags;
 		inline int32 ClassDefaultObject;
+		inline int32 ImplementedInterfaces;
 	}
 
 	namespace Property

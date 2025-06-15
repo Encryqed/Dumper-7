@@ -547,6 +547,20 @@ int32 UEStruct::GetStructSize() const
 	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
 }
 
+bool UEStruct::HasType(UEStruct Type) const
+{
+	if (Type == nullptr)
+		return false;
+
+	for (UEStruct S = *this; S; S = S.GetSuper())
+	{
+		if (S == Type)
+			return true;
+	}
+
+	return false;
+}
+
 std::vector<UEProperty> UEStruct::GetProperties() const
 {
 	std::vector<UEProperty> Properties;
@@ -651,23 +665,14 @@ bool UEClass::IsType(EClassCastFlags TypeFlag) const
 	return (TypeFlag != EClassCastFlags::None ? (GetCastFlags() & TypeFlag) : true);
 }
 
-bool UEClass::HasType(UEClass TypeClass) const
-{
-	if (TypeClass == nullptr)
-		return false;
-
-	for (UEStruct S = *this; S; S = S.GetSuper())
-	{
-		if (S == TypeClass)
-			return true;
-	}
-
-	return false;
-}
-
 UEObject UEClass::GetDefaultObject() const
 {
 	return UEObject(*reinterpret_cast<void**>(Object + Off::UClass::ClassDefaultObject));
+}
+
+TArray<FImplementedInterface> UEClass::GetImplementedInterfaces() const
+{
+	return *reinterpret_cast<TArray<FImplementedInterface>*>(Object + Off::UClass::ImplementedInterfaces);
 }
 
 UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string& FuncName) const

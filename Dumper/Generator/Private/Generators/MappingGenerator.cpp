@@ -216,7 +216,7 @@ void MappingGenerator::GeneratePropertyInfo(const PropertyWrapper& Property, std
 {
 	if (!Property.IsUnrealProperty())
 	{
-		std::cout << "\nInvalid non-Unreal property!\n" << std::endl;
+		std::cerr << "\nInvalid non-Unreal property!\n" << std::endl;
 		return;
 	}
 
@@ -361,21 +361,21 @@ std::stringstream MappingGenerator::GenerateFileData()
 	WriteToStream(ReturnBuffer, NameData);
 
 	if constexpr (Settings::Debug::bShouldPrintMappingDebugData)
-		std::cout << std::format("MappingGeneration: NameCounter = 0x{0:X} (Dec: {0})\n", static_cast<uint32>(NameCounter));
+		std::cerr << std::format("MappingGeneration: NameCounter = 0x{0:X} (Dec: {0})\n", static_cast<uint32>(NameCounter));
 
 	/* Write Enum-count and enums */
 	WriteToStream(ReturnBuffer, static_cast<uint32>(NumEnums));
 	WriteToStream(ReturnBuffer, EnumData);
 
 	if constexpr (Settings::Debug::bShouldPrintMappingDebugData)
-		std::cout << std::format("MappingGeneration: NumEnums = 0x{0:X} (Dec: {0})\n", static_cast<uint32>(NumEnums));
+		std::cerr << std::format("MappingGeneration: NumEnums = 0x{0:X} (Dec: {0})\n", static_cast<uint32>(NumEnums));
 
 	/* Write Struct-count and enums */
 	WriteToStream(ReturnBuffer, static_cast<uint32>(NumStructsAndClasse));
 	WriteToStream(ReturnBuffer, StructData);
 
 	if constexpr (Settings::Debug::bShouldPrintMappingDebugData)
-		std::cout << std::format("MappingGeneration: NumStructsAndClasse = 0x{0:X} (Dec: {0})\n\n", static_cast<uint32>(NumStructsAndClasse));
+		std::cerr << std::format("MappingGeneration: NumStructsAndClasse = 0x{0:X} (Dec: {0})\n\n", static_cast<uint32>(NumStructsAndClasse));
 
 	return ReturnBuffer;
 }
@@ -417,8 +417,8 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 
 	if constexpr (Settings::Debug::bShouldPrintMappingDebugData)
 	{
-		std::cout << std::format("MappingGeneration: CompressedSize = 0x{0:X} (Dec: {0})\n", CompressedSize);
-		std::cout << std::format("MappingGeneration: DecompressedSize = 0x{0:X} (Dec: {0})\n\n", UncompressedSize);
+		std::cerr << std::format("MappingGeneration: CompressedSize = 0x{0:X} (Dec: {0})\n", CompressedSize);
+		std::cerr << std::format("MappingGeneration: DecompressedSize = 0x{0:X} (Dec: {0})\n\n", UncompressedSize);
 	}
 
 	/* Write compressed size */

@@ -54,6 +54,7 @@ public:
     bool IsClass() const;
     bool IsUnion() const;
     bool IsFunction() const;
+    bool IsInterface() const;
 
     bool IsAClassWithType(UEClass TypeClass) const;
 
