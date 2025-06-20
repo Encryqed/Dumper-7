@@ -755,7 +755,7 @@ int32_t OffsetFinder::FindOffsetInternalOffset()
 
 	Infos.push_back({ Color.FindMember("B").GetAddress(), 0x00 });
 	Infos.push_back({ Color.FindMember("G").GetAddress(), 0x01 });
-	Infos.push_back({ Guid.FindMember("B").GetAddress(), 0x04 });
+	Infos.push_back({ Guid.FindMember("C").GetAddress(), 0x08 });
 
 	// Thanks to the ue5 dev who decided FColor::R should be spelled FColor::r
 	if (Infos[2].first == nullptr) [[unlikely]]
