@@ -178,6 +178,9 @@ void MemberManager::InitReservedNames()
 	MemberNames.AddReservedName("min");
 	MemberNames.AddReservedName("max");
 
+	MemberNames.AddReservedName("new");
+	MemberNames.AddReservedName("delete");
+
 	/* Windows.h macros*/
 	MemberNames.AddReservedName("IN");
 	MemberNames.AddReservedName("OUT");
@@ -187,4 +190,5 @@ void MemberManager::InitReservedNames()
 	MemberNames.AddReservedName("NO_ERROR");
 	MemberNames.AddReservedName("EVENT_MAX");
 	MemberNames.AddReservedName("EVENT_MAX");
+	MemberNames.AddReservedName("INGORE");
 }
