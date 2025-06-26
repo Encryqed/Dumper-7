@@ -33,7 +33,7 @@ DWORD MainThread(HMODULE Module)
 
 	Settings::GlobalConfig.Load();
 
-	std::cout << "Sleeping for " << Settings::GlobalConfig.SleepTimeout << "ms...\n";
+	std::cerr << "Sleeping for " << Settings::GlobalConfig.SleepTimeout << "ms...\n";
 	Sleep(Settings::GlobalConfig.SleepTimeout);
 
 	Generator::InitEngineCore();
