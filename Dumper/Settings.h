@@ -9,10 +9,10 @@ namespace Settings
 {
 	struct Config
 	{
-		int SleepTimeout = 1000;
+		int SleepTimeout = 0;
 		std::string SDKNamespaceName = "SDK";
 
-		void Load(const char* path);
+		void Load();
 	};
 
 	inline Config GlobalConfig;

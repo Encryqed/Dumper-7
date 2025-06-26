@@ -31,8 +31,7 @@ DWORD MainThread(HMODULE Module)
 
 	std::cerr << "Started Generation [Dumper-7]!\n";
 
-	const char* configPath = "C:/Dumper-7/config.ini";
-	Settings::GlobalConfig.Load(configPath);
+	Settings::GlobalConfig.Load();
 
 	std::cout << "Sleeping for " << Settings::GlobalConfig.SleepTimeout << "ms...\n";
 	Sleep(Settings::GlobalConfig.SleepTimeout);
