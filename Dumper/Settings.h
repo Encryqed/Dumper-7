@@ -7,6 +7,16 @@
 
 namespace Settings
 {
+	struct Config
+	{
+		int SleepTimeout = 1000;
+		std::string SDKNamespaceName = "SDK";
+
+		void Load(const char* path);
+	};
+
+	inline Config GlobalConfig;
+
 	namespace EngineCore
 	{
 		/* A special setting to fix UEnum::Names where the type is sometimes TArray<FName> and sometimes TArray<TPair<FName, Some8ByteData>> */
@@ -26,9 +36,6 @@ namespace Settings
 	{
 		/* No prefix for files->FilePrefix = "" */
 		constexpr const char* FilePrefix = "";
-
-		/* No seperate namespace for SDK -> SDKNamespaceName = nullptr */
-		constexpr const char* SDKNamespaceName = "SDK";
 
 		/* No seperate namespace for Params -> ParamNamespaceName = nullptr */
 		constexpr const char* ParamNamespaceName = "Params";
