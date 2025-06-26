@@ -7,6 +7,8 @@
 
 namespace Settings
 {
+	inline constexpr const char* GlobalConfigPath = "C:/Dumper-7/Dumper-7.ini";
+
 	struct Config
 	{
 		int SleepTimeout = 0;

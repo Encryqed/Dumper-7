@@ -16,9 +16,9 @@ void Settings::Config::Load()
         ConfigPath = LocalPath.c_str();
     }
     // Try global path
-    else if (fs::exists("C:/Dumper-7/Dumper-7.ini")) 
+    else if (fs::exists(GlobalConfigPath))
     {
-        ConfigPath = "C:/Dumper-7/Dumper-7.ini";
+        ConfigPath = GlobalConfigPath;
     }
 
     // If no config found, use defaults
