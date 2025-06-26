@@ -5855,7 +5855,7 @@ namespace UC
 /* See https://github.com/Fischsalat/UTF-N */
 void CppGenerator::GenerateUnicodeLib(StreamType& UnicodeLib) {
 	WriteFileHead(UnicodeLib, nullptr, EFileType::UnicodeLib,
-		"A simple C++ lib for converting between Utf8, Utf16 and Utf32. See https://github.com/Fischsalat/UnrealContainers");
+		"A simple C++ lib for converting between Utf8, Utf16 and Utf32. See https://github.com/Fischsalat/UTF-N");
 
 	UnicodeLib << R"(
 // Lower warning-level and turn off certain warnings for STL compilation
