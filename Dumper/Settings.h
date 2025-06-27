@@ -9,15 +9,13 @@ namespace Settings
 {
 	inline constexpr const char* GlobalConfigPath = "C:/Dumper-7/Dumper-7.ini";
 
-	struct Config
+	namespace Config
 	{
-		int SleepTimeout = 0;
-		std::string SDKNamespaceName = "SDK";
+		inline int SleepTimeout = 0;
+		inline std::string SDKNamespaceName = "SDK";
 
 		void Load();
 	};
-
-	inline Config GlobalConfig;
 
 	namespace EngineCore
 	{

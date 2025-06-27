@@ -31,10 +31,13 @@ DWORD MainThread(HMODULE Module)
 
 	std::cerr << "Started Generation [Dumper-7]!\n";
 
-	Settings::GlobalConfig.Load();
+	Settings::Config::Load();
 
-	std::cerr << "Sleeping for " << Settings::GlobalConfig.SleepTimeout << "ms...\n";
-	Sleep(Settings::GlobalConfig.SleepTimeout);
+	if (Settings::Config::SleepTimeout > 0)
+	{
+		std::cerr << "Sleeping for " << Settings::Config::SleepTimeout << "ms...\n";
+		Sleep(Settings::Config::SleepTimeout);
+	}
 
 	Generator::InitEngineCore();
 	Generator::InitInternal();
