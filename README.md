@@ -73,8 +73,8 @@ You can optionally dynamically change settings through a `Dumper-7.ini` file, in
 Example:
 ```ini
 [Settings]
-SleepTimeout=10000
-SDKNamespaceName=PalworldSDK
+SleepTimeout=100
+SDKNamespaceName=MyOwnSDKNamespace
 ```
 ## Issues
 
