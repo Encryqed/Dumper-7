@@ -1424,9 +1424,9 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	File << "\n";
 
-	if (!Settings::GlobalConfig.SDKNamespaceName.empty())
+	if (!Settings::Config::SDKNamespaceName.empty())
 	{
-		File << std::format("namespace {}", Settings::GlobalConfig.SDKNamespaceName);
+		File << std::format("namespace {}", Settings::Config::SDKNamespaceName);
 
 		if (Type == EFileType::Parameters && CppSettings::ParamNamespaceName)
 			File << std::format("::{}", CppSettings::ParamNamespaceName);
@@ -1447,7 +1447,7 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 	if (Type == EFileType::SdkHpp || Type == EFileType::NameCollisionsInl || Type == EFileType::UnrealContainers || Type == EFileType::UnicodeLib)
 		return; /* No namespace or packing in SDK.hpp or NameCollisions.inl */
 
-	if (!Settings::GlobalConfig.SDKNamespaceName.empty() || CppSettings::ParamNamespaceName)
+	if (!Settings::Config::SDKNamespaceName.empty() || CppSettings::ParamNamespaceName)
 	{
 		if (Type != EFileType::Functions)
 			File << "\n";
