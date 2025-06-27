@@ -71,6 +71,9 @@
     <ClCompile Include="Engine\Private\OffsetFinder\OffsetFinder.cpp">
       <Filter>Engine\Private\OffsetFinder</Filter>
     </ClCompile>
+    <ClCompile Include="Settings.cpp">
+      <Filter>Generator</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">

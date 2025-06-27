@@ -154,6 +154,7 @@
     <ClCompile Include="Engine\Private\OffsetFinder\Offsets.cpp" />
     <ClCompile Include="Engine\Private\Unreal\UnrealObjects.cpp" />
     <ClCompile Include="Engine\Private\Unreal\UnrealTypes.cpp" />
+    <ClCompile Include="Settings.cpp" />
     <ClCompile Include="Utils\Compression\zstd.c" />
     <ClCompile Include="Utils\Dumpspace\DSGen.cpp" />
     <ClCompile Include="Generator\Private\Generators\CppGenerator.cpp" />
