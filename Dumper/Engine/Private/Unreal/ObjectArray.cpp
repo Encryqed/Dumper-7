@@ -54,6 +54,14 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 		.NumElementsOffset = 0x00, // first
 		.MaxChunksOffset = 0x14,
 		.NumChunksOffset = 0x20,
+	},
+	FChunkedFixedUObjectArrayLayout // MindsEye
+	{
+		.ObjectsOffset = 0x18,
+		.MaxElementsOffset = 0x00, // first
+		.NumElementsOffset = 0x14,
+		.MaxChunksOffset = 0x10,
+		.NumChunksOffset = 0x04,
 	}
 };
 
@@ -147,7 +155,7 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectA
 
 void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 {
-	for (int i = 0x0; i < 0x10; i += 4)
+	for (int i = 0x0; i < 0x20; i += 4)
 	{
 		if (!IsBadReadPtr(*reinterpret_cast<uint8_t**>(FirstItemPtr + i)))
 		{
