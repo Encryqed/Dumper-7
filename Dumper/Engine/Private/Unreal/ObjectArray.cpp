@@ -216,6 +216,19 @@ void ObjectArray::InitializeChunkSize(uint8_t* ChunksPtr)
 	Off::InSDK::ObjArray::ChunkSize = NumElementsPerChunk;
 }
 
+bool SafeMatchesAnyLayout(auto&& MatchesAnyLayout, const auto& Layouts, uintptr_t Address)
+{
+	__try
+	{
+		return MatchesAnyLayout(Layouts, Address);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		std::cout << "Access violation at address 0x" << std::hex << Address << std::dec << ". Skipping...\n";
+		return false; // Skip this address safely if access violation happens
+	}
+};
+
 /* We don't speak about this function... */
 void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 {
@@ -276,7 +289,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 	{
 		const uintptr_t CurrentAddress = SearchBase + i;
 
-		if (MatchesAnyLayout(FFixedUObjectArrayLayouts, CurrentAddress))
+		if (SafeMatchesAnyLayout(MatchesAnyLayout, FFixedUObjectArrayLayouts, CurrentAddress))
 		{
 			GObjects = reinterpret_cast<uint8_t*>(SearchBase + i);
 			NumElementsPerChunk = -1;
@@ -301,7 +314,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 
 			return;
 		}
-		else if (MatchesAnyLayout(FChunkedFixedUObjectArrayLayouts, CurrentAddress))
+		else if (SafeMatchesAnyLayout(MatchesAnyLayout, FChunkedFixedUObjectArrayLayouts, CurrentAddress))
 		{
 			GObjects = reinterpret_cast<uint8_t*>(SearchBase + i);
 			NumElementsPerChunk = 0x10000;
