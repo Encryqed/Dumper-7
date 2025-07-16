@@ -2515,7 +2515,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator*(float Scalar)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator*(UnderlayingType Scalar)", .Body =
 R"({
 	return { X * Scalar, Y * Scalar, Z * Scalar };
 })",
@@ -2531,9 +2531,9 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator/(float Scalar)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator/(UnderlayingType Scalar)", .Body =
 R"({
-	if (Scalar == 0.0f)
+	if (Scalar == 0)
 		return *this;
 
 	return { X / Scalar, Y / Scalar, Z / Scalar };
@@ -2544,7 +2544,7 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "FVector", .NameWithParams = "operator/(const FVector& Other)", .Body =
 R"({
-	if (Other.X == 0.0f || Other.Y == 0.0f ||Other.Z == 0.0f)
+	if (Other.X == 0 || Other.Y == 0 || Other.Z == 0)
 		return *this;
 
 	return { X / Other.X, Y / Other.Y, Z / Other.Z };
@@ -2589,7 +2589,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator*=(float Scalar)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
 	return *this;
@@ -2607,7 +2607,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator/=(float Scalar)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
 	return *this;
@@ -2629,7 +2629,7 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "bool", .NameWithParams = "IsZero()", .Body =
 R"({
-	return X == 0.0 && Y == 0.0 && Z == 0.0;
+	return X == 0 && Y == 0 && Z == 0;
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
@@ -2720,7 +2720,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D", .NameWithParams = "operator*(float Scalar)", .Body =
+			.ReturnType = "FVector2D", .NameWithParams = "operator*(UnderlayingType Scalar)", .Body =
 R"({
 	return { X * Scalar, Y * Scalar };
 })",
@@ -2736,9 +2736,9 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D", .NameWithParams = "operator/(float Scalar)", .Body =
+			.ReturnType = "FVector2D", .NameWithParams = "operator/(UnderlayingType Scalar)", .Body =
 R"({
-	if (Scalar == 0.0f)
+	if (Scalar == 0)
 		return *this;
 
 	return { X / Scalar, Y / Scalar };
@@ -2749,7 +2749,7 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "FVector2D", .NameWithParams = "operator/(const FVector2D& Other)", .Body =
 R"({
-	if (Other.X == 0.0f || Other.Y == 0.0f)
+	if (Other.X == 0 || Other.Y == 0)
 		return *this;
 
 	return { X / Other.X, Y / Other.Y };
@@ -2794,7 +2794,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D&", .NameWithParams = "operator*=(float Scalar)", .Body =
+			.ReturnType = "FVector2D&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
 	return *this;
@@ -2812,7 +2812,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D&", .NameWithParams = "operator/=(float Scalar)", .Body =
+			.ReturnType = "FVector2D&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
 	return *this;
@@ -2834,7 +2834,7 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "bool", .NameWithParams = "IsZero()", .Body =
 R"({
-	return X == 0.0 && Y == 0.0;
+	return X == 0 && Y == 0;
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
@@ -2885,6 +2885,217 @@ R"({
 		},
 	};
 
+	UEStruct Rotator = ObjectArray::FindObjectFast<UEStruct>("Rotator");
+
+	PredefinedElements& FRotatorPredefs = PredefinedMembers[Rotator.GetIndex()];
+
+	FRotatorPredefs.Members.push_back(PredefinedMember{
+		PredefinedMember{
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = std::format("using UnderlayingType = {}", (Settings::Internal::bUseLargeWorldCoordinates ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF,
+		}
+		});
+
+	FRotatorPredefs.Functions =
+	{
+		/* static functions */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "UnderlayingType", .NameWithParams = "ClampAxis(UnderlayingType Angle)", .Body =
+R"({
+	Angle = std::fmod(Angle, (UnderlayingType)360.0);
+	if (Angle < (UnderlayingType)0)
+		Angle += (UnderlayingType)360.0;
+	return Angle;
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "UnderlayingType", .NameWithParams = "NormalizeAxis(UnderlayingType Angle)", .Body =
+R"({
+	Angle = ClampAxis(Angle);
+	if (Angle > (UnderlayingType)180.0)
+		Angle -= (UnderlayingType)360.0;
+	return Angle;
+})",
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+		},
+
+		/* const operators */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator", .NameWithParams = "operator+(const FRotator& Other)", .Body =
+R"({
+	return { Pitch + Other.Pitch, Yaw + Other.Yaw, Roll + Other.Roll };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator", .NameWithParams = "operator-(const FRotator& Other)", .Body =
+R"({
+	return { Pitch - Other.Pitch, Yaw - Other.Yaw, Roll - Other.Roll };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator", .NameWithParams = "operator*(UnderlayingType Scalar)", .Body =
+R"({
+	return { Pitch * Scalar, Yaw * Scalar, Roll * Scalar };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator", .NameWithParams = "operator*(const FRotator& Other)", .Body =
+R"({
+	return { Pitch * Other.Pitch, Yaw * Other.Yaw, Roll * Other.Roll };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator", .NameWithParams = "operator/(UnderlayingType Scalar)", .Body =
+R"({
+	if (Scalar == 0)
+		return *this;
+
+	return { Pitch / Scalar, Yaw / Scalar, Roll / Scalar };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator", .NameWithParams = "operator/(const FRotator& Other)", .Body =
+R"({
+	if (Other.Pitch == 0 || Other.Yaw == 0 || Other.Roll == 0)
+		return *this;
+
+	return { Pitch / Other.Pitch, Yaw / Other.Yaw, Roll / Other.Roll };
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator==(const FRotator& Other)", .Body =
+R"({
+	return Pitch == Other.Pitch && Yaw == Other.Yaw && Roll == Other.Roll;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "operator!=(const FRotator& Other)", .Body =
+R"({
+	return Pitch != Other.Pitch || Yaw != Other.Yaw || Roll != Other.Roll;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+
+		/* Non-const operators */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator&", .NameWithParams = "operator+=(const FRotator& Other)", .Body =
+R"({
+	*this = *this + Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator&", .NameWithParams = "operator-=(const FRotator& Other)", .Body =
+R"({
+	*this = *this - Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
+R"({
+	*this = *this * Scalar;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator&", .NameWithParams = "operator*=(const FRotator& Other)", .Body =
+R"({
+	*this = *this * Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
+R"({
+	*this = *this / Scalar;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FRotator&", .NameWithParams = "operator/=(const FRotator& Other)", .Body =
+R"({
+	*this = *this / Other;
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+
+		/* Const functions */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "FRotator", .NameWithParams = "GetNormalized()", .Body =
+R"({
+	FRotator rotator = *this;
+	rotator.Normalize();
+	return rotator;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "IsZero()", .Body =
+R"({
+	return ClampAxis(Pitch) == 0 && ClampAxis(Yaw) == 0 && ClampAxis(Roll) == 0;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+
+		/* Non-const functions */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "FRotator&", .NameWithParams = "Normalize()", .Body =
+R"({
+	Pitch = NormalizeAxis(Pitch);
+	Yaw = NormalizeAxis(Yaw);
+	Roll = NormalizeAxis(Roll);
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "FRotator&", .NameWithParams = "Clamp()", .Body =
+R"({
+	Pitch = ClampAxis(Pitch);
+	Yaw = ClampAxis(Yaw);
+	Roll = ClampAxis(Roll);
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+	};
+
 	SortFunctions(UObjectPredefs.Functions);
 	SortFunctions(UClassPredefs.Functions);
 	SortFunctions(UEnginePredefs.Functions);
@@ -2892,6 +3103,7 @@ R"({
 	SortFunctions(UWorldPredefs.Functions);
 	SortFunctions(FVectorPredefs.Functions);
 	SortFunctions(FVector2DPredefs.Functions);
+	SortFunctions(FRotatorPredefs.Functions);
 }
 
 
