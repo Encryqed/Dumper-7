@@ -14,7 +14,6 @@
 #include "HashStringTable.h"
 #include "Generator.h"
 
-
 namespace fs = std::filesystem;
 
 class CppGenerator

@@ -8,72 +8,28 @@
 #include "HashStringTable.h"
 #include "Utils.h"
 
-inline void InitWeakObjectPtrSettings()
-{
-	UEStruct LoadAsset = ObjectArray::FindObjectFast<UEFunction>("LoadAsset", EClassCastFlags::Function);
-
-	if (!LoadAsset)
-	{
-		std::cerr << "\nDumper-7: 'LoadAsset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
-		return;
-	}
-
-	UEProperty Asset = LoadAsset.FindMember("Asset", EClassCastFlags::SoftObjectProperty);
-	if (!Asset)
-	{
-		std::cerr << "\nDumper-7: 'Asset' wasn't found, could not determine value for 'bIsWeakObjectPtrWithoutTag'!\n" << std::endl;
-		return;
-	}
-
-	UEStruct SoftObjectPath = ObjectArray::FindObjectFast<UEStruct>("SoftObjectPath");
-
-	constexpr int32 SizeOfFFWeakObjectPtr = 0x08;
-	constexpr int32 OldUnrealAssetPtrSize = 0x10;
-	const int32 SizeOfSoftObjectPath = SoftObjectPath ? SoftObjectPath.GetStructSize() : OldUnrealAssetPtrSize;
-
-	Settings::Internal::bIsWeakObjectPtrWithoutTag = Asset.GetSize() <= (SizeOfSoftObjectPath + SizeOfFFWeakObjectPtr);
-
-	//std::cerr << std::format("\nDumper-7: bIsWeakObjectPtrWithoutTag = {}\n", Settings::Internal::bIsWeakObjectPtrWithoutTag) << std::endl;
-}
-
-inline void InitLargeWorldCoordinateSettings()
-{
-	UEStruct FVectorStruct = ObjectArray::FindObjectFast<UEStruct>("Vector", EClassCastFlags::Struct);
-
-	if (!FVectorStruct) [[unlikely]]
-	{
-		std::cerr << "\nSomething went horribly wrong, FVector wasn't even found!\n\n" << std::endl;
-		return;
-	}
-
-	UEProperty XProperty = FVectorStruct.FindMember("X");
-
-	if (!XProperty) [[unlikely]]
-	{
-		std::cerr << "\nSomething went horribly wrong, FVector::X wasn't even found!\n\n" << std::endl;
-		return;
-	}
-
-	/* Check the underlaying type of FVector::X. If it's double we're on UE5.0, or higher, and using large world coordinates. */
-	Settings::Internal::bUseLargeWorldCoordinates = XProperty.IsA(EClassCastFlags::DoubleProperty);
-
-	//std::cerr << std::format("\nDumper-7: bUseLargeWorldCoordinates = {}\n", Settings::Internal::bUseLargeWorldCoordinates) << std::endl;
-}
 
 inline void InitSettings()
 {
-	InitWeakObjectPtrSettings();
-	InitLargeWorldCoordinateSettings();
+	Settings::InitWeakObjectPtrSettings();
+	Settings::InitLargeWorldCoordinateSettings();
+
+	Settings::InitObjectPtrPropertySettings();
+	Settings::InitArrayDimSizeSettings();
 }
 
 
 void Generator::InitEngineCore()
 {
 	/* manual override */
-	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*bIsChunked*/);
-	//FName::Init(/*FName::AppendString*/);
-	//FName::Init(/*FName::ToString, FName::EOffsetOverrideType::ToString*/);
+	//ObjectArray::Init(/*GObjects*/, /*Layout = Default*/); // FFixedUObjectArray (UEVersion < UE4.21)
+	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*Layout = Default*/); // FChunkedFixedUObjectArray (UEVersion >= UE4.21)
+	// 
+	//FName::Init(/*bForceGNames = false*/);
+	//FName::Init(/*AppendString, FName::EOffsetOverrideType::AppendString*/);
+	//FName::Init(/*ToString, FName::EOffsetOverrideType::ToString*/);
 	//FName::Init(/*GNames, FName::EOffsetOverrideType::GNames, true/false*/);
+	// 
 	//Off::InSDK::ProcessEvent::InitPE(/*PEIndex*/);
 
 	/* Back4Blood (requires manual GNames override) */
@@ -86,11 +42,11 @@ void Generator::InitEngineCore()
 	FName::Init();
 	Off::Init();
 	PropertySizes::Init();
-	Off::InSDK::ProcessEvent::InitPE(); //Must be at this position, relies on offsets initialized in Off::Init()
+	Off::InSDK::ProcessEvent::InitPE(); // Must be at this position, relies on offsets initialized in Off::Init()
 
-	Off::InSDK::World::InitGWorld(); //Must be at this position, relies on offsets initialized in Off::Init()
+	Off::InSDK::World::InitGWorld(); // Must be at this position, relies on offsets initialized in Off::Init()
 
-	Off::InSDK::Text::InitTextOffsets(); //Must be at this position, relies on offsets initialized in Off::InitPE()
+	Off::InSDK::Text::InitTextOffsets(); // Must be at this position, relies on offsets initialized in Off::InitPE()
 
 	InitSettings();
 }

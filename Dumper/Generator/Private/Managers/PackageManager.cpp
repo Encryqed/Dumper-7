@@ -1,11 +1,9 @@
-
 #include "Unreal/ObjectArray.h"
 
 #include "Managers/PackageManager.h"
 
 /* Required for marking cyclic-headers in the StructManager */
 #include "Managers/StructManager.h"
-
 
 inline void BooleanOrEqual(bool& b1, bool b2)
 {
@@ -82,7 +80,6 @@ bool PackageInfoHandle::IsEmpty() const
 	return !HasClasses() && !HasStructs() && !HasEnums() && !HasParameterStructs() && !HasFunctions();
 }
 
-
 const DependencyManager& PackageInfoHandle::GetSortedStructs() const
 {
 	return Info->StructsSorted;
@@ -122,7 +119,6 @@ void PackageInfoHandle::ErasePackageDependencyFromClasses(int32 Package) const
 {
 	Info->PackageDependencies.ClassesDependencies.erase(Package);
 }
-
 
 namespace PackageManagerUtils
 {
@@ -544,7 +540,6 @@ void PackageManager::HandleCycles()
 
 	FindCycle(CleanedUpOnCycleFoundCallback);
 
-
 	/* Actually remove the cycle form our dependency-graph. Couldn't be done before as it would've invalidated the iterator */
 	for (const CycleInfo& Cycle : HandledPackages)
 	{
@@ -744,4 +739,3 @@ void PackageManager::FindCycle(const FindCycleCallbackType& OnFoundCycle)
 		IterateDependenciesImplementation(Params, CallbackForEachPackage, OnFoundCycle, true);
 	}
 }
-

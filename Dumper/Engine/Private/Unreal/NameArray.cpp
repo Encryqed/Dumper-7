@@ -149,7 +149,7 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 	if (!NameArray || IsBadReadPtr(NameArray))
 		return false;
 
-	for (int i = 0; i < 0x800; i += 0x8)
+	for (int i = 0; i < 0x800; i += sizeof(void*))
 	{
 		uint8_t* SomePtr = *reinterpret_cast<uint8_t**>(NameArray + i);
 
@@ -328,18 +328,27 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriti
 		if (BytePropertyStringAddress[-i] != 0xFF)
 			continue;
 
+#if defined(_WIN64)
 		uintptr_t CallTarget = ASMUtils::Resolve32BitSectionRelativeCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
+#elif defined(_WIN32)
+		uintptr_t CallTarget = ASMUtils::Resolve32bitAbsoluteCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
+#endif
 
 		if (CallTarget != EnterCriticalSectionAddress)
 			continue;
-		
-		uintptr_t InstructionAfterCall = reinterpret_cast<uintptr_t>(BytePropertyStringAddress - (i - ASMRelativeCallSizeBytes));
 
+		uintptr_t InstructionAfterCall = reinterpret_cast<uintptr_t>(BytePropertyStringAddress - (i - ASMRelativeCallSizeBytes));
+		
 		/* Check if we're dealing with a 'call' opcode */
 		if (*reinterpret_cast<const uint8*>(InstructionAfterCall) == 0xE8)
 			return { ASMUtils::Resolve32BitRelativeCall(InstructionAfterCall), false };
 
+		// Looks like on 32bit like literally everything is absolute???? fuck you
+#if defined(_WIN64)
 		return { ASMUtils::Resolve32BitRelativeMove(InstructionAfterCall), true };
+#elif defined(_WIN32)
+		return { ASMUtils::Resolve32bitAbsoluteMove(InstructionAfterCall), true };
+#endif
 	}
 
 	/* Continue and search for another reference to "ByteProperty", safe because we're checking if another string-ref was found*/
@@ -370,6 +379,8 @@ bool NameArray::TryFindNameArray()
 		return true;
 	}
 
+	// TODO (encryqed): Fix below for 32-bit ue shit 
+
 	/* Call GetNames to retreive the pointer to the allocation of the name-table, used for later comparison */
 	void* Names = reinterpret_cast<GetNameType>(Address)();
 
@@ -398,6 +409,8 @@ bool NameArray::TryFindNameArray()
 
 bool NameArray::TryFindNamePool()
 {
+	// TODO (encryqed): Fix this below for 32-bit ue games ig?
+
 	/* Number of bytes we want to search for an indirect call to InitializeSRWLock */
 	constexpr int32 InitSRWLockSearchRange = 0x50;
 
@@ -405,7 +418,6 @@ bool NameArray::TryFindNamePool()
 	constexpr int32 BytePropertySearchRange = 0x2A0;
 
 	/* FNamePool::FNamePool contains a call to InitializeSRWLock or RtlInitializeSRWLock, we're going to check for that later */
-	//uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(GetImportAddress(nullptr, "kernel32.dll", "InitializeSRWLock"));
 	uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "InitializeSRWLock"));
 	uintptr_t RtlInitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("ntdll.dll", "RtlInitializeSRWLock"));
 
@@ -522,7 +534,7 @@ bool NameArray::TryInit(bool bIsTestOnly)
 		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
 		return true;
 	}
-
+	 
 	//GNames = nullptr;
 	//Off::InSDK::NameArray::GNames = 0x0;
 	//Settings::Internal::bUseNamePool = false;

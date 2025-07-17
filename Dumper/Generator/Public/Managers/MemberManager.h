@@ -219,78 +219,7 @@ public:
 	}
 
 	/* Add special names like "Class", "Flags, "Parms", etc. to avoid collisions on them */
-	static inline void InitReservedNames()
-	{
-		/* UObject reserved names */
-		MemberNames.AddReservedClassName("Flags", false);
-		MemberNames.AddReservedClassName("Index", false);
-		MemberNames.AddReservedClassName("Class", false);
-		MemberNames.AddReservedClassName("Name", false);
-		MemberNames.AddReservedClassName("Outer", false);
-
-		/* UFunction reserved names */
-		MemberNames.AddReservedClassName("FunctionFlags", false);
-
-		/* Function-body reserved names */
-		MemberNames.AddReservedClassName("Func", true);
-		MemberNames.AddReservedClassName("Parms", true);
-		MemberNames.AddReservedClassName("Params", true);
-		MemberNames.AddReservedClassName("Flgs", true);
-
-
-		/* Reserved C++ keywords, typedefs and macros */
-		MemberNames.AddReservedName("byte");
-		MemberNames.AddReservedName("short");
-		MemberNames.AddReservedName("int");
-		MemberNames.AddReservedName("float");
-		MemberNames.AddReservedName("double");
-		MemberNames.AddReservedName("long");
-		MemberNames.AddReservedName("signed");
-		MemberNames.AddReservedName("unsigned");
-		MemberNames.AddReservedName("operator");
-		MemberNames.AddReservedName("return");
-
-		/* Logical operators */
-		MemberNames.AddReservedName("if");
-    	MemberNames.AddReservedName("else");
-		MemberNames.AddReservedName("or");
-		MemberNames.AddReservedName("and");
-		MemberNames.AddReservedName("xor");
-
-		/* Additional reserved names */
-		MemberNames.AddReservedName("struct");
-		MemberNames.AddReservedName("class");
-		MemberNames.AddReservedName("for");
-		MemberNames.AddReservedName("while");
-		MemberNames.AddReservedName("switch");
-		MemberNames.AddReservedName("case");
-		MemberNames.AddReservedName("this");
-		MemberNames.AddReservedName("default");
-		MemberNames.AddReservedName("override");
-		MemberNames.AddReservedName("private");
-		MemberNames.AddReservedName("public");
-		MemberNames.AddReservedName("const");
-
-		MemberNames.AddReservedName("int8");
-		MemberNames.AddReservedName("int16");
-		MemberNames.AddReservedName("int32");
-		MemberNames.AddReservedName("int64");
-		MemberNames.AddReservedName("uint8");
-		MemberNames.AddReservedName("uint16");
-		MemberNames.AddReservedName("uint32");
-		MemberNames.AddReservedName("uint64");
-
-		MemberNames.AddReservedName("TRUE");
-		MemberNames.AddReservedName("FALSE");
-		MemberNames.AddReservedName("true");
-		MemberNames.AddReservedName("false");
-
-		MemberNames.AddReservedName("IN");
-		MemberNames.AddReservedName("OUT");
-
-		MemberNames.AddReservedName("min");
-		MemberNames.AddReservedName("max");
-	}
+	static void InitReservedNames();
 
 	static inline void Init()
 	{
