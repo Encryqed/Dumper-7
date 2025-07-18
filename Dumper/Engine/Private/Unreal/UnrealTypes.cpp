@@ -66,7 +66,7 @@ FName::FName(const void* Ptr)
 
 void FName::Init(bool bForceGNames)
 {
-	constexpr std::array<const char*, 5> PossibleSigs = 
+	constexpr std::array<const char*, 6> PossibleSigs = 
 	{ 
 		"48 8D ? ? 48 8D ? ? E8",
 		"48 8D ? ? ? 48 8D ? ? E8",
