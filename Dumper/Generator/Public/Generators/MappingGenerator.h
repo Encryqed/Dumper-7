@@ -80,6 +80,9 @@ private:
         /* Adds support for enums with more than 255 values */
         LargeEnums,
 
+        /* Adds support for explicit enum values */
+        ExplicitEnumValues,
+
         Latest,
         LatestPlusOne,
     };

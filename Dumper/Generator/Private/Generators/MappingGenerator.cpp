@@ -288,15 +288,22 @@ void MappingGenerator::GenerateEnum(const EnumWrapper& Enum, std::stringstream& 
 	const int32 EnumNameIndex = AddNameToData(NameTable, Enum.GetRawName());
 	WriteToStream(Data, EnumNameIndex);
 
-	WriteToStream(Data, static_cast<uint16>(Enum.GetNumMembers()));
+	const auto Pairs = Enum.GetUnrealEnum().GetNameValuePairs();
+	WriteToStream(Data, static_cast<uint16>(Pairs.size()));
 
-	for (EnumCollisionInfo Member : Enum.GetMembers())
+	for (const auto& [FNameName, RawValue] : Pairs)
 	{
-		const int32 EnumMemberNameIdx = AddNameToData(NameTable, Member.GetUniqueName());
+		WriteToStream(Data, static_cast<int64>(RawValue));
+
+		std::string s = FNameName.ToString();
+		if (auto pos = s.rfind("::"); pos != std::string::npos)
+			s = s.substr(pos + 2);
+
+		const int32 EnumMemberNameIdx =
+			AddNameToData(NameTable, s);
 		WriteToStream(Data, EnumMemberNameIdx);
 	}
 }
-
 
 std::stringstream MappingGenerator::GenerateFileData()
 {
@@ -386,10 +393,10 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	/* Write 2bytes unsigned */
 	WriteToStream(InUsmap, UsmapFileMagic);
 
-	/* Version: LargeEnums, some games contain enums exceeding 255 values */
-	WriteToStream(InUsmap, EUsmapVersion::LargeEnums);
+	/* Version: ExplicitEnumValues, adds support for enums with explicit values to fix mismatches */
+	WriteToStream(InUsmap, EUsmapVersion::ExplicitEnumValues);
 
-	/* We're on 'LargeEnums' version, we need to write 'bool' (aka int32) bHasVersioning. (NoVersioning = false) -> no [int32 UE4Version, int32 UE5Version] and no [uint32 NetCL] */
+	/* We're on 'ExplicitEnumValues' version, we need to write 'bool' (aka int32) bHasVersioning. (NoVersioning = false) -> no [int32 UE4Version, int32 UE5Version] and no [uint32 NetCL] */
 	WriteToStream(InUsmap, static_cast<int32>(false));
 
 	const uint32 UncompressedSize = static_cast<uint32>(Data.str().length());
