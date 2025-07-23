@@ -436,7 +436,7 @@ int32_t OffsetFinder::FindFFieldNameOffset()
 	UEFField VectorChild = ObjectArray::FindStructFast("Vector").GetChildProperties();
 
 
-
+	std::string GuidChildName;
 	std::string VectorChildName;
 
 	auto IsOffsetValidPtr = [](UEFField Field, int32 Offset) -> bool
