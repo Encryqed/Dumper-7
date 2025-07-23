@@ -435,18 +435,43 @@ int32_t OffsetFinder::FindFFieldNameOffset()
 	UEFField GuidChild = ObjectArray::FindStructFast("Guid").GetChildProperties();
 	UEFField VectorChild = ObjectArray::FindStructFast("Vector").GetChildProperties();
 
-	std::string GuidChildName = GuidChild.GetName();
-	std::string VectorChildName = VectorChild.GetName();
 
-	if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
-		return Off::FField::Name;
 
-	for (Off::FField::Name = Off::FField::Next + sizeof(void*); Off::FField::Name < 0x40; Off::FField::Name += 4)
+	std::string VectorChildName;
+
+	auto IsOffsetValidPtr = [](UEFField Field, int32 Offset) -> bool
 	{
+		return !IsBadReadPtr(*reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(Field.GetAddress()) + Offset));
+	};
+
+	auto IsFieldNameOffsetValid = [&]() -> bool
+	{
+
 		GuidChildName = GuidChild.GetName();
 		VectorChildName = VectorChild.GetName();
 
 		if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
+			return true;
+
+		return false;
+	};
+
+
+	for (Off::FField::Name = 0x8; Off::FField::Name < 0x40; Off::FField::Name += 4)
+	{
+		//std::cerr << "Checking offset 0x" << Off::FField::Name << std::endl;
+		
+		// Assume that if both of these addresses are valid pointers, it's probably not an FName
+		if (IsOffsetValidPtr(GuidChild, Off::FField::Name) && IsOffsetValidPtr(VectorChild, Off::FField::Name))
+		{
+			// So Check this so we skip the entire pointer, instead of just 0x4 bytes of it
+			Off::FField::Name += sizeof(void*) - 0x4;
+			continue;
+		}
+
+		//std::cerr << "Calling GetName for offset 0x" << Off::FField::Name << std::endl;
+
+		if (IsFieldNameOffsetValid())
 			return Off::FField::Name;
 	}
 

@@ -236,6 +236,13 @@ std::string DumpspaceGenerator::GetMemberTypeStr(UEProperty Property, std::strin
 		
 		return "UObject";
 	}
+	else if (Settings::EngineCore::bEnableEncryptedObjectPropertySupport && Flags & EClassCastFlags::ObjectPropertyBase && Member.GetSize() == 0x10)
+	{
+		if (UEClass PropertyClass = Member.Cast<UEObjectProperty>().GetPropertyClass())
+			return std::format("TEncryptedObjPtr<class {}>", GetStructPrefixedName(PropertyClass));
+
+		return "TEncryptedObjPtr<class UObject>";
+	}
 	else if (Flags & EClassCastFlags::MapProperty)
 	{
 		UEMapProperty MemberAsMapProperty = Member.Cast<UEMapProperty>();

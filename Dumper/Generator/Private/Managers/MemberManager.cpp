@@ -189,6 +189,5 @@ void MemberManager::InitReservedNames()
 
 	MemberNames.AddReservedName("NO_ERROR");
 	MemberNames.AddReservedName("EVENT_MAX");
-	MemberNames.AddReservedName("EVENT_MAX");
-	MemberNames.AddReservedName("INGORE");
+	MemberNames.AddReservedName("IGNORE");
 }

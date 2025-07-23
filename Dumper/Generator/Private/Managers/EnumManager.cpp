@@ -212,6 +212,9 @@ void EnumManager::InitIllegalNames()
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("SIZE_MAX").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("RELATIVE").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("TRANSPARENT").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("NO_ERROR").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("EVENT_MAX").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("IGNORE").first);
 }
 
 void EnumManager::Init()

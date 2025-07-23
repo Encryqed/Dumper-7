@@ -106,7 +106,7 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectA
 	if (MaxChunks > 0x5FF || MaxChunks < 0x6)
 		return false;
 
-	if (NumElements <= 0 || MaxElements <= 0)
+	if (NumElements <= 0x800 || MaxElements <= 0x10000)
 		return false;
 
 	if (NumElements > MaxElements || NumChunks > MaxChunks)

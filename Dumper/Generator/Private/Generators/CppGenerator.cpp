@@ -1001,6 +1001,13 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 
 		return "class UObject*";
 	}
+	else if (Settings::EngineCore::bEnableEncryptedObjectPropertySupport && Flags & EClassCastFlags::ObjectPropertyBase && Member.GetSize() == 0x10)
+	{
+		if (UEClass PropertyClass = Member.Cast<UEObjectProperty>().GetPropertyClass())
+			return std::format("TEncryptedObjPtr<class {}>", GetStructPrefixedName(PropertyClass));
+
+		return "TEncryptedObjPtr<class UObject>";
+	}
 	else if (Flags & EClassCastFlags::MapProperty)
 	{
 		UEMapProperty MemberAsMapProperty = Member.Cast<UEMapProperty>();
@@ -4428,6 +4435,70 @@ public:
 	UEType* operator->() const
 	{
 		return static_cast<UEType*>(TPersistentObjectPtr::Get());
+	}
+};
+)";	
+
+	/* struct FEncryptedObjPtr */
+	BasicHpp <<
+		R"(
+class FEncryptedObjPtr
+{
+public:
+	class UObject* Object;
+	uint64_t KeyOrSomething;
+};
+)";
+	
+	/* struct TEncryptedObjPtr */
+	BasicHpp <<
+		R"(
+template<typename UEType>
+class TEncryptedObjPtr : public FEncryptedObjPtr
+{
+public:
+
+public:
+	UEType* Get()
+	{
+		return static_cast<UEType*>(Object);
+	}
+	const UEType* Get() const
+	{
+		return static_cast<const UEType*>(Object);
+	}
+
+	UEType* operator->()
+	{
+		return Get();
+	}
+	const UEType* operator->() const
+	{
+		return Get();
+	}
+
+	inline operator UEType* ()
+	{
+		return Get();
+	}
+	inline operator UEType* () const
+	{
+		return Get();
+	}
+
+public:
+	inline bool operator==(const FEncryptedObjPtr& Other) const
+	{
+		return Object == Other.Object;
+	}
+	inline bool operator!=(const FEncryptedObjPtr& Other) const
+	{
+		return Object != Other.Object;
+	}
+
+	inline explicit operator bool() const
+	{
+		return Object != nullptr;
 	}
 };
 )";
