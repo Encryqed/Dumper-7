@@ -14,6 +14,16 @@ namespace Settings
 		return true;
 #endif
 	}
+  
+	inline constexpr const char* GlobalConfigPath = "C:/Dumper-7/Dumper-7.ini";
+
+	namespace Config
+	{
+		inline int SleepTimeout = 0;
+		inline std::string SDKNamespaceName = "SDK";
+
+		void Load();
+	};
 
 	namespace EngineCore
 	{
@@ -37,9 +47,6 @@ namespace Settings
 	{
 		/* No prefix for files->FilePrefix = "" */
 		constexpr const char* FilePrefix = "";
-
-		/* No seperate namespace for SDK -> SDKNamespaceName = nullptr */
-		constexpr const char* SDKNamespaceName = "SDK";
 
 		/* No seperate namespace for Params -> ParamNamespaceName = nullptr */
 		constexpr const char* ParamNamespaceName = "Params";

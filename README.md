@@ -63,7 +63,19 @@ Patreon: https://patreon.com/user?u=119629245
       .MaxChunksOffset = 0x18,
       .NumChunksOffset = 0x1C,
   }
-  ``` 
+  ```
+
+## Config File
+You can optionally dynamically change settings through a `Dumper-7.ini` file, instead of modifying `Settings.h`.
+- **Per-game**: Create `Dumper-7.ini` in the same directory as the game's exe file.
+- **Global**: Create `Dumper-7.ini` under `C:\Dumper-7`
+
+Example:
+```ini
+[Settings]
+SleepTimeout=100
+SDKNamespaceName=MyOwnSDKNamespace
+```
 ## Issues
 
 If you have any issues using the Dumper, please create an Issue on this repository\
