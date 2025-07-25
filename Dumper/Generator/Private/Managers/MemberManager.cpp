@@ -148,6 +148,7 @@ void MemberManager::InitReservedNames()
 	MemberNames.AddReservedName("or");
 	MemberNames.AddReservedName("and");
 	MemberNames.AddReservedName("xor");
+	MemberNames.AddReservedName("not");
 
 	/* Additional reserved names */
 	MemberNames.AddReservedName("struct");
