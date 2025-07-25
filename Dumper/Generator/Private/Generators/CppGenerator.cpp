@@ -951,8 +951,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else if (Flags & EClassCastFlags::BoolProperty)
 	{
-		GetTypeFromSize(Member.GetPropertySize());
-		return Member.Cast<UEBoolProperty>().IsNativeBool() ? "bool" : "uint8";
+		return Member.Cast<UEBoolProperty>().IsNativeBool() ? "bool" : GetTypeFromSize(Member.GetSize());
 	}
 	else if (Flags & EClassCastFlags::StructProperty)
 	{
