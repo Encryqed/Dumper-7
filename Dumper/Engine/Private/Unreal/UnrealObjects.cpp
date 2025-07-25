@@ -1169,20 +1169,27 @@ uint8 UEBoolProperty::GetFieldMask() const
 	return reinterpret_cast<Off::BoolProperty::UBoolPropertyBase*>(Base + Off::BoolProperty::Base)->FieldMask;
 }
 
+uint8 UEBoolProperty::GetByteOffset() const
+{
+	return reinterpret_cast<Off::BoolProperty::UBoolPropertyBase*>(Base + Off::BoolProperty::Base)->ByteOffset;
+}
+
 uint8 UEBoolProperty::GetBitIndex() const
 {
-	uint8 FieldMask = GetFieldMask();
+	const uint8 FieldMask = GetFieldMask();
+
+	const uint8_t InitialBitOffset = GetByteOffset() * 0x8; // Example: Offset 3 ==> This bitfield is in the 4th bit ==> 3 lower bytes have 3 * 8 = 24 bits
 
 	if (FieldMask != 0xFF)
 	{
-		if (FieldMask == 0x01) { return 0; }
-		if (FieldMask == 0x02) { return 1; }
-		if (FieldMask == 0x04) { return 2; }
-		if (FieldMask == 0x08) { return 3; }
-		if (FieldMask == 0x10) { return 4; }
-		if (FieldMask == 0x20) { return 5; }
-		if (FieldMask == 0x40) { return 6; }
-		if (FieldMask == 0x80) { return 7; }
+		if (FieldMask == 0x01) { return InitialBitOffset + 0; }
+		if (FieldMask == 0x02) { return InitialBitOffset + 1; }
+		if (FieldMask == 0x04) { return InitialBitOffset + 2; }
+		if (FieldMask == 0x08) { return InitialBitOffset + 3; }
+		if (FieldMask == 0x10) { return InitialBitOffset + 4; }
+		if (FieldMask == 0x20) { return InitialBitOffset + 5; }
+		if (FieldMask == 0x40) { return InitialBitOffset + 6; }
+		if (FieldMask == 0x80) { return InitialBitOffset + 7; }
 	}
 
 	return 0xFF;

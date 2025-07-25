@@ -307,6 +307,7 @@ class UEBoolProperty : public UEProperty
 
 public:
 	uint8 GetFieldMask() const;
+	uint8 GetByteOffset() const;
 	uint8 GetBitIndex() const;
 	bool IsNativeBool() const;
 

@@ -134,8 +134,8 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 		if (bIsBitField)
 		{
-			uint8 BitFieldIndex = Member.GetBitIndex();
-			uint8 BitSize = Member.GetBitCount();
+			const uint8 BitFieldIndex = Member.GetBitIndex();
+			const uint8 BitSize = Member.GetBitCount();
 
 			if (CurrentPropertyEnd > PrevPropertyEnd)
 				PrevBitPropertyEndBit = 0x0;
@@ -155,7 +155,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 			PrevBitPropertySize = MemberSize;
 			PrevBitPropertyOffset = MemberOffset;
 
-			PrevNumBitsInUnderlayingType = (MemberSize * 0x8);
+			PrevNumBitsInUnderlayingType = (MemberSize * 0x8ull);
 		}
 
 		bLastPropertyWasBitField = bIsBitField;
@@ -951,6 +951,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else if (Flags & EClassCastFlags::BoolProperty)
 	{
+		GetTypeFromSize(Member.GetPropertySize());
 		return Member.Cast<UEBoolProperty>().IsNativeBool() ? "bool" : "uint8";
 	}
 	else if (Flags & EClassCastFlags::StructProperty)
