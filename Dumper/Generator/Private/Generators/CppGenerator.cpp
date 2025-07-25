@@ -2904,9 +2904,10 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "UnderlayingType", .NameWithParams = "ClampAxis(UnderlayingType Angle)", .Body =
 R"({
-	Angle = std::fmod(Angle, (UnderlayingType)360.0);
-	if (Angle < (UnderlayingType)0)
-		Angle += (UnderlayingType)360.0;
+	Angle = std::fmod(Angle, static_cast<UnderlayingType>(360));
+	if (Angle < static_cast<UnderlayingType>(0))
+		Angle += static_cast<UnderlayingType>(360);
+
 	return Angle;
 })",
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
@@ -2916,8 +2917,9 @@ R"({
 			.ReturnType = "UnderlayingType", .NameWithParams = "NormalizeAxis(UnderlayingType Angle)", .Body =
 R"({
 	Angle = ClampAxis(Angle);
-	if (Angle > (UnderlayingType)180.0)
-		Angle -= (UnderlayingType)360.0;
+	if (Angle > static_cast<UnderlayingType>(180))
+		Angle -= static_cast<UnderlayingType>(360);
+
 	return Angle;
 })",
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
@@ -3001,6 +3003,7 @@ R"({
 			.ReturnType = "FRotator&", .NameWithParams = "operator+=(const FRotator& Other)", .Body =
 R"({
 	*this = *this + Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3010,6 +3013,7 @@ R"({
 			.ReturnType = "FRotator&", .NameWithParams = "operator-=(const FRotator& Other)", .Body =
 R"({
 	*this = *this - Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3019,6 +3023,7 @@ R"({
 			.ReturnType = "FRotator&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3028,6 +3033,7 @@ R"({
 			.ReturnType = "FRotator&", .NameWithParams = "operator*=(const FRotator& Other)", .Body =
 R"({
 	*this = *this * Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3037,6 +3043,7 @@ R"({
 			.ReturnType = "FRotator&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3046,6 +3053,7 @@ R"({
 			.ReturnType = "FRotator&", .NameWithParams = "operator/=(const FRotator& Other)", .Body =
 R"({
 	*this = *this / Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3058,6 +3066,7 @@ R"({
 R"({
 	FRotator rotator = *this;
 	rotator.Normalize();
+
 	return rotator;
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
@@ -3079,6 +3088,7 @@ R"({
 	Pitch = NormalizeAxis(Pitch);
 	Yaw = NormalizeAxis(Yaw);
 	Roll = NormalizeAxis(Roll);
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3090,6 +3100,7 @@ R"({
 	Pitch = ClampAxis(Pitch);
 	Yaw = ClampAxis(Yaw);
 	Roll = ClampAxis(Roll);
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
