@@ -78,7 +78,37 @@ void Off::InSDK::World::InitGWorld()
 			continue;
 
 		/* Try to find a pointer to the word, aka UWorld** GWorld */
-		void* Result = FindAlignedValueInProcess(Obj.GetAddress());
+		auto Results = FindAllAlignedValueInProcess(Obj.GetAddress());
+		void* Result = nullptr;
+		if (Results.size()) {
+			if (Results.size() == 1)
+			{
+				Result = Results[0];
+			}
+			else if (Results.size() == 2)
+			{
+				auto PossibleGWorld = (volatile uintptr_t*)Results[0];
+				auto CurrentValue = *PossibleGWorld;
+				for (int i = 0; CurrentValue == (uintptr_t)Obj.GetAddress() && i < 500; ++i)
+				{
+					::Sleep(1);
+					CurrentValue = *PossibleGWorld;
+				}
+				if (CurrentValue == (uintptr_t)Obj.GetAddress())
+				{
+					Result = Results[0];
+				}
+				else
+				{
+					Result = Results[1];
+					std::cerr << std::format("Filter GActiveLogWorld at {:x}\n\n", (uintptr_t)PossibleGWorld);
+				}
+			}
+			else
+			{
+				std::cerr << std::format("Detected {} GWorld \n\n", Results.size());
+			}
+		}
 
 		/* Pointer to UWorld* couldn't be found */
 		if (Result)
