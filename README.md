@@ -14,6 +14,9 @@ SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and
 KoFi: https://ko-fi.com/fischsalat \
 Patreon: https://patreon.com/user?u=119629245
 
+LTC (LTC-network): `LLtXWxDbc5H9d96VJF36ZpwVX6DkYGpTJU` \
+BTC (Bitcoin): `1DVDUMcotWzEG1tyd1FffyrYeu4YEh7spx`
+
 ## Overriding Offsets
 
 - ### Only override any offsets if the generator doesn't find them, or if they are incorrect
