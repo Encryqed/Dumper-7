@@ -66,6 +66,7 @@ FName::FName(const void* Ptr)
 
 void FName::Init(bool bForceGNames)
 {
+#if defined(_WIN64)
 	constexpr std::array<const char*, 6> PossibleSigs = 
 	{ 
 		"48 8D ? ? 48 8D ? ? E8",
@@ -75,15 +76,54 @@ void FName::Init(bool bForceGNames)
 		"48 8D ? ? 48 8B ? E8",
 		"48 8D ? ? ? 48 8B ? E8",
 	};
+#elif defined(_WIN32)
+	constexpr std::array<const char*, 1> PossibleSigs = 
+	{
+		"8D 44 24 ? 8D 4C 24 ? 50 E8",
+	};
+#endif
 
 	MemAddress StringRef = FindByStringInAllSections("ForwardShadingQuality_");
 
-	int i = 0;
-	while (!AppendString && i < PossibleSigs.size())
+	for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
 	{
-		AppendString = static_cast<void(*)(const void*, FString&)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1 /* auto */));
+		AppendString = static_cast<decltype(AppendString)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1/* auto */));
+	}
 
-		i++;
+	// Test if AppendString was inlined
+	if (!AppendString && !bForceGNames)
+	{
+		/*
+		* 0x0: E8 ? ? ? ?      call    FName::GetComparisonNameEntry
+		* 0x5: 48 8D ? ?       lea     rdx, [...]
+		* 0x9: 48 8B C8        mov     rcx, rax
+		* 0xD: E8 ? ? ? ?      call    FNameEntry::GetName
+		*/
+		if (MemAddress SigScanResult = StringRef.RelativePattern("E8 ? ? ? ? 48 8D ? ? ? 48 8B C8 E8 ? ? ? ?", 0x180))
+		{
+			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult));
+			AppendString = reinterpret_cast<decltype(AppendString)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0xD));
+
+			Off::InSDK::Name::GetNameEntryFromName = GetOffset(GetNameEntryFromName);
+			Off::InSDK::Name::bIsAppendStringInlinedAndUsed = true;
+
+			ToStr = [](const void* Name) -> std::wstring
+			{
+				thread_local FFreableString TempString(1024);
+
+				AppendString(GetNameEntryFromName(FName(Name).GetCompIdx()), TempString);
+
+				std::wstring OutputString = TempString.ToWString();
+				TempString.ResetNum();
+
+				const uint32 Number = FName(Name).GetNumber();
+
+				if (Number > 0)
+					return OutputString + L'_' + std::to_wstring(Number - 1);
+
+				return OutputString;
+			};
+		}
 	}
 
 	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? GetOffset(AppendString) : 0x0;
@@ -121,6 +161,9 @@ void FName::Init(bool bForceGNames)
 	NameArray::SetGNamesWithoutCommiting();
 
 	std::cerr << std::format("Found FName::{} at Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
+
+	if (ToStr)
+		return;
 
 	ToStr = [](const void* Name) -> std::wstring
 	{
@@ -160,7 +203,7 @@ void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bI
 		return;
 	}
 
-	AppendString = reinterpret_cast<void(*)(const void*, FString&)>(GetModuleBase(ModuleName) + OverrideOffset);
+	AppendString = reinterpret_cast<decltype(AppendString)>(GetModuleBase(ModuleName) + OverrideOffset);
 
 	Off::InSDK::Name::AppendNameToString = OverrideOffset;
 	Off::InSDK::Name::bIsUsingAppendStringOverToString = OverrideType == EOffsetOverrideType::AppendString;
@@ -196,7 +239,7 @@ void FName::InitFallback()
 	int i = 0;
 	while (!AppendString && i < PossibleSigs.size())
 	{
-		AppendString = static_cast<void(*)(const void*, FString&)>(Conv_NameToStringAddress.RelativePattern(PossibleSigs[i], 0x90, -1 /* auto */));
+		AppendString = static_cast<decltype(AppendString)>(Conv_NameToStringAddress.RelativePattern(PossibleSigs[i], 0x90, -1 /* auto */));
 
 		i++;
 	}

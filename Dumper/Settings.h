@@ -4,9 +4,17 @@
 
 #include "Unreal/Enums.h"
 
-
 namespace Settings
 {
+	constexpr bool Is32Bit()
+	{
+#if defined(_WIN64)
+		return false;
+#elif defined(_WIN32)
+		return true;
+#endif
+	}
+  
 	inline constexpr const char* GlobalConfigPath = "C:/Dumper-7/Dumper-7.ini";
 
 	namespace Config
@@ -19,8 +27,11 @@ namespace Settings
 
 	namespace EngineCore
 	{
-		/* A special setting to fix UEnum::Names where the type is sometimes TArray<FName> and sometimes TArray<TPair<FName, Some8ByteData>> */
-		constexpr bool bCheckEnumNamesInUEnum = false;
+		/* A special setting to fix UEnum::Names where the type is sometimes TArray<FName> and sometimes TArray<TPair<FName, Some8BitData>> */
+		constexpr bool bCheckEnumNamesInUEnum = true;
+
+		/* Enables support for TEncryptedObjectProperty */
+		constexpr bool bEnableEncryptedObjectPropertySupport = false;
 	}
 
 	namespace Generator
@@ -112,7 +123,7 @@ R"(
 		/* Whether this games' engine version uses FProperty rather than UProperty */
 		inline bool bUseFProperty = false;
 
-		/* Whether this games' engine version uses FNamePool rather than TNameEntryArray */
+		/* Whether this game's engine version uses FNamePool rather than TNameEntryArray */
 		inline bool bUseNamePool = false;
 
 		/* Whether UObject::Name or UObject::Class is first. Affects the calculation of the size of FName in fixup code. Not used after Off::Init(); */
@@ -124,11 +135,22 @@ R"(
 		/* Whether this games uses FNameOutlineNumber, moving the 'Number' component from FName into FNameEntry inside of FNamePool */
 		inline bool bUseOutlineNumberName = false;
 
+		/* Whether this game uses the 'FFieldPathProperty' cast flags for a custom property 'FObjectPtrProperty' */
+		inline bool bIsObjPtrInsteadOfFieldPathProperty = false;
 
 		/* Whether this games' engine version uses a contexpr flag to determine whether a FFieldVariant holds a UObject* or FField* */
 		inline bool bUseMaskForFieldOwner = false;
 
 		/* Whether this games' engine version uses double for FVector, instead of float. Aka, whether the engine version is UE5.0 or higher. */
 		inline bool bUseLargeWorldCoordinates = false;
+
+		/* Whether this game uses uint8 for UEProperty::ArrayDim, instead of int32 */
+		inline bool bUseUint8ArrayDim = false;
 	}
+
+	extern void InitWeakObjectPtrSettings();
+	extern void InitLargeWorldCoordinateSettings();
+
+	extern void InitObjectPtrPropertySettings();
+	extern void InitArrayDimSizeSettings();
 }

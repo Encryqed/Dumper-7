@@ -1,6 +1,5 @@
 #include "Managers/DependencyManager.h"
 
-
 DependencyManager::DependencyManager(int32 ObjectToTrack)
 {
 	AllDependencies.try_emplace(ObjectToTrack, IndexDependencyInfo{ });

@@ -96,8 +96,40 @@ namespace ASMUtils
 		/* Same as in Resolve32BitRIPRelativeJump, but instead of a jump we resolve a relative lea */
 		return ((Address + 7) + *reinterpret_cast<int32_t*>(Address + 3));
 	}
-}
 
+	inline uintptr_t Resolve32BitRelativePush(uintptr_t Address)
+	{
+		/*
+		* 68 A0 F8 A6 02		push offset aForwardshading
+		*
+		* 68 <-- Information on the instruction [push, immediate, 32-bit address]
+		* A0 F8 A6 02 <-- 4-byte immediate value representing the address being pushed (little-endian)
+		* The address being pushed is the 4-byte value at Address + 1.
+		*/
+		return *reinterpret_cast<int32_t*>(Address + 1);
+	}
+
+	inline uintptr_t Resolve32bitAbsoluteCall(uintptr_t Address)
+	{
+		/*
+		* FF 15 14 93 63 02    call    ds:EnterCriticalSection
+		* FF 15 <-- Information on the instruction [call, absolute, 32-bit address]
+		* 14 93 63 02 <-- 4-byte absolute address (little-endian)
+		*/
+		return *reinterpret_cast<int32_t*>(Address + 2);
+	}
+
+	inline uintptr_t Resolve32bitAbsoluteMove(uintptr_t Address)
+	{
+		/*
+		* 8B 3D A8 C5 1B 03    mov     edi, dword_31BC5A8
+		*
+		* 8B 3D <-- Information on the instruction [mov, absolute, 32-bit address to register]
+		* A8 C5 1B 03 <-- 4-byte absolute address of the memory operand (little-endian)
+		*/
+		return *reinterpret_cast<int32_t*>(Address + 2);
+	}
+}
 
 struct CLIENT_ID
 {
@@ -119,14 +151,12 @@ struct PEB_LDR_DATA
 {
 	ULONG Length;
 	BOOLEAN Initialized;
-	BYTE MoreFunnyPadding[0x3];
 	HANDLE SsHandle;
 	LIST_ENTRY InLoadOrderModuleList;
 	LIST_ENTRY InMemoryOrderModuleList;
 	LIST_ENTRY InInitializationOrderModuleList;
 	PVOID EntryInProgress;
 	BOOLEAN ShutdownInProgress;
-	BYTE MoreFunnyPadding2[0x7];
 	HANDLE ShutdownThreadId;
 };
 
@@ -150,7 +180,6 @@ struct PEB
 			BOOLEAN SpareBits : 1;
 		};
 	};
-	BYTE ManuallyAddedPaddingCauseTheCompilerIsStupid[0x4]; // It doesn't 0x8 byte align the pointers properly 
 	HANDLE Mutant;
 	PVOID ImageBaseAddress;
 	PEB_LDR_DATA* Ldr;
@@ -160,7 +189,6 @@ struct UNICODE_STRING
 {
 	USHORT Length;
 	USHORT MaximumLength;
-	BYTE MoreStupidCompilerPaddingYay[0x4];
 	PWCH Buffer;
 };
 
@@ -176,14 +204,17 @@ struct LDR_DATA_TABLE_ENTRY
 	PVOID DllBase;
 	PVOID EntryPoint;
 	ULONG SizeOfImage;
-	BYTE MoreStupidCompilerPaddingYay[0x4];
 	UNICODE_STRING FullDllName;
 	UNICODE_STRING BaseDllName;
 }; 
 
 inline _TEB* _NtCurrentTeb()
 {
+#if defined(_WIN64)
 	return reinterpret_cast<struct _TEB*>(__readgsqword(((LONG)__builtin_offsetof(NT_TIB, Self))));
+#elif defined(_WIN32)
+	return reinterpret_cast<struct _TEB*>(__readfsdword(((LONG)__builtin_offsetof(NT_TIB, Self))));
+#endif // _WIN32
 }
 
 inline PEB* GetPEB()
@@ -223,12 +254,12 @@ inline uintptr_t GetModuleBase(const char* const ModuleName = nullptr)
 inline std::pair<uintptr_t, uintptr_t> GetImageBaseAndSize(const char* const ModuleName = nullptr)
 {
 	uintptr_t ImageBase = GetModuleBase(ModuleName);
-	PIMAGE_NT_HEADERS NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase)->e_lfanew);
+	const PIMAGE_NT_HEADERS NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase)->e_lfanew);
 
 	return { ImageBase, NtHeader->OptionalHeader.SizeOfImage };
 }
 
-/* Returns the base address of th section and it's size */
+/* Returns the base address of the section and it's size */
 inline std::pair<uintptr_t, DWORD> GetSectionByName(uintptr_t ImageBase, const std::string& ReqestedSectionName)
 {
 	if (ImageBase == 0)
@@ -236,6 +267,9 @@ inline std::pair<uintptr_t, DWORD> GetSectionByName(uintptr_t ImageBase, const s
 
 	const PIMAGE_DOS_HEADER DosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(ImageBase);
 	const PIMAGE_NT_HEADERS NtHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(ImageBase + DosHeader->e_lfanew);
+
+	if (NtHeaders->Signature != IMAGE_NT_SIGNATURE)
+		return { NULL, 0 };
 
 	PIMAGE_SECTION_HEADER Sections = IMAGE_FIRST_SECTION(NtHeaders);
 
@@ -309,10 +343,14 @@ inline bool IsInProcessRange(const void* Address)
 {
 	return IsInProcessRange(reinterpret_cast<const uintptr_t>(Address));
 }
+
 inline bool IsBadReadPtr(const void* Ptr)
 {
-	if(!IsValidVirtualAddress(reinterpret_cast<const uintptr_t>(Ptr)))
+#if defined(_WIN64)
+	// we only really do this on x86_64 ^^
+	if (!IsValidVirtualAddress(reinterpret_cast<const uintptr_t>(Ptr)))
 		return true;
+#endif // _WIN64
 
 	MEMORY_BASIC_INFORMATION Mbi;
 
@@ -891,57 +929,14 @@ public:
 	}
 };
 
-template<typename Type = const char*>
-inline MemAddress FindByString(Type RefStr)
+inline bool IsReadableAddress(uintptr_t Address)
 {
-	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
+	MEMORY_BASIC_INFORMATION MemoryBasicInformation{};
 
-	uintptr_t SearchStart = ImageBase;
-	uintptr_t SearchRange = ImageSize;
+	if (VirtualQuery(reinterpret_cast<LPCVOID>(Address), &MemoryBasicInformation, sizeof(MemoryBasicInformation)))
+		return (MemoryBasicInformation.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_EXECUTE_READWRITE));
 
-	const auto [RDataSection, RDataSize] = GetSectionByName(ImageBase, ".rdata");
-	const auto [TextSection, TextSize] = GetSectionByName(ImageBase, ".text");
-	
-	if (!RDataSection || !TextSection)
-		return nullptr;
-
-	uintptr_t StringAddress = NULL;
-
-	const auto RetfStrLength = StrlenHelper(RefStr);
-
-	for (int i = 0; i < RDataSize; i++)
-	{
-		if (StrnCmpHelper(RefStr, reinterpret_cast<Type>(RDataSection + i), RetfStrLength) == 0)
-		{
-			StringAddress = RDataSection + i;
-			break;
-		}
-	}
-
-	if (!StringAddress)
-		return nullptr;
-
-	for (int i = 0; i < TextSize; i++)
-	{
-		// opcode: lea
-		const uint8_t CurrentByte = *reinterpret_cast<const uint8_t*>(TextSection + i);
-		const uint8_t NextByte    = *reinterpret_cast<const uint8_t*>(TextSection + i + 0x1);
-
-		if ((CurrentByte == 0x4C || CurrentByte == 0x48) && NextByte == 0x8D)
-		{
-			const uintptr_t StrPtr = ASMUtils::Resolve32BitRelativeLea(TextSection + i);
-
-			if (StrPtr == StringAddress)
-				return { TextSection + i };
-		}
-	}
-
-	return nullptr;
-}
-
-inline MemAddress FindByWString(const wchar_t* RefStr)
-{
-	return FindByString<const wchar_t*>(RefStr);
+	return false;
 }
 
 /* Slower than FindByString */
@@ -975,6 +970,7 @@ inline MemAddress FindByStringInAllSections(const CharType* RefStr, uintptr_t St
 
 	for (uintptr_t i = 0; i < SearchRange; i++)
 	{
+#if defined(_WIN64)
 		// opcode: lea
 		if ((SearchStart[i] == uint8_t(0x4C) || SearchStart[i] == uint8_t(0x48)) && SearchStart[i + 1] == uint8_t(0x8D))
 		{
@@ -997,6 +993,24 @@ inline MemAddress FindByStringInAllSections(const CharType* RefStr, uintptr_t St
 					return { SearchStart + i };
 			}
 		}
+#elif defined(_WIN32)
+		// opcode: push
+		if ((SearchStart[i] == uint8_t(0x68)))
+		{
+			const uintptr_t StrPtr = ASMUtils::Resolve32BitRelativePush(reinterpret_cast<uintptr_t>(SearchStart + i));
+
+			if (!IsInProcessRange(StrPtr))
+				continue;
+
+			if (!IsReadableAddress(StrPtr))
+				continue;
+
+			if (StrnCmpHelper(RefStr, reinterpret_cast<const CharType*>(StrPtr), RefStrLen))
+			{
+				return { SearchStart + i };
+			}
+		}
+#endif
 	}
 
 	return nullptr;
@@ -1056,7 +1070,7 @@ inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress
 		{
 			if (wcsncmp(reinterpret_cast<const wchar_t*>(RefStr), reinterpret_cast<const wchar_t*>(PossibleStringAddress), RefStrLen) == 0 && IsValidExecFunctionNotSetupFunc(PossibleExecFuncAddress))
 			{
-				// std::wcout << L"FoundStr wref: " << reinterpret_cast<const wchar_t*>(PossibleStringAddress) << L"\n";
+				// std::wcerr << L"FoundStr wref: " << reinterpret_cast<const wchar_t*>(PossibleStringAddress) << L"\n";
 
 				return { PossibleExecFuncAddress };
 			}
