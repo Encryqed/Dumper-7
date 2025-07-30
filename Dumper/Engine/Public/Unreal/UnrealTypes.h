@@ -83,6 +83,9 @@ private:
 	inline static void(__thiscall* AppendString)(const void*, FString&) = nullptr;
 #endif
 
+	// Fallback when AppendString was inlined as a combination of 'FNameEntry* FName::GetNameEntry()' and 'void FNameEntry::GetPlainNameString(FString& OutStr)'.
+	inline static const void* (*GetNameEntryFromName)(uint32 ComparisonIndex) = nullptr;
+
 	inline static std::wstring(*ToStr)(const void* Name) = nullptr;
 
 private:

@@ -67,13 +67,13 @@ FName::FName(const void* Ptr)
 void FName::Init(bool bForceGNames)
 {
 #if defined(_WIN64)
-	constexpr std::array<const char*, 5> PossibleSigs = 
+	constexpr std::array<const char*, 6> PossibleSigs = 
 	{ 
 		"48 8D ? ? 48 8D ? ? E8",
 		"48 8D ? ? ? 48 8D ? ? E8",
 		"48 8D ? ? 49 8B ? E8",
 		"48 8D ? ? ? 49 8B ? E8",
-		"48 8D ? ? 48 8B ? E8"
+		"48 8D ? ? 48 8B ? E8",
 		"48 8D ? ? ? 48 8B ? E8",
 	};
 #elif defined(_WIN32)
@@ -88,6 +88,42 @@ void FName::Init(bool bForceGNames)
 	for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
 	{
 		AppendString = static_cast<decltype(AppendString)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1/* auto */));
+	}
+
+	// Test if AppendString was inlined
+	if (!AppendString && !bForceGNames)
+	{
+		/*
+		* 0x0: E8 ? ? ? ?      call    FName::GetComparisonNameEntry
+		* 0x5: 48 8D ? ?       lea     rdx, [...]
+		* 0x9: 48 8B C8        mov     rcx, rax
+		* 0xD: E8 ? ? ? ?      call    FNameEntry::GetName
+		*/
+		if (MemAddress SigScanResult = StringRef.RelativePattern("E8 ? ? ? ? 48 8D ? ? ? 48 8B C8 E8 ? ? ? ?", 0x180))
+		{
+			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult));
+			AppendString = reinterpret_cast<decltype(AppendString)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0xD));
+
+			Off::InSDK::Name::GetNameEntryFromName = GetOffset(GetNameEntryFromName);
+			Off::InSDK::Name::bIsAppendStringInlinedAndUsed = true;
+
+			ToStr = [](const void* Name) -> std::wstring
+			{
+				thread_local FFreableString TempString(1024);
+
+				AppendString(GetNameEntryFromName(FName(Name).GetCompIdx()), TempString);
+
+				std::wstring OutputString = TempString.ToWString();
+				TempString.ResetNum();
+
+				const uint32 Number = FName(Name).GetNumber();
+
+				if (Number > 0)
+					return OutputString + L'_' + std::to_wstring(Number - 1);
+
+				return OutputString;
+			};
+		}
 	}
 
 	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? GetOffset(AppendString) : 0x0;
@@ -125,6 +161,9 @@ void FName::Init(bool bForceGNames)
 	NameArray::SetGNamesWithoutCommiting();
 
 	std::cerr << std::format("Found FName::{} at Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
+
+	if (ToStr)
+		return;
 
 	ToStr = [](const void* Name) -> std::wstring
 	{

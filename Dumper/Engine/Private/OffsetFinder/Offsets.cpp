@@ -240,14 +240,13 @@ void Off::Init()
 
 	OverwriteIfInvalidOffset(Off::UObject::Outer, (Off::UObject::Name + sizeof(int32) + sizeof(int32)));  // Default to right after Name
 
-	
 	OffsetFinder::InitFNameSettings();
 
 	::NameArray::PostInit();
 
 	// Castflags needs to stay here since the FindChildOffset() uses CastFlags
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
-	std::cout << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
+	std::cerr << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
 
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cerr << std::format("Off::UStruct::Children: 0x{:X}\n", Off::UStruct::Children);

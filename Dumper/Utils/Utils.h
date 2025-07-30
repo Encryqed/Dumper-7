@@ -1070,7 +1070,7 @@ inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress
 		{
 			if (wcsncmp(reinterpret_cast<const wchar_t*>(RefStr), reinterpret_cast<const wchar_t*>(PossibleStringAddress), RefStrLen) == 0 && IsValidExecFunctionNotSetupFunc(PossibleExecFuncAddress))
 			{
-				// std::wcout << L"FoundStr wref: " << reinterpret_cast<const wchar_t*>(PossibleStringAddress) << L"\n";
+				// std::wcerr << L"FoundStr wref: " << reinterpret_cast<const wchar_t*>(PossibleStringAddress) << L"\n";
 
 				return { PossibleExecFuncAddress };
 			}

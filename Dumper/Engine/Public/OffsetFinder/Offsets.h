@@ -64,7 +64,9 @@ namespace Off
 		{
 			/* Whether we're using FName::AppendString or, in an edge case, FName::ToString */
 			inline bool bIsUsingAppendStringOverToString = true;
+			inline bool bIsAppendStringInlinedAndUsed = false;
 			inline int32 AppendNameToString;
+			inline int32 GetNameEntryFromName;
 			inline int32 FNameSize;
 		}
 

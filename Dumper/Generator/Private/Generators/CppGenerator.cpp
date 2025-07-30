@@ -2946,6 +2946,11 @@ using namespace UC;
 
 	BasicHpp << "\n#include \"../NameCollisions.inl\"\n";
 
+	std::string GetNameEntryFromNameOffsetText;
+
+	if (Off::InSDK::Name::bIsAppendStringInlinedAndUsed)
+		GetNameEntryFromNameOffsetText = std::format("\n	constexpr int32 GetNameEntry      = 0x{:08X};", Off::InSDK::Name::GetNameEntryFromName);
+
 	/* Offsets and disclaimer */
 	BasicHpp << std::format(R"(
 /*
@@ -2956,14 +2961,19 @@ using namespace UC;
 namespace Offsets
 {{
 	constexpr int32 GObjects          = 0x{:08X};
-	constexpr int32 AppendString      = 0x{:08X};
+	constexpr int32 AppendString      = 0x{:08X};{}
 	constexpr int32 GNames            = 0x{:08X};
 	constexpr int32 GWorld            = 0x{:08X};
 	constexpr int32 ProcessEvent      = 0x{:08X};
 	constexpr int32 ProcessEventIdx   = 0x{:08X};
 }}
-)", Off::InSDK::ObjArray::GObjects, Off::InSDK::Name::AppendNameToString, Off::InSDK::NameArray::GNames, Off::InSDK::World::GWorld, Off::InSDK::ProcessEvent::PEOffset, Off::InSDK::ProcessEvent::PEIndex);
-
+)", Off::InSDK::ObjArray::GObjects,
+	Off::InSDK::Name::AppendNameToString,
+	GetNameEntryFromNameOffsetText,
+	Off::InSDK::NameArray::GNames,
+	Off::InSDK::World::GWorld,
+	Off::InSDK::ProcessEvent::PEOffset,
+	Off::InSDK::ProcessEvent::PEIndex);
 
 
 	// Start Namespace 'InSDKUtils'
@@ -3839,6 +3849,17 @@ R"({
 		},
 	};
 
+	if (Off::InSDK::Name::bIsAppendStringInlinedAndUsed)
+	{
+		FName.Properties.push_back(
+			PredefinedMember{
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "inline void*", .Name = "GetNameEntryFromName", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = 0x4,
+			.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF, .DefaultValue = "nullptr"
+			}
+		);
+	}
+
 	/* Add an error message to FName if ToString is used */
 	if (!Off::InSDK::Name::bIsUsingAppendStringOverToString)
 	{
@@ -3921,6 +3942,26 @@ R"({
 }}
 )", Settings::Is32Bit() ? "__thiscall" : "");
 
+	constexpr const char* GetRawStringWithInlinedAppendString =
+		R"({
+	thread_local FAllocatedString TempString(1024);
+
+	if (!AppendString)
+		InitInternal();
+
+	const void* NameEntry = InSDKUtils::CallGameFunction(reinterpret_cast<const void*(*)(uint32 CmpIdx)>(GetNameEntryFromName), ComparisonIndex);
+	InSDKUtils::CallGameFunction(reinterpret_cast<void(*)(const void*, FString&)>(AppendString), NameEntry, TempString);
+
+	std::string OutputString = TempString.ToString();
+	TempString.Clear();
+
+	if (Number > 0)
+		OutputString += ("_" + std::to_string(Number - 1));
+
+	return OutputString;
+}
+)";
+
 	constexpr const char* GetRawStringWithNameArray =
 		R"({
 	if (!GNames)
@@ -3954,7 +3995,20 @@ R"({
 }
 )";
 
-	std::string GetRawStringBody = Off::InSDK::Name::AppendNameToString == 0 ? Settings::Internal::bUseOutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray : GetRawStringWithAppendString;
+	std::string GetRawStringBody;
+	if (Off::InSDK::Name::AppendNameToString == 0)
+	{
+		GetRawStringBody = Settings::Internal::bUseOutlineNumberName ? GetRawStringWithNameArrayWithOutlineNumber : GetRawStringWithNameArray;
+	}
+	else
+	{
+		GetRawStringBody = Off::InSDK::Name::bIsAppendStringInlinedAndUsed ? GetRawStringWithInlinedAppendString : GetRawStringWithAppendString;
+	}
+
+	std::string GetNameEntryInitializationCode;
+
+	if (Off::InSDK::Name::bIsAppendStringInlinedAndUsed)
+		GetNameEntryInitializationCode = "\n\tGetNameEntryFromName = reinterpret_cast<void*>(InSDKUtils::GetImageBase() + Offsets::GetNameEntry);";
 
 	FName.Functions =
 	{
@@ -3962,8 +4016,8 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "void", .NameWithParams = "InitInternal()", .Body =
 std::format(R"({{
-	{0} = {2}reinterpret_cast<{1}{2}>(InSDKUtils::GetImageBase() + Offsets::{0});
-}})", NameArrayName, NameArrayType, (Off::InSDK::Name::AppendNameToString == 0 && !Settings::Internal::bUseNamePool ? "*" : "")),
+	{0} = {2}reinterpret_cast<{1}{2}>(InSDKUtils::GetImageBase() + Offsets::{0});{3}
+}})", NameArrayName, NameArrayType, (Off::InSDK::Name::AppendNameToString == 0 && !Settings::Internal::bUseNamePool ? "*" : ""), GetNameEntryInitializationCode),
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
 		},
 		PredefinedFunction {
