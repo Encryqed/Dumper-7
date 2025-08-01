@@ -90,7 +90,7 @@ void Off::InSDK::World::InitGWorld()
 				auto ObjAddress = reinterpret_cast<uintptr_t>(Obj.GetAddress());
 				auto PossibleGWorld = reinterpret_cast<volatile uintptr_t*>(Results[0]);
 				auto CurrentValue = *PossibleGWorld;
-				for (int i = 0; CurrentValue == ObjAddress && i < 500; ++i)
+				for (int i = 0; CurrentValue == ObjAddress && i < 50; ++i)
 				{
 					::Sleep(1);
 					CurrentValue = *PossibleGWorld;
