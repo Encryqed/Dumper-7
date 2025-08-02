@@ -305,7 +305,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	const bool bIsConstFunc = Func.IsConst() && !Func.IsStatic();
 
 	// Function declaration and inline-body generation
-	InHeaderFunctionText += std::format("\t{}{}{} {}{}", TemplateText, (Func.IsStatic() ? "static " : ""), FuncInfo.RetType, FuncInfo.FuncNameWithParams, bIsConstFunc ? " const" : "");
+	InHeaderFunctionText += std::format("\t{}{}{}{}{}{}", TemplateText, (Func.IsStatic() ? "static " : ""), FuncInfo.RetType, (FuncInfo.RetType.empty() ? "" : " "), FuncInfo.FuncNameWithParams, bIsConstFunc ? " const" : "");
 	InHeaderFunctionText += (bHasInlineBody ? ("\n\t" + Func.GetPredefFunctionInlineBody()) : ";") + "\n";
 
 	if (bHasInlineBody)
@@ -318,12 +318,13 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 		FunctionFile << std::format(R"(
 // Predefined Function
 {}
-{} {}::{}{}
+{}{}{}::{}{}
 {}
 
 )"
 , !CustomComment.empty() ? ("// " + CustomComment + '\n') : ""
 , Func.GetPredefFuncReturnType()
+, Func.GetPredefFuncReturnType().empty() ? "" : " "
 , StructName
 , Func.GetPredefFuncNameWithParamsForCppFile()
 , bIsConstFunc ? " const" : ""
@@ -2518,6 +2519,24 @@ std::format(R"({{{}
 
 	FVectorPredefs.Functions =
 	{
+		/* constructors */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FVector(UnderlayingType X = 0, UnderlayingType Y = 0, UnderlayingType Z = 0)", .Body =
+R"(	: X(X), Y(Y), Z(Z)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FVector(const FVector& other)", .Body =
+R"(	: X(other.X), Y(other.Y), Z(other.Z)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+
 		/* const operators */
 		PredefinedFunction {
 			.CustomComment = "",
@@ -2593,9 +2612,22 @@ R"({
 		/* Non-const operators */
 		PredefinedFunction {
 			.CustomComment = "",
+			.ReturnType = "FVector&", .NameWithParams = "operator=(const FVector& other)", .Body =
+R"({
+	X = other.X;
+	Y = other.Y;
+	Z = other.Z;
+
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
 			.ReturnType = "FVector&", .NameWithParams = "operator+=(const FVector& Other)", .Body =
 R"({
 	*this = *this + Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2605,6 +2637,7 @@ R"({
 			.ReturnType = "FVector&", .NameWithParams = "operator-=(const FVector& Other)", .Body =
 R"({
 	*this = *this - Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2614,6 +2647,7 @@ R"({
 			.ReturnType = "FVector&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2623,6 +2657,7 @@ R"({
 			.ReturnType = "FVector&", .NameWithParams = "operator*=(const FVector& Other)", .Body =
 R"({
 	*this = *this * Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2632,6 +2667,7 @@ R"({
 			.ReturnType = "FVector&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2641,6 +2677,7 @@ R"({
 			.ReturnType = "FVector&", .NameWithParams = "operator/=(const FVector& Other)", .Body =
 R"({
 	*this = *this / Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2684,6 +2721,7 @@ R"({
 			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceTo(const FVector& Other)", .Body =
 R"({
 	FVector DiffVector = Other - *this;
+
 	return DiffVector.Magnitude();
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
@@ -2704,6 +2742,7 @@ R"({
 			.ReturnType = "FVector&", .NameWithParams = "Normalize()", .Body =
 R"({
 	*this /= Magnitude();
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2723,6 +2762,24 @@ R"({
 
 	FVector2DPredefs.Functions =
 	{
+		/* constructors */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FVector2D(UnderlayingType X = 0, UnderlayingType Y = 0)", .Body =
+R"(	: X(X), Y(Y)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FVector2D(const FVector2D& other)", .Body =
+R"(	: X(other.X), Y(other.Y)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+
 		/* const operators */
 		PredefinedFunction {
 			.CustomComment = "",
@@ -2798,9 +2855,21 @@ R"({
 		/* Non-const operators */
 		PredefinedFunction {
 			.CustomComment = "",
+			.ReturnType = "FVector2D&", .NameWithParams = "operator=(const FVector2D& other)", .Body =
+R"({
+	X = other.X;
+	Y = other.Y;
+
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
 			.ReturnType = "FVector2D&", .NameWithParams = "operator+=(const FVector2D& Other)", .Body =
 R"({
 	*this = *this + Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2810,6 +2879,7 @@ R"({
 			.ReturnType = "FVector2D&", .NameWithParams = "operator-=(const FVector2D& Other)", .Body =
 R"({
 	*this = *this - Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2819,6 +2889,7 @@ R"({
 			.ReturnType = "FVector2D&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2828,6 +2899,7 @@ R"({
 			.ReturnType = "FVector2D&", .NameWithParams = "operator*=(const FVector2D& Other)", .Body =
 R"({
 	*this = *this * Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2837,6 +2909,7 @@ R"({
 			.ReturnType = "FVector2D&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2846,6 +2919,7 @@ R"({
 			.ReturnType = "FVector2D&", .NameWithParams = "operator/=(const FVector2D& Other)", .Body =
 R"({
 	*this = *this / Other;
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2889,6 +2963,7 @@ R"({
 			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceTo(const FVector2D& Other)", .Body =
 R"({
 	FVector2D DiffVector = Other - *this;
+
 	return DiffVector.Magnitude();
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
@@ -2901,6 +2976,7 @@ R"({
 			.ReturnType = "FVector2D&", .NameWithParams = "Normalize()", .Body =
 R"({
 	*this /= Magnitude();
+
 	return *this;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2921,6 +2997,24 @@ R"({
 
 	FRotatorPredefs.Functions =
 	{
+		/* constructors */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FRotator(UnderlayingType Pitch = 0, UnderlayingType Yaw = 0, UnderlayingType Roll = 0)", .Body =
+R"(	: Pitch(Pitch), Yaw(Yaw), Roll(Roll)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FRotator(const FRotator& other)", .Body =
+R"(	: Pitch(other.Pitch), Yaw(other.Yaw), Roll(other.Roll)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		
 		/* static functions */
 		PredefinedFunction {
 			.CustomComment = "",
@@ -3020,6 +3114,18 @@ R"({
 		},
 
 		/* Non-const operators */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "FRotator&", .NameWithParams = "operator=(const FRotator& other)", .Body =
+R"({
+	Pitch = other.Pitch;
+	Yaw = other.Yaw;
+	Roll = other.Roll;
+
+	return *this;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
 		PredefinedFunction {
 			.CustomComment = "",
 			.ReturnType = "FRotator&", .NameWithParams = "operator+=(const FRotator& Other)", .Body =
