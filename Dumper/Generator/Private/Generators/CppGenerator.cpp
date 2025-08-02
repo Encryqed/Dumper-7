@@ -2522,7 +2522,7 @@ std::format(R"({{{}
 		/* constructors */
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "", .NameWithParams = "FVector(UnderlayingType X = 0, UnderlayingType Y = 0, UnderlayingType Z = 0)", .Body =
+			.ReturnType = "constexpr", .NameWithParams = "FVector(UnderlayingType X = 0, UnderlayingType Y = 0, UnderlayingType Z = 0)", .Body =
 R"(	: X(X), Y(Y), Z(Z)
 {
 })",
@@ -2530,7 +2530,7 @@ R"(	: X(X), Y(Y), Z(Z)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "", .NameWithParams = "FVector(const FVector& other)", .Body =
+			.ReturnType = "constexpr", .NameWithParams = "FVector(const FVector& other)", .Body =
 R"(	: X(other.X), Y(other.Y), Z(other.Z)
 {
 })",
@@ -2765,7 +2765,7 @@ R"({
 		/* constructors */
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "", .NameWithParams = "FVector2D(UnderlayingType X = 0, UnderlayingType Y = 0)", .Body =
+			.ReturnType = "constexpr", .NameWithParams = "FVector2D(UnderlayingType X = 0, UnderlayingType Y = 0)", .Body =
 R"(	: X(X), Y(Y)
 {
 })",
@@ -2773,7 +2773,7 @@ R"(	: X(X), Y(Y)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "", .NameWithParams = "FVector2D(const FVector2D& other)", .Body =
+			.ReturnType = "constexpr", .NameWithParams = "FVector2D(const FVector2D& other)", .Body =
 R"(	: X(other.X), Y(other.Y)
 {
 })",
@@ -3000,7 +3000,7 @@ R"({
 		/* constructors */
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "", .NameWithParams = "FRotator(UnderlayingType Pitch = 0, UnderlayingType Yaw = 0, UnderlayingType Roll = 0)", .Body =
+			.ReturnType = "constexpr", .NameWithParams = "FRotator(UnderlayingType Pitch = 0, UnderlayingType Yaw = 0, UnderlayingType Roll = 0)", .Body =
 R"(	: Pitch(Pitch), Yaw(Yaw), Roll(Roll)
 {
 })",
@@ -3008,7 +3008,7 @@ R"(	: Pitch(Pitch), Yaw(Yaw), Roll(Roll)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "", .NameWithParams = "FRotator(const FRotator& other)", .Body =
+			.ReturnType = "constexpr", .NameWithParams = "FRotator(const FRotator& other)", .Body =
 R"(	: Pitch(other.Pitch), Yaw(other.Yaw), Roll(other.Roll)
 {
 })",
