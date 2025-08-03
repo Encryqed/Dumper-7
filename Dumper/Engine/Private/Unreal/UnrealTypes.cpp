@@ -109,7 +109,7 @@ void FName::Init(bool bForceGNames)
 		*/
 		if (MemAddress SigScanResult = StringRef.RelativePattern("8B ? ? E8 ? ? ? ? 48 8D ? ? ? 48 8B C8 E8 ? ? ? ?", 0x180))
 		{
-			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult));
+			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0x3));
 			AppendString = reinterpret_cast<decltype(AppendString)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0x10));
 
 			Off::InSDK::Name::GetNameEntryFromName = GetOffset(GetNameEntryFromName);
