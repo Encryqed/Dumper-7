@@ -95,7 +95,7 @@ void FName::Init(bool bForceGNames)
 	}
 
 	// This signature partially overlaps with the signature for an inlined FName::AppendString call (see comment below)
-	const bool bFoundPotentiallyOverlappingSig = MatchingSig && strcmp(MatchingSig, "48 8D ? ? 48 8B ? E8") == 0;
+	const bool bFoundPotentiallyOverlappingSig = MatchingSig && strcmp(MatchingSig, "48 8D ? ? ? 48 8B ? E8") == 0;
 
 	// Test if AppendString was inlined
 	if ((!AppendString || bFoundPotentiallyOverlappingSig) && !bForceGNames)
