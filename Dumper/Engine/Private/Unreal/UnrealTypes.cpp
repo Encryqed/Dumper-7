@@ -84,25 +84,33 @@ void FName::Init(bool bForceGNames)
 #endif
 
 	MemAddress StringRef = FindByStringInAllSections("ForwardShadingQuality_");
+	const char* MatchingSig = nullptr;
 
 	for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
 	{
 		AppendString = static_cast<decltype(AppendString)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1/* auto */));
+
+		if (AppendString)
+			MatchingSig = PossibleSigs[i];
 	}
 
+	// This signature partially overlaps with the signature for an inlined FName::AppendString call (see comment below)
+	const bool bFoundPotentiallyOverlappingSig = MatchingSig && strcmp(MatchingSig, "48 8D ? ? 48 8B ? E8") == 0;
+
 	// Test if AppendString was inlined
-	if (!AppendString && !bForceGNames)
+	if ((!AppendString || bFoundPotentiallyOverlappingSig) && !bForceGNames)
 	{
 		/*
-		* 0x0: E8 ? ? ? ?      call    FName::GetComparisonNameEntry
-		* 0x5: 48 8D ? ?       lea     rdx, [...]
-		* 0x9: 48 8B C8        mov     rcx, rax
-		* 0xD: E8 ? ? ? ?      call    FNameEntry::GetName
+		* 0x00: 8B ? ?          mov     ecx, [...]
+		* 0x03: E8 ? ? ? ?      call    FName::GetComparisonNameEntry
+		* 0x08: 48 8D ? ?       lea     rdx, [...]
+		* 0x0B: 48 8B C8        mov     rcx, rax
+		* 0x10: E8 ? ? ? ?      call    FNameEntry::GetName
 		*/
-		if (MemAddress SigScanResult = StringRef.RelativePattern("E8 ? ? ? ? 48 8D ? ? ? 48 8B C8 E8 ? ? ? ?", 0x180))
+		if (MemAddress SigScanResult = StringRef.RelativePattern("8B ? ? E8 ? ? ? ? 48 8D ? ? ? 48 8B C8 E8 ? ? ? ?", 0x180))
 		{
 			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult));
-			AppendString = reinterpret_cast<decltype(AppendString)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0xD));
+			AppendString = reinterpret_cast<decltype(AppendString)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0x10));
 
 			Off::InSDK::Name::GetNameEntryFromName = GetOffset(GetNameEntryFromName);
 			Off::InSDK::Name::bIsAppendStringInlinedAndUsed = true;
