@@ -441,7 +441,7 @@ int32_t OffsetFinder::FindFFieldNameOffset()
 
 	auto IsOffsetValidPtr = [](UEFField Field, int32 Offset) -> bool
 	{
-		return !IsBadReadPtr(*reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(Field.GetAddress()) + Offset));
+		return !IsBadReadPtr(reinterpret_cast<uintptr_t>(Field.GetAddress()) + Offset);
 	};
 
 	auto IsFieldNameOffsetValid = [&]() -> bool
