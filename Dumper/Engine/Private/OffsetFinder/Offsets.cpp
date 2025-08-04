@@ -80,7 +80,8 @@ void Off::InSDK::World::InitGWorld()
 		/* Try to find a pointer to the word, aka UWorld** GWorld */
 		auto Results = FindAllAlignedValueInProcess(Obj.GetAddress());
 		void* Result = nullptr;
-		if (Results.size()) {
+		if (Results.size())
+		{
 			if (Results.size() == 1)
 			{
 				Result = Results[0];

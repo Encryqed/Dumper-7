@@ -661,20 +661,24 @@ inline std::vector<T*> FindAllAlignedValueInProcess(T Value, const std::string& 
 	std::vector<T*> Results;
 	auto Start = SearchStart;
 	auto Range = SearchRange;
-	do {
+	do
+	{
 		T* Result = FindAlignedValueInProcessInRange(Value, Alignment, Start, Range);
-		if (!Result) {
+		if (!Result)
+		{
 			break;
 		}
 		Results.push_back(Result);
 		uintptr_t NewStart = reinterpret_cast<uintptr_t>(Result) + Alignment;
 		intptr_t NewRange = Range - (NewStart - Start);
-		if (NewRange < 0) {
+		if (NewRange < 0)
+		{
 			break;
 		}
 		Start = NewStart;
 		Range = NewRange;
-	} while (true);
+	}
+	while (true);
 
 	if (Results.empty() && SearchStart != ImageBase)
 		return FindAllAlignedValueInProcess(Value, Sectionname, Alignment, true);
