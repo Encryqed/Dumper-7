@@ -63,16 +63,14 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLay
 	struct FUObjectItem
 	{
 		void* Object;
-		int32 Pad1;
-		int32 Pad2;
-		//uint8_t Pad[0x10];
+		uint8_t Pad[sizeof(void*) * 2];
 	};
 
 	void* Objects = *reinterpret_cast<void**>(Address + Layout.ObjectsOffset);
 	const int32 MaxElements = *reinterpret_cast<const int32*>(Address + Layout.MaxObjectsOffset);
 	const int32 NumElements = *reinterpret_cast<const int32*>(Address + Layout.NumObjectsOffset);
 
-	FUObjectItem* ObjectsButDecrypted = (FUObjectItem*)ObjectArray::DecryptPtr(Objects);
+	FUObjectItem* ObjectsButDecrypted = reinterpret_cast<FUObjectItem*>(ObjectArray::DecryptPtr(Objects));
 
 	if (NumElements > MaxElements)
 		return false;
@@ -269,9 +267,9 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 				return *reinterpret_cast<void**>(ChunkPtr + FUObjectItemOffset + (Index * FUObjectItemSize));
 			};
 
-			uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
+			uint8_t* FirstItem = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
 
-			ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
+			ObjectArray::InitializeFUObjectItem(FirstItem);
 
 			return;
 		}
@@ -548,7 +546,7 @@ ObjectArray::ObjectsIterator::ObjectsIterator(int32 StartIndex)
 {
 }
 
-UEObject ObjectArray::ObjectsIterator::operator*()
+UEObject ObjectArray::ObjectsIterator::operator*() const
 {
 	return CurrentObject;
 }
@@ -568,7 +566,12 @@ ObjectArray::ObjectsIterator& ObjectArray::ObjectsIterator::operator++()
 	return *this;
 }
 
-bool ObjectArray::ObjectsIterator::operator!=(const ObjectsIterator& Other)
+bool ObjectArray::ObjectsIterator::operator==(const ObjectsIterator& Other) const
+{
+	return CurrentIndex == Other.CurrentIndex;
+}
+
+bool ObjectArray::ObjectsIterator::operator!=(const ObjectsIterator& Other) const
 {
 	return CurrentIndex != Other.CurrentIndex;
 }
@@ -576,6 +579,56 @@ bool ObjectArray::ObjectsIterator::operator!=(const ObjectsIterator& Other)
 int32 ObjectArray::ObjectsIterator::GetIndex() const
 {
 	return CurrentIndex;
+}
+
+bool AllFieldIterator::operator!=(const AllFieldIterator& Other) const
+{
+	return CurrentObject != Other.CurrentObject || PropertyIndex != Other.PropertyIndex;
+}
+
+AllFieldIterator& AllFieldIterator::operator++()
+{
+	if (CurrenStructHasMoreMembers())
+	{
+		PropertyIndex++;
+
+		return *this;
+	}
+
+	IterateToNextStructWithMembers();
+
+	return *this;
+}
+
+UEProperty AllFieldIterator::operator*() const
+{
+	return Fields[PropertyIndex];
+}
+
+
+void AllFieldIterator::IterateToNextStruct()
+{
+	if (IsEndIterator())
+		return;
+
+	++CurrentObject;
+
+	while (CurrentObject != ObjectEndIterator && !IsCurrentObjectStruct())
+		++CurrentObject;
+}
+void AllFieldIterator::IterateToNextStructWithMembers()
+{
+	// Loop, in case we meet a struct wihtout any properties
+	while (!CurrenStructHasMoreMembers())
+	{
+		IterateToNextStruct();
+		PropertyIndex = 0;
+
+		if (IsEndIterator())
+			return;
+
+		Fields = GetCurrentStruct().GetProperties();
+	}
 }
 
 /*

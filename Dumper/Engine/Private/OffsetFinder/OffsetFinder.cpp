@@ -97,7 +97,14 @@ int32_t OffsetFinder::FindUObjectClassOffset()
 	return OffsetNotFound;
 }
 
-int32_t OffsetFinder::FindUObjectNameOffset()
+/*
+* IsPotentialValidOffset: A function to filter offsets that can not possibly be valid for UObject::Name or FField::Name.
+*						  Example for UObject::Name: it can 100% not be at the same offset as UObject::Class
+* 
+* DataGatherer: A function to gather values at the offsets not filterd by 'IsPotentialValidOffset'. Data is later used to filter more offsets, until hopefully only one is left.
+*/
+template<typename IteratorType>
+int32_t FindNameOffsetForSomeClass(std::function<bool(int32_t Value)> IsPotentialValidOffset, IteratorType DataSetStartIterator, IteratorType DataSetEndIterator)
 {
 	/*
 	* Requirements:
@@ -106,7 +113,7 @@ int32_t OffsetFinder::FindUObjectNameOffset()
 	*	- Offset != { OtherOffsets }
 	*/
 
-	/* A struct describing the value*/
+	/* A struct describing the value */
 	struct ValueInfo
 	{
 		int32 Offset;					   // Offset from the UObject start to this value
@@ -115,62 +122,51 @@ int32_t OffsetFinder::FindUObjectNameOffset()
 		bool bIsValidCmpIdxRange = true;   // Whether this value could be a valid FName::ComparisonIndex
 	};
 
-	std::array<ValueInfo, 0xC> PossibleOffset;
+
+	std::vector<ValueInfo> PossibleOffsets;
 
 	constexpr auto MaxAllowedComparisonIndexValue = 0x4000000; // Somewhat arbitrary limit. Make sure this isn't too low for games on FNamePool with lots of names and 0x14 block-size bits
 
-	constexpr auto MaxAllowedAverageComparisonIndexValue = MaxAllowedComparisonIndexValue / 4; // Also somewhat arbitrary limit, but the average value shouldn't be as high as the max allowed one
-	constexpr auto MinAllowedAverageComparisonIndexValue = 0x100; // If the average name is below 0x100 it is either the smallest UE application ever, or not the right offset
+	constexpr auto MaxAllowedAverageComparisonIndexValue = MaxAllowedComparisonIndexValue / 2; // Also somewhat arbitrary limit, but the average value shouldn't be as high as the max allowed one
+	constexpr auto MinAllowedAverageComparisonIndexValue = 0x280; // If the average name is below 0x100 it is either the smallest UE application ever, or not the right offset
 
 	constexpr auto LowComparisonIndexUpperCap = 0x10; // The upper limit of what is considered a "low" comparison index
-	constexpr auto MaxLlowedNamesWithLowCmpIdx = 0x40;
+	constexpr auto MaxAllowedNamesWithLowCmpIdx = 0x40;
 
 
-	int ArrayLength = 0x0;
 	for (int i = sizeof(void*); i <= 0x40; i += 0x4)
 	{
-		// Skip Flags and Index offsets
-		if (i == Off::UObject::Flags || i == Off::UObject::Index)
+		if (!IsPotentialValidOffset(i))
 			continue;
 
-		// Skip Class and Outer offsets
-		if (i == Off::UObject::Class || i == Off::UObject::Outer)
-		{
-			if (sizeof(void*) > 0x4)
-				i += 0x4;
-
-			continue;
-		}
-
-		PossibleOffset[ArrayLength++].Offset = i;
+		PossibleOffsets.push_back(ValueInfo{ i });
 	}
 
-	auto GetDataAtOffsetAsInt = [](void* Ptr, int32 Offset) -> uint32 { return *reinterpret_cast<int32*>(reinterpret_cast<uintptr_t>(Ptr) + Offset); };
-
+	auto GetDataAtOffsetAsInt = [](const void* Ptr, int32 Offset) -> uint32 { return *reinterpret_cast<const uint32*>(reinterpret_cast<const uintptr_t>(Ptr) + Offset); };
 
 	int NumObjectsConsidered = 0;
 
-	for (UEObject Object : ObjectArray())
+	for (; DataSetStartIterator != DataSetEndIterator; ++DataSetStartIterator)
 	{
 		constexpr auto X86SmallPageSize = 0x1000;
 		constexpr auto MaxAccessedSizeInUObject = 0x44;
+
+		const void* CurrentObjectOrField = (*DataSetStartIterator).GetAddress();
 
 		/*
 		* Purpose: Make sure all offsets in the UObject::Name finder can be accessed
 		* Reasoning: Objects are allocated in Blocks, these allocations are page-aligned in both size and base. If an object + MaxAccessedSizeInUObject goes past the page-bounds
 		*            it might also go past the extends of an allocation. There's no reliable way of getting the size of UObject without knowing it's offsets first.
 		*/
-		const bool bIsGoingPastPageBounds = (reinterpret_cast<uintptr_t>(Object.GetAddress()) & (X86SmallPageSize - 1)) > (X86SmallPageSize - MaxAccessedSizeInUObject);
+		const bool bIsGoingPastPageBounds = (reinterpret_cast<const uintptr_t>(CurrentObjectOrField) & (X86SmallPageSize - 1)) > (X86SmallPageSize - MaxAccessedSizeInUObject);
 		if (bIsGoingPastPageBounds)
 			continue;
 
 		NumObjectsConsidered++;
 
-		for (int i = 0x0; i < ArrayLength; i++)
+		for (ValueInfo& Info : PossibleOffsets)
 		{
-			ValueInfo& Info = PossibleOffset[i];
-
-			const uint32 ValueAtOffset = GetDataAtOffsetAsInt(Object.GetAddress(), Info.Offset);
+			const uint32 ValueAtOffset = GetDataAtOffsetAsInt(CurrentObjectOrField, Info.Offset);
 
 			Info.TotalValue += ValueAtOffset;
 			Info.bIsValidCmpIdxRange = Info.bIsValidCmpIdxRange && ValueAtOffset < MaxAllowedComparisonIndexValue;
@@ -179,13 +175,11 @@ int32_t OffsetFinder::FindUObjectNameOffset()
 	}
 
 	int32 FirstValidOffset = -1;
-	for (int i = 0x0; i < ArrayLength; i++)
+	for (const ValueInfo& Info : PossibleOffsets)
 	{
-		ValueInfo& Info = PossibleOffset[i];
-
 		const auto AverageValue = (Info.TotalValue / NumObjectsConsidered);
 
-		if (Info.bIsValidCmpIdxRange && Info.NumNamesWithLowCmpIdx <= MaxLlowedNamesWithLowCmpIdx
+		if (Info.bIsValidCmpIdxRange && Info.NumNamesWithLowCmpIdx <= MaxAllowedNamesWithLowCmpIdx
 			&& AverageValue >= MinAllowedAverageComparisonIndexValue && AverageValue <= MaxAllowedAverageComparisonIndexValue)
 		{
 			if (FirstValidOffset == -1)
@@ -195,11 +189,26 @@ int32_t OffsetFinder::FindUObjectNameOffset()
 			}
 
 			/* This shouldn't be the case, so log it as an info but continue, as the first offset is still likely the right one. */
-			std::cerr << std::format("Dumper-7: Another UObject::Name offset (0x{:04X}) is also considered valid\n", Info.Offset);
+			std::cerr << std::format("Dumper-7: Another [UObject/FField]::Name offset (0x{:04X}) is also considered valid.\n", Info.Offset);
 		}
 	}
 
 	return FirstValidOffset;
+}
+
+int32_t OffsetFinder::FindUObjectNameOffset()
+{
+	auto IsPotentiallyValidOffset = [](int32 Offset) -> bool
+	{
+		// Make sure 0x4 aligned Offsets are neither the start, nor the middle of a pointer-member. Irrelevant for 32-bit, because the 2nd check will be 0x2 aligned then.
+		return Offset != Off::UObject::Class && Offset != (Off::UObject::Class + (sizeof(void*) / 2))
+			&& Offset != Off::UObject::Outer && Offset != (Off::UObject::Outer + (sizeof(void*) / 2))
+			&& Offset != Off::UObject::Flags
+			&& Offset != Off::UObject::Index
+			&& Offset != Off::UObject::Vft && Offset != (Off::UObject::Vft + (sizeof(void*) / 2));
+	};
+
+	return FindNameOffsetForSomeClass(IsPotentiallyValidOffset, ObjectArray().begin(), ObjectArray().end());
 }
 
 int32_t OffsetFinder::FindUObjectOuterOffset()
@@ -432,50 +441,17 @@ int32_t OffsetFinder::FindFFieldNextOffset()
 
 int32_t OffsetFinder::FindFFieldNameOffset()
 {
-	UEFField GuidChild = ObjectArray::FindStructFast("Guid").GetChildProperties();
-	UEFField VectorChild = ObjectArray::FindStructFast("Vector").GetChildProperties();
-
-
-	std::string GuidChildName;
-	std::string VectorChildName;
-
-	auto IsOffsetValidPtr = [](UEFField Field, int32 Offset) -> bool
+	auto IsPotentiallyValidOffset = [](int32 Offset) -> bool
 	{
-		return !IsBadReadPtr(reinterpret_cast<uintptr_t>(Field.GetAddress()) + Offset);
+		// Make sure 0x4 aligned Offsets are neither the start, nor the middle of a pointer-member. Irrelevant for 32-bit, because the 2nd check will be 0x2 aligned then.
+		return Offset != Off::FField::Class && Offset != (Off::FField::Class + (sizeof(void*) / 2))
+			&& Offset != Off::FField::Next && Offset != (Off::FField::Next + (sizeof(void*) / 2))
+			&& Offset != Off::FField::Vft && Offset != (Off::FField::Vft + (sizeof(void*) / 2));
 	};
 
-	auto IsFieldNameOffsetValid = [&]() -> bool
-	{
+	AllFieldIterator TmpIt;
 
-		GuidChildName = GuidChild.GetName();
-		VectorChildName = VectorChild.GetName();
-
-		if ((GuidChildName == "A" || GuidChildName == "D") && (VectorChildName == "X" || VectorChildName == "Z"))
-			return true;
-
-		return false;
-	};
-
-
-	for (Off::FField::Name = 0x8; Off::FField::Name < 0x40; Off::FField::Name += 4)
-	{
-		//std::cerr << "Checking offset 0x" << Off::FField::Name << std::endl;
-		
-		// Assume that if both of these addresses are valid pointers, it's probably not an FName
-		if (IsOffsetValidPtr(GuidChild, Off::FField::Name) && IsOffsetValidPtr(VectorChild, Off::FField::Name))
-		{
-			// So Check this so we skip the entire pointer, instead of just 0x4 bytes of it
-			Off::FField::Name += sizeof(void*) - 0x4;
-			continue;
-		}
-
-		//std::cerr << "Calling GetName for offset 0x" << Off::FField::Name << std::endl;
-
-		if (IsFieldNameOffsetValid())
-			return Off::FField::Name;
-	}
-
-	return OffsetNotFound;
+	return FindNameOffsetForSomeClass(IsPotentiallyValidOffset, TmpIt.begin(), TmpIt.end());
 }
 
 int32_t OffsetFinder::FindFFieldClassOffset()

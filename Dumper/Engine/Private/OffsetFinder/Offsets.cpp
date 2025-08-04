@@ -279,12 +279,12 @@ void Off::Init()
 
 		Off::FField::Next = OffsetFinder::FindFFieldNextOffset();
 		std::cerr << std::format("Off::FField::Next: 0x{:X}\n", Off::FField::Next);
-		
-		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
-		std::cerr << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
 
 		Off::FField::Class = OffsetFinder::FindFFieldClassOffset();
 		std::cerr << std::format("Off::FField::Class: 0x{:X}\n", Off::FField::Class);
+
+		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
+		std::cerr << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
 
 		/*
 		* FNameSize might be wrong at this point of execution.
