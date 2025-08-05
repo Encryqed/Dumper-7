@@ -329,7 +329,7 @@ void PackageManager::InitNames()
 {
 	for (auto& [PackageIdx, Info] : PackageInfos)
 	{
-		std::string PackageName = ObjectArray::GetByIndex(PackageIdx).GetValidName();
+		const std::string PackageName = ObjectArray::GetByIndex(PackageIdx).GetValidName();
 
 		auto [Name, bWasInserted] = UniquePackageNameTable.FindOrAdd(PackageName);
 		Info.Name = Name;
