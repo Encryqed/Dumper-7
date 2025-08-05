@@ -4341,6 +4341,33 @@ R"({
 
 	FName.Functions =
 	{
+		/* constructors */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "constexpr",
+			.NameWithParams = std::format("FName(int32 ComparisonIndex = 0{}{})",
+				!Settings::Internal::bUseOutlineNumberName ? ", uint32 Number = 0" : "",
+				Settings::Internal::bUseCasePreservingName ? ", int32 DisplayIndex = 0" : ""),
+			.Body =
+std::format(R"(	: ComparisonIndex(ComparisonIndex){}{}
+{{
+}})",
+!Settings::Internal::bUseOutlineNumberName ? ", Number(Number)" : "",
+Settings::Internal::bUseCasePreservingName ? ", DisplayIndex(DisplayIndex)" : ""),
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FName(const FName& other)",
+			.Body =
+std::format(R"(	: ComparisonIndex(other.ComparisonIndex){}{}
+{{
+}})",
+!Settings::Internal::bUseOutlineNumberName ? ", Number(other.Number)" : "",
+Settings::Internal::bUseCasePreservingName ? ", DisplayIndex(other.DisplayIndex)" : ""),
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		/* static functions */
 		PredefinedFunction {
 			.CustomComment = "",
 			.ReturnType = "void", .NameWithParams = "InitInternal()", .Body =
@@ -4349,6 +4376,7 @@ std::format(R"({{
 }})", NameArrayName, NameArrayType, (Off::InSDK::Name::AppendNameToString == 0 && !Settings::Internal::bUseNamePool ? "*" : ""), GetNameEntryInitializationCode),
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
 		},
+		/* const functions */
 		PredefinedFunction {
 			.CustomComment = "",
 			.ReturnType = "int32", .NameWithParams = "GetDisplayIndex()", .Body =
@@ -4377,6 +4405,19 @@ std::format(R"({{
 }
 )",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		/* operators */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FName&", .NameWithParams = "operator=(const FName& other)", .Body =
+std::format(R"({{
+	ComparisonIndex = other.ComparisonIndex;{}{}
+
+	return *this;
+}})",
+!Settings::Internal::bUseOutlineNumberName ? "\n\tNumber = other.Number;" : "",
+Settings::Internal::bUseCasePreservingName ? "\n\tDisplayIndex = other.DisplayIndex;" : ""),
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		},
 		PredefinedFunction {
 			.CustomComment = "",
