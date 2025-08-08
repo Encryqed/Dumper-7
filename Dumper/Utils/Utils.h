@@ -673,6 +673,57 @@ inline T* FindAlignedValueInProcess(T Value, const std::string& Sectionname = ".
 	return Result;
 }
 
+template<typename T>
+inline std::vector<T*> FindAllAlignedValueInProcess(T Value, const std::string& Sectionname = ".data", int32_t Alignment = alignof(T), bool bSearchAllSections = false)
+{
+	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
+
+	uintptr_t SearchStart = ImageBase;
+	uintptr_t SearchRange = ImageSize;
+
+	if (!bSearchAllSections)
+	{
+		const auto [SectionStart, SectionSize] = GetSectionByName(ImageBase, Sectionname);
+
+		if (SectionStart != 0x0 && SectionSize != 0x0)
+		{
+			SearchStart = SectionStart;
+			SearchRange = SectionSize;
+		}
+		else
+		{
+			bSearchAllSections = true;
+		}
+	}
+
+	std::vector<T*> Results;
+	auto Start = SearchStart;
+	auto Range = SearchRange;
+	do
+	{
+		T* Result = FindAlignedValueInProcessInRange(Value, Alignment, Start, Range);
+		if (!Result)
+		{
+			break;
+		}
+		Results.push_back(Result);
+		uintptr_t NewStart = reinterpret_cast<uintptr_t>(Result) + Alignment;
+		intptr_t NewRange = Range - (NewStart - Start);
+		if (NewRange < 0)
+		{
+			break;
+		}
+		Start = NewStart;
+		Range = NewRange;
+	}
+	while (true);
+
+	if (Results.empty() && SearchStart != ImageBase)
+		return FindAllAlignedValueInProcess(Value, Sectionname, Alignment, true);
+
+	return Results;
+}
+
 template<bool bShouldResolve32BitJumps = true>
 inline std::pair<const void*, int32_t> IterateVTableFunctions(void** VTable, const std::function<bool(const uint8_t* Addr, int32_t Index)>& CallBackForEachFunc, int32_t NumFunctions = 0x150, int32_t OffsetFromStart = 0x0)
 {
