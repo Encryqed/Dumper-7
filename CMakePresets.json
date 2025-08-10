@@ -5,7 +5,7 @@
             "name": "clang",
             "displayName": "Clang",
             "description": "Configuration using Clang compiler",
-            "generator": "Visual Studio 16",
+            "generator": "Visual Studio 17 2022",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
@@ -18,7 +18,7 @@
         {
             "name": "vs2022",
             "displayName": "MSVC 2022",
-            "description": "Debug configuration using MSVC 2022 (x64)",
+            "description": "Configuration using MSVC 2022 (x64)",
             "generator": "Visual Studio 17 2022",
             "architecture": "x64",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -31,8 +31,8 @@
         {
             "name": "vs2019",
             "displayName": "MSVC 2019",
-            "description": "Debug configuration using MSVC 2019 (x64)",
-            "generator": "Visual Studio 16 2019",
+            "description": "Configuration using MSVC 2019 (x64) - using VS2022 generator",
+            "generator": "Visual Studio 17 2022",
             "architecture": "x64",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
@@ -44,8 +44,8 @@
         {
             "name": "vs2017",
             "displayName": "MSVC 2017",
-            "description": "Debug configuration using MSVC 2017 (x64)",
-            "generator": "Visual Studio 15 2017",
+            "description": "Configuration using MSVC 2017 (x64) - using VS2022 generator",
+            "generator": "Visual Studio 17 2022",
             "architecture": "x64",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
@@ -71,20 +71,6 @@
             "configuration": "Debug"
         },
         {
-            "name": "vs2019-Release",
-            "description": "Release configuration using MSVC 2019",
-            "displayName": "Release",
-            "configurePreset": "vs2019",
-            "configuration": "Release"
-        },
-        {
-            "name": "vs2019-Debug",
-            "description": "Debug configuration using MSVC 2019",
-            "displayName": "Debug",
-            "configurePreset": "vs2019",
-            "configuration": "Debug"
-        },
-        {
             "name": "vs2022-Release",
             "description": "Release configuration using MSVC 2022",
             "displayName": "Release",
@@ -96,6 +82,20 @@
             "description": "Debug configuration using MSVC 2022",
             "displayName": "Debug",
             "configurePreset": "vs2022",
+            "configuration": "Debug"
+        },
+        {
+            "name": "vs2019-Release",
+            "description": "Release configuration using MSVC 2019",
+            "displayName": "Release",
+            "configurePreset": "vs2019",
+            "configuration": "Release"
+        },
+        {
+            "name": "vs2019-Debug",
+            "description": "Debug configuration using MSVC 2019",
+            "displayName": "Debug",
+            "configurePreset": "vs2019",
             "configuration": "Debug"
         },
         {
