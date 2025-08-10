@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15...4.0)
 project(Dumper-7 LANGUAGES CXX C)
 
-include(${CMAKE_SOURCE_DIR}/cmake/common.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/Common.cmake)
 
 # Source files - automatic search for all source files
 file(GLOB_RECURSE CPP_SOURCES 
@@ -50,16 +50,32 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Dumper/Utils/Json
 )
 
-# Compiler definitions
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    $<$<CONFIG:Debug>:_DEBUG>
-    $<$<CONFIG:Release>:NDEBUG>
-    _CONSOLE
-    WIN32
-)
-
-# Set Windows subsystem
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    WINDOWS_EXPORT_ALL_SYMBOLS ON
-    VS_GLOBAL_KEYWORD "Win32Proj"
-) 
+# Platform-specific settings
+if(WIN32)
+    # Windows-specific settings
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Debug>:_DEBUG>
+        $<$<CONFIG:Release>:NDEBUG>
+        _CONSOLE
+        WIN32
+    )
+    
+    # Set Windows subsystem
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        WINDOWS_EXPORT_ALL_SYMBOLS ON
+        VS_GLOBAL_KEYWORD "Win32Proj"
+    )
+else()
+    # Linux/Unix-specific settings
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Debug>:_DEBUG>
+        $<$<CONFIG:Release>:NDEBUG>
+        _CONSOLE
+        LINUX
+    )
+    
+    # Set Linux properties
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
+    )
+endif() 
