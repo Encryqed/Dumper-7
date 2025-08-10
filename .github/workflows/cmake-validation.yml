@@ -1,0 +1,216 @@
+# Additional workflow for CMake configuration validation
+# Runs after the main build workflow for additional checks
+name: CMake Validation & Extended Testing
+
+on:
+  workflow_run:
+    workflows: ["CMake Multi-Preset Build & Test"]
+    types: [completed]
+    branches: [main, development]
+
+jobs:
+  # Validation of CMake configurations
+  validate-configs:
+    name: Validate CMake Configurations
+    runs-on: windows-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: '4.0.0'
+
+    - name: Validate CMakePresets.json
+      run: |
+        echo "=== Validating CMakePresets.json ==="
+        
+        # Check JSON syntax
+        if ! python -m json.tool CMakePresets.json > /dev/null; then
+          echo "❌ CMakePresets.json has invalid JSON syntax"
+          exit 1
+        fi
+        
+        echo "✅ JSON syntax is valid"
+        
+        # Check preset structure
+        echo "Checking preset structure..."
+        
+        # Check for all required presets
+        required_presets=("clang" "vs2022" "vs2019" "vs2017")
+        required_build_presets=("clang-Release" "clang-Debug" "vs2022-Release" "vs2022-Debug" "vs2019-Release" "vs2019-Debug" "vs2017-Release" "vs2017-Debug")
+        
+        for preset in "${required_presets[@]}"; do
+          if ! grep -q "\"name\": \"$preset\"" CMakePresets.json; then
+            echo "❌ Missing configure preset: $preset"
+            exit 1
+          fi
+        done
+        
+        for build_preset in "${required_build_presets[@]}"; do
+          if ! grep -q "\"name\": \"$build_preset\"" CMakePresets.json; then
+            echo "❌ Missing build preset: $build_preset"
+            exit 1
+          fi
+        done
+        
+        echo "✅ All required presets are present"
+        
+        # Check version
+        version=$(python -c "import json; print(json.load(open('CMakePresets.json'))['version'])")
+        if [ "$version" -lt 3 ]; then
+          echo "❌ CMakePresets.json version should be 3 or higher, got: $version"
+          exit 1
+        fi
+        
+        echo "✅ CMakePresets.json version: $version"
+
+    - name: Test CMake configuration
+      run: |
+        echo "=== Testing CMake configuration ==="
+        
+        # Test each preset for configuration capability
+        presets=("clang" "vs2022" "vs2019" "vs2017")
+        
+        for preset in "${presets[@]}"; do
+          echo "Testing preset: $preset"
+          
+          # Create temporary directory for test
+          mkdir -p "test_build_$preset"
+          cd "test_build_$preset"
+          
+          # Try to configure
+          if cmake --preset "$preset" ..; then
+            echo "✅ $preset: Configuration successful"
+          else
+            echo "❌ $preset: Configuration failed"
+            exit 1
+          fi
+          
+          cd ..
+          rm -rf "test_build_$preset"
+        done
+        
+        echo "✅ All presets can be configured successfully"
+
+    - name: Check for common issues
+      run: |
+        echo "=== Checking for common CMake issues ==="
+        
+        # Check for potential issues
+        issues_found=0
+        
+        # Check for hardcoded paths
+        if grep -r "C:/" . --include="*.cmake" --include="*.txt" --include="*.h" --include="*.cpp" | grep -v ".github" | grep -v "CMakePresets.json"; then
+          echo "⚠️ Found hardcoded Windows paths"
+          ((issues_found++))
+        fi
+        
+        # Check for deprecated function usage
+        if grep -r "CMAKE_MINIMUM_REQUIRED.*2\." . --include="*.cmake" --include="*.txt"; then
+          echo "⚠️ Found old CMake minimum version requirement"
+          ((issues_found++))
+        fi
+        
+        # Check for missing CMake version
+        if ! grep -q "cmake_minimum_required" CMakeLists.txt; then
+          echo "❌ Missing cmake_minimum_required in CMakeLists.txt"
+          ((issues_found++))
+        fi
+        
+        if [ $issues_found -eq 0 ]; then
+          echo "✅ No common issues found"
+        else
+          echo "⚠️ Found $issues_found potential issues"
+        fi
+
+  # Check compatibility with different CMake versions
+  cmake-compatibility:
+    name: CMake Version Compatibility
+    runs-on: windows-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    strategy:
+      matrix:
+        cmake-version: ['3.20.0', '3.24.0', '3.28.0']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup CMake ${{ matrix.cmake-version }}
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: ${{ matrix.cmake-version }}
+
+    - name: Test compatibility with ${{ matrix.cmake-version }}
+      run: |
+        echo "=== Testing compatibility with CMake ${{ matrix.cmake-version }} ==="
+        
+        # Test basic configuration
+        mkdir -p "compat_test_${{ matrix.cmake-version }}"
+        cd "compat_test_${{ matrix.cmake-version }}"
+        
+        # Try to configure with vs2022 preset
+        if cmake --preset vs2022 ..; then
+          echo "✅ CMake ${{ matrix.cmake-version }} is compatible"
+        else
+          echo "❌ CMake ${{ matrix.cmake-version }} has compatibility issues"
+          exit 1
+        fi
+        
+        cd ..
+        rm -rf "compat_test_${{ matrix.cmake-version }}"
+
+  # Generate validation report
+  validation-report:
+    name: Validation Report
+    runs-on: ubuntu-latest
+    needs: [validate-configs, cmake-compatibility]
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Generate validation report
+      run: |
+        echo "=== VALIDATION REPORT ==="
+        echo "Validation jobs completed"
+        echo "Validate configs: ${{ needs.validate-configs.result }}"
+        echo "CMake compatibility: ${{ needs.cmake-compatibility.result }}"
+        
+        if [ "${{ needs.validate-configs.result }}" == "success" ] && [ "${{ needs.cmake-compatibility.result }}" == "success" ]; then
+          echo "🎉 All validation checks passed!"
+          echo "::set-output name=validation_passed::true"
+        else
+          echo "💥 Some validation checks failed"
+          echo "::set-output name=validation_passed::false"
+        fi
+
+    - name: Comment on PR (if validation failed)
+      if: github.event_name == 'pull_request' && needs.validation-report.outputs.validation_passed == 'false'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const reportBody = `## ⚠️ CMake Validation Issues Detected
+          
+          Some validation checks failed during the build process. Please review:
+          
+          - **Configuration validation**: ${{ needs.validate-configs.result }}
+          - **CMake compatibility**: ${{ needs.cmake-compatibility.result }}
+          
+          Check the workflow logs for detailed information about what failed.
+          
+          ---
+          *Generated by GitHub Actions*`;
+          
+          await github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: reportBody
+          }); 
