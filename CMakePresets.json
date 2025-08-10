@@ -5,12 +5,12 @@
             "name": "clang",
             "displayName": "Clang",
             "description": "Configuration using Clang compiler",
-            "generator": "Ninja",
+            "generator": "Visual Studio 16",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "CMAKE_C_COMPILER": "clang.exe",
-                "CMAKE_CXX_COMPILER": "clang++.exe",
+                "CMAKE_CXX_COMPILER": "clang-cl.exe",
                 "CMAKE_C_FLAGS": "-m64",
                 "CMAKE_CXX_FLAGS": "-m64"
             }

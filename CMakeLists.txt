@@ -1,15 +1,4 @@
 cmake_minimum_required(VERSION 3.15...4.0)
-
-# Ninja generator does not support platform specification
-if(CMAKE_GENERATOR MATCHES "Ninja")
-    # Remove all variables related to platform
-    unset(CMAKE_GENERATOR_PLATFORM CACHE)
-    unset(CMAKE_GENERATOR_PLATFORM)
-    unset(CMAKE_VS_PLATFORM_NAME CACHE)
-    unset(CMAKE_VS_PLATFORM_NAME)
-    message(STATUS "Using Ninja generator - platform specification disabled")
-endif()
-
 project(Dumper-7 LANGUAGES CXX C)
 
 include(${CMAKE_SOURCE_DIR}/cmake/common.cmake)
