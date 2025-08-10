@@ -76,7 +76,7 @@ jobs:
       with:
         name: build-${{ matrix.preset }}-${{ matrix.configuration }}
         path: |
-          ${{ github.workspace }}/out/build/${{ matrix.preset }}
-          ${{ github.workspace }}/out/install/${{ matrix.preset }}
+          ${{ github.workspace }}/out/build/${{ matrix.preset }}/bin/${{ matrix.configuration }}
+        # ${{ github.workspace }}/out/install/${{ matrix.preset }}/${{ matrix.configuration }}
         retention-days: 7
 
