@@ -21,34 +21,34 @@ jobs:
             configuration: Release
             displayName: Clang
             buildPreset: clang-Release
-          - preset: clang
-            configuration: Debug
-            displayName: Clang
-            buildPreset: clang-Debug
+          # - preset: clang
+          #   configuration: Debug
+          #   displayName: Clang
+          #   buildPreset: clang-Debug
           - preset: vs2022
             configuration: Release
             displayName: MSVC 2022
             buildPreset: vs2022-Release
-          - preset: vs2022
-            configuration: Debug
-            displayName: MSVC 2022
-            buildPreset: vs2022-Debug
+          # - preset: vs2022
+          #   configuration: Debug
+          #   displayName: MSVC 2022
+          #   buildPreset: vs2022-Debug
           - preset: vs2019
             configuration: Release
             displayName: MSVC 2019
             buildPreset: vs2019-Release
-          - preset: vs2019
-            configuration: Debug
-            displayName: MSVC 2019
-            buildPreset: vs2019-Debug
+          # - preset: vs2019
+          #   configuration: Debug
+          #   displayName: MSVC 2019
+          #   buildPreset: vs2019-Debug
           - preset: vs2017
             configuration: Release
             displayName: MSVC 2017
             buildPreset: vs2017-Release
-          - preset: vs2017
-            configuration: Debug
-            displayName: MSVC 2017
-            buildPreset: vs2017-Debug
+          # - preset: vs2017
+          #   configuration: Debug
+          #   displayName: MSVC 2017
+          #   buildPreset: vs2017-Debug
 
     steps:
     - name: Checkout code
@@ -70,13 +70,13 @@ jobs:
         cmake --preset ${{ matrix.preset }}
         cmake --build --preset ${{ matrix.buildPreset }}
 
-    - name: Upload artifacts
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-${{ matrix.preset }}-${{ matrix.configuration }}
-        path: |
-          ${{ github.workspace }}/out/build/${{ matrix.preset }}/bin/${{ matrix.configuration }}
-        # ${{ github.workspace }}/out/install/${{ matrix.preset }}/${{ matrix.configuration }}
-        retention-days: 7
+    # - name: Upload artifacts
+    #   if: always()
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: build-${{ matrix.preset }}-${{ matrix.configuration }}
+    #     path: |
+    #       ${{ github.workspace }}/out/build/${{ matrix.preset }}/bin/${{ matrix.configuration }}
+    #     # ${{ github.workspace }}/out/install/${{ matrix.preset }}/${{ matrix.configuration }}
+    #     retention-days: 7
 
