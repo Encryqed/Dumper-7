@@ -607,13 +607,13 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	/* Use the default implementation of 'StaticClass' */
 	StaticClass.Body = std::format(
 R"({{
-	static auto staticClass = BasicFilesImpleUtils::FindClassByName({}{});
-	return staticClass;
-}})", NameText, (!bIsNameUnique ? ", true" : ""));
+	static auto ptr = StaticClassImpl{}({});
+	return ptr;
+}})", (!bIsNameUnique ? "<true>" : ""), NameText);
 
 	StaticClassName.Body = std::format(
 R"({{
-	static auto className = UKismetStringLibrary::Conv_StringToName({});
+	static auto className = UKismetStringLibrary::Conv_StringToName(FString({}));
 	return className;
 }})", NameText.insert(NameText.find('"'), "L"));
 
@@ -2353,6 +2353,14 @@ R"({
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 		PredefinedFunction{
+			.CustomComment = "Checks a UObjects' type by Class name",
+			.ReturnType = "bool", .NameWithParams = "IsA(class FName& ClassName)", .Body =
+R"({
+	return Class->IsSubclassOf(ClassName);
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction{
 			.CustomComment = "Checks a UObjects' type by TypeFlags",
 			.ReturnType = "bool", .NameWithParams = "IsA(EClassCastFlags TypeFlags)", .Body =
 R"({
@@ -2406,6 +2414,23 @@ R"({
 	for (const UStruct* Struct = this; Struct; Struct = Struct->Super)
 	{
 		if (Struct == Base)
+			return true;
+	}
+
+	return false;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "Checks if this class has a certain base",
+			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const FName& baseClassName)", .Body =
+R"({
+	if (baseClassName.IsNone())
+		return false;
+
+	for (const UStruct* Struct = this; Struct; Struct = Struct->Super)
+	{
+		if (Struct->Name == baseClassName)
 			return true;
 	}
 
@@ -3477,22 +3502,15 @@ UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
 
 	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-class local static class-pointer */
 	BasicHpp << R"(
-template<StringLiteral Name, bool bIsFullName = false>
-class UClass* StaticClassImpl()
+template<bool bIsFullName = false>
+class UClass* StaticClassImpl(const char* Name)
 {
-	static class UClass* Clss = nullptr;
-
-	if (Clss == nullptr)
-	{
-		if constexpr (bIsFullName) {
-			Clss = BasicFilesImpleUtils::FindClassByFullName(Name);
-		}
-		else /* default */ {
-			Clss = BasicFilesImpleUtils::FindClassByName(Name);
-		}
+	if constexpr (bIsFullName) {
+		return BasicFilesImpleUtils::FindClassByFullName(Name);
 	}
-
-	return Clss;
+	else /* default */ {
+		return BasicFilesImpleUtils::FindClassByName(Name);
+	}
 }
 )";
 
@@ -4275,7 +4293,8 @@ R"({
 
 	std::string GetRawStringWithAppendString = std::format(
 		R"({{
-	thread_local FAllocatedString TempString(1024);
+	thread_local wchar_t buffer[1024];
+    thread_local FString TempString(buffer, 0, 1024);
 
 	if (!AppendString)
 		InitInternal();
@@ -4291,7 +4310,8 @@ R"({
 
 	constexpr const char* GetRawStringWithInlinedAppendString =
 		R"({
-	thread_local FAllocatedString TempString(1024);
+	thread_local wchar_t buffer[1024];
+    thread_local FString TempString(buffer, 0, 1024);
 
 	if (!AppendString)
 		InitInternal();
@@ -4395,6 +4415,17 @@ std::format(R"({{
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
 		},
 		/* const functions */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "IsNone()", .Body =
+std::format(R"({{
+	return !{}{};
+}}
+)",
+Settings::Internal::bUseCasePreservingName ? "DisplayIndex" : "ComparisonIndex",
+!Settings::Internal::bUseOutlineNumberName ? "&& !Number" : ""),
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
 		PredefinedFunction {
 			.CustomComment = "",
 			.ReturnType = "int32", .NameWithParams = "GetDisplayIndex()", .Body =
@@ -5939,6 +5970,13 @@ namespace UC
 			Data = const_cast<wchar_t*>(Str);
 			NumElements = NullTerminatedLength;
 			MaxElements = NullTerminatedLength;
+		}
+
+		FString(wchar_t* Str, int32 Num, int32 Max)
+		{
+			Data = Str;
+			NumElements = Num;
+			MaxElements = Max;
 		}
 
 	public:
