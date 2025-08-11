@@ -467,6 +467,7 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	namespace CppSettings = Settings::CppGenerator;
 
 	static PredefinedFunction StaticClass;
+	static PredefinedFunction StaticClassName;
 	static PredefinedFunction GetDefaultObj;
 
 	static PredefinedFunction Interface_AsObject;
@@ -482,6 +483,17 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		.bIsConst = false,
 		.bIsBodyInline = true,
 	};
+	if (StaticClassName.NameWithParams.empty())
+		StaticClassName = {
+		.CustomComment = "Used with 'IsA' to check if an object is of a certain Blueprint class type",
+		.ReturnType = "class FName&",
+		.NameWithParams = "StaticClassName()",
+
+		.bIsStatic = true,
+		.bIsConst = false,
+		.bIsBodyInline = true,
+	};
+
 
 	if (GetDefaultObj.NameWithParams.empty())
 		GetDefaultObj = {
@@ -571,39 +583,39 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	if ((bWasLastFuncStatic != StaticClass.bIsStatic || bWaslastFuncConst != StaticClass.bIsConst) && !bIsFirstIteration && !bDidSwitch)
 		InHeaderFunctionText += '\n';
 
-	const bool bIsNameUnique = Struct.GetUniqueName().second;
-
-	std::string Name = !bIsNameUnique ? Struct.GetFullName() : Struct.GetRawName();
-	std::string NameText = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Name) : std::format("\"{}\"", Name);
-	
-
 	static UEClass BPGeneratedClass = nullptr;
 	
 	if (BPGeneratedClass == nullptr)
 		BPGeneratedClass = ObjectArray::FindClassFast("BlueprintGeneratedClass");
 
-
-	const char* StaticClassImplFunctionName = "StaticClassImpl";
-
-	std::string NonFullName;
-
 	const bool bIsBPStaticClass = Struct.IsAClassWithType(BPGeneratedClass);
 
+	const bool bIsNameUnique = Struct.GetUniqueName().second;
+
+	std::string Name;
 	/* BPGenerated classes are loaded/unloaded dynamically, so a static pointer to the UClass will eventually be invalidated */
 	if (bIsBPStaticClass)
 	{
-		StaticClassImplFunctionName = "StaticBPGeneratedClassImpl";
-
-		if (!bIsNameUnique)
-			NonFullName = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Struct.GetRawName()) : std::format("\"{}\"", Struct.GetRawName());
+		Name = Struct.GetRawName();
 	}
-	
+	else
+	{
+		Name = !bIsNameUnique ? Struct.GetFullName() : Struct.GetRawName();
+	}
+	std::string NameText = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Name) : std::format("\"{}\"", Name);
 
 	/* Use the default implementation of 'StaticClass' */
 	StaticClass.Body = std::format(
-			R"({{
-	return {}<{}{}{}>();
-}})", StaticClassImplFunctionName, NameText, (!bIsNameUnique ? ", true" : ""), (bIsBPStaticClass && !bIsNameUnique ? ", " + NonFullName : ""));
+R"({{
+	static auto staticClass = BasicFilesImpleUtils::FindClassByName({}{});
+	return staticClass;
+}})", NameText, (!bIsNameUnique ? ", true" : ""));
+
+	StaticClassName.Body = std::format(
+R"({{
+	static auto className = UKismetStringLibrary::Conv_StringToName({});
+	return className;
+}})", NameText.insert(NameText.find('"'), "L"));
 
 	/* Set class-specific parts of 'GetDefaultObj' */
 	GetDefaultObj.ReturnType = std::format("class {}*", StructName);
@@ -612,9 +624,15 @@ R"({{
 	return GetDefaultObjImpl<{}>();
 }})",StructName);
 
-
 	std::shared_ptr<StructWrapper> CurrentStructPtr = std::make_shared<StructWrapper>(Struct);
-	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
+	if (bIsBPStaticClass)
+	{
+		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClassName), StructName, FunctionFile, ParamFile);
+	}
+	else
+	{
+		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
+	}
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &GetDefaultObj), StructName, FunctionFile, ParamFile);
 
 	if (bIsInterface)
@@ -3393,7 +3411,7 @@ class FName;
 namespace BasicFilesImpleUtils
 {
 	// Helper functions for StaticClassImpl and StaticBPGeneratedClassImpl
-	UClass* FindClassByName(const std::string& Name);
+	UClass* FindClassByName(const std::string& Name, bool bByFullName = false);
 	UClass* FindClassByFullName(const std::string& Name);
 
 	std::string GetObjectName(class UClass* Class);
@@ -3409,9 +3427,9 @@ namespace BasicFilesImpleUtils
 )";
 
 	BasicCpp << R"(
-class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name)
+class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name, bool bByFullName)
 {
-	return UObject::FindClassFast(Name);
+	return bByFullName ? UObject::FindClass(Name) : UObject::FindClassFast(Name);
 }
 
 class UClass* BasicFilesImpleUtils::FindClassByFullName(const std::string& Name)
