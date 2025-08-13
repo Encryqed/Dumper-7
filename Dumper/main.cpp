@@ -75,7 +75,7 @@ DWORD MainThread(HMODULE Module)
 	{
 		if (GetAsyncKeyState(VK_F6) & 1)
 		{
-			fclose(stdout);
+			fclose(stderr);
 			if (Dummy) fclose(Dummy);
 			FreeConsole();
 
