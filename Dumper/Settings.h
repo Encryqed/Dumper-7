@@ -76,6 +76,9 @@ R"(
 
 		/* This will allow the user to manually initialize global variable addresses in the SDK (eg. GObjects, GNames, AppendString). */
 		constexpr bool bAddManualOverrideOptions = true;
+
+		/* Adds the 'final' specifier to classes with no loaded child class at SDK-generation time. */
+		constexpr bool bAddFinalSpecifier = true;
 	}
 
 	namespace MappingGenerator
