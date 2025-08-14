@@ -467,7 +467,7 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	namespace CppSettings = Settings::CppGenerator;
 
 	static PredefinedFunction StaticClass;
-	static PredefinedFunction StaticClassName;
+	static PredefinedFunction ClassName;
 	static PredefinedFunction GetDefaultObj;
 
 	static PredefinedFunction Interface_AsObject;
@@ -483,11 +483,11 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		.bIsConst = false,
 		.bIsBodyInline = true,
 	};
-	if (StaticClassName.NameWithParams.empty())
-		StaticClassName = {
+	if (ClassName.NameWithParams.empty())
+		ClassName = {
 		.CustomComment = "Used with 'IsA' to check if an object is of a certain Blueprint class type",
 		.ReturnType = "class FName&",
-		.NameWithParams = "StaticClassName()",
+		.NameWithParams = "ClassName()",
 
 		.bIsStatic = true,
 		.bIsConst = false,
@@ -592,30 +592,23 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 
 	const bool bIsNameUnique = Struct.GetUniqueName().second;
 
-	std::string Name;
-	/* BPGenerated classes are loaded/unloaded dynamically, so a static pointer to the UClass will eventually be invalidated */
-	if (bIsBPStaticClass)
-	{
-		Name = Struct.GetRawName();
-	}
-	else
-	{
-		Name = !bIsNameUnique ? Struct.GetFullName() : Struct.GetRawName();
-	}
+	std::string Name = bIsNameUnique ? Struct.GetRawName() : Struct.GetFullName();
 	std::string NameText = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Name) : std::format("\"{}\"", Name);
 
-	/* Use the default implementation of 'StaticClass' */
 	StaticClass.Body = std::format(
 R"({{
-	static auto ptr = StaticClassImpl{}({});
-	return ptr;
-}})", (!bIsNameUnique ? "<true>" : ""), NameText);
+	static UClass* Clss = {}{}({});
+	return Clss;
+}})", (bIsBPStaticClass ? "StaticBPGeneratedClassImpl" : "StaticClassImpl"), (!bIsNameUnique ? "<true>" : ""), NameText);
 
-	StaticClassName.Body = std::format(
+	/* ClassName always uses the short name, and it's a wide string for FString */
+	NameText = CppSettings::XORString ? std::format("{}(L\"{}\")", CppSettings::XORString, Struct.GetRawName()) : std::format("L\"{}\"", Struct.GetRawName());
+
+	ClassName.Body = std::format(
 R"({{
-	static auto className = UKismetStringLibrary::Conv_StringToName(FString({}));
-	return className;
-}})", NameText.insert(NameText.find('"'), "L"));
+	static FName ClassName = UKismetStringLibrary::Conv_StringToName(FString({}));
+	return ClassName;
+}})", NameText);
 
 	/* Set class-specific parts of 'GetDefaultObj' */
 	GetDefaultObj.ReturnType = std::format("class {}*", StructName);
@@ -627,11 +620,13 @@ R"({{
 	std::shared_ptr<StructWrapper> CurrentStructPtr = std::make_shared<StructWrapper>(Struct);
 	if (bIsBPStaticClass)
 	{
-		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClassName), StructName, FunctionFile, ParamFile);
+		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &ClassName), StructName, FunctionFile, ParamFile);
+		InHeaderFunctionText += "private:\n";
 	}
-	else
+	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
+	if (bIsBPStaticClass)
 	{
-		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
+		InHeaderFunctionText += "public:\n";
 	}
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &GetDefaultObj), StructName, FunctionFile, ParamFile);
 
@@ -3516,20 +3511,20 @@ class UClass* StaticClassImpl(const char* Name)
 
 	/* Implementation of 'UObject::StaticClass()' for 'BlueprintGeneratedClass', templated to allow for a per-class local static class-index */
 	BasicHpp << R"(
-template<StringLiteral Name, bool bIsFullName = false, StringLiteral NonFullName = "">
-class UClass* StaticBPGeneratedClassImpl()
+template<bool bIsFullName = false>
+class UClass* StaticBPGeneratedClassImpl(const char* Name)
 {
 	/* Could be external function, not really unique to this StaticClass functon */
 	static auto SetClassIndex = [](UClass* Class, int32& Index, uint64& ClassName) -> UClass*
-	{
-		if (Class)
 		{
-			Index = BasicFilesImpleUtils::GetObjectIndex(Class);
-			ClassName = BasicFilesImpleUtils::GetObjFNameAsUInt64(Class);
-		}
+			if (Class)
+			{
+				Index = BasicFilesImpleUtils::GetObjectIndex(Class);
+				ClassName = BasicFilesImpleUtils::GetObjFNameAsUInt64(Class);
+			}
 
-		return Class;
-	};
+			return Class;
+		};
 
 	static int32 ClassIdx = 0x0;
 	static uint64 ClassName = 0x0;
