@@ -606,7 +606,7 @@ R"({{
 
 	StaticName.Body = std::format(
 R"({{
-	static FName Name = UKismetStringLibrary::Conv_StringToName(FString({}));
+	static FName Name = BasicFilesImpleUtils::StringToName({});
 	return Name;
 }})", NameText);
 
@@ -621,13 +621,8 @@ R"({{
 	if (bIsBPStaticClass)
 	{
 		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticName), StructName, FunctionFile, ParamFile);
-		InHeaderFunctionText += "private:\n";
 	}
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
-	if (bIsBPStaticClass)
-	{
-		InHeaderFunctionText += "public:\n";
-	}
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &GetDefaultObj), StructName, FunctionFile, ParamFile);
 
 	if (bIsInterface)
@@ -3443,6 +3438,8 @@ namespace BasicFilesImpleUtils
 	UObject* GetObjectByIndex(int32 Index);
 
 	UFunction* FindFunctionByFName(const FName* Name);
+
+	FName StringToName(const wchar_t* Name);
 }
 )";
 
@@ -3494,6 +3491,35 @@ UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
 }
 
 )";
+
+	std::string KismetStringLibrary = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, "KismetStringLibrary") : "\"KismetStringLibrary\"";
+	std::string Conv_StringToName = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, "Conv_StringToName") : "\"Conv_StringToName\"";
+
+	BasicCpp << std::format(R"(
+FName BasicFilesImpleUtils::StringToName(const wchar_t* Name)
+{{
+	static class UClass* Clss = FindClassByName({0});
+	static class UFunction* Func = Clss->GetFunction({0}, {1});
+
+	struct KismetStringLibrary_Conv_StringToName
+	{{
+		class FString InString;
+		class FName ReturnValue;
+	}} Parms{{}};
+
+	Parms.InString = FString(Name);
+
+	auto Flgs = Func->FunctionFlags;
+	Func->FunctionFlags |= 0x400;
+
+	Clss->DefaultObject->ProcessEvent(Func, &Parms);
+
+	Func->FunctionFlags = Flgs;
+
+	return Parms.ReturnValue;
+}}
+
+)", KismetStringLibrary, Conv_StringToName);
 
 	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-class local static class-pointer */
 	BasicHpp << R"(
@@ -3564,8 +3590,8 @@ class UClass* StaticBPGeneratedClassImpl(const char* Name)
 template<class ClassType>
 ClassType* GetDefaultObjImpl()
 {
-	UClass* StaticClass = ClassType::StaticClass();
-	return StaticClass ? reinterpret_cast<ClassType*>(StaticClass->DefaultObject) : nullptr;
+	UClass* StaticClss = ClassType::StaticClass();
+	return StaticClss ? reinterpret_cast<ClassType*>(StaticClss->DefaultObject) : nullptr;
 }
 
 )";
