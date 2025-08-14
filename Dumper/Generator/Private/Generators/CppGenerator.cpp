@@ -467,7 +467,7 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	namespace CppSettings = Settings::CppGenerator;
 
 	static PredefinedFunction StaticClass;
-	static PredefinedFunction ClassName;
+	static PredefinedFunction StaticName;
 	static PredefinedFunction GetDefaultObj;
 
 	static PredefinedFunction Interface_AsObject;
@@ -483,11 +483,11 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		.bIsConst = false,
 		.bIsBodyInline = true,
 	};
-	if (ClassName.NameWithParams.empty())
-		ClassName = {
+	if (StaticName.NameWithParams.empty())
+		StaticName = {
 		.CustomComment = "Used with 'IsA' to check if an object is of a certain Blueprint class type",
 		.ReturnType = "class FName&",
-		.NameWithParams = "ClassName()",
+		.NameWithParams = "StaticName()",
 
 		.bIsStatic = true,
 		.bIsConst = false,
@@ -604,10 +604,10 @@ R"({{
 	/* ClassName always uses the short name, and it's a wide string for FString */
 	NameText = CppSettings::XORString ? std::format("{}(L\"{}\")", CppSettings::XORString, Struct.GetRawName()) : std::format("L\"{}\"", Struct.GetRawName());
 
-	ClassName.Body = std::format(
+	StaticName.Body = std::format(
 R"({{
-	static FName ClassName = UKismetStringLibrary::Conv_StringToName(FString({}));
-	return ClassName;
+	static FName Name = UKismetStringLibrary::Conv_StringToName(FString({}));
+	return Name;
 }})", NameText);
 
 	/* Set class-specific parts of 'GetDefaultObj' */
@@ -620,7 +620,7 @@ R"({{
 	std::shared_ptr<StructWrapper> CurrentStructPtr = std::make_shared<StructWrapper>(Struct);
 	if (bIsBPStaticClass)
 	{
-		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &ClassName), StructName, FunctionFile, ParamFile);
+		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticName), StructName, FunctionFile, ParamFile);
 		InHeaderFunctionText += "private:\n";
 	}
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
@@ -3564,7 +3564,8 @@ class UClass* StaticBPGeneratedClassImpl(const char* Name)
 template<class ClassType>
 ClassType* GetDefaultObjImpl()
 {
-	return reinterpret_cast<ClassType*>(ClassType::StaticClass()->DefaultObject);
+	UClass* StaticClass = ClassType::StaticClass();
+	return StaticClass ? reinterpret_cast<ClassType*>(StaticClass->DefaultObject) : nullptr;
 }
 
 )";
