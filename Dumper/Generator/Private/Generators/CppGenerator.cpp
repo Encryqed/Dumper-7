@@ -3491,9 +3491,13 @@ UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
 }
 
 )";
-
-	std::string KismetStringLibrary = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, "KismetStringLibrary") : "\"KismetStringLibrary\"";
-	std::string Conv_StringToName = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, "Conv_StringToName") : "\"Conv_StringToName\"";
+	std::string KismetStringLibrary = "\"KismetStringLibrary\"";
+	std::string Conv_StringToName = "\"Conv_StringToName\"";
+	if (CppSettings::XORString)
+	{
+		KismetStringLibrary = std::format("{}({})", CppSettings::XORString, KismetStringLibrary);
+		Conv_StringToName = std::format("{}({})", CppSettings::XORString, Conv_StringToName);
+	}
 
 	BasicCpp << std::format(R"(
 FName BasicFilesImpleUtils::StringToName(const wchar_t* Name)
