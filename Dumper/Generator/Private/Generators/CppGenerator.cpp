@@ -467,6 +467,7 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	namespace CppSettings = Settings::CppGenerator;
 
 	static PredefinedFunction StaticClass;
+	static PredefinedFunction StaticName;
 	static PredefinedFunction GetDefaultObj;
 
 	static PredefinedFunction Interface_AsObject;
@@ -482,6 +483,17 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		.bIsConst = false,
 		.bIsBodyInline = true,
 	};
+	if (StaticName.NameWithParams.empty())
+		StaticName = {
+		.CustomComment = "Used with 'IsA' to check if an object is of a certain Blueprint class type",
+		.ReturnType = "const class FName&",
+		.NameWithParams = "StaticName()",
+
+		.bIsStatic = true,
+		.bIsConst = false,
+		.bIsBodyInline = true,
+	};
+
 
 	if (GetDefaultObj.NameWithParams.empty())
 		GetDefaultObj = {
@@ -571,39 +583,49 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	if ((bWasLastFuncStatic != StaticClass.bIsStatic || bWaslastFuncConst != StaticClass.bIsConst) && !bIsFirstIteration && !bDidSwitch)
 		InHeaderFunctionText += '\n';
 
-	const bool bIsNameUnique = Struct.GetUniqueName().second;
-
-	std::string Name = !bIsNameUnique ? Struct.GetFullName() : Struct.GetRawName();
-	std::string NameText = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Name) : std::format("\"{}\"", Name);
-	
-
 	static UEClass BPGeneratedClass = nullptr;
 	
 	if (BPGeneratedClass == nullptr)
 		BPGeneratedClass = ObjectArray::FindClassFast("BlueprintGeneratedClass");
 
-
-	const char* StaticClassImplFunctionName = "StaticClassImpl";
-
-	std::string NonFullName;
-
 	const bool bIsBPStaticClass = Struct.IsAClassWithType(BPGeneratedClass);
 
-	/* BPGenerated classes are loaded/unloaded dynamically, so a static pointer to the UClass will eventually be invalidated */
+	const bool bIsNameUnique = Struct.GetUniqueName().second;
+
+	std::string Name = bIsNameUnique ? Struct.GetRawName() : Struct.GetFullName();
+	std::string NameText = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Name) : std::format("\"{}\"", Name);
+
 	if (bIsBPStaticClass)
 	{
-		StaticClassImplFunctionName = "StaticBPGeneratedClassImpl";
-
-		if (!bIsNameUnique)
-			NonFullName = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Struct.GetRawName()) : std::format("\"{}\"", Struct.GetRawName());
-	}
-	
-
-	/* Use the default implementation of 'StaticClass' */
-	StaticClass.Body = std::format(
+		StaticClass.Body = std::format(
 			R"({{
-	return {}<{}{}{}>();
-}})", StaticClassImplFunctionName, NameText, (!bIsNameUnique ? ", true" : ""), (bIsBPStaticClass && !bIsNameUnique ? ", " + NonFullName : ""));
+	static int32 ClassIdx = 0;
+	static uint64 ClassName = 0;
+
+	return GetStaticBPGeneratedClass{}({}, ClassIdx, ClassName);
+}})", (!bIsNameUnique ? "<true>" : ""), NameText);
+	}
+	else
+	{
+		StaticClass.Body = std::format(
+R"({{
+	static UClass* Clss = nullptr;
+
+	if (Clss == nullptr)
+		Clss = GetStaticClass{}({});
+
+	return Clss;
+}})", (!bIsNameUnique ? "<true>" : ""), NameText);
+	}
+
+	/* ClassName always uses the short name, and it's a wide string for FString */
+	NameText = CppSettings::XORString ? std::format("{}(L\"{}\")", CppSettings::XORString, Struct.GetRawName()) : std::format("L\"{}\"", Struct.GetRawName());
+
+	StaticName.Body = std::format(
+R"({{
+	static FName Name = StringToName({});
+	return Name;
+}})", NameText);
 
 	/* Set class-specific parts of 'GetDefaultObj' */
 	GetDefaultObj.ReturnType = std::format("class {}*", StructName);
@@ -612,8 +634,11 @@ R"({{
 	return GetDefaultObjImpl<{}>();
 }})",StructName);
 
-
 	std::shared_ptr<StructWrapper> CurrentStructPtr = std::make_shared<StructWrapper>(Struct);
+	if (bIsBPStaticClass)
+	{
+		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticName), StructName, FunctionFile, ParamFile);
+	}
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &GetDefaultObj), StructName, FunctionFile, ParamFile);
 
@@ -1383,12 +1408,17 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	{
 		File << "#include \"../PropertyFixup.hpp\"\n";
 		File << "#include \"../UnrealContainers.hpp\"\n";
+		if (Settings::CppGenerator::XORStringInclude)
+		{
+			File << std::format("#include \"{}\"\n", Settings::CppGenerator::XORStringInclude);
+		}
 	}
 
 	if (Type == EFileType::BasicCpp)
 	{
 		File << "\n#include \"CoreUObject_classes.hpp\"";
 		File << "\n#include \"CoreUObject_structs.hpp\"\n";
+		File << "#include \"Engine_classes.hpp\"\n";
 	}
 
 	if (Type == EFileType::Functions && (Package.HasClasses() || Package.HasParameterStructs()))
@@ -2328,9 +2358,17 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "Checks a UObjects' type by Class",
-			.ReturnType = "bool", .NameWithParams = "IsA(class UClass* TypeClass)", .Body =
+			.ReturnType = "bool", .NameWithParams = "IsA(const class UClass* TypeClass)", .Body =
 R"({
 	return Class->IsSubclassOf(TypeClass);
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction{
+			.CustomComment = "Checks a UObjects' type by Class name",
+			.ReturnType = "bool", .NameWithParams = "IsA(const class FName& ClassName)", .Body =
+R"({
+	return Class->IsSubclassOf(ClassName);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
@@ -2388,6 +2426,23 @@ R"({
 	for (const UStruct* Struct = this; Struct; Struct = Struct->Super)
 	{
 		if (Struct == Base)
+			return true;
+	}
+
+	return false;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "Checks if this class has a certain base",
+			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const FName& baseClassName)", .Body =
+R"({
+	if (baseClassName.IsNone())
+		return false;
+
+	for (const UStruct* Struct = this; Struct; Struct = Struct->Super)
+	{
+		if (Struct->Name == baseClassName)
 			return true;
 	}
 
@@ -3381,7 +3436,7 @@ struct StringLiteral
 	}
 
 	BasicHpp << R"(
-// Forward declarations because in-line forward declarations make the compiler think 'StaticClassImpl()' is a class template
+// Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
 class UClass;
 class UObject;
 class UFunction;
@@ -3392,8 +3447,8 @@ class FName;
 	BasicHpp << R"(
 namespace BasicFilesImpleUtils
 {
-	// Helper functions for StaticClassImpl and StaticBPGeneratedClassImpl
-	UClass* FindClassByName(const std::string& Name);
+	// Helper functions for GetStaticClass and GetStaticBPGeneratedClass
+	UClass* FindClassByName(const std::string& Name, bool bByFullName = false);
 	UClass* FindClassByFullName(const std::string& Name);
 
 	std::string GetObjectName(class UClass* Class);
@@ -3409,9 +3464,9 @@ namespace BasicFilesImpleUtils
 )";
 
 	BasicCpp << R"(
-class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name)
+class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name, bool bByFullName)
 {
-	return UObject::FindClassFast(Name);
+	return bByFullName ? UObject::FindClass(Name) : UObject::FindClassFast(Name);
 }
 
 class UClass* BasicFilesImpleUtils::FindClassByFullName(const std::string& Name)
@@ -3454,74 +3509,74 @@ UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
 
 	return nullptr;
 }
+)";
 
+	BasicHpp << R"(
+FName StringToName(const wchar_t* Name);
+)";
+
+	BasicCpp << R"(
+FName StringToName(const wchar_t* Name)
+{
+	return UKismetStringLibrary::Conv_StringToName(FString(Name));
+}
 )";
 
 	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-class local static class-pointer */
 	BasicHpp << R"(
-template<StringLiteral Name, bool bIsFullName = false>
-class UClass* StaticClassImpl()
+template<bool bIsFullName = false>
+class UClass* GetStaticClass(const char* Name)
 {
-	static class UClass* Clss = nullptr;
-
-	if (Clss == nullptr)
-	{
-		if constexpr (bIsFullName) {
-			Clss = BasicFilesImpleUtils::FindClassByFullName(Name);
-		}
-		else /* default */ {
-			Clss = BasicFilesImpleUtils::FindClassByName(Name);
-		}
+	if constexpr (bIsFullName) {
+		return BasicFilesImpleUtils::FindClassByFullName(Name);
 	}
-
-	return Clss;
+	else /* default */ {
+		return BasicFilesImpleUtils::FindClassByName(Name);
+	}
 }
 )";
 
 	/* Implementation of 'UObject::StaticClass()' for 'BlueprintGeneratedClass', templated to allow for a per-class local static class-index */
 	BasicHpp << R"(
-template<StringLiteral Name, bool bIsFullName = false, StringLiteral NonFullName = "">
-class UClass* StaticBPGeneratedClassImpl()
+template<bool bIsFullName = false>
+class UClass* GetStaticBPGeneratedClass(const char* Name, int32& ClassIdx, uint64& ClassNameIdx)
 {
 	/* Could be external function, not really unique to this StaticClass functon */
 	static auto SetClassIndex = [](UClass* Class, int32& Index, uint64& ClassName) -> UClass*
-	{
-		if (Class)
 		{
-			Index = BasicFilesImpleUtils::GetObjectIndex(Class);
-			ClassName = BasicFilesImpleUtils::GetObjFNameAsUInt64(Class);
-		}
+			if (Class)
+			{
+				Index = BasicFilesImpleUtils::GetObjectIndex(Class);
+				ClassName = BasicFilesImpleUtils::GetObjFNameAsUInt64(Class);
+			}
 
-		return Class;
-	};
-
-	static int32 ClassIdx = 0x0;
-	static uint64 ClassName = 0x0;
+			return Class;
+		};
 
 	/* Use the full name to find an object */
 	if constexpr (bIsFullName)
 	{
 		if (ClassIdx == 0x0) [[unlikely]]
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassName);
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassNameIdx);
 
 		UClass* ClassObj = static_cast<UClass*>(BasicFilesImpleUtils::GetObjectByIndex(ClassIdx));
 
 		/* Could use cast flags too to save some string comparisons */
-		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassName)
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassName);
+		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassNameIdx)
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassNameIdx);
 
 		return ClassObj;
 	}
 	else /* Default, use just the name to find an object*/
 	{
 		if (ClassIdx == 0x0) [[unlikely]]
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassName);
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassNameIdx);
 
 		UClass* ClassObj = static_cast<UClass*>(BasicFilesImpleUtils::GetObjectByIndex(ClassIdx));
 
 		/* Could use cast flags too to save some string comparisons */
-		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassName)
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassName);
+		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassNameIdx)
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassNameIdx);
 
 		return ClassObj;
 	}
@@ -3533,9 +3588,15 @@ class UClass* StaticBPGeneratedClassImpl()
 template<class ClassType>
 ClassType* GetDefaultObjImpl()
 {
-	return reinterpret_cast<ClassType*>(ClassType::StaticClass()->DefaultObject);
-}
+	UClass* StaticClass = ClassType::StaticClass();
 
+	if (StaticClass)
+	{
+		return reinterpret_cast<ClassType*>(StaticClass->DefaultObject);
+	}
+
+	return nullptr;
+}
 )";
 
 	// Start class 'FUObjectItem'
@@ -4257,7 +4318,8 @@ R"({
 
 	std::string GetRawStringWithAppendString = std::format(
 		R"({{
-	thread_local FAllocatedString TempString(1024);
+	thread_local wchar_t buffer[1024];
+    thread_local FString TempString(buffer, 0, 1024);
 
 	if (!AppendString)
 		InitInternal();
@@ -4273,7 +4335,8 @@ R"({
 
 	constexpr const char* GetRawStringWithInlinedAppendString =
 		R"({
-	thread_local FAllocatedString TempString(1024);
+	thread_local wchar_t buffer[1024];
+    thread_local FString TempString(buffer, 0, 1024);
 
 	if (!AppendString)
 		InitInternal();
@@ -4341,6 +4404,33 @@ R"({
 
 	FName.Functions =
 	{
+		/* constructors */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "constexpr",
+			.NameWithParams = std::format("FName(int32 ComparisonIndex = 0{}{})",
+				!Settings::Internal::bUseOutlineNumberName ? ", uint32 Number = 0" : "",
+				Settings::Internal::bUseCasePreservingName ? ", int32 DisplayIndex = 0" : ""),
+			.Body =
+std::format(R"(	: ComparisonIndex(ComparisonIndex){}{}
+{{
+}})",
+!Settings::Internal::bUseOutlineNumberName ? ", Number(Number)" : "",
+Settings::Internal::bUseCasePreservingName ? ", DisplayIndex(DisplayIndex)" : ""),
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FName(const FName& other)",
+			.Body =
+std::format(R"(	: ComparisonIndex(other.ComparisonIndex){}{}
+{{
+}})",
+!Settings::Internal::bUseOutlineNumberName ? ", Number(other.Number)" : "",
+Settings::Internal::bUseCasePreservingName ? ", DisplayIndex(other.DisplayIndex)" : ""),
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		/* static functions */
 		PredefinedFunction {
 			.CustomComment = "",
 			.ReturnType = "void", .NameWithParams = "InitInternal()", .Body =
@@ -4348,6 +4438,18 @@ std::format(R"({{
 	{0} = {2}reinterpret_cast<{1}{2}>(InSDKUtils::GetImageBase() + Offsets::{0});{3}
 }})", NameArrayName, NameArrayType, (Off::InSDK::Name::AppendNameToString == 0 && !Settings::Internal::bUseNamePool ? "*" : ""), GetNameEntryInitializationCode),
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+		},
+		/* const functions */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "bool", .NameWithParams = "IsNone()", .Body =
+std::format(R"({{
+	return !{}{};
+}}
+)",
+Settings::Internal::bUseCasePreservingName ? "DisplayIndex" : "ComparisonIndex",
+!Settings::Internal::bUseOutlineNumberName ? "&& !Number" : ""),
+				.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 		PredefinedFunction {
 			.CustomComment = "",
@@ -4377,6 +4479,19 @@ std::format(R"({{
 }
 )",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
+		},
+		/* operators */
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "FName&", .NameWithParams = "operator=(const FName& other)", .Body =
+std::format(R"({{
+	ComparisonIndex = other.ComparisonIndex;{}{}
+
+	return *this;
+}})",
+!Settings::Internal::bUseOutlineNumberName ? "\n\tNumber = other.Number;" : "",
+Settings::Internal::bUseCasePreservingName ? "\n\tDisplayIndex = other.DisplayIndex;" : ""),
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		},
 		PredefinedFunction {
 			.CustomComment = "",
@@ -5880,6 +5995,13 @@ namespace UC
 			Data = const_cast<wchar_t*>(Str);
 			NumElements = NullTerminatedLength;
 			MaxElements = NullTerminatedLength;
+		}
+
+		FString(wchar_t* Str, int32 Num, int32 Max)
+		{
+			Data = Str;
+			NumElements = Num;
+			MaxElements = Max;
 		}
 
 	public:

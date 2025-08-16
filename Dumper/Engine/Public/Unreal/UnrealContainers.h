@@ -329,6 +329,13 @@ namespace UC
 			MaxElements = NullTerminatedLength;
 		}
 
+		FString(wchar_t* Str, int32 Num, int32 Max)
+		{
+			Data = Str;
+			NumElements = Num;
+			MaxElements = Max;
+		}
+
 	public:
 		inline std::string ToString() const
 		{
