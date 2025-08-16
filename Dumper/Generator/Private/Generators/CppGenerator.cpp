@@ -599,14 +599,14 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 R"({{
 	static UClass* Clss = {}{}({});
 	return Clss;
-}})", (bIsBPStaticClass ? "StaticBPGeneratedClassImpl" : "StaticClassImpl"), (!bIsNameUnique ? "<true>" : ""), NameText);
+}})", (bIsBPStaticClass ? "GetStaticBPGeneratedClass" : "GetStaticClass"), (!bIsNameUnique ? "<true>" : ""), NameText);
 
 	/* ClassName always uses the short name, and it's a wide string for FString */
 	NameText = CppSettings::XORString ? std::format("{}(L\"{}\")", CppSettings::XORString, Struct.GetRawName()) : std::format("L\"{}\"", Struct.GetRawName());
 
 	StaticName.Body = std::format(
 R"({{
-	static FName Name = BasicFilesImpleUtils::StringToName({});
+	static FName Name = StringToName({});
 	return Name;
 }})", NameText);
 
@@ -1391,12 +1391,17 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	{
 		File << "#include \"../PropertyFixup.hpp\"\n";
 		File << "#include \"../UnrealContainers.hpp\"\n";
+		if (Settings::CppGenerator::XORStringInclude)
+		{
+			File << std::format("#include \"{}\"\n", Settings::CppGenerator::XORStringInclude);
+		}
 	}
 
 	if (Type == EFileType::BasicCpp)
 	{
 		File << "\n#include \"CoreUObject_classes.hpp\"";
 		File << "\n#include \"CoreUObject_structs.hpp\"\n";
+		File << "#include \"Engine_classes.hpp\"\n";
 	}
 
 	if (Type == EFileType::Functions && (Package.HasClasses() || Package.HasParameterStructs()))
@@ -3414,7 +3419,7 @@ struct StringLiteral
 	}
 
 	BasicHpp << R"(
-// Forward declarations because in-line forward declarations make the compiler think 'StaticClassImpl()' is a class template
+// Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
 class UClass;
 class UObject;
 class UFunction;
@@ -3425,7 +3430,7 @@ class FName;
 	BasicHpp << R"(
 namespace BasicFilesImpleUtils
 {
-	// Helper functions for StaticClassImpl and StaticBPGeneratedClassImpl
+	// Helper functions for GetStaticClass and GetStaticBPGeneratedClass
 	UClass* FindClassByName(const std::string& Name, bool bByFullName = false);
 	UClass* FindClassByFullName(const std::string& Name);
 
@@ -3438,8 +3443,6 @@ namespace BasicFilesImpleUtils
 	UObject* GetObjectByIndex(int32 Index);
 
 	UFunction* FindFunctionByFName(const FName* Name);
-
-	FName StringToName(const wchar_t* Name);
 }
 )";
 
@@ -3489,46 +3492,23 @@ UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
 
 	return nullptr;
 }
-
 )";
-	std::string KismetStringLibrary = "\"KismetStringLibrary\"";
-	std::string Conv_StringToName = "\"Conv_StringToName\"";
-	if (CppSettings::XORString)
-	{
-		KismetStringLibrary = std::format("{}({})", CppSettings::XORString, KismetStringLibrary);
-		Conv_StringToName = std::format("{}({})", CppSettings::XORString, Conv_StringToName);
-	}
 
-	BasicCpp << std::format(R"(
-FName BasicFilesImpleUtils::StringToName(const wchar_t* Name)
-{{
-	static class UClass* Clss = FindClassByName({0});
-	static class UFunction* Func = Clss->GetFunction({0}, {1});
+	BasicHpp << R"(
+FName StringToName(const wchar_t* Name);
+)";
 
-	struct KismetStringLibrary_Conv_StringToName
-	{{
-		class FString InString;
-		class FName ReturnValue;
-	}} Parms{{}};
-
-	Parms.InString = FString(Name);
-
-	auto Flgs = Func->FunctionFlags;
-	Func->FunctionFlags |= 0x400;
-
-	Clss->DefaultObject->ProcessEvent(Func, &Parms);
-
-	Func->FunctionFlags = Flgs;
-
-	return Parms.ReturnValue;
-}}
-
-)", KismetStringLibrary, Conv_StringToName);
+	BasicCpp << R"(
+FName StringToName(const wchar_t* Name)
+{
+	return UKismetStringLibrary::Conv_StringToName(FString(Name));
+}
+)";
 
 	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-class local static class-pointer */
 	BasicHpp << R"(
 template<bool bIsFullName = false>
-class UClass* StaticClassImpl(const char* Name)
+class UClass* GetStaticClass(const char* Name)
 {
 	if constexpr (bIsFullName) {
 		return BasicFilesImpleUtils::FindClassByFullName(Name);
@@ -3542,7 +3522,7 @@ class UClass* StaticClassImpl(const char* Name)
 	/* Implementation of 'UObject::StaticClass()' for 'BlueprintGeneratedClass', templated to allow for a per-class local static class-index */
 	BasicHpp << R"(
 template<bool bIsFullName = false>
-class UClass* StaticBPGeneratedClassImpl(const char* Name)
+class UClass* GetStaticBPGeneratedClass(const char* Name)
 {
 	/* Could be external function, not really unique to this StaticClass functon */
 	static auto SetClassIndex = [](UClass* Class, int32& Index, uint64& ClassName) -> UClass*
