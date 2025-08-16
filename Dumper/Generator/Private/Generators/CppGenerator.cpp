@@ -486,7 +486,7 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	if (StaticName.NameWithParams.empty())
 		StaticName = {
 		.CustomComment = "Used with 'IsA' to check if an object is of a certain Blueprint class type",
-		.ReturnType = "class FName&",
+		.ReturnType = "const class FName&",
 		.NameWithParams = "StaticName()",
 
 		.bIsStatic = true,
@@ -595,11 +595,28 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	std::string Name = bIsNameUnique ? Struct.GetRawName() : Struct.GetFullName();
 	std::string NameText = CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, Name) : std::format("\"{}\"", Name);
 
-	StaticClass.Body = std::format(
+	if (bIsBPStaticClass)
+	{
+		StaticClass.Body = std::format(
+			R"({{
+	static int32 ClassIdx = 0;
+	static uint64 ClassName = 0;
+
+	return GetStaticBPGeneratedClass{}({}, ClassIdx, ClassName);
+}})", (!bIsNameUnique ? "<true>" : ""), NameText);
+	}
+	else
+	{
+		StaticClass.Body = std::format(
 R"({{
-	static UClass* Clss = {}{}({});
+	static UClass* Clss = nullptr;
+
+	if (Clss == nullptr)
+		Clss = GetStaticClass{}({});
+
 	return Clss;
-}})", (bIsBPStaticClass ? "GetStaticBPGeneratedClass" : "GetStaticClass"), (!bIsNameUnique ? "<true>" : ""), NameText);
+}})", (!bIsNameUnique ? "<true>" : ""), NameText);
+	}
 
 	/* ClassName always uses the short name, and it's a wide string for FString */
 	NameText = CppSettings::XORString ? std::format("{}(L\"{}\")", CppSettings::XORString, Struct.GetRawName()) : std::format("L\"{}\"", Struct.GetRawName());
@@ -2341,7 +2358,7 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "Checks a UObjects' type by Class",
-			.ReturnType = "bool", .NameWithParams = "IsA(class UClass* TypeClass)", .Body =
+			.ReturnType = "bool", .NameWithParams = "IsA(const class UClass* TypeClass)", .Body =
 R"({
 	return Class->IsSubclassOf(TypeClass);
 })",
@@ -2349,7 +2366,7 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "Checks a UObjects' type by Class name",
-			.ReturnType = "bool", .NameWithParams = "IsA(class FName& ClassName)", .Body =
+			.ReturnType = "bool", .NameWithParams = "IsA(const class FName& ClassName)", .Body =
 R"({
 	return Class->IsSubclassOf(ClassName);
 })",
@@ -3522,7 +3539,7 @@ class UClass* GetStaticClass(const char* Name)
 	/* Implementation of 'UObject::StaticClass()' for 'BlueprintGeneratedClass', templated to allow for a per-class local static class-index */
 	BasicHpp << R"(
 template<bool bIsFullName = false>
-class UClass* GetStaticBPGeneratedClass(const char* Name)
+class UClass* GetStaticBPGeneratedClass(const char* Name, int32& ClassIdx, uint64& ClassNameIdx)
 {
 	/* Could be external function, not really unique to this StaticClass functon */
 	static auto SetClassIndex = [](UClass* Class, int32& Index, uint64& ClassName) -> UClass*
@@ -3536,33 +3553,30 @@ class UClass* GetStaticBPGeneratedClass(const char* Name)
 			return Class;
 		};
 
-	static int32 ClassIdx = 0x0;
-	static uint64 ClassName = 0x0;
-
 	/* Use the full name to find an object */
 	if constexpr (bIsFullName)
 	{
 		if (ClassIdx == 0x0) [[unlikely]]
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassName);
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassNameIdx);
 
 		UClass* ClassObj = static_cast<UClass*>(BasicFilesImpleUtils::GetObjectByIndex(ClassIdx));
 
 		/* Could use cast flags too to save some string comparisons */
-		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassName)
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassName);
+		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassNameIdx)
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassNameIdx);
 
 		return ClassObj;
 	}
 	else /* Default, use just the name to find an object*/
 	{
 		if (ClassIdx == 0x0) [[unlikely]]
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassName);
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassNameIdx);
 
 		UClass* ClassObj = static_cast<UClass*>(BasicFilesImpleUtils::GetObjectByIndex(ClassIdx));
 
 		/* Could use cast flags too to save some string comparisons */
-		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassName)
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassName);
+		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassNameIdx)
+			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassNameIdx);
 
 		return ClassObj;
 	}
@@ -3574,10 +3588,15 @@ class UClass* GetStaticBPGeneratedClass(const char* Name)
 template<class ClassType>
 ClassType* GetDefaultObjImpl()
 {
-	UClass* StaticClss = ClassType::StaticClass();
-	return StaticClss ? reinterpret_cast<ClassType*>(StaticClss->DefaultObject) : nullptr;
-}
+	UClass* StaticClass = ClassType::StaticClass();
 
+	if (StaticClass)
+	{
+		return reinterpret_cast<ClassType*>(StaticClass->DefaultObject);
+	}
+
+	return nullptr;
+}
 )";
 
 	// Start class 'FUObjectItem'
