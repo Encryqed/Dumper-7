@@ -4330,25 +4330,22 @@ R"({
 
 	std::string GetRawStringWithAppendString = std::format(
 		R"({{
-	thread_local wchar_t buffer[1024];
-    thread_local FString TempString(buffer, 0, 1024);
+	wchar_t buffer[1024];
+    FString TempString(buffer, 0, 1024);
 
 	if (!AppendString)
 		InitInternal();
 
 	InSDKUtils::CallGameFunction(reinterpret_cast<void({}*)(const FName*, FString&)>(AppendString), this, TempString);
 
-	std::string OutputString = TempString.ToString();
-	TempString.Clear();
-
-	return OutputString;
+	return TempString.ToString();
 }}
 )", Settings::Is32Bit() ? "__thiscall" : "");
 
 	constexpr const char* GetRawStringWithInlinedAppendString =
 		R"({
-	thread_local wchar_t buffer[1024];
-    thread_local FString TempString(buffer, 0, 1024);
+	wchar_t buffer[1024];
+    FString TempString(buffer, 0, 1024);
 
 	if (!AppendString)
 		InitInternal();
@@ -4357,7 +4354,6 @@ R"({
 	InSDKUtils::CallGameFunction(reinterpret_cast<void(*)(const void*, FString&)>(AppendString), NameEntry, TempString);
 
 	std::string OutputString = TempString.ToString();
-	TempString.Clear();
 
 	if (Number > 0)
 		OutputString += ("_" + std::to_string(Number - 1));
