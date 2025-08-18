@@ -611,10 +611,7 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 R"({{
 	static UClass* Clss = nullptr;
 
-	if (Clss == nullptr)
-		Clss = GetStaticClass{}({});
-
-	return Clss;
+	return GetStaticClass{}({}, Clss);
 }})", (!bIsNameUnique ? "<true>" : ""), NameText);
 	}
 
@@ -624,6 +621,7 @@ R"({{
 	StaticName.Body = std::format(
 R"({{
 	static FName Name = StringToName({});
+
 	return Name;
 }})", NameText);
 
@@ -635,11 +633,8 @@ R"({{
 }})",StructName);
 
 	std::shared_ptr<StructWrapper> CurrentStructPtr = std::make_shared<StructWrapper>(Struct);
-	if (bIsBPStaticClass)
-	{
-		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticName), StructName, FunctionFile, ParamFile);
-	}
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticClass), StructName, FunctionFile, ParamFile);
+	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &StaticName), StructName, FunctionFile, ParamFile);
 	InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &GetDefaultObj), StructName, FunctionFile, ParamFile);
 
 	if (bIsInterface)
@@ -3525,14 +3520,19 @@ FName StringToName(const wchar_t* Name)
 	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-class local static class-pointer */
 	BasicHpp << R"(
 template<bool bIsFullName = false>
-class UClass* GetStaticClass(const char* Name)
+class UClass* GetStaticClass(const char* Name, class UClass*& StaticClass)
 {
-	if constexpr (bIsFullName) {
-		return BasicFilesImpleUtils::FindClassByFullName(Name);
+	if (StaticClass == nullptr)
+	{
+		if constexpr (bIsFullName) {
+			StaticClass = BasicFilesImpleUtils::FindClassByFullName(Name);
+		}
+		else /* default */ {
+			StaticClass = BasicFilesImpleUtils::FindClassByName(Name);
+		}
 	}
-	else /* default */ {
-		return BasicFilesImpleUtils::FindClassByName(Name);
-	}
+
+	return StaticClass;
 }
 )";
 
