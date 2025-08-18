@@ -620,9 +620,9 @@ R"({{
 
 	StaticName.Body = std::format(
 R"({{
-	static FName Name = StringToName({});
+	static FName Name = FName();
 
-	return Name;
+	return GetStaticName({}, Name);
 }})", NameText);
 
 	/* Set class-specific parts of 'GetDefaultObj' */
@@ -3455,6 +3455,8 @@ namespace BasicFilesImpleUtils
 	UObject* GetObjectByIndex(int32 Index);
 
 	UFunction* FindFunctionByFName(const FName* Name);
+
+	FName StringToName(const wchar_t* Name);
 }
 )";
 
@@ -3504,16 +3506,26 @@ UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
 
 	return nullptr;
 }
+
+FName BasicFilesImpleUtils::StringToName(const wchar_t* Name)
+{
+	return UKismetStringLibrary::Conv_StringToName(FString(Name));
+}
 )";
 
 	BasicHpp << R"(
-FName StringToName(const wchar_t* Name);
+const FName& GetStaticName(const wchar_t* Name, FName& StaticName);
 )";
 
 	BasicCpp << R"(
-FName StringToName(const wchar_t* Name)
+const FName& GetStaticName(const wchar_t* Name, FName& StaticName)
 {
-	return UKismetStringLibrary::Conv_StringToName(FString(Name));
+	if (StaticName.IsNone())
+	{
+		StaticName = BasicFilesImpleUtils::StringToName(Name);
+	}
+
+	return StaticName;
 }
 )";
 
