@@ -1,7 +1,7 @@
 #pragma once
+
 #include "Unreal/Enums.h"
 #include "../Settings.h"
-
 
 struct FFixedUObjectArrayLayout
 {
@@ -64,7 +64,9 @@ namespace Off
 		{
 			/* Whether we're using FName::AppendString or, in an edge case, FName::ToString */
 			inline bool bIsUsingAppendStringOverToString = true;
+			inline bool bIsAppendStringInlinedAndUsed = false;
 			inline int32 AppendNameToString;
+			inline int32 GetNameEntryFromName;
 			inline int32 FNameSize;
 		}
 
@@ -111,6 +113,9 @@ namespace Off
 
 		inline int32 GetObjectsOffset() { return  bIsChunked ? ChunkedFixedLayout.ObjectsOffset : FixedLayout.ObjectsOffset; }
 		inline int32 GetNumElementsOffset() { return  bIsChunked ? ChunkedFixedLayout.NumElementsOffset : FixedLayout.NumObjectsOffset; }
+		inline int32 GetMaxElementsOffset() { return  bIsChunked ? ChunkedFixedLayout.MaxElementsOffset : FixedLayout.MaxObjectsOffset; }
+		inline int32 GetNumChunksOffset() { return  bIsChunked ? ChunkedFixedLayout.NumChunksOffset : 0x0; }
+		inline int32 GetMaxChunksOffset() { return  bIsChunked ? ChunkedFixedLayout.MaxChunksOffset : 0x0; }
 	}
 
 	namespace NameArray

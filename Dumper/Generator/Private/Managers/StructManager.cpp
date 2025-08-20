@@ -1,7 +1,5 @@
-
 #include "Unreal/ObjectArray.h"
 #include "Managers/StructManager.h"
-
 
 StructInfoHandle::StructInfoHandle(const StructInfo& InInfo)
 	: Info(&InInfo)
@@ -55,20 +53,29 @@ bool StructInfoHandle::IsPartOfCyclicPackage() const
 
 void StructManager::InitAlignmentsAndNames()
 {
-	constexpr int32 DefaultClassAlignment = 0x8;
+	constexpr int32 DefaultClassAlignment = sizeof(void*);
 
 	const UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
 
+	const UEClass OnlineEngineInterfaceImplClass = ObjectArray::FindClassFast("OnlineEngineInterfaceImpl");
+
 	for (auto Obj : ObjectArray())
 	{
-		if (!Obj.IsA(EClassCastFlags::Struct) /* || Obj.IsA(EClassCastFlags::Function)*/)
+		if (!Obj.IsA(EClassCastFlags::Struct))
 			continue;
 
 		UEStruct ObjAsStruct = Obj.Cast<UEStruct>();
 
 		// Add name to override info
 		StructInfo& NewOrExistingInfo = StructInfoOverrides[Obj.GetIndex()];
-		NewOrExistingInfo.Name = UniqueNameTable.FindOrAdd(Obj.GetCppName(), !Obj.IsA(EClassCastFlags::Function)).first;
+
+		std::string CppName = Obj.GetCppName();
+
+		// Hardcoded fix for two 'UOnlineEngineInterfaceImpl' classes in the same package. Check will only match one of them.
+		if (Obj == OnlineEngineInterfaceImplClass) [[unlikely]]
+			CppName += '2';
+
+		NewOrExistingInfo.Name = UniqueNameTable.FindOrAdd(CppName, !Obj.IsA(EClassCastFlags::Function)).first;
 
 		// Interfaces inherit from UObject by default, but as a workaround to no virtual-inheritance we make them empty
 		if (ObjAsStruct.HasType(InterfaceClass))
@@ -81,7 +88,7 @@ void StructManager::InitAlignmentsAndNames()
 			continue;
 		}
 
-		int32 MinAlignment = ObjAsStruct.GetMinAlignment();
+		const int32 MinAlignment = ObjAsStruct.GetMinAlignment();
 		int32 HighestMemberAlignment = 0x1; // starting at 0x1 when checking **all**, not just struct-properties
 
 		// Find member with the highest alignment
@@ -247,7 +254,7 @@ void StructManager::Init()
 	* UObject however doesn't have a super, so this needs to be set manually.
 	*/
 	const UEObject UObjectClass = ObjectArray::FindClassFast("Object");
-	StructInfoOverrides.find(UObjectClass.GetIndex())->second.Alignment = 0x8;
+	StructInfoOverrides.find(UObjectClass.GetIndex())->second.Alignment = sizeof(void*);
 
 	/* I still hate whoever decided to call "UStruct" "Ustruct" on some UE versions. */
 	if (const UEObject UStructClass = ObjectArray::FindClassFast("struct"))

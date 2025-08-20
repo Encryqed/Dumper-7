@@ -13,12 +13,21 @@ void Off::InSDK::ProcessEvent::InitPE()
 {
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
+#if defined(_WIN64)
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 	{
 		return FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
 			&& FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
 	};
+#elif defined(_WIN32)
+	/* Primary, and more reliable, check for ProcessEvent */
+	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
+	{
+		return FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x4, 0x0, 0x0 }, FuncAddress, 0x400)
+			&& FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
+	};
+#endif
 
 	const void* ProcessEventAddr = nullptr;
 	int32_t ProcessEventIdx = 0;
@@ -78,7 +87,39 @@ void Off::InSDK::World::InitGWorld()
 			continue;
 
 		/* Try to find a pointer to the word, aka UWorld** GWorld */
-		void* Result = FindAlignedValueInProcess(Obj.GetAddress());
+		auto Results = FindAllAlignedValueInProcess(Obj.GetAddress());
+		void* Result = nullptr;
+		if (Results.size())
+		{
+			if (Results.size() == 1)
+			{
+				Result = Results[0];
+			}
+			else if (Results.size() == 2)
+			{
+				auto ObjAddress = reinterpret_cast<uintptr_t>(Obj.GetAddress());
+				auto PossibleGWorld = reinterpret_cast<volatile uintptr_t*>(Results[0]);
+				auto CurrentValue = *PossibleGWorld;
+				for (int i = 0; CurrentValue == ObjAddress && i < 50; ++i)
+				{
+					::Sleep(1);
+					CurrentValue = *PossibleGWorld;
+				}
+				if (CurrentValue == ObjAddress)
+				{
+					Result = Results[0];
+				}
+				else
+				{
+					Result = Results[1];
+					std::cerr << std::format("Filter GActiveLogWorld at {:x}\n\n", (uintptr_t)PossibleGWorld);
+				}
+			}
+			else
+			{
+				std::cerr << std::format("Detected {} GWorld \n\n", Results.size());
+			}
+		}
 
 		/* Pointer to UWorld* couldn't be found */
 		if (Result)
@@ -93,7 +134,6 @@ void Off::InSDK::World::InitGWorld()
 		std::cerr << std::format("\nGWorld WAS NOT FOUND!!!!!!!!!\n\n");
 }
 
-
 /* FText */
 void Off::InSDK::Text::InitTextOffsets()
 {
@@ -105,7 +145,7 @@ void Off::InSDK::Text::InitTextOffsets()
 
 	auto IsValidPtr = [](void* a) -> bool
 	{
-		return !IsBadReadPtr(a) && (uintptr_t(a) & 0x1) == 0; // realistically, there wont be any pointers to unaligned memory
+		return !IsBadReadPtr(a) /* && (uintptr_t(a) & 0x1) == 0*/; // realistically, there wont be any pointers to unaligned memory
 	};
 
 
@@ -114,14 +154,26 @@ void Off::InSDK::Text::InitTextOffsets()
 	UEProperty InStringProp = nullptr;
 	UEProperty ReturnProp = nullptr;
 
+	if (!Conv_StringToText)
+	{
+		std::cerr << "Conv_StringToText is invalid!\n";
+		return;
+	}
+
 	for (UEProperty Prop : Conv_StringToText.GetProperties())
 	{
 		/* Func has 2 params, if the param is the return value assign to ReturnProp, else InStringProp*/
-		(Prop.HasPropertyFlags(EPropertyFlags::ReturnParm) ? ReturnProp : InStringProp) = Prop;
+		if (Prop.HasPropertyFlags(EPropertyFlags::ReturnParm))
+		{
+			ReturnProp = Prop;
+		}
+		else
+		{
+			InStringProp = Prop;
+		}
 	}
 
 	const int32 ParamSize = Conv_StringToText.GetStructSize();
-
 	const int32 FTextSize = ReturnProp.GetSize();
 
 	const int32 StringOffset = InStringProp.GetOffset();
@@ -156,7 +208,6 @@ void Off::InSDK::Text::InitTextOffsets()
 		if (IsValidPtr(PossibleTextDataPtr))
 		{
 			FTextDataPtr = static_cast<uint8_t*>(PossibleTextDataPtr);
-
 			Off::InSDK::Text::TextDatOffset = i;
 			break;
 		}
@@ -174,13 +225,12 @@ void Off::InSDK::Text::InitTextOffsets()
 	/* Search for a pointer pointing to a int32 Value (FString::NumElements) equal to StringLength */
 	for (int32 i = StartOffset; i < MaxOffset; i += sizeof(int32))
 	{
-		wchar_t* PosibleStringPtr = *reinterpret_cast<wchar_t**>((FTextDataPtr + i) - 0x8);
+		wchar_t* PosibleStringPtr = *reinterpret_cast<wchar_t**>((FTextDataPtr + i) - sizeof(void*));
 		const int32 PossibleLength = *reinterpret_cast<int32*>(FTextDataPtr + i);
 
-		/* Check if our length matches and see if the data before the length is a pointer to our StringText */
 		if (PossibleLength == StringLength && PosibleStringPtr && IsValidPtr(PosibleStringPtr) && memcmp(StringText, PosibleStringPtr, StringLengthBytes) == 0)
 		{
-			Off::InSDK::Text::InTextDataStringOffset = (i - 0x8);
+			Off::InSDK::Text::InTextDataStringOffset = (i - sizeof(void*));
 			break;
 		}
 	}
@@ -222,10 +272,13 @@ void Off::Init()
 
 	OverwriteIfInvalidOffset(Off::UObject::Outer, (Off::UObject::Name + sizeof(int32) + sizeof(int32)));  // Default to right after Name
 
-
 	OffsetFinder::InitFNameSettings();
 
 	::NameArray::PostInit();
+
+	// Castflags needs to stay here since the FindChildOffset() uses CastFlags
+	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
+	std::cerr << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
 
 	Off::UStruct::Children = OffsetFinder::FindChildOffset();
 	std::cerr << std::format("Off::UStruct::Children: 0x{:X}\n", Off::UStruct::Children);
@@ -258,7 +311,10 @@ void Off::Init()
 
 		Off::FField::Next = OffsetFinder::FindFFieldNextOffset();
 		std::cerr << std::format("Off::FField::Next: 0x{:X}\n", Off::FField::Next);
-		
+
+		Off::FField::Class = OffsetFinder::FindFFieldClassOffset();
+		std::cerr << std::format("Off::FField::Class: 0x{:X}\n", Off::FField::Class);
+
 		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
 		std::cerr << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
 
@@ -297,8 +353,40 @@ void Off::Init()
 	Off::Property::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
 	std::cerr << std::format("Off::Property::PropertyFlags: 0x{:X}\n", Off::Property::PropertyFlags);
 
-	Off::InSDK::Properties::PropertySize = OffsetFinder::FindBoolPropertyBaseOffset();
+	Off::BoolProperty::Base = OffsetFinder::FindBoolPropertyBaseOffset();
+	std::cerr << std::format("UBoolProperty::Base: 0x{:X}\n", Off::BoolProperty::Base) << std::endl;
+
+	Off::EnumProperty::Base = OffsetFinder::FindEnumPropertyBaseOffset();
+	std::cerr << std::format("Off::EnumProperty::Base: 0x{:X}\n", Off::EnumProperty::Base) << std::endl;
+
+
+	if (Off::EnumProperty::Base == OffsetFinder::OffsetNotFound)
+	{
+		Off::InSDK::Properties::PropertySize = Off::BoolProperty::Base;
+		Off::EnumProperty::Base = Off::BoolProperty::Base;
+	}
+	else
+	{
+		Off::InSDK::Properties::PropertySize = Off::EnumProperty::Base;
+	}
+
 	std::cerr << std::format("UPropertySize: 0x{:X}\n", Off::InSDK::Properties::PropertySize) << std::endl;
+
+	Off::ObjectProperty::PropertyClass = OffsetFinder::FindObjectPropertyClassOffset();
+	std::cerr << std::format("Off::ObjectProperty::PropertyClass: 0x{:X}", Off::ObjectProperty::PropertyClass) << std::endl;
+	OverwriteIfInvalidOffset(Off::ObjectProperty::PropertyClass, Off::InSDK::Properties::PropertySize);
+
+	Off::ByteProperty::Enum = OffsetFinder::FindBytePropertyEnumOffset();
+	OverwriteIfInvalidOffset(Off::ByteProperty::Enum, Off::InSDK::Properties::PropertySize);
+	std::cerr << std::format("Off::ByteProperty::Enum: 0x{:X}", Off::ByteProperty::Enum) << std::endl;
+
+	Off::StructProperty::Struct = OffsetFinder::FindStructPropertyStructOffset();
+	OverwriteIfInvalidOffset(Off::StructProperty::Struct, Off::InSDK::Properties::PropertySize);
+	std::cerr << std::format("Off::StructProperty::Struct: 0x{:X}\n", Off::StructProperty::Struct) << std::endl;
+
+	Off::DelegateProperty::SignatureFunction = OffsetFinder::FindDelegatePropertySignatureFunctionOffset();
+	OverwriteIfInvalidOffset(Off::DelegateProperty::SignatureFunction, Off::InSDK::Properties::PropertySize);
+	std::cerr << std::format("Off::DelegateProperty::SignatureFunction: 0x{:X}\n", Off::DelegateProperty::SignatureFunction) << std::endl;
 
 	Off::ArrayProperty::Inner = OffsetFinder::FindInnerTypeOffset(Off::InSDK::Properties::PropertySize);
 	std::cerr << std::format("Off::ArrayProperty::Inner: 0x{:X}\n", Off::ArrayProperty::Inner);
@@ -319,16 +407,10 @@ void Off::Init()
 
 	std::cerr << std::endl;
 
-	Off::ByteProperty::Enum = Off::InSDK::Properties::PropertySize;
-	Off::BoolProperty::Base = Off::InSDK::Properties::PropertySize;
-	Off::ObjectProperty::PropertyClass = Off::InSDK::Properties::PropertySize; 
-	Off::StructProperty::Struct = Off::InSDK::Properties::PropertySize;
-	Off::EnumProperty::Base = Off::InSDK::Properties::PropertySize;
-	Off::DelegateProperty::SignatureFunction = Off::InSDK::Properties::PropertySize;
 	Off::FieldPathProperty::FieldClass = Off::InSDK::Properties::PropertySize;
 	Off::OptionalProperty::ValueProperty = Off::InSDK::Properties::PropertySize;
 
-	Off::ClassProperty::MetaClass = Off::InSDK::Properties::PropertySize + 0x8; //0x8 inheritance from ObjectProperty
+	Off::ClassProperty::MetaClass = Off::ObjectProperty::PropertyClass + sizeof(void*); //0x8 inheritance from ObjectProperty
 }
 
 void PropertySizes::Init()

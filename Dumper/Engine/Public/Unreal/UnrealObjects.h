@@ -32,7 +32,7 @@ public:
 
 	void* GetAddress();
 
-	operator bool() const;
+	explicit operator bool() const;
 
 	EFieldClassID GetId() const;
 
@@ -68,6 +68,7 @@ public:
 	}
 
 	void* GetAddress();
+	const void* GetAddress() const;
 
 	EObjectFlags GetFlags() const;
 	class UEObject GetOwnerAsUObject() const;
@@ -112,6 +113,7 @@ public:
 	UEObject(const UEObject&) = default;
 
 	void* GetAddress();
+	const void* GetAddress() const;
 
 	void* GetVft() const;
 	EObjectFlags GetFlags() const;
@@ -247,11 +249,12 @@ public:
 
 public:
 	void* GetAddress();
+	const void* GetAddress() const;
 
 	std::pair<UEClass, UEFFieldClass> GetClass() const;
 	EClassCastFlags GetCastFlags() const;
 
-	operator bool() const;
+	explicit operator bool() const;
 
 	bool IsA(EClassCastFlags TypeFlags) const;
 
@@ -304,6 +307,7 @@ class UEBoolProperty : public UEProperty
 
 public:
 	uint8 GetFieldMask() const;
+	uint8 GetByteOffset() const;
 	uint8 GetBitIndex() const;
 	bool IsNativeBool() const;
 
@@ -447,7 +451,7 @@ class UEFieldPathProperty : public UEProperty
 	using UEProperty::UEProperty;
 
 public:
-	UEFFieldClass GetFielClass() const;
+	UEFFieldClass GetFieldClass() const;
 
 	std::string GetCppType() const;
 };

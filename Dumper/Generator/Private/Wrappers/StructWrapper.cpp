@@ -47,7 +47,14 @@ MemberManager StructWrapper::GetMembers() const
 /* Name, bIsUnique */
 std::pair<std::string, bool> StructWrapper::GetUniqueName() const
 {
-    return { bIsUnrealStruct ? InfoHandle.GetName().GetName() : PredefStruct->UniqueName, bIsUnrealStruct ? InfoHandle.GetName().IsUnique() : true };
+    if (bIsUnrealStruct)
+    {
+        const auto& StringEntry = InfoHandle.GetName();
+
+        return { StringEntry.GetName(), StringEntry.IsUnique() };
+    }
+
+    return { PredefStruct->UniqueName, true };
 }
 
 int32 StructWrapper::GetLastMemberEnd() const

@@ -7,11 +7,13 @@
 namespace OffsetFinder
 {
 	constexpr int32 OffsetNotFound = -1;
+	constexpr int32 OffsetFinderMinValue = Settings::Is32Bit() ? 0x18 : 0x28;
 
 	template<int Alignement = 4, typename T>
-	inline int32_t FindOffset(const std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = 0x28, int MaxOffset = 0x1A0)
+	inline int32_t FindOffset(const std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = OffsetFinderMinValue, int MaxOffset = 0x1A0)
 	{
 		int32_t HighestFoundOffset = MinOffset;
+		bool bFoundOffset = false;
 
 		for (int i = 0; i < ObjectValuePair.size(); i++)
 		{
@@ -27,6 +29,8 @@ namespace OffsetFinder
 
 				if (TypedValueAtOffset == ObjectValuePair[i].second && j >= HighestFoundOffset)
 				{
+					bFoundOffset = true;
+
 					if (j > HighestFoundOffset)
 					{
 						HighestFoundOffset = j;
@@ -37,12 +41,16 @@ namespace OffsetFinder
 			}
 		}
 
-		return HighestFoundOffset != MinOffset ? HighestFoundOffset : OffsetNotFound;
+		//return HighestFoundOffset != MinOffset ? HighestFoundOffset : OffsetNotFound;
+		return bFoundOffset ? HighestFoundOffset : OffsetNotFound;
 	}
 
 	template<bool bCheckForVft = true>
-	inline int32_t GetValidPointerOffset(const uint8_t* ObjA, const uint8_t* ObjB, int32_t StartingOffset, int32_t MaxOffset)
+	inline int32_t GetValidPointerOffset(const void* PtrObjA, const void* PtrObjB, int32_t StartingOffset, int32_t MaxOffset, bool bNeedsToBeInProcessMemory = false)
 	{
+		const uint8_t* ObjA = static_cast<const uint8_t*>(PtrObjA);
+		const uint8_t* ObjB = static_cast<const uint8_t*>(PtrObjB);
+
 		if (IsBadReadPtr(ObjA) || IsBadReadPtr(ObjB))
 			return OffsetNotFound;
 
@@ -50,6 +58,12 @@ namespace OffsetFinder
 		{
 			const bool bIsAValid = !IsBadReadPtr(*reinterpret_cast<void* const*>(ObjA + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void** const*>(ObjA + j)) : true);
 			const bool bIsBValid = !IsBadReadPtr(*reinterpret_cast<void* const*>(ObjB + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void** const*>(ObjB + j)) : true);
+
+			if (bNeedsToBeInProcessMemory)
+			{
+				if (!IsInProcessRange(*reinterpret_cast<void* const*>(ObjA + j)) || !IsInProcessRange(*reinterpret_cast<void* const*>(ObjB + j)))
+					continue;
+			}
 
 			if (bIsAValid && bIsBValid)
 				return j;
@@ -74,8 +88,8 @@ namespace OffsetFinder
 
 	/* FField */
 	int32_t FindFFieldNextOffset();
-
 	int32_t FindFFieldNameOffset();
+	int32_t FindFFieldClassOffset();
 
 	/* UEnum */
 	int32_t FindEnumNamesOffset();
@@ -104,6 +118,21 @@ namespace OffsetFinder
 
 	/* BoolProperty */
 	int32_t FindBoolPropertyBaseOffset();
+
+	/* ObjectProperty */
+	int32_t FindObjectPropertyClassOffset();
+
+	/* EnumProperty */
+	int32_t FindEnumPropertyBaseOffset();
+	
+	/* ByteProperty */
+	int32_t FindBytePropertyEnumOffset();
+
+	/* StructProperty */
+	int32_t FindStructPropertyStructOffset();
+
+	/* DelegateProperty */
+	int32_t FindDelegatePropertySignatureFunctionOffset();
 
 	/* ArrayProperty */
 	int32_t FindInnerTypeOffset(const int32 PropertySize);

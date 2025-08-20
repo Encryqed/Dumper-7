@@ -1,4 +1,3 @@
-
 #include <Windows.h>
 #include <iostream>
 #include <chrono>
@@ -10,7 +9,6 @@
 #include "Generators/DumpspaceGenerator.h"
 
 #include "Generators/Generator.h"
-
 
 enum class EFortToastType : uint8
 {
@@ -66,7 +64,6 @@ DWORD MainThread(HMODULE Module)
 	Generator::Generate<IDAMappingGenerator>();
 	Generator::Generate<DumpspaceGenerator>();
 
-
 	auto t_C = std::chrono::high_resolution_clock::now();
 
 	auto ms_int_ = std::chrono::duration_cast<std::chrono::milliseconds>(t_C - t_1);
@@ -78,7 +75,7 @@ DWORD MainThread(HMODULE Module)
 	{
 		if (GetAsyncKeyState(VK_F6) & 1)
 		{
-			fclose(stdout);
+			fclose(stderr);
 			if (Dummy) fclose(Dummy);
 			FreeConsole();
 

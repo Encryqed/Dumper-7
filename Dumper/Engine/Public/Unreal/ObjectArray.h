@@ -22,7 +22,7 @@ private:
 private:
 	static inline uint8* GObjects = nullptr;
 	static inline uint32 NumElementsPerChunk = 0x10000;
-	static inline uint32 SizeOfFUObjectItem = 0x18;
+	static inline uint32 SizeOfFUObjectItem = sizeof(void*) + sizeof(int32) + sizeof(int32);
 	static inline uint32 FUObjectItemInitialOffset = 0x0;
 
 public:
@@ -35,7 +35,6 @@ private:
 
 private:
 	static void InitializeFUObjectItem(uint8_t* FirstItemPtr);
-	static void InitializeChunkSize(uint8_t* GObjects);
 
 public:
 	static void InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), const char* DecryptionLambdaAsStr);
@@ -49,6 +48,9 @@ public:
 	static void DumpObjectsWithProperties(const fs::path& Path, bool bWithPathname = false);
 
 	static int32 Num();
+	static int32 Max();
+	static int32 NumChunks();
+	static int32 MaxChunks();
 
 	template<typename UEType = UEObject>
 	static UEType GetByIndex(int32 Index);
@@ -76,9 +78,10 @@ public:
 	public:
 		ObjectsIterator(int32 StartIndex = 0);
 
-		UEObject operator*();
+		UEObject operator*() const;
 		ObjectsIterator& operator++();
-		bool operator!=(const ObjectsIterator& Other);
+		bool operator==(const ObjectsIterator& Other) const;
+		bool operator!=(const ObjectsIterator& Other) const;
 
 		int32 GetIndex() const;
 	};
@@ -95,3 +98,66 @@ public:
 #ifndef InitObjectArrayDecryption
 #define InitObjectArrayDecryption(DecryptionLambda) ObjectArray::InitDecryption(DecryptionLambda, #DecryptionLambda)
 #endif
+
+class AllFieldIterator
+{
+private:
+	ObjectArray::ObjectsIterator ObjectEndIterator;
+	ObjectArray::ObjectsIterator CurrentObject;
+	std::vector<UEProperty> Fields;
+	int PropertyIndex = 0;
+
+public:
+	AllFieldIterator()
+		: CurrentObject(ObjectArray().begin()), ObjectEndIterator(ObjectArray().end())
+	{
+		if (!IsCurrentObjectStruct())
+			IterateToNextStructWithMembers();
+	}
+
+	AllFieldIterator(ObjectArray::ObjectsIterator StartPos)
+		: CurrentObject(StartPos), ObjectEndIterator(ObjectArray().end())
+	{
+
+	}
+
+public:
+	inline AllFieldIterator begin() const
+	{
+		return AllFieldIterator();
+	}
+	inline AllFieldIterator end() const
+	{
+		return AllFieldIterator(ObjectArray().end());
+	}
+
+	bool operator!=(const AllFieldIterator& Other) const;
+
+	AllFieldIterator& operator++();
+	UEProperty operator*() const;
+
+private:
+	inline void IterateToNextStruct();
+	inline void IterateToNextStructWithMembers();
+
+private:
+	inline bool CurrenStructHasMoreMembers() const
+	{
+		return (static_cast<size_t>(PropertyIndex) + 1) < Fields.size();
+	}
+
+	inline UEStruct GetCurrentStruct()
+	{
+		return (*CurrentObject).Cast<UEStruct>();
+	}
+
+	inline bool IsCurrentObjectStruct()
+	{
+		return (*CurrentObject).IsA(EClassCastFlags::Struct);
+	}
+
+	inline bool IsEndIterator() const
+	{
+		return CurrentObject == ObjectEndIterator;
+	}
+};
