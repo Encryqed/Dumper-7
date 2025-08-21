@@ -599,20 +599,15 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	{
 		StaticClass.Body = std::format(
 			R"({{
-	static int32 ClassIdx = 0;
-	static uint64 ClassName = 0;
-
-	return GetStaticBPGeneratedClass{}({}, ClassIdx, ClassName);
-}})", (!bIsNameUnique ? "<true>" : ""), NameText);
+	BP_STATIC_CLASS_IMPL{}({})
+}})", (!bIsNameUnique ? "" : "_FULLNAME"), NameText);
 	}
 	else
 	{
 		StaticClass.Body = std::format(
 R"({{
-	static UClass* Clss = nullptr;
-
-	return GetStaticClass{}({}, Clss);
-}})", (!bIsNameUnique ? "<true>" : ""), NameText);
+	STATIC_CLASS_IMPL{}({})
+}})", (bIsNameUnique ? "" : "_FULLNAME"), NameText);
 	}
 
 	/* ClassName always uses the short name, and it's a wide string for FString */
@@ -620,9 +615,7 @@ R"({{
 
 	StaticName.Body = std::format(
 R"({{
-	static FName Name = FName();
-
-	return GetStaticName({}, Name);
+	STATIC_NAME_IMPL({})
 }})", NameText);
 
 	/* Set class-specific parts of 'GetDefaultObj' */
@@ -3387,49 +3380,6 @@ namespace InSDKUtils
 	BasicCpp << std::format(R"(uintptr_t InSDKUtils::GetImageBase()
 {})", Settings::CppGenerator::GetImageBaseFuncBody);
 
-	if constexpr (!Settings::CppGenerator::XORString)
-	{
-		/* Utility class for contexpr string literals. Used for 'StaticClassImpl<"ClassName">()'. */
-		BasicHpp << R"(
-template<int32 Len>
-struct StringLiteral
-{
-	char Chars[Len];
-
-	consteval StringLiteral(const char(&String)[Len])
-	{
-		std::copy_n(String, Len, Chars);
-	}
-
-	operator std::string() const
-	{
-		return static_cast<const char*>(Chars);
-	}
-};
-)";
-	}
-	else
-	{
-		/* Utility class for constexpr strings encrypted with https://github.com/JustasMasiulis/xorstr. Other xorstr implementations may need custom-implementations. */
-		BasicHpp << R"(
-template<typename XorStrType>
-struct StringLiteral
-{
-	XorStrType EncryptedString;
-
-	consteval StringLiteral(XorStrType Str)
-		: EncryptedString(Str)
-	{
-	}
-
-	operator std::string() const
-	{
-		return EncryptedString.crypt_get();
-	}
-};
-)";
-	}
-
 	BasicHpp << R"(
 // Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
 class UClass;
@@ -3608,6 +3558,40 @@ ClassType* GetDefaultObjImpl()
 	}
 
 	return nullptr;
+}
+)";
+
+	BasicHpp << R"(
+#define STATIC_CLASS_IMPL(NameString) \
+{ \
+    static UClass* Clss = nullptr; \
+    return GetStaticClass(NameString, Clss); \
+}
+
+#define STATIC_CLASS_IMPL_FULLNAME(FullNameString) \
+{ \
+    static UClass* Clss = nullptr; \
+    return GetStaticClass<true>(FullNameString, Clss); \
+}
+
+#define BP_STATIC_CLASS_IMPL(NameString) \
+{ \
+    static int32 ClassIdx = 0;   \
+    static uint64 ClassName = 0; \
+    return GetStaticBPGeneratedClass(NameString, ClassIdx, ClassName); \
+}
+
+#define BP_STATIC_CLASS_IMPL_FULLNAME(FullNameString) \
+{ \
+    static int32 ClassIdx = 0;   \
+    static uint64 ClassName = 0; \
+    return GetStaticBPGeneratedClass<true>(FullNameString, ClassIdx, ClassName); \
+}
+
+#define STATIC_NAME_IMPL(NameString) \
+{ \
+    static FName Name = FName(); \
+    return GetStaticName(NameString, Name); \
 }
 )";
 
