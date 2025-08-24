@@ -60,13 +60,18 @@
 ### 3. Checking a UObject's type
   - With EClassCastFlags
     ```c++
-    /* Limited to some few types, but fast */
+    /* Limited to base types, but is the fastest option */
     const bool bIsActor = Obj->IsA(EClassCastFlags::Actor);
     ```
-  - With a `UClass*`
+  - With `UClass*`
     ```c++
-    /* For every class, but slower (faster than string-comparison) */
+    /* Ideal for native classes. Use `StaticName()` for Blueprint classes instead */
     const bool bIsSpecificActor = Obj->IsA(ASomeSpecificActor::StaticClass());
+    ```
+  - With `FName` (class name)
+    ```c++
+    /* Works for every class */
+    const bool bIsSpecificActor = Obj->IsA(ASomeSpecificActor_C::StaticName());
     ```
 ### 4. Casting
   UnrealEngine heavily relies on inheritance and often uses pointers to a base class, which are later assigned addresses to \
