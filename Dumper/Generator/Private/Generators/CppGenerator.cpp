@@ -2447,7 +2447,7 @@ R"({
 		/* non-static non-inline functions */
 		PredefinedFunction {
 			.CustomComment = "Gets a UFunction from this UClasses' 'Children' list",
-			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const std::string& ClassName, const std::string& FuncName)", .Body =
+			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const char* ClassName, const char* FuncName)", .Body =
 R"({
 	for(const UStruct* Clss = this; Clss; Clss = Clss->Super)
 	{
