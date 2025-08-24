@@ -432,7 +432,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	static class UFunction* Func = nullptr;
 
 	if (Func == nullptr)
-		Func = {}->GetFunction("{}", "{}");
+		Func = {}->GetFunction({}, {});
 {}{}{}
 	{}ProcessEvent(Func, {});{}{}{}{}
 }}
@@ -445,8 +445,8 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , FuncInfo.FuncNameWithParams
 , bIsConstFunc ? " const" : ""
 , Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class"
-, FixedOuterName
-, FixedFunctionName
+, CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName) : std::format("\"{}\"", FixedOuterName)
+, CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName) : std::format("\"{}\"", FixedFunctionName)
 , bHasParams ? ParamVarCreationString : ""
 , bHasParamsToInit ? ParamAssignments : ""
 , bIsNativeFunc ? StoreFunctionFlagsString : ""
