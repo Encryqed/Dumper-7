@@ -600,7 +600,7 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 		StaticClass.Body = std::format(
 			R"({{
 	BP_STATIC_CLASS_IMPL{}({})
-}})", (!bIsNameUnique ? "" : "_FULLNAME"), NameText);
+}})", (bIsNameUnique ? "" : "_FULLNAME"), NameText);
 	}
 	else
 	{
@@ -1396,7 +1396,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	{
 		File << "#include \"../PropertyFixup.hpp\"\n";
 		File << "#include \"../UnrealContainers.hpp\"\n";
-		if (Settings::CppGenerator::XORStringInclude)
+		if constexpr (Settings::CppGenerator::XORStringInclude)
 		{
 			File << std::format("#include \"{}\"\n", Settings::CppGenerator::XORStringInclude);
 		}
@@ -4475,14 +4475,14 @@ std::format(R"({{
 		/* operators */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FName&", .NameWithParams = "operator=(const FName& other)", .Body =
+			.ReturnType = "FName&", .NameWithParams = "operator=(const FName& Other)", .Body =
 std::format(R"({{
-	ComparisonIndex = other.ComparisonIndex;{}{}
+	ComparisonIndex = Other.ComparisonIndex;{}{}
 
 	return *this;
 }})",
-!Settings::Internal::bUseOutlineNumberName ? "\n\tNumber = other.Number;" : "",
-Settings::Internal::bUseCasePreservingName ? "\n\tDisplayIndex = other.DisplayIndex;" : ""),
+!Settings::Internal::bUseOutlineNumberName ? "\n\tNumber = Other.Number;" : "",
+Settings::Internal::bUseCasePreservingName ? "\n\tDisplayIndex = Other.DisplayIndex;" : ""),
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		},
 		PredefinedFunction {
