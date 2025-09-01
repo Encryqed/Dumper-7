@@ -24,12 +24,12 @@ void Generator::InitEngineCore()
 	/* manual override */
 	//ObjectArray::Init(/*GObjects*/, /*Layout = Default*/); // FFixedUObjectArray (UEVersion < UE4.21)
 	//ObjectArray::Init(/*GObjects*/, /*ChunkSize*/, /*Layout = Default*/); // FChunkedFixedUObjectArray (UEVersion >= UE4.21)
-	// 
+
 	//FName::Init(/*bForceGNames = false*/);
 	//FName::Init(/*AppendString, FName::EOffsetOverrideType::AppendString*/);
 	//FName::Init(/*ToString, FName::EOffsetOverrideType::ToString*/);
 	//FName::Init(/*GNames, FName::EOffsetOverrideType::GNames, true/false*/);
-	// 
+ 
 	//Off::InSDK::ProcessEvent::InitPE(/*PEIndex*/);
 
 	/* Back4Blood (requires manual GNames override) */
