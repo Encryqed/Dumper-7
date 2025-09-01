@@ -584,7 +584,7 @@ int32_t OffsetFinder::FindStructSizeOffset()
 
 int32_t OffsetFinder::FindMinAlignmentOffset()
 {
-	std::vector<std::pair<void*, int32_t>> Infos;
+	std::vector<std::pair<void*, int16_t>> Infos;
 
 	Infos.push_back({ ObjectArray::FindObjectFast("Transform").GetAddress(), 0x10 });
 

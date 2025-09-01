@@ -190,8 +190,14 @@ public:
 	UEStruct GetSuper() const;
 	UEField GetChild() const;
 	UEFField GetChildProperties() const;
-	int32 GetMinAlignment() const;
 	int32 GetStructSize() const;
+
+	/*
+	* The type of UStruct::MinAlignemnt was changed from int32 to int16 on UE5.6.
+	* 
+	* Using int16 in the dumper is likely fully backwards compatible, as I've never seen any class with a MinAlignment value greater than 0x10.
+	*/
+	int16 GetMinAlignment() const;
 
 	bool HasType(UEStruct Type) const;
 
