@@ -924,7 +924,7 @@ std::string CppGenerator::GetMemberTypeString(UEProperty Member, int32 PackageIn
 	return GetMemberTypeStringWithoutConst(Member, PackageIndex);
 }
 
-std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex)
+std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex, bool* bOutIsUnknownProperty)
 {
 	auto [Class, FieldClass] = Member.GetClass();
 
@@ -1113,6 +1113,9 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else
 	{
+		if (bOutIsUnknownProperty)
+			*bOutIsUnknownProperty = true;
+
 		/* When changing this also change 'GetUnknownProperties()' */
 		return (Class ? Class.GetCppName() : FieldClass.GetCppName()) + "_";
 	}
@@ -1186,10 +1189,10 @@ std::unordered_map<std::string, UEProperty> CppGenerator::GetUnknownProperties()
 
 		for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
 		{
-			std::string TypeName = GetMemberTypeString(Prop);
+			bool bIsUnknownProperty = false;
+			const std::string TypeName = GetMemberTypeStringWithoutConst(Prop, -1, &bIsUnknownProperty);
 
-			/* Relies on unknown names being post-fixed with an underscore by 'GetMemberTypeString()' */
-			if (TypeName.back() == '_')
+			if (bIsUnknownProperty)
 				PropertiesWithNames[TypeName] = Prop;
 		}
 	}

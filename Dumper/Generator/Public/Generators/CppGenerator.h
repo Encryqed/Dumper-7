@@ -104,7 +104,7 @@ private:
 private: /* utility functions */
     static std::string GetMemberTypeString(const PropertyWrapper& MemberWrapper, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false /* const USomeClass* Member; */);
     static std::string GetMemberTypeString(UEProperty Member, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false);
-    static std::string GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex = -1);
+    static std::string GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex = -1, bool* bOutIsUnknownProperty = nullptr);
 
     static std::string GetFunctionSignature(UEFunction Func);
 
