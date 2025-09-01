@@ -89,6 +89,7 @@ namespace OffsetFinder
 	/* FField */
 	int32_t FindFFieldNextOffset();
 	int32_t FindFFieldNameOffset();
+	int32_t NewFindFFieldNameOffset();
 	int32_t FindFFieldClassOffset();
 
 	/* UEnum */

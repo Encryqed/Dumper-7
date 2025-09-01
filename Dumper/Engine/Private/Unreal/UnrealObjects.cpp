@@ -549,7 +549,7 @@ UEFField UEStruct::GetChildProperties() const
 
 int16 UEStruct::GetMinAlignment() const
 {
-	return *reinterpret_cast<int16*>(Object + Off::UStruct::MinAlignemnt);
+	return *reinterpret_cast<int16*>(Object + Off::UStruct::MinAlignment);
 }
 
 int32 UEStruct::GetStructSize() const

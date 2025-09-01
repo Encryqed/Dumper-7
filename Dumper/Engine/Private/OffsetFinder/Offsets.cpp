@@ -292,8 +292,8 @@ void Off::Init()
 	Off::UStruct::Size = OffsetFinder::FindStructSizeOffset();
 	std::cerr << std::format("Off::UStruct::Size: 0x{:X}\n", Off::UStruct::Size);
 
-	Off::UStruct::MinAlignemnt = OffsetFinder::FindMinAlignmentOffset();
-	std::cerr << std::format("Off::UStruct::MinAlignemnts: 0x{:X}\n", Off::UStruct::MinAlignemnt);
+	Off::UStruct::MinAlignment = OffsetFinder::FindMinAlignmentOffset();
+	std::cerr << std::format("Off::UStruct::MinAlignment: 0x{:X}\n", Off::UStruct::MinAlignment);
 
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
 	std::cerr << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
@@ -315,7 +315,12 @@ void Off::Init()
 		Off::FField::Class = OffsetFinder::FindFFieldClassOffset();
 		std::cerr << std::format("Off::FField::Class: 0x{:X}\n", Off::FField::Class);
 
+		// Comment out this line if you're crashing here and see if the NewFindFFieldNameOffset might work!
 		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
+
+		if (Off::FField::Name == OffsetFinder::OffsetNotFound)
+			Off::FField::Name = OffsetFinder::NewFindFFieldNameOffset();
+
 		std::cerr << std::format("Off::FField::Name: 0x{:X}\n", Off::FField::Name);
 
 		/*

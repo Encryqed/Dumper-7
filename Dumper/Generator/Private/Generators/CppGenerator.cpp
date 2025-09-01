@@ -1848,7 +1848,7 @@ void CppGenerator::InitPredefinedMembers()
 		},
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "MinAlignemnt", .Offset = Off::UStruct::MinAlignemnt, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
+			.Type = "int16", .Name = "MinAlignment", .Offset = Off::UStruct::MinAlignment, .Size = sizeof(int16), .ArrayDim = 0x1, .Alignment = alignof(int16),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 		PredefinedMember {
