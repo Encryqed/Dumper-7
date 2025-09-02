@@ -364,6 +364,118 @@ namespace UC
 		inline bool operator!=(const FString& Other) const { return Other ? NumElements != Other.NumElements || wcscmp(Data, Other.Data) != 0 : true; }
 	};
 
+	// Utf8String that assumes C-APIs (strlen, strcmp) behaviour works for char8_t like Ansi strings, execept it's counting/comparing bytes not characters.
+	class FUtf8String : public TArray<char8_t>
+	{
+	public:
+		friend std::ostream& operator<<(std::ostream& Stream, const UC::FUtf8String& Str) { return Stream << Str.ToString(); }
+
+	private:
+		inline const char* GetDataAsConstCharPtr() const
+		{
+			return reinterpret_cast<const char*>(Data);
+		}
+
+	public:
+		using TArray::TArray;
+
+		FUtf8String(const char8_t* Str)
+		{
+			Data = const_cast<char8_t*>(Str);
+
+			const uint32 NullTerminatedLength = static_cast<uint32>(strlen(GetDataAsConstCharPtr()) + 0x1);
+
+			NumElements = NullTerminatedLength;
+			MaxElements = NullTerminatedLength;
+		}
+
+		FUtf8String(char8_t* Str, int32 Num, int32 Max)
+		{
+			Data = Str;
+			NumElements = Num;
+			MaxElements = Max;
+		}
+
+	public:
+		inline std::string ToString() const
+		{
+			if (*this)
+			{
+				return std::string(GetDataAsConstCharPtr(), NumElements - 1); // Exclude null-terminator
+			}
+
+			return "";
+		}
+
+		inline std::wstring ToWString() const
+		{
+			if (*this)
+				return UtfN::StringToWString<std::string>(ToString()); // Exclude null-terminator
+
+			return L"";
+		}
+
+	public:
+		inline       char8_t* CStr()       { return Data; }
+		inline const char8_t* CStr() const { return Data; }
+
+	public:
+		inline bool operator==(const FUtf8String& Other) const { return Other ? NumElements == Other.NumElements && strcmp(GetDataAsConstCharPtr(), Other.GetDataAsConstCharPtr()) == 0 : false; }
+		inline bool operator!=(const FUtf8String& Other) const { return Other ? NumElements != Other.NumElements || strcmp(GetDataAsConstCharPtr(), Other.GetDataAsConstCharPtr()) != 0 : true; }
+	};
+
+	class FAnsiString : public TArray<char>
+	{
+	public:
+		friend std::ostream& operator<<(std::ostream& Stream, const UC::FAnsiString& Str) { return Stream << Str.ToString(); }
+
+	public:
+		using TArray::TArray;
+
+		FAnsiString(const char* Str)
+		{
+			const uint32 NullTerminatedLength = static_cast<uint32>(strlen(Str) + 0x1);
+
+			Data = const_cast<char*>(Str);
+			NumElements = NullTerminatedLength;
+			MaxElements = NullTerminatedLength;
+		}
+
+		FAnsiString(char* Str, int32 Num, int32 Max)
+		{
+			Data = Str;
+			NumElements = Num;
+			MaxElements = Max;
+		}
+
+	public:
+		inline std::string ToString() const
+		{
+			if (*this)
+			{
+				return std::string(Data, NumElements - 1); // Exclude null-terminator
+			}
+
+			return "";
+		}
+
+		inline std::wstring ToWString() const
+		{
+			if (*this)
+				return UtfN::StringToWString<std::string>(ToString()); // Exclude null-terminator
+
+			return L"";
+		}
+
+	public:
+		inline       char* CStr() { return Data; }
+		inline const char* CStr() const { return Data; }
+
+	public:
+		inline bool operator==(const FAnsiString& Other) const { return Other ? NumElements == Other.NumElements && strcmp(Data, Other.Data) == 0 : false; }
+		inline bool operator!=(const FAnsiString& Other) const { return Other ? NumElements != Other.NumElements || strcmp(Data, Other.Data) != 0 : true; }
+	};
+
 	/*
 	* Class to allow construction of a TArray, that uses c-style standard-library memory allocation.
 	* 

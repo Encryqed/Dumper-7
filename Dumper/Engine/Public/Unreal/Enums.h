@@ -286,9 +286,9 @@ enum class EClassCastFlags : uint64
 	VValueProperty						= 0x0200000000000000,
 	VerseVMClass						= 0x0400000000000000,
 	VRestValueProperty					= 0x0800000000000000,
-	FUtf8StrProperty					= 0x1000000000000000,
-	FAnsiStrProperty					= 0x2000000000000000,
-	FVCellProperty						= 0x4000000000000000,
+	Utf8StrProperty						= 0x1000000000000000,
+	AnsiStrProperty						= 0x2000000000000000,
+	VCellProperty						= 0x4000000000000000,
 };
 
 enum class EClassFlags
