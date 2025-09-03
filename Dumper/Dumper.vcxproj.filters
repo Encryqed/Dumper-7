@@ -258,5 +258,8 @@
     <ClInclude Include="Arch_x86.h">
       <Filter>Platform\Public</Filter>
     </ClInclude>
+    <ClInclude Include="TmpUtils.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

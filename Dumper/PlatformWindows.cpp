@@ -1,5 +1,5 @@
 
-//#include "Utils.h"
+#include "TmpUtils.h"
 #include "PlatformWindows.h"
 #include "Arch_x86.h"
 
@@ -255,7 +255,7 @@ namespace
 
 }
 
-uintptr_t PlatformWindows::GetModuleBase(const char* const ModuleName = nullptr)
+uintptr_t PlatformWindows::GetModuleBase(const char* const ModuleName)
 {
 	if (ModuleName == nullptr)
 		return reinterpret_cast<uintptr_t>(GetPEB()->ImageBaseAddress);
@@ -281,7 +281,7 @@ SectionInfo PlatformWindows::GetSectionInfo(const std::string& SectionName, cons
 
 	WinSectionInfo.SectionHeader = IterateAllSectionObjects(ModuleBase, [SectionName](const IMAGE_SECTION_HEADER* Section) -> bool
 		{
-			reinterpret_cast<const char*>(Section->Name) == SectionName;
+			return reinterpret_cast<const char*>(Section->Name) == SectionName;
 		});
 
 	return std::bit_cast<SectionInfo>(WinSectionInfo);
@@ -291,10 +291,14 @@ void* PlatformWindows::IterateSectionWithCallback(const SectionInfo& Info, const
 {
 	const WindowsSectionInfo WinSectionInfo = std::bit_cast<WindowsSectionInfo>(Info);
 
-	const uintptr_t SectionBaseAddrss = reinterpret_cast<uintptr_t>(WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress);
-	const uint32_t SectionIterationSize = Align(WinSectionInfo.SectionHeader->SizeOfRawData - (Granularity - 1) - OffsetFromEnd);
+	if (!WinSectionInfo.IsValid())
+		return nullptr;
 
-	for (uintptr_t CurrentAddress = SectionBaseAddrss; CurrentAddress < SectionIterationSize; CurrentAddress += Granularity)
+	const uintptr_t SectionBaseAddrss = WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress;
+	const uint32_t SizeToAlign = WinSectionInfo.SectionHeader->SizeOfRawData - (Granularity - 1) - OffsetFromEnd;
+	const uint32_t SectionIterationSize = Align(SizeToAlign, Granularity);
+
+	for (uintptr_t CurrentAddress = SectionBaseAddrss; CurrentAddress < (CurrentAddress + SectionIterationSize); CurrentAddress += Granularity)
 	{
 		if (Callback(reinterpret_cast<void*>(CurrentAddress)))
 			return reinterpret_cast<void*>(CurrentAddress);
@@ -368,7 +372,12 @@ bool PlatformWindows::IsBadReadPtr(const uintptr_t Address)
 }
 bool PlatformWindows::IsBadReadPtr(const void* Address)
 {
-	#warning "Change this from ifdef to if constexpr"
+	/*
+	* 
+	* TODO: MAKE THIS if constexpr (Is32Bit())
+	* 
+	* 
+	*/
 #if defined(_WIN64)
 		// we only really do this on x86_64 ^^
 		if (!Architecture_x86_64::IsValidVirtualAddress(Address))

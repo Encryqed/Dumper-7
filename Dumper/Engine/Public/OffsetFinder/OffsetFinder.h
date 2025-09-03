@@ -4,6 +4,8 @@
 
 #include "Unreal/ObjectArray.h"
 
+#include "Platform.h"
+
 namespace OffsetFinder
 {
 	constexpr int32 OffsetNotFound = -1;
@@ -51,17 +53,17 @@ namespace OffsetFinder
 		const uint8_t* ObjA = static_cast<const uint8_t*>(PtrObjA);
 		const uint8_t* ObjB = static_cast<const uint8_t*>(PtrObjB);
 
-		if (IsBadReadPtr(ObjA) || IsBadReadPtr(ObjB))
+		if (Platform::IsBadReadPtr(ObjA) || Platform::IsBadReadPtr(ObjB))
 			return OffsetNotFound;
 
 		for (int j = StartingOffset; j <= MaxOffset; j += sizeof(void*))
 		{
-			const bool bIsAValid = !IsBadReadPtr(*reinterpret_cast<void* const*>(ObjA + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void** const*>(ObjA + j)) : true);
-			const bool bIsBValid = !IsBadReadPtr(*reinterpret_cast<void* const*>(ObjB + j)) && (bCheckForVft ? !IsBadReadPtr(**reinterpret_cast<void** const*>(ObjB + j)) : true);
+			const bool bIsAValid = !Platform::IsBadReadPtr(*reinterpret_cast<void* const*>(ObjA + j)) && (bCheckForVft ? !Platform::IsBadReadPtr(**reinterpret_cast<void** const*>(ObjA + j)) : true);
+			const bool bIsBValid = !Platform::IsBadReadPtr(*reinterpret_cast<void* const*>(ObjB + j)) && (bCheckForVft ? !Platform::IsBadReadPtr(**reinterpret_cast<void** const*>(ObjB + j)) : true);
 
 			if (bNeedsToBeInProcessMemory)
 			{
-				if (!IsInProcessRange(*reinterpret_cast<void* const*>(ObjA + j)) || !IsInProcessRange(*reinterpret_cast<void* const*>(ObjB + j)))
+				if (!Platform::IsAddressInProcessRange(*reinterpret_cast<void* const*>(ObjA + j)) || !Platform::IsAddressInProcessRange(*reinterpret_cast<void* const*>(ObjB + j)))
 					continue;
 			}
 

@@ -7,17 +7,8 @@
 #include <algorithm>
 #include <functional>
 
-namespace Utils
-{
-	/* Credits: https://en.cppreference.com/w/cpp/string/byte/tolower */
-	inline std::string StrToLower(std::string String)
-	{
-		std::transform(String.begin(), String.end(), String.begin(), [](unsigned char C) { return std::tolower(C); });
+#include "TmpUtils.h"
 
-		return String;
-	}
-
-}
 template<typename CharType>
 inline int32_t StrlenHelper(const CharType* Str)
 {
@@ -239,7 +230,7 @@ inline LDR_DATA_TABLE_ENTRY* GetModuleLdrTableEntry(const char* SearchModuleName
 		std::wstring WideModuleName(Entry->BaseDllName.Buffer, Entry->BaseDllName.Length >> 1);
 		std::string ModuleName = std::string(WideModuleName.begin(), WideModuleName.end());
 
-		if (str_tolower(ModuleName) == str_tolower(SearchModuleName))
+		if (Utils::StrToLower(ModuleName) == Utils::StrToLower(SearchModuleName))
 			return Entry;
 	}
 
@@ -411,7 +402,7 @@ inline PIMAGE_THUNK_DATA GetImportAddress(uintptr_t ModuleBase, const char* Modu
 
 		//std::cerr << "Name: " << str_tolower(Name) << std::endl;
 
-		if (str_tolower(Name) != str_tolower(ModuleToImportFrom))
+		if (Utils::StrToLower(Name) != Utils::StrToLower(ModuleToImportFrom))
 			continue;
 
 		PIMAGE_THUNK_DATA NameThunk = reinterpret_cast<PIMAGE_THUNK_DATA>(ModuleBase + Import->OriginalFirstThunk);

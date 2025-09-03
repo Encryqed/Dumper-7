@@ -4,6 +4,7 @@
 #include "Unreal/ObjectArray.h"
 #include "Unreal/NameArray.h"
 
+#include "Platform.h"
 
 uint8* NameArray::GNames = nullptr;
 
@@ -146,7 +147,7 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 
 	int32 PerChunk = 0x0;
 
-	if (!NameArray || IsBadReadPtr(NameArray))
+	if (!NameArray || Platform::IsBadReadPtr(NameArray))
 		return false;
 
 	for (int i = 0; i < 0x800; i += sizeof(void*))
@@ -372,7 +373,7 @@ bool NameArray::TryFindNameArray()
 
 	if (bIsGNamesDirectly)
 	{
-		if (!IsInProcessRange(Address) || IsBadReadPtr(*reinterpret_cast<void**>(Address)))
+		if (!Platform::IsAddressInProcessRange(Address) || Platform::IsBadReadPtr(*reinterpret_cast<void**>(Address)))
 			return false;
 
 		Off::InSDK::NameArray::GNames = GetOffset(Address);
@@ -392,12 +393,12 @@ bool NameArray::TryFindNameArray()
 
 		uintptr_t MoveTarget = ASMUtils::Resolve32BitRelativeMove(Address + i);
 
-		if (!IsInProcessRange(MoveTarget))
+		if (!Platform::IsAddressInProcessRange(MoveTarget))
 			continue;
 
 		void* ValueOfMoveTargetAsPtr = *reinterpret_cast<void**>(MoveTarget);
 
-		if (IsBadReadPtr(ValueOfMoveTargetAsPtr) || ValueOfMoveTargetAsPtr != Names)
+		if (Platform::IsBadReadPtr(ValueOfMoveTargetAsPtr) || ValueOfMoveTargetAsPtr != Names)
 			continue;
 
 		Off::InSDK::NameArray::GNames = GetOffset(MoveTarget);
@@ -418,8 +419,8 @@ bool NameArray::TryFindNamePool()
 	constexpr int32 BytePropertySearchRange = 0x2A0;
 
 	/* FNamePool::FNamePool contains a call to InitializeSRWLock or RtlInitializeSRWLock, we're going to check for that later */
-	uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "InitializeSRWLock"));
-	uintptr_t RtlInitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("ntdll.dll", "RtlInitializeSRWLock"));
+	uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(Platform::GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "InitializeSRWLock"));
+	uintptr_t RtlInitSRWLockAddress = reinterpret_cast<uintptr_t>(Platform::GetAddressOfImportedFunctionFromAnyModule("ntdll.dll", "RtlInitializeSRWLock"));
 
 	/* Singleton instance of FNamePool, which is passed as a parameter to FNamePool::FNamePool */
 	void* NamePoolIntance = nullptr;
@@ -444,7 +445,7 @@ bool NameArray::TryFindNamePool()
 
 		const uintptr_t PossibleConstructorAddress = ASMUtils::Resolve32BitRelativeCall(SigOccurrence + SizeOfMovInstructionBytes);
 
-		if (!IsInProcessRange(PossibleConstructorAddress))
+		if (!Platform::IsAddressInProcessRange(PossibleConstructorAddress))
 			continue;
 
 		for (int i = 0; i < InitSRWLockSearchRange; i++)
@@ -455,7 +456,7 @@ bool NameArray::TryFindNamePool()
 
 			const uintptr_t RelativeCallTarget = ASMUtils::Resolve32BitSectionRelativeCall(PossibleConstructorAddress + i);
 
-			if (!IsInProcessRange(RelativeCallTarget))
+			if (!Platform::IsAddressInProcessRange(RelativeCallTarget))
 				continue;
 
 			const uintptr_t ValueOfCallTarget = *reinterpret_cast<uintptr_t*>(RelativeCallTarget);

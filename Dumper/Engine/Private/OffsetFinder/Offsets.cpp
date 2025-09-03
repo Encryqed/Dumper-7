@@ -8,6 +8,8 @@
 #include "Unreal/ObjectArray.h"
 #include "Unreal/NameArray.h"
 
+#include "Platform.h"
+
 
 void Off::InSDK::ProcessEvent::InitPE()
 {
@@ -145,7 +147,7 @@ void Off::InSDK::Text::InitTextOffsets()
 
 	auto IsValidPtr = [](void* a) -> bool
 	{
-		return !IsBadReadPtr(a) /* && (uintptr_t(a) & 0x1) == 0*/; // realistically, there wont be any pointers to unaligned memory
+		return !Platform::IsBadReadPtr(a) /* && (uintptr_t(a) & 0x1) == 0*/; // realistically, there wont be any pointers to unaligned memory
 	};
 
 
