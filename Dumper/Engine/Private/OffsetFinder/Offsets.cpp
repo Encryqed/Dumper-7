@@ -317,6 +317,7 @@ void Off::Init()
 
 		// Comment out this line if you're crashing here and see if the NewFindFFieldNameOffset might work!
 		Off::FField::Name = OffsetFinder::FindFFieldNameOffset();
+		//Off::FField::Name = OffsetFinder::NewFindFFieldNameOffset();
 
 		if (Off::FField::Name == OffsetFinder::OffsetNotFound)
 			Off::FField::Name = OffsetFinder::NewFindFFieldNameOffset();
