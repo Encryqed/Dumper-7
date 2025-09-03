@@ -7,14 +7,17 @@
 #include <algorithm>
 #include <functional>
 
-
-/* Credits: https://en.cppreference.com/w/cpp/string/byte/tolower */
-inline std::string str_tolower(std::string S)
+namespace Utils
 {
-	std::transform(S.begin(), S.end(), S.begin(), [](unsigned char C) { return std::tolower(C); });
-	return S;
-}
+	/* Credits: https://en.cppreference.com/w/cpp/string/byte/tolower */
+	inline std::string StrToLower(std::string String)
+	{
+		std::transform(String.begin(), String.end(), String.begin(), [](unsigned char C) { return std::tolower(C); });
 
+		return String;
+	}
+
+}
 template<typename CharType>
 inline int32_t StrlenHelper(const CharType* Str)
 {

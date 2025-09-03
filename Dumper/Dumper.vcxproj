@@ -154,6 +154,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Arch_x86.cpp" />
     <ClCompile Include="Engine\Private\OffsetFinder\OffsetFinder.cpp" />
     <ClCompile Include="Generator\Private\Generators\DumpspaceGenerator.cpp" />
     <ClCompile Include="Engine\Private\Unreal\NameArray.cpp" />
@@ -161,6 +162,7 @@
     <ClCompile Include="Engine\Private\OffsetFinder\Offsets.cpp" />
     <ClCompile Include="Engine\Private\Unreal\UnrealObjects.cpp" />
     <ClCompile Include="Engine\Private\Unreal\UnrealTypes.cpp" />
+    <ClCompile Include="PlatformWindows.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="Utils\Compression\zstd.c" />
     <ClCompile Include="Utils\Dumpspace\DSGen.cpp" />
@@ -181,7 +183,10 @@
     <ClCompile Include="Generator\Private\Wrappers\StructWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Arch_x86.h" />
     <ClInclude Include="Generator\Public\Generators\DumpspaceGenerator.h" />
+    <ClInclude Include="Platform.h" />
+    <ClInclude Include="PlatformWindows.h" />
     <ClInclude Include="Utils\Compression\zstd.h" />
     <ClInclude Include="Utils\Dumpspace\DSGen.h" />
     <ClInclude Include="Generator\Public\Generators\CppGenerator.h" />
