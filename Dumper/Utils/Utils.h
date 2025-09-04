@@ -9,31 +9,7 @@
 
 #include "TmpUtils.h"
 
-template<typename CharType>
-inline int32_t StrlenHelper(const CharType* Str)
-{
-	if constexpr (std::is_same<CharType, char>())
-	{
-		return strlen(Str);
-	}
-	else
-	{
-		return wcslen(Str);
-	}
-}
-
-template<typename CharType>
-inline bool StrnCmpHelper(const CharType* Left, const CharType* Right, size_t NumCharsToCompare)
-{
-	if constexpr (std::is_same<CharType, char>())
-	{
-		return strncmp(Left, Right, NumCharsToCompare) == 0;
-	}
-	else
-	{
-		return wcsncmp(Left, Right, NumCharsToCompare) == 0;
-	}
-}
+#include "Platform.h"
 
 namespace ASMUtils
 {
@@ -905,7 +881,7 @@ public:
 		if (!Address)
 			return nullptr;
 
-		return FindPatternInRange(Pattern, Get<uint8_t>(), Range, Relative != 0, Relative);
+		return Platform::FindPatternInRange(Pattern, Get<uint8_t>(), Range, Relative != 0, Relative);
 	}
 
 	/*
@@ -943,7 +919,7 @@ public:
 			const int32_t RelativeOffset = *reinterpret_cast<int32_t*>(Address + Index + 0x1 /* 0xE8 byte */);
 			MemAddress RelativeCallTarget = Address + Index + RelativeOffset + RealtiveCallOpcodeCount;
 
-			if (!IsInProcessRange(RelativeCallTarget))
+			if (!Platform::IsAddressInProcessRange(RelativeCallTarget))
 				continue;
 
 			if (++NumCalls == abs(OneBasedFuncIndex))

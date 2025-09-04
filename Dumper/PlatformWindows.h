@@ -94,5 +94,18 @@ namespace PlatformWindows
 
 	template<bool bShouldResolve32BitJumps = true>
 	std::pair<const void*, int32_t> IterateVTableFunctions(void** VTable, const std::function<bool(const uint8_t* Address, int32_t Index)>&CallBackForEachFunc, int32_t NumFunctions = 0x150, int32_t OffsetFromStart = 0x0);
+
+	void* FindPattern(const char* Signature, const uint32_t Offset = 0, const bool bSearchAllSections = false, const uintptr_t StartAddress = 0x0, const char* const ModuleName = nullptr);
+	void* FindPatternInRange(const char* Signature, const uint8_t* Start, const uintptr_t Range, const bool bRelative = false, const uint32_t Offset = 0);
+	void* FindPatternInRange(std::vector<int>&& Signature, const uint8_t* Start, const uintptr_t Range, const bool bRelative = false, uint32_t Offset = 0, const uint32_t SkipCount = 0);
+
+
+	/* Slower than FindByString */
+	template<bool bCheckIfLeaIsStrPtr = false, typename CharType = char>
+	inline void* FindByStringInAllSections(const CharType* RefStr, const bool bSearchOnlyExecutableSections = true, const uintptr_t StartAddress = 0x0, int32_t Range = 0x0, const char* const ModuleName = nullptr);
+
+
+	template<bool bCheckIfLeaIsStrPtr, typename CharType>
+	inline void* FindStringInRange(const CharType* RefStr, const uintptr_t StartAddress, const int32_t Range);
 }
 

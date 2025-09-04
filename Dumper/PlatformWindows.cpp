@@ -22,6 +22,16 @@ namespace
 	};
 	static_assert(sizeof(WindowsSectionInfo) == sizeof(SectionInfo), "To allow interchangable clasting between SectionInfo types you must ensure that the size matches.");
 
+	inline WindowsSectionInfo SectionInfoToWinSectionInfo(const SectionInfo& Info)
+	{
+		return std::bit_cast<WindowsSectionInfo>(Info);
+	}
+	inline SectionInfo WinSectionInfoToSectionInfo(const WindowsSectionInfo& Info)
+	{
+		return std::bit_cast<SectionInfo>(Info);
+	}
+
+
 	struct CLIENT_ID
 	{
 		HANDLE UniqueProcess;
@@ -184,6 +194,11 @@ namespace
 		return { NULL, 0 };
 	}
 
+	inline uint32_t GetAlignedSizeWithOffsetFromEnd(const uint32_t SizeToAlign, const uint32_t Alignment, const uint32_t OffsetFromEnd)
+	{
+		return Align((SizeToAlign - (Alignment - 1) - OffsetFromEnd), Alignment);
+	}
+
 	inline const PIMAGE_THUNK_DATA GetImportAddress(const uintptr_t ModuleBase, const char* ModuleToImportFrom, const char* SearchFunctionName)
 	{
 		/* Get the module importing the function */
@@ -283,20 +298,19 @@ SectionInfo PlatformWindows::GetSectionInfo(const std::string& SectionName, cons
 		{
 			return reinterpret_cast<const char*>(Section->Name) == SectionName;
 		});
-
-	return std::bit_cast<SectionInfo>(WinSectionInfo);
+	
+	return WinSectionInfoToSectionInfo(WinSectionInfo);
 }
 
 void* PlatformWindows::IterateSectionWithCallback(const SectionInfo& Info, const std::function<bool(void* Address)>& Callback, uint32_t Granularity, uint32_t OffsetFromEnd)
 {
-	const WindowsSectionInfo WinSectionInfo = std::bit_cast<WindowsSectionInfo>(Info);
+	const WindowsSectionInfo WinSectionInfo = SectionInfoToWinSectionInfo(Info);
 
 	if (!WinSectionInfo.IsValid())
 		return nullptr;
 
 	const uintptr_t SectionBaseAddrss = WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress;
-	const uint32_t SizeToAlign = WinSectionInfo.SectionHeader->SizeOfRawData - (Granularity - 1) - OffsetFromEnd;
-	const uint32_t SectionIterationSize = Align(SizeToAlign, Granularity);
+	const uint32_t SectionIterationSize = GetAlignedSizeWithOffsetFromEnd(WinSectionInfo.SectionHeader->SizeOfRawData, Granularity, OffsetFromEnd);
 
 	for (uintptr_t CurrentAddress = SectionBaseAddrss; CurrentAddress < (CurrentAddress + SectionIterationSize); CurrentAddress += Granularity)
 	{
@@ -317,7 +331,7 @@ void* PlatformWindows::IterateAllSectionsWithCallback(const std::function<bool(v
 		{
 			const WindowsSectionInfo WinSectionInfo = { ModuleBase, Section };
 
-			if (void* Address = IterateSectionWithCallback(std::bit_cast<SectionInfo>(WinSectionInfo), Callback, Granularity, OffsetFromEnd))
+			if (void* Address = IterateSectionWithCallback(WinSectionInfoToSectionInfo(WinSectionInfo), Callback, Granularity, OffsetFromEnd))
 			{
 				Result = Address;
 				return true;
@@ -462,6 +476,229 @@ std::pair<const void*, int32_t> PlatformWindows::IterateVTableFunctions(void** V
 
 	return { nullptr, -1 };
 }
+
+
+void* PlatformWindows::FindPattern(const char* Signature, const uint32_t Offset, const bool bSearchAllSections, const uintptr_t StartAddress, const char* const ModuleName)
+{
+	const auto ModuleBase = GetModuleBase(ModuleName);
+
+	void* Result = nullptr;
+	auto FindPatternInRangeLambda = [&Result, ModuleBase, Signature, Offset, StartAddress](const IMAGE_SECTION_HEADER* SectionHeader) -> bool
+	{
+		uint32_t SearchRange = SectionHeader->SizeOfRawData;
+		uintptr_t SearchStartAddress = ModuleBase + SectionHeader->VirtualAddress;
+
+		const uintptr_t SearchEndAddress = StartAddress + SearchRange;
+
+		if (StartAddress != NULL && StartAddress > SearchStartAddress)
+		{
+			// This section does not contain any address greater than StartAddress
+			if (StartAddress >= SearchEndAddress)
+				return false;
+
+			SearchStartAddress = StartAddress;
+			SearchRange = SearchEndAddress - StartAddress;
+		}
+
+		Result = FindPatternInRange(Signature, reinterpret_cast<const uint8_t*>(SearchStartAddress), SearchRange, Offset != 0x0, Offset);
+
+		return Result != nullptr;
+	};
+
+	if (bSearchAllSections)
+	{
+		IterateAllSectionObjects(ModuleBase, FindPatternInRangeLambda);
+	}
+	else
+	{
+		const WindowsSectionInfo WinSectionInfo = SectionInfoToWinSectionInfo(GetSectionInfo(".text", ModuleName));
+
+		const uint32_t Range = WinSectionInfo.SectionHeader->SizeOfRawData;
+		const uintptr_t SectionBaseAddrss = WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress;
+
+		return FindPatternInRange(Signature, reinterpret_cast<const uint8_t*>(SectionBaseAddrss), Range, Offset != 0x0, Offset);
+	}
+
+	return Result;
+}
+
+void* PlatformWindows::FindPatternInRange(const char* Signature, const uint8_t* Start, const uintptr_t Range, const bool bRelative, const uint32_t Offset)
+{
+	static auto PatternToByte = [](const char* pattern) -> std::vector<int>
+	{
+		std::vector<int> Bytes;
+
+		const auto Start = const_cast<char*>(pattern);
+		const auto End = const_cast<char*>(pattern) + strlen(pattern);
+
+		for (auto Current = Start; Current < End; ++Current)
+		{
+			if (*Current == '?')
+			{
+				++Current;
+
+				if (*Current == '?')
+					++Current;
+
+				Bytes.push_back(-1);
+			}
+			else
+			{
+				Bytes.push_back(strtoul(Current, &Current, 16));
+			}
+		}
+
+		return Bytes;
+	};
+
+	return FindPatternInRange(PatternToByte(Signature), Start, Range, bRelative, Offset);
+}
+
+inline void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, const uint8_t* Start, const uintptr_t Range, const bool bRelative, uint32_t Offset, const uint32_t SkipCount)
+{
+	const auto PatternLength = Signature.size();
+	const auto PatternBytes = Signature.data();
+
+	for (int i = 0; i < (Range - PatternLength); i++)
+	{
+		bool bFound = true;
+		int CurrentSkips = 0;
+
+		for (auto j = 0ul; j < PatternLength; ++j)
+		{
+			if (Start[i + j] != PatternBytes[j] && PatternBytes[j] != -1)
+			{
+				bFound = false;
+				break;
+			}
+		}
+		if (bFound)
+		{
+			if (CurrentSkips != SkipCount)
+			{
+				CurrentSkips++;
+				continue;
+			}
+
+			uintptr_t Address = reinterpret_cast<uintptr_t>(Start + i);
+			if (bRelative)
+			{
+				if (Offset == -1)
+					Offset = PatternLength;
+
+				Address = ((Address + Offset + 4) + *reinterpret_cast<int32_t*>(Address + Offset));
+			}
+			return reinterpret_cast<void*>(Address);
+		}
+	}
+
+	return nullptr;
+}
+
+
+/* Slower than FindByString */
+template<bool bCheckIfLeaIsStrPtr, typename CharType>
+inline void* PlatformWindows::FindByStringInAllSections(const CharType* RefStr, const bool bSearchOnlyExecutableSections, const uintptr_t StartAddress, int32_t Range, const char* const ModuleName)
+{
+	static_assert(std::is_same_v<CharType, char> || std::is_same_v<CharType, wchar_t>, "FindByStringInAllSections only supports 'char' and 'wchar_t', but was called with other type.");
+
+	const auto ModuleBase = GetModuleBase(ModuleName);
+
+	void* Result = nullptr;
+	auto FindStringInSection = [&Result, &Range, StartAddress, ModuleBase](const IMAGE_SECTION_HEADER* SectionHeader) -> bool
+	{
+		if (bSearchOnlyExecutableSections && !(SectionHeader->Characteristics & IMAGE_SCN_MEM_EXECUTE))
+			return false;
+
+		const uintptr_t SectionStartAddress = ModuleBase + SectionHeader->VirtualAddress;
+		const uintptr_t SectionEndAddress = SectionStartAddress + SectionHeader->SizeOfRawData;
+
+		uint32_t SearchRange = (Range > 0x0 && Range < SectionHeader->SizeOfRawData) ? Range : SectionHeader->SizeOfRawData;
+		uintptr_t SearchStartAddress = SectionStartAddress;
+
+		const uintptr_t SearchEndAddress = StartAddress + SearchRange;
+
+		// Check if this section contains the StartAddress
+		if (StartAddress != NULL && StartAddress > SearchStartAddress)
+		{
+			// This section does not contain any address greater than StartAddress
+			if (StartAddress >= SearchEndAddress)
+				return false;
+
+			SearchStartAddress = StartAddress;
+			SearchRange = SearchEndAddress - StartAddress;
+		}
+
+		if (Range > 0x0)
+			Range -= SearchRange;
+
+		// Make sure we don't try to read beyond the limit. This might cause string refs at the very end of a search Range not to be found.
+		SearchRange -= 0x7;
+
+		Result = FindStringInRange<bCheckIfLeaIsStrPtr, CharType>(RefStr, SearchStartAddress, SearchRange);
+
+		return Result != nullptr;
+	};
+
+	IterateAllSectionObjects(ModuleBase, FindStringInSection);
+
+	return Result;
+}
+
+template<bool bCheckIfLeaIsStrPtr, typename CharType>
+inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const uintptr_t StartAddress, const int32_t Range)
+{
+	const uint8_t* SearchStart = reinterpret_cast<const uint8_t*>(StartAddress);
+
+	const int32_t RefStrLen = StrlenHelper(RefStr);
+
+	for (uintptr_t i = 0; i < Range; i++)
+	{
+#if defined(_WIN64)
+		// opcode: lea
+		if ((SearchStart[i] == uint8_t(0x4C) || SearchStart[i] == uint8_t(0x48)) && SearchStart[i + 1] == uint8_t(0x8D))
+		{
+			const uintptr_t StrPtr = Architecture_x86_64::Resolve32BitRelativeLea(reinterpret_cast<uintptr_t>(SearchStart + i));
+
+			if (!IsAddressInProcessRange(StrPtr))
+				continue;
+
+			if (StrnCmpHelper(RefStr, reinterpret_cast<const CharType*>(StrPtr), RefStrLen))
+				return { SearchStart + i };
+
+			if constexpr (bCheckIfLeaIsStrPtr)
+			{
+				const CharType* StrPtrContentFirst8Bytes = *reinterpret_cast<const CharType* const*>(StrPtr);
+
+				if (!IsAddressInProcessRange(StrPtrContentFirst8Bytes))
+					continue;
+
+				if (StrnCmpHelper(RefStr, StrPtrContentFirst8Bytes, RefStrLen))
+					return { SearchStart + i };
+			}
+		}
+#elif defined(_WIN32)
+		// opcode: push
+		if ((SearchStart[i] == uint8_t(0x68)))
+		{
+			const uintptr_t StrPtr = Architecture_x86_64::Resolve32BitRelativePush(reinterpret_cast<uintptr_t>(SearchStart + i));
+
+			if (!IsAddressInProcessRange(StrPtr))
+				continue;
+
+			if (!IsAddressInProcessRange(StrPtr))
+				continue;
+
+			if (StrnCmpHelper(RefStr, reinterpret_cast<const CharType*>(StrPtr), RefStrLen))
+			{
+				return { SearchStart + i };
+			}
+		}
+#endif
+	}
+
+}
+
 
 
 /*

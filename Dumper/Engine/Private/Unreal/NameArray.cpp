@@ -436,7 +436,7 @@ bool NameArray::TryFindNamePool()
 			SigOccurrence += 0x1;
 
 		/* Find the next occurence of this signature to see if that may be a call to the FNamePool constructor */
-		SigOccurrence = reinterpret_cast<uintptr_t>(FindPattern("48 8D 0D ? ? ? ? E8", 0x0, true, SigOccurrence));
+		SigOccurrence = reinterpret_cast<uintptr_t>(Platform::FindPattern("48 8D 0D ? ? ? ? E8", 0x0, true, SigOccurrence));
 
 		if (SigOccurrence == 0x0)
 			break;

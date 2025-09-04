@@ -27,3 +27,29 @@ constexpr T Align(T Size, T Alignment)
 	return Size + (RequiredAlign != Alignment ? RequiredAlign : 0x0);
 }
 
+template<typename CharType>
+inline int32_t StrlenHelper(const CharType* Str)
+{
+	if constexpr (std::is_same<CharType, char>())
+	{
+		return strlen(Str);
+	}
+	else
+	{
+		return wcslen(Str);
+	}
+}
+
+template<typename CharType>
+inline bool StrnCmpHelper(const CharType* Left, const CharType* Right, size_t NumCharsToCompare)
+{
+	if constexpr (std::is_same<CharType, char>())
+	{
+		return strncmp(Left, Right, NumCharsToCompare) == 0;
+	}
+	else
+	{
+		return wcsncmp(Left, Right, NumCharsToCompare) == 0;
+	}
+}
+

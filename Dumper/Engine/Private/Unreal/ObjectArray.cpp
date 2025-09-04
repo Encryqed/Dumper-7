@@ -195,33 +195,10 @@ void ObjectArray::InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), c
 void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 {
 	if (!bScanAllMemory)
-		std::cerr << "\nDumper-7 by me, you & him\n\n\n";
-
-	const auto [ImageBase, ImageSize] = GetImageBaseAndSize(ModuleName);
-
-	uintptr_t SearchBase = ImageBase;
-	DWORD SearchRange = ImageSize;
-
-	if (!bScanAllMemory)
 	{
-		const auto [DataSection, DataSize] = GetSectionByName(ImageBase, ".data");
-
-		if (DataSection != 0x0 && DataSize != 0x0)
-		{
-			SearchBase = DataSection;
-			SearchRange = DataSize;
-		}
-		else
-		{
-			bScanAllMemory = true;
-		}
-	}
-
-	/* Sub 0x50 so we don't try to read out of bounds memory when checking FixedArray->IsValid() or ChunkedArray->IsValid() */
-	SearchRange -= 0x50;
-
-	if (!bScanAllMemory)
+		std::cerr << "\nDumper-7 by me, you & him\n\n\n";
 		std::cerr << "Searching for GObjects...\n\n";
+	}
 
 	auto MatchesAnyLayout = []<typename ArrayLayoutType, size_t Size>(const std::array<ArrayLayoutType, Size>& ObjectArrayLayouts, uintptr_t Address)
 	{
@@ -265,10 +242,17 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 		return false;
 	};
 
-	const auto DataSectionInfo = Platform::GetSectionInfo(".data");
+	void* GObjectsAddress = nullptr;
 
-	//void* GObjectsAddress = Platform::IterateAllSectionsWithCallback(IsAddressValidGObjects, 0x4, 0x50, ModuleName);
-	void* GObjectsAddress = Platform::IterateSectionWithCallback(DataSectionInfo, IsAddressValidGObjects, 0x4, 0x50);
+	if (bScanAllMemory)
+	{
+		GObjectsAddress = Platform::IterateAllSectionsWithCallback(IsAddressValidGObjects, 0x4, 0x50, ModuleName);
+	}
+	else
+	{
+		GObjectsAddress = Platform::IterateSectionWithCallback(Platform::GetSectionInfo(".data"), IsAddressValidGObjects, 0x4, 0x50);
+	}
+
 
 	if (GObjectsAddress)
 	{
