@@ -374,7 +374,7 @@ inline PIMAGE_THUNK_DATA GetImportAddress(uintptr_t ModuleBase, const char* Modu
 		if (Import->Name == 0xFFFF)
 			continue;
 
-		const char* Name = reinterpret_cast<const char*>(ModuleBase + Import->Name);
+		const char* const Name = reinterpret_cast<const char*>(ModuleBase + Import->Name);
 
 		//std::cerr << "Name: " << str_tolower(Name) << std::endl;
 
@@ -402,8 +402,8 @@ inline PIMAGE_THUNK_DATA GetImportAddress(uintptr_t ModuleBase, const char* Modu
 			}
 
 			/* Get Import data for this function */
-			PIMAGE_IMPORT_BY_NAME NameData = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(ModuleBase + NameThunk->u1.ForwarderString);
-			PIMAGE_IMPORT_BY_NAME FunctionData = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(FuncThunk->u1.AddressOfData);
+			const IMAGE_IMPORT_BY_NAME* NameData = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(ModuleBase + NameThunk->u1.ForwarderString);
+			const IMAGE_IMPORT_BY_NAME* FunctionData = reinterpret_cast<PIMAGE_IMPORT_BY_NAME>(FuncThunk->u1.AddressOfData);
 
 			//std::cerr << "IMPORT: " << std::string(NameData->Name) << std::endl;
 

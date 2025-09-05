@@ -34,7 +34,7 @@ void Off::InSDK::ProcessEvent::InitPE()
 	const void* ProcessEventAddr = nullptr;
 	int32_t ProcessEventIdx = 0;
 
-	auto [FuncPtr, FuncIdx] = IterateVTableFunctions(Vft, IsProcessEvent);
+	auto [FuncPtr, FuncIdx] = Platform::IterateVTableFunctions(Vft, IsProcessEvent);
 
 	ProcessEventAddr = FuncPtr;
 	ProcessEventIdx = FuncIdx;
@@ -49,7 +49,7 @@ void Off::InSDK::ProcessEvent::InitPE()
 			return FuncAddress == PossiblePEAddr;
 		};
 
-		auto [FuncPtr2, FuncIdx2] = IterateVTableFunctions(Vft, IsSameAddr);
+		auto [FuncPtr2, FuncIdx2] = Platform::IterateVTableFunctions(Vft, IsSameAddr);
 		ProcessEventAddr = FuncPtr2;
 		ProcessEventIdx = FuncIdx2;
 	}
@@ -57,7 +57,7 @@ void Off::InSDK::ProcessEvent::InitPE()
 	if (ProcessEventAddr)
 	{
 		Off::InSDK::ProcessEvent::PEIndex = ProcessEventIdx;
-		Off::InSDK::ProcessEvent::PEOffset = GetOffset(ProcessEventAddr);
+		Off::InSDK::ProcessEvent::PEOffset = Platform::GetOffset(ProcessEventAddr);
 
 		std::cerr << std::format("PE-Offset: 0x{:X}\n", Off::InSDK::ProcessEvent::PEOffset);
 		std::cerr << std::format("PE-Index: 0x{:X}\n\n", ProcessEventIdx);
@@ -73,7 +73,7 @@ void Off::InSDK::ProcessEvent::InitPE(int32 Index, const char* const ModuleName)
 
 	void** VFT = *reinterpret_cast<void***>(ObjectArray::GetByIndex(0).GetAddress());
 
-	Off::InSDK::ProcessEvent::PEOffset = reinterpret_cast<uintptr_t>(VFT[Off::InSDK::ProcessEvent::PEIndex]) - GetModuleBase(ModuleName);
+	Off::InSDK::ProcessEvent::PEOffset = Platform::GetOffset(VFT[Off::InSDK::ProcessEvent::PEIndex], ModuleName);
 
 	std::cerr << std::format("PE-Offset: 0x{:X}\n", Off::InSDK::ProcessEvent::PEOffset);
 }
@@ -126,7 +126,7 @@ void Off::InSDK::World::InitGWorld()
 		/* Pointer to UWorld* couldn't be found */
 		if (Result)
 		{
-			Off::InSDK::World::GWorld = GetOffset(Result);
+			Off::InSDK::World::GWorld = Platform::GetOffset(Result);
 			std::cerr << std::format("GWorld-Offset: 0x{:X}\n\n", Off::InSDK::World::GWorld);
 			break;
 		}

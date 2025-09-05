@@ -112,7 +112,7 @@ void FName::Init(bool bForceGNames)
 			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0x3));
 			AppendString = reinterpret_cast<decltype(AppendString)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0x10));
 
-			Off::InSDK::Name::GetNameEntryFromName = GetOffset(GetNameEntryFromName);
+			Off::InSDK::Name::GetNameEntryFromName = Platform::GetOffset(GetNameEntryFromName);
 			Off::InSDK::Name::bIsAppendStringInlinedAndUsed = true;
 
 			ToStr = [](const void* Name) -> std::wstring
@@ -134,7 +134,7 @@ void FName::Init(bool bForceGNames)
 		}
 	}
 
-	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? GetOffset(AppendString) : 0x0;
+	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? Platform::GetOffset(AppendString) : 0x0;
 
 	if (!AppendString || bForceGNames)
 	{
@@ -211,7 +211,7 @@ void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bI
 		return;
 	}
 
-	AppendString = reinterpret_cast<decltype(AppendString)>(GetModuleBase(ModuleName) + OverrideOffset);
+	AppendString = reinterpret_cast<decltype(AppendString)>(Platform::GetModuleBase(ModuleName) + OverrideOffset);
 
 	Off::InSDK::Name::AppendNameToString = OverrideOffset;
 	Off::InSDK::Name::bIsUsingAppendStringOverToString = OverrideType == EOffsetOverrideType::AppendString;
@@ -252,7 +252,7 @@ void FName::InitFallback()
 		i++;
 	}
 
-	Off::InSDK::Name::AppendNameToString = AppendString ? GetOffset(AppendString) : 0x0;
+	Off::InSDK::Name::AppendNameToString = AppendString ? Platform::GetOffset(AppendString) : 0x0;
 }
 
 

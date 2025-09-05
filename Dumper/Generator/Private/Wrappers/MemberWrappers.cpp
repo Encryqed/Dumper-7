@@ -286,7 +286,7 @@ uintptr_t FunctionWrapper::GetExecFuncOffset() const
     if (!bIsUnrealFunction)
         return 0x0;
 
-    return GetOffset(Function.GetExecFunction());
+    return Platform::GetOffset(Function.GetExecFunction());
 }
 
 UEFunction FunctionWrapper::GetUnrealFunction() const

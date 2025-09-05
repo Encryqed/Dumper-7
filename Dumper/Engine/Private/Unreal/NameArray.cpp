@@ -366,7 +366,7 @@ bool NameArray::TryFindNameArray()
 
 	void* EnterCriticalSectionAddress = GetImportAddress(nullptr, "kernel32.dll", "EnterCriticalSection");
 
-	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), GetModuleBase());
+	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), Platform::GetModuleBase());
 
 	if (Address == 0x0)
 		return false;
@@ -376,7 +376,7 @@ bool NameArray::TryFindNameArray()
 		if (!Platform::IsAddressInProcessRange(Address) || Platform::IsBadReadPtr(*reinterpret_cast<void**>(Address)))
 			return false;
 
-		Off::InSDK::NameArray::GNames = GetOffset(Address);
+		Off::InSDK::NameArray::GNames = Platform::GetOffset(Address);
 		return true;
 	}
 
@@ -401,7 +401,7 @@ bool NameArray::TryFindNameArray()
 		if (Platform::IsBadReadPtr(ValueOfMoveTargetAsPtr) || ValueOfMoveTargetAsPtr != Names)
 			continue;
 
-		Off::InSDK::NameArray::GNames = GetOffset(MoveTarget);
+		Off::InSDK::NameArray::GNames = Platform::GetOffset(MoveTarget);
 		return true;
 	}
 	
@@ -481,7 +481,7 @@ bool NameArray::TryFindNamePool()
 
 	if (NamePoolIntance)
 	{
-		Off::InSDK::NameArray::GNames = GetOffset(NamePoolIntance);
+		Off::InSDK::NameArray::GNames = Platform::GetOffset(NamePoolIntance);
 		return true;
 	}
 
@@ -490,7 +490,7 @@ bool NameArray::TryFindNamePool()
 
 bool NameArray::TryInit(bool bIsTestOnly)
 {
-	uintptr_t ImageBase = GetModuleBase();
+	const uintptr_t ImageBase = Platform::GetModuleBase();
 
 	uint8* GNamesAddress = nullptr;
 
@@ -548,7 +548,7 @@ bool NameArray::TryInit(bool bIsTestOnly)
 
 bool NameArray::TryInit(int32 OffsetOverride, bool bIsNamePool, const char* const ModuleName)
 {
-	uintptr_t ImageBase = GetModuleBase(ModuleName);
+	const uintptr_t ImageBase = Platform::GetModuleBase(ModuleName);
 
 	uint8* GNamesAddress = nullptr;
 
