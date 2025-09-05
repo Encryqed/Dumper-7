@@ -12,7 +12,19 @@ namespace Utils
 
 		return String;
 	}
+}
 
+
+namespace FileNameHelper
+{
+	inline void MakeValidFileName(std::string& InOutName)
+	{
+		for (char& c : InOutName)
+		{
+			if (c == '<' || c == '>' || c == ':' || c == '\"' || c == '/' || c == '\\' || c == '|' || c == '?' || c == '*')
+				c = '_';
+		}
+	}
 }
 
 

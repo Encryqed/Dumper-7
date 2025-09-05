@@ -268,7 +268,83 @@ namespace
 		return nullptr;
 	}
 
+	std::pair<uintptr_t, uint32_t> GetSearchStartAndRangeBasedOnOverrides(const uintptr_t ModuleBase, const IMAGE_SECTION_HEADER* SectionHeader, const uintptr_t StartAddress, int32_t Range)
+	{
+		if (SectionHeader->VirtualAddress == NULL || SectionHeader->Misc.VirtualSize == 0x0)
+			return { NULL, 0x0 };
+
+		const uintptr_t SectionStartAddress = ModuleBase + SectionHeader->VirtualAddress;
+		const uintptr_t SectionEndAddress = SectionStartAddress + SectionHeader->Misc.VirtualSize;
+
+		uint32_t SearchRange = (Range > 0x0 && Range < SectionHeader->Misc.VirtualSize) ? Range : SectionHeader->Misc.VirtualSize;
+		uintptr_t SearchStartAddress = SectionStartAddress;
+
+		// Check if this section contains the StartAddress
+		if (StartAddress != NULL && StartAddress > SectionStartAddress)
+		{
+			// This section does not contain any address greater than StartAddress
+			if (StartAddress >= SectionEndAddress)
+				return { NULL, 0x0 };
+
+			SearchStartAddress = StartAddress;
+			SearchRange = SectionEndAddress - StartAddress;
+		}
+
+		return { SearchStartAddress, SearchRange };
+	}
 }
+
+
+void* WindowsPrivateImplHelper::FinAlignedValueInRangeImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
+{
+	for (uint32_t i = 0x0; i <= GetAlignedSizeWithOffsetFromEnd(Range, Alignment, ValueTypeSize); i += Alignment)
+	{
+		void* TypedPtr = reinterpret_cast<void*>(StartAddress + i);
+
+
+		if (ComparisonFunction(ValuePtr, TypedPtr))
+			return TypedPtr;
+	}
+
+	return nullptr;
+}
+
+void* WindowsPrivateImplHelper::FindAlignedValueInSectionImpl(const SectionInfo& Info, const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment)
+{
+	const WindowsSectionInfo WinSectionInfo = SectionInfoToWinSectionInfo(Info);
+
+	const uint32_t Range = WinSectionInfo.SectionHeader->Misc.VirtualSize;
+	const uintptr_t SectionBaseAddrss = WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress;
+
+	return FinAlignedValueInRangeImpl(ValuePtr, ComparisonFunction, ValueTypeSize, Alignment, SectionBaseAddrss, Range);
+}
+
+void* WindowsPrivateImplHelper::FindAlignedValueInAllSectionsImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, const uintptr_t StartAddress, int32_t Range, const char* const ModuleName)
+{
+	const auto ModuleBase = GetModuleBase(ModuleName);
+
+	void* Result = nullptr;
+	auto FindStringInSection = [&Result, &Range, StartAddress, ModuleBase, ValuePtr, ComparisonFunction, ValueTypeSize, Alignment](const IMAGE_SECTION_HEADER* SectionHeader) -> bool
+	{
+		const auto [SearchStartAddress, SearchRange] = GetSearchStartAndRangeBasedOnOverrides(ModuleBase, SectionHeader, StartAddress, Range);
+	
+		if (SearchStartAddress == NULL || SearchRange == 0x0)
+			return false;
+
+		if (Range > 0x0)
+			Range -= SearchRange;
+
+		Result = FinAlignedValueInRangeImpl(ValuePtr, ComparisonFunction, ValueTypeSize, Alignment, SearchStartAddress, SearchRange);
+
+		return Result != nullptr;
+	};
+
+	IterateAllSectionObjects(ModuleBase, FindStringInSection);
+
+	return Result;
+}
+
+
 
 uintptr_t PlatformWindows::GetModuleBase(const char* const ModuleName)
 {
@@ -310,7 +386,7 @@ void* PlatformWindows::IterateSectionWithCallback(const SectionInfo& Info, const
 		return nullptr;
 
 	const uintptr_t SectionBaseAddrss = WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress;
-	const uint32_t SectionIterationSize = GetAlignedSizeWithOffsetFromEnd(WinSectionInfo.SectionHeader->SizeOfRawData, Granularity, OffsetFromEnd);
+	const uint32_t SectionIterationSize = GetAlignedSizeWithOffsetFromEnd(WinSectionInfo.SectionHeader->Misc.VirtualSize, Granularity, OffsetFromEnd);
 
 	for (uintptr_t CurrentAddress = SectionBaseAddrss; CurrentAddress < (CurrentAddress + SectionIterationSize); CurrentAddress += Granularity)
 	{
@@ -485,20 +561,10 @@ void* PlatformWindows::FindPattern(const char* Signature, const uint32_t Offset,
 	void* Result = nullptr;
 	auto FindPatternInRangeLambda = [&Result, ModuleBase, Signature, Offset, StartAddress](const IMAGE_SECTION_HEADER* SectionHeader) -> bool
 	{
-		uint32_t SearchRange = SectionHeader->SizeOfRawData;
-		uintptr_t SearchStartAddress = ModuleBase + SectionHeader->VirtualAddress;
+		const auto [SearchStartAddress, SearchRange] = GetSearchStartAndRangeBasedOnOverrides(ModuleBase, SectionHeader, StartAddress, 0x0);
 
-		const uintptr_t SearchEndAddress = StartAddress + SearchRange;
-
-		if (StartAddress != NULL && StartAddress > SearchStartAddress)
-		{
-			// This section does not contain any address greater than StartAddress
-			if (StartAddress >= SearchEndAddress)
-				return false;
-
-			SearchStartAddress = StartAddress;
-			SearchRange = SearchEndAddress - StartAddress;
-		}
+		if (SearchStartAddress == NULL || SearchRange == 0x0)
+			return false;
 
 		Result = FindPatternInRange(Signature, reinterpret_cast<const uint8_t*>(SearchStartAddress), SearchRange, Offset != 0x0, Offset);
 
@@ -513,7 +579,7 @@ void* PlatformWindows::FindPattern(const char* Signature, const uint32_t Offset,
 	{
 		const WindowsSectionInfo WinSectionInfo = SectionInfoToWinSectionInfo(GetSectionInfo(".text", ModuleName));
 
-		const uint32_t Range = WinSectionInfo.SectionHeader->SizeOfRawData;
+		const uint32_t Range = WinSectionInfo.SectionHeader->Misc.VirtualSize;
 		const uintptr_t SectionBaseAddrss = WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress;
 
 		return FindPatternInRange(Signature, reinterpret_cast<const uint8_t*>(SectionBaseAddrss), Range, Offset != 0x0, Offset);
@@ -610,32 +676,19 @@ void* PlatformWindows::FindByStringInAllSections(const CharType* RefStr,const ui
 		if (bSearchOnlyExecutableSections && !(SectionHeader->Characteristics & IMAGE_SCN_MEM_EXECUTE))
 			return false;
 
-		const uintptr_t SectionStartAddress = ModuleBase + SectionHeader->VirtualAddress;
-		const uintptr_t SectionEndAddress = SectionStartAddress + SectionHeader->SizeOfRawData;
+		const auto [SearchStartAddress, SearchRange] = GetSearchStartAndRangeBasedOnOverrides(ModuleBase, SectionHeader, StartAddress, Range);
 
-		uint32_t SearchRange = (Range > 0x0 && Range < SectionHeader->SizeOfRawData) ? Range : SectionHeader->SizeOfRawData;
-		uintptr_t SearchStartAddress = SectionStartAddress;
+		if (SearchStartAddress == NULL || SearchRange == 0x0)
+			return false;
 
-		const uintptr_t SearchEndAddress = StartAddress + SearchRange;
-
-		// Check if this section contains the StartAddress
-		if (StartAddress != NULL && StartAddress > SearchStartAddress)
-		{
-			// This section does not contain any address greater than StartAddress
-			if (StartAddress >= SearchEndAddress)
-				return false;
-
-			SearchStartAddress = StartAddress;
-			SearchRange = SearchEndAddress - StartAddress;
-		}
 
 		if (Range > 0x0)
 			Range -= SearchRange;
 
 		// Make sure we don't try to read beyond the limit. This might cause string refs at the very end of a search Range not to be found.
-		SearchRange -= 0x7;
+		constexpr auto InstructionBytesLength = 0x7;
 
-		Result = FindStringInRange<bCheckIfLeaIsStrPtr, CharType>(RefStr, SearchStartAddress, SearchRange);
+		Result = FindStringInRange<bCheckIfLeaIsStrPtr, CharType>(RefStr, SearchStartAddress, (SearchRange - InstructionBytesLength));
 
 		return Result != nullptr;
 	};
@@ -699,6 +752,8 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 
 	return nullptr;
 }
+
+
 
 /*
 * The compiler won't generate functions for a specific template type unless it's used in the .cpp file corresponding to the

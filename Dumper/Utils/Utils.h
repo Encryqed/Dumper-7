@@ -597,7 +597,7 @@ inline void* FindPattern(const char* Signature, uint32_t Offset = 0, bool bSearc
 
 
 template<typename T>
-inline T* FindAlignedValueInProcessInRange(T Value, int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
+inline T* FindAlignedValueInRange(T Value, int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
 {
 	constexpr int32_t ElementSize = sizeof(T);
 
@@ -635,7 +635,7 @@ inline T* FindAlignedValueInProcess(T Value, const std::string& Sectionname = ".
 		}
 	}
 
-	T* Result = FindAlignedValueInProcessInRange(Value, Alignment, SearchStart, SearchRange);
+	T* Result = FindAlignedValueInRange(Value, Alignment, SearchStart, SearchRange);
 
 	if (!Result && SearchStart != ImageBase)
 		return FindAlignedValueInProcess(Value, Sectionname, Alignment, true);
@@ -671,7 +671,7 @@ inline std::vector<T*> FindAllAlignedValueInProcess(T Value, const std::string& 
 	auto Range = SearchRange;
 	do
 	{
-		T* Result = FindAlignedValueInProcessInRange(Value, Alignment, Start, Range);
+		T* Result = FindAlignedValueInRange(Value, Alignment, Start, Range);
 		if (!Result)
 		{
 			break;
@@ -1106,17 +1106,4 @@ template<bool bCheckIfLeaIsStrPtr = false>
 inline MemAddress FindByWStringInAllSections(const wchar_t* RefStr)
 {
 	return FindByStringInAllSections<bCheckIfLeaIsStrPtr, wchar_t>(RefStr);
-}
-
-
-namespace FileNameHelper
-{
-	inline void MakeValidFileName(std::string& InOutName)
-	{
-		for (char& c : InOutName)
-		{
-			if (c == '<' || c == '>' || c == ':' || c == '\"' || c == '/' || c == '\\' || c == '|' || c == '?' || c == '*')
-				c = '_';
-		}
-	}
 }

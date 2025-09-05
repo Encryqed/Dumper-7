@@ -83,13 +83,16 @@ void Off::InSDK::World::InitGWorld()
 {
 	UEClass UWorld = ObjectArray::FindClassFast("World");
 
+	UEObject TmpObj = nullptr;
+
 	for (UEObject Obj : ObjectArray())
 	{
 		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject) || !Obj.IsA(UWorld))
 			continue;
 
 		/* Try to find a pointer to the word, aka UWorld** GWorld */
-		auto Results = FindAllAlignedValueInProcess(Obj.GetAddress());
+		auto Results = Platform::FindAllAlignedValuesInProcess(Obj.GetAddress());
+
 		void* Result = nullptr;
 		if (Results.size())
 		{

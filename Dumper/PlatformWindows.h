@@ -72,6 +72,40 @@ public:
 	}
 };
 
+// Forward declarations
+namespace PlatformWindows
+{
+	template<typename T>
+	T* FinAlignedValueInRange(const T, const int32_t, uintptr_t, uint32_t);
+
+	template<typename T>
+	T* FindAlignedValueInSection(const SectionInfo&, T, const int32_t);
+
+	template<typename T>
+	T* FindAlignedValueInAllSections(const T, const int32_t, const uintptr_t, int32_t, const char* const);
+}
+
+class WindowsPrivateImplHelper
+{
+public:
+	template<typename T>
+	friend T* PlatformWindows::FinAlignedValueInRange(const T, const int32_t, uintptr_t, uint32_t);
+
+	template<typename T>
+	friend T* PlatformWindows::FindAlignedValueInSection(const SectionInfo&, T, const int32_t);
+
+	template<typename T>
+	friend T* PlatformWindows::FindAlignedValueInAllSections(const T, const int32_t, const uintptr_t, int32_t, const char* const);
+
+private:
+	using ValueCompareFuncType = bool(*)(const void* Value, const void* PotentialValueAddress);
+	
+private:
+	static void* FinAlignedValueInRangeImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range);
+	static void* FindAlignedValueInSectionImpl(const SectionInfo& Info, const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment);
+	static void* FindAlignedValueInAllSectionsImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, const uintptr_t StartAddress, int32_t Range, const char* const ModuleName);
+};
+
 namespace PlatformWindows
 {
 	uintptr_t GetModuleBase(const char* const ModuleName = nullptr);
@@ -100,12 +134,60 @@ namespace PlatformWindows
 	void* FindPatternInRange(std::vector<int>&& Signature, const uint8_t* Start, const uintptr_t Range, const bool bRelative = false, uint32_t Offset = 0, const uint32_t SkipCount = 0);
 
 
-	/* Slower than FindByString */
 	template<bool bCheckIfLeaIsStrPtr = false, typename CharType = char>
 	void* FindByStringInAllSections(const CharType* RefStr, const uintptr_t StartAddress = 0x0, int32_t Range = 0x0, const bool bSearchOnlyExecutableSections = true, const char* const ModuleName = nullptr);
 
-
 	template<bool bCheckIfLeaIsStrPtr, typename CharType>
 	void* FindStringInRange(const CharType* RefStr, const uintptr_t StartAddress, const int32_t Range);
+
+
+	template<typename T>
+	T* FinAlignedValueInRange(const T Value, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
+	{
+		auto ComparisonFunction = [](const void* ValueAddr, const void* PotentialMatchAddr) -> bool
+		{
+			return *static_cast<const T*>(ValueAddr) == *static_cast<const T*>(PotentialMatchAddr);
+		};
+
+		return static_cast<T*>(WindowsPrivateImplHelper::FinAlignedValueInRangeImpl(&Value, ComparisonFunction, sizeof(Value), Alignment, StartAddress, Range));
+	}
+
+	template<typename T>
+	T* FindAlignedValueInSection(const SectionInfo& Info, const T Value, const int32_t Alignment)
+	{
+		auto ComparisonFunction = [](const void* ValueAddr, const void* PotentialMatchAddr) -> bool
+		{
+			return *static_cast<const T*>(ValueAddr) == *static_cast<const T*>(PotentialMatchAddr);
+		};
+
+		return static_cast<T*>(WindowsPrivateImplHelper::FindAlignedValueInSectionImpl(Info, &Value, ComparisonFunction, sizeof(Value), Alignment));
+	}
+
+	template<typename T>
+	T* FindAlignedValueInAllSections(const T Value, const int32_t Alignment = alignof(T), const uintptr_t StartAddress = 0x0, int32_t Range = 0x0, const char* const ModuleName = nullptr)
+	{
+		auto ComparisonFunction = [](const void* ValueAddr, const void* PotentialMatchAddr) -> bool
+		{
+			return *static_cast<const T*>(ValueAddr) == *static_cast<const T*>(PotentialMatchAddr);
+		};
+
+		return static_cast<T*>(WindowsPrivateImplHelper::FindAlignedValueInAllSectionsImpl(&Value, ComparisonFunction, sizeof(Value), Alignment, StartAddress, Range, ModuleName));
+	}
+
+	template<typename T>
+	std::vector<T*> FindAllAlignedValuesInProcess(const T Value, const int32_t Alignment = alignof(T), const uintptr_t StartAddress = 0x0, int32_t Range = 0x0, const char* const ModuleName = nullptr)
+	{
+		std::vector<T*> Ret;
+
+		int i = 0;
+		uintptr_t LastFoundValueAddress = StartAddress;
+		while (T* ValuePtr = FindAlignedValueInAllSections(Value, Alignment, LastFoundValueAddress, Range, ModuleName))
+		{
+			Ret.push_back(ValuePtr);
+			LastFoundValueAddress = Align(reinterpret_cast<uintptr_t>(ValuePtr) + sizeof(T), static_cast<uintptr_t>(Alignment));
+		}
+
+		return Ret;
+	}
 }
 
