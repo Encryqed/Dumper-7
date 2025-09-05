@@ -14,6 +14,12 @@ namespace Settings
 		return true;
 #endif
 	}
+
+	namespace General
+	{
+		/* This option determines whether calls to FindByStringInAllSections should only search executable sections, or all sections. */
+		constexpr bool bSearchOnlyExecutableSectionsForStrings = true;
+	}
   
 	inline constexpr const char* GlobalConfigPath = "C:/Dumper-7/Dumper-7.ini";
 

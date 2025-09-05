@@ -554,7 +554,7 @@ void* PlatformWindows::FindPatternInRange(const char* Signature, const uint8_t* 
 	return FindPatternInRange(PatternToByte(Signature), Start, Range, bRelative, Offset);
 }
 
-inline void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, const uint8_t* Start, const uintptr_t Range, const bool bRelative, uint32_t Offset, const uint32_t SkipCount)
+void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, const uint8_t* Start, const uintptr_t Range, const bool bRelative, uint32_t Offset, const uint32_t SkipCount)
 {
 	const auto PatternLength = Signature.size();
 	const auto PatternBytes = Signature.data();
@@ -598,14 +598,14 @@ inline void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, c
 
 /* Slower than FindByString */
 template<bool bCheckIfLeaIsStrPtr, typename CharType>
-inline void* PlatformWindows::FindByStringInAllSections(const CharType* RefStr, const bool bSearchOnlyExecutableSections, const uintptr_t StartAddress, int32_t Range, const char* const ModuleName)
+void* PlatformWindows::FindByStringInAllSections(const CharType* RefStr,const uintptr_t StartAddress, int32_t Range, const bool bSearchOnlyExecutableSections, const char* const ModuleName)
 {
 	static_assert(std::is_same_v<CharType, char> || std::is_same_v<CharType, wchar_t>, "FindByStringInAllSections only supports 'char' and 'wchar_t', but was called with other type.");
 
 	const auto ModuleBase = GetModuleBase(ModuleName);
 
 	void* Result = nullptr;
-	auto FindStringInSection = [&Result, &Range, StartAddress, ModuleBase](const IMAGE_SECTION_HEADER* SectionHeader) -> bool
+	auto FindStringInSection = [&Result, &Range, StartAddress, ModuleBase, bSearchOnlyExecutableSections, RefStr](const IMAGE_SECTION_HEADER* SectionHeader) -> bool
 	{
 		if (bSearchOnlyExecutableSections && !(SectionHeader->Characteristics & IMAGE_SCN_MEM_EXECUTE))
 			return false;
@@ -648,7 +648,7 @@ inline void* PlatformWindows::FindByStringInAllSections(const CharType* RefStr, 
 template<bool bCheckIfLeaIsStrPtr, typename CharType>
 inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const uintptr_t StartAddress, const int32_t Range)
 {
-	const uint8_t* SearchStart = reinterpret_cast<const uint8_t*>(StartAddress);
+	uint8_t* const SearchStart = reinterpret_cast<uint8_t*>(StartAddress);
 
 	const int32_t RefStrLen = StrlenHelper(RefStr);
 
@@ -697,9 +697,8 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 #endif
 	}
 
+	return nullptr;
 }
-
-
 
 /*
 * The compiler won't generate functions for a specific template type unless it's used in the .cpp file corresponding to the
@@ -707,11 +706,11 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 *
 * See https://stackoverflow.com/questions/456713/why-do-i-get-unresolved-external-symbol-errors-when-using-templates
 */
-namespace
-{
-	inline void Unused()
-	{
-		IterateVTableFunctions<true>(nullptr, {});
-		IterateVTableFunctions<false>(nullptr, {});
-	}
-}
+template void* PlatformWindows::FindByStringInAllSections<false, char>(const char*, const uintptr_t, int32_t, const bool, const char* const);
+template void* PlatformWindows::FindByStringInAllSections<false, wchar_t>(const wchar_t*, const uintptr_t, int32_t, const bool, const char* const);
+template void* PlatformWindows::FindByStringInAllSections<true, char>(const char*, const uintptr_t, int32_t, const bool, const char* const);
+template void* PlatformWindows::FindByStringInAllSections<true, wchar_t>(const wchar_t*, const uintptr_t, int32_t, const bool, const char* const);
+
+template std::pair<const void*, int32_t> PlatformWindows::IterateVTableFunctions<true>(void**, const std::function<bool(const uint8_t*, int32_t)>&, int32_t, int32_t);
+template std::pair<const void*, int32_t> PlatformWindows::IterateVTableFunctions<false>(void**, const std::function<bool(const uint8_t*, int32_t)>&, int32_t, int32_t);
+

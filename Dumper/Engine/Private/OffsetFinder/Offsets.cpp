@@ -42,7 +42,7 @@ void Off::InSDK::ProcessEvent::InitPE()
 	if (!FuncPtr)
 	{
 		/* ProcessEvent is sometimes located right after a func with the string L"Accessed None. Might as well check for it, because else we're going to crash anyways. */
-		void* PossiblePEAddr = (void*)FindByWStringInAllSections(L"Accessed None").FindNextFunctionStart();
+		void* PossiblePEAddr = static_cast<void*>(MemAddress(Platform::FindByStringInAllSections(L"Accessed None", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings)).FindNextFunctionStart());
 
 		auto IsSameAddr = [PossiblePEAddr](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 		{

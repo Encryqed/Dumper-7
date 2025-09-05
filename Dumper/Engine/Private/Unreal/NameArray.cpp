@@ -308,7 +308,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
  * 
  * returns { GetNames/GNames, bIsGNamesDirectly };
 */
-inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriticalSectionAddress, uintptr_t StartAddress)
+inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(const uintptr_t EnterCriticalSectionAddress, const uintptr_t StartAddress)
 {
 	/* 2 bytes operation + 4 bytes relative offset */
 	constexpr int32 ASMRelativeCallSizeBytes = 0x6;
@@ -317,7 +317,7 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriti
 	constexpr int32 GetNamesCallSearchRange = 0x150;
 
 	/* Find a reference to the string "ByteProperty" in 'FName::StaticInit' */
-	const uint8* BytePropertyStringAddress = static_cast<uint8*>(FindByStringInAllSections(L"ByteProperty", StartAddress));
+	const uint8* BytePropertyStringAddress = static_cast<uint8*>(Platform::FindByStringInAllSections(L"ByteProperty", StartAddress, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings));
 
 	/* Important to prevent infinite-recursion */
 	if (!BytePropertyStringAddress)
@@ -330,7 +330,7 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriti
 			continue;
 
 #if defined(_WIN64)
-		uintptr_t CallTarget = ASMUtils::Resolve32BitSectionRelativeCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
+		const uintptr_t CallTarget = ASMUtils::Resolve32BitSectionRelativeCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
 #elif defined(_WIN32)
 		uintptr_t CallTarget = ASMUtils::Resolve32bitAbsoluteCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
 #endif
@@ -338,7 +338,7 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriti
 		if (CallTarget != EnterCriticalSectionAddress)
 			continue;
 
-		uintptr_t InstructionAfterCall = reinterpret_cast<uintptr_t>(BytePropertyStringAddress - (i - ASMRelativeCallSizeBytes));
+		const uintptr_t InstructionAfterCall = reinterpret_cast<uintptr_t>(BytePropertyStringAddress - (i - ASMRelativeCallSizeBytes));
 		
 		/* Check if we're dealing with a 'call' opcode */
 		if (*reinterpret_cast<const uint8*>(InstructionAfterCall) == 0xE8)
@@ -353,7 +353,7 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriti
 	}
 
 	/* Continue and search for another reference to "ByteProperty", safe because we're checking if another string-ref was found*/
-	return FindFNameGetNamesOrGNames(EnterCriticalSectionAddress, reinterpret_cast<uintptr_t>(BytePropertyStringAddress));
+	return FindFNameGetNamesOrGNames(EnterCriticalSectionAddress, reinterpret_cast<uintptr_t>(BytePropertyStringAddress) + ASMRelativeCallSizeBytes);
 };
 
 bool NameArray::TryFindNameArray()
@@ -465,11 +465,11 @@ bool NameArray::TryFindNamePool()
 				continue;
 
 			/* Try to find the "ByteProperty" string, as it's always referenced in FNamePool::FNamePool, so we use it to verify that we got the right function */
-			MemAddress StringRef = FindByStringInAllSections(L"ByteProperty", PossibleConstructorAddress, BytePropertySearchRange);
+			MemAddress StringRef = Platform::FindByStringInAllSections(L"ByteProperty", PossibleConstructorAddress, BytePropertySearchRange, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 
 			/* We couldn't find a wchar_t string L"ByteProperty", now see if we can find a char string "ByteProperty" */
 			if (!StringRef)
-				StringRef = FindByStringInAllSections("ByteProperty", PossibleConstructorAddress, BytePropertySearchRange);
+				StringRef = Platform::FindByStringInAllSections("ByteProperty", PossibleConstructorAddress, BytePropertySearchRange, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 
 			if (StringRef)
 			{

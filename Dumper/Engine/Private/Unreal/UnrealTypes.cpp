@@ -83,7 +83,7 @@ void FName::Init(bool bForceGNames)
 	};
 #endif
 
-	MemAddress StringRef = FindByStringInAllSections("ForwardShadingQuality_");
+	MemAddress StringRef = Platform::FindByStringInAllSections("ForwardShadingQuality_", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 	const char* MatchingSig = nullptr;
 
 	for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
@@ -165,10 +165,10 @@ void FName::Init(bool bForceGNames)
 		}
 	}
 
+	std::cerr << std::format("Found FName::{} at Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
+
 	/* Initialize GNames offset without committing to use GNames during the dumping process or in the SDK */
 	NameArray::SetGNamesWithoutCommiting();
-
-	std::cerr << std::format("Found FName::{} at Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
 
 	if (ToStr)
 		return;

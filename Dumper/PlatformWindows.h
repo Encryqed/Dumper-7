@@ -102,10 +102,10 @@ namespace PlatformWindows
 
 	/* Slower than FindByString */
 	template<bool bCheckIfLeaIsStrPtr = false, typename CharType = char>
-	inline void* FindByStringInAllSections(const CharType* RefStr, const bool bSearchOnlyExecutableSections = true, const uintptr_t StartAddress = 0x0, int32_t Range = 0x0, const char* const ModuleName = nullptr);
+	void* FindByStringInAllSections(const CharType* RefStr, const uintptr_t StartAddress = 0x0, int32_t Range = 0x0, const bool bSearchOnlyExecutableSections = true, const char* const ModuleName = nullptr);
 
 
 	template<bool bCheckIfLeaIsStrPtr, typename CharType>
-	inline void* FindStringInRange(const CharType* RefStr, const uintptr_t StartAddress, const int32_t Range);
+	void* FindStringInRange(const CharType* RefStr, const uintptr_t StartAddress, const int32_t Range);
 }
 
