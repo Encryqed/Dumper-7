@@ -3,8 +3,8 @@
 
 namespace Architecture_x86_64
 {
-	bool IsValidVirtualAddress(const uintptr_t Address);
-	bool IsValidVirtualAddress(const void* Address);
+	bool IsValid64BitVirtualAddress(const uintptr_t Address);
+	bool IsValid64BitVirtualAddress(const void* Address);
 
 
 	bool Is32BitRIPRelativeJump(const uintptr_t Address);

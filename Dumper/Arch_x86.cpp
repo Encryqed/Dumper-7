@@ -2,16 +2,16 @@
 #include "Arch_x86.h"
 
 // The processor (x86-64) only translates 52bits (or 57 bits) of a virtual address into a physical address and the unused bits need to be all 0 or all 1.
-bool Architecture_x86_64::IsValidVirtualAddress(const uintptr_t Address)
+bool Architecture_x86_64::IsValid64BitVirtualAddress(const uintptr_t Address)
 {
 	constexpr uint64_t BitMask = 0b1111'1111ull << 56;
 
 	return (Address & BitMask) == BitMask || (Address & BitMask) == 0x0;
 }
 
-bool Architecture_x86_64::IsValidVirtualAddress(const void* Address)
+bool Architecture_x86_64::IsValid64BitVirtualAddress(const void* Address)
 {
-	return IsValidVirtualAddress(reinterpret_cast<const uintptr_t>(Address));
+	return IsValid64BitVirtualAddress(reinterpret_cast<const uintptr_t>(Address));
 }
 
 

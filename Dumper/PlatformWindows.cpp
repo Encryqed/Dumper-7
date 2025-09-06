@@ -462,17 +462,11 @@ bool PlatformWindows::IsBadReadPtr(const uintptr_t Address)
 }
 bool PlatformWindows::IsBadReadPtr(const void* Address)
 {
-	/*
-	* 
-	* TODO: MAKE THIS if constexpr (Is32Bit())
-	* 
-	* 
-	*/
-#if defined(_WIN64)
-		// we only really do this on x86_64 ^^
-		if (!Architecture_x86_64::IsValidVirtualAddress(Address))
+	if constexpr (!Is32Bit())
+	{
+		if (!Architecture_x86_64::IsValid64BitVirtualAddress(Address))
 			return true;
-#endif // _WIN64
+	}
 
 	MEMORY_BASIC_INFORMATION Mbi;
 

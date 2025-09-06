@@ -115,7 +115,7 @@ void Off::InSDK::World::InitGWorld()
 				else
 				{
 					Result = Results[1];
-					std::cerr << std::format("Filter GActiveLogWorld at {:x}\n\n", (uintptr_t)PossibleGWorld);
+					std::cerr << std::format("Filter GActiveLogWorld at 0x{:X}\n\n", (uintptr_t)PossibleGWorld);
 				}
 			}
 			else

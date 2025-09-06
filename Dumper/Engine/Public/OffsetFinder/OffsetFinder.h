@@ -9,7 +9,7 @@
 namespace OffsetFinder
 {
 	constexpr int32 OffsetNotFound = -1;
-	constexpr int32 OffsetFinderMinValue = Settings::Is32Bit() ? 0x18 : 0x28;
+	constexpr int32 OffsetFinderMinValue = Platform::Is32Bit() ? 0x18 : 0x28;
 
 	template<int Alignement = 4, typename T>
 	inline int32_t FindOffset(const std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = OffsetFinderMinValue, int MaxOffset = 0x1A0)

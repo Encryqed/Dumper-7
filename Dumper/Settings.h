@@ -6,15 +6,6 @@
 
 namespace Settings
 {
-	constexpr bool Is32Bit()
-	{
-#if defined(_WIN64)
-		return false;
-#elif defined(_WIN32)
-		return true;
-#endif
-	}
-
 	namespace General
 	{
 		/* This option determines whether calls to FindByStringInAllSections should only search executable sections, or all sections. */

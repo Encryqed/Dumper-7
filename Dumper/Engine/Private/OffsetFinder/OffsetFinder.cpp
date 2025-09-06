@@ -613,7 +613,7 @@ int32_t OffsetFinder::FindMinAlignmentOffset()
 
 	Infos.push_back({ ObjectArray::FindObjectFast("Transform").GetAddress(), 0x10 });
 
-	if constexpr (Settings::Is32Bit())
+	if constexpr (Platform::Is32Bit())
 	{
 		Infos.push_back({ ObjectArray::FindObjectFast("InterpCurveLinearColor").GetAddress(), 0x04 });
 	}

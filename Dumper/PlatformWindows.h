@@ -108,6 +108,15 @@ private:
 
 namespace PlatformWindows
 {
+	consteval bool Is32Bit()
+	{
+#if defined(_WIN64)
+		return false;
+#elif defined(_WIN32)
+		return true;
+#endif
+	}
+
 	uintptr_t GetModuleBase(const char* const ModuleName = nullptr);
 	uintptr_t GetOffset(const uintptr_t Address, const char* const ModuleName = nullptr);
 	uintptr_t GetOffset(const void* Address, const char* const ModuleName = nullptr);
