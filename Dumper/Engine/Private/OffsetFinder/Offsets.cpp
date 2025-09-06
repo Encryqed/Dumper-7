@@ -9,6 +9,7 @@
 #include "Unreal/NameArray.h"
 
 #include "Platform.h"
+#include "Architecture.h"
 
 
 void Off::InSDK::ProcessEvent::InitPE()
@@ -41,8 +42,13 @@ void Off::InSDK::ProcessEvent::InitPE()
 
 	if (!FuncPtr)
 	{
+#if defined(_WIN64) or defined(_WIN32)
+		const void* StringRefAddr = Platform::FindByStringInAllSections(L"Accessed None", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 		/* ProcessEvent is sometimes located right after a func with the string L"Accessed None. Might as well check for it, because else we're going to crash anyways. */
-		void* PossiblePEAddr = static_cast<void*>(MemAddress(Platform::FindByStringInAllSections(L"Accessed None", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings)).FindNextFunctionStart());
+		void* PossiblePEAddr = reinterpret_cast<void*>(Architecture::FindNextFunctionStart(StringRefAddr));
+#else
+#error "Platform specific code is not implemented for this platform"
+#endif // 
 
 		auto IsSameAddr = [PossiblePEAddr](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 		{

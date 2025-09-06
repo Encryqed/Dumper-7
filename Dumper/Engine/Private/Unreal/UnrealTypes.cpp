@@ -83,12 +83,12 @@ void FName::Init(bool bForceGNames)
 	};
 #endif
 
-	MemAddress StringRef = Platform::FindByStringInAllSections("ForwardShadingQuality_", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
+	void* StringRef = Platform::FindByStringInAllSections("ForwardShadingQuality_", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 	const char* MatchingSig = nullptr;
 
 	for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
 	{
-		AppendString = static_cast<decltype(AppendString)>(StringRef.RelativePattern(PossibleSigs[i], 0x50, -1/* auto */));
+		AppendString = static_cast<decltype(AppendString)>(Platform::FindPatternInRange(PossibleSigs[i], StringRef, 0x50, true, -1/* auto */));
 
 		if (AppendString)
 			MatchingSig = PossibleSigs[i];
@@ -107,10 +107,12 @@ void FName::Init(bool bForceGNames)
 		* 0x0B: 48 8B C8        mov     rcx, rax
 		* 0x10: E8 ? ? ? ?      call    FNameEntry::GetName
 		*/
-		if (MemAddress SigScanResult = StringRef.RelativePattern("8B ? ? E8 ? ? ? ? 48 8D ? ? ? 48 8B C8 E8 ? ? ? ?", 0x180))
+		if (void* SigScanResult = Platform::FindPatternInRange("8B ? ? E8 ? ? ? ? 48 8D ? ? ? 48 8B C8 E8 ? ? ? ?", StringRef, 0x180))
 		{
-			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0x3));
-			AppendString = reinterpret_cast<decltype(AppendString)>(ASMUtils::Resolve32BitRelativeCall(SigScanResult + 0x10));
+			const uintptr_t ResultAsInt = reinterpret_cast<const uintptr_t>(SigScanResult);
+
+			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(ASMUtils::Resolve32BitRelativeCall(ResultAsInt + 0x3));
+			AppendString = reinterpret_cast<decltype(AppendString)>(ASMUtils::Resolve32BitRelativeCall(ResultAsInt + 0x10));
 
 			Off::InSDK::Name::GetNameEntryFromName = Platform::GetOffset(GetNameEntryFromName);
 			Off::InSDK::Name::bIsAppendStringInlinedAndUsed = true;
@@ -235,7 +237,7 @@ void FName::InitFallback()
 {
 	Off::InSDK::Name::bIsUsingAppendStringOverToString = false;
 
-	MemAddress Conv_NameToStringAddress = FindUnrealExecFunctionByString("Conv_NameToString");
+	void* Conv_NameToStringAddress = FindUnrealExecFunctionByString("Conv_NameToString");
 
 	constexpr std::array<const char*, 3> PossibleSigs =
 	{
@@ -247,7 +249,7 @@ void FName::InitFallback()
 	int i = 0;
 	while (!AppendString && i < PossibleSigs.size())
 	{
-		AppendString = static_cast<decltype(AppendString)>(Conv_NameToStringAddress.RelativePattern(PossibleSigs[i], 0x90, -1 /* auto */));
+		AppendString = static_cast<decltype(AppendString)>(Platform::FindPatternInRange(PossibleSigs[i], Conv_NameToStringAddress, 0x90, -1 /* auto */));
 
 		i++;
 	}

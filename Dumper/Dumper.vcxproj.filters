@@ -261,5 +261,8 @@
     <ClInclude Include="TmpUtils.h">
       <Filter>Platform</Filter>
     </ClInclude>
+    <ClInclude Include="Architecture.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

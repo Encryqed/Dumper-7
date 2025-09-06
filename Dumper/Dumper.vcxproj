@@ -183,6 +183,7 @@
     <ClCompile Include="Generator\Private\Wrappers\StructWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Architecture.h" />
     <ClInclude Include="Arch_x86.h" />
     <ClInclude Include="Generator\Public\Generators\DumpspaceGenerator.h" />
     <ClInclude Include="Platform.h" />

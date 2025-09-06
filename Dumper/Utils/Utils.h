@@ -109,203 +109,9 @@ inline std::pair<uintptr_t, uintptr_t> GetImageBaseAndSize(const char* const Mod
 	return { ImageBase, NtHeader->OptionalHeader.SizeOfImage };
 }
 
-struct MemAddress
-{
-public:
-	uintptr_t Address;
-
-private:
-	/* Function to determine whether this position is a function-return. Only "ret" instructions with pop operations before them and without immediate values are considered. */
-	static bool IsFunctionRet(const uint8_t* Address)
-	{
-		if (!Address || (Address[0] != 0xC3 && Address[0] != 0xCB))
-			return false;
-
-		/* Opcodes representing pop instructions for x64 registers. Pop operations for r8-r15 are prefixed with 0x41. */
-		const uint8_t AsmBytePopOpcodes[] = { 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F };
-
-		const uint8_t ByteOneBeforeRet = Address[-1];
-		const uint8_t ByteTwoBeforeRet = Address[-2];
-
-		for (const uint8_t AsmPopByte : AsmBytePopOpcodes)
-		{
-			if (ByteOneBeforeRet == AsmPopByte)
-				return true;
-		}
-
-		return false;
-	}
-
-public:
-	inline MemAddress(std::nullptr_t)
-		: Address(NULL)
-	{
-	}
-	inline MemAddress(void* Addr)
-		: Address(reinterpret_cast<uintptr_t>(Addr))
-	{
-	}
-	inline MemAddress(uintptr_t Addr)
-		: Address(Addr)
-	{
-	}
-
-	explicit operator bool()
-	{
-		return Address != NULL;
-	}
-
-	template<typename T>
-	explicit operator T*()
-	{
-		return reinterpret_cast<T*>(Address);
-	}
-	operator uintptr_t()
-	{
-		return Address;
-	}
-
-	inline bool operator==(MemAddress Other) const
-	{
-		return Address == Other.Address;
-	}
-
-	inline MemAddress operator+(int Value) const
-	{
-		return Address + Value;
-	}
-
-	inline MemAddress operator-(int Value) const
-	{
-		return Address - Value;
-	}
-
-	template<typename T = void>
-	inline T* Get()
-	{
-		return reinterpret_cast<T*>(Address);
-	}
-
-	template<typename T = void>
-	inline const T* Get() const
-	{
-		return reinterpret_cast<const T*>(Address);
-	}
-
-	/* 
-	* Checks if the current address is a valid 32-bit relative 'jmp' instruction. and returns the address if true. 
-	* 
-	* If true: Returns resolved jump-target.
-	* If false: Returns current address.
-	*/
-	inline MemAddress ResolveJumpIfInstructionIsJump(MemAddress DefaultReturnValueOnFail = nullptr) const
-	{
-		if (!ASMUtils::Is32BitRIPRelativeJump(Address))
-			return DefaultReturnValueOnFail;
-
-		const uintptr_t TargetAddress = ASMUtils::Resolve32BitRIPRelativeJumpTarget(Address);
-
-		if (!!Platform::IsAddressInProcessRange(TargetAddress))
-			return DefaultReturnValueOnFail;
-
-		return TargetAddress;
-	}
-
-	/* Helper to find the end of a function based on 'pop' instructions followed by 'ret' */
-	inline MemAddress FindFunctionEnd(uint32_t Range = 0xFFFF) const
-	{
-		if (!Address)
-			return nullptr;
-
-		if (Range > 0xFFFF)
-			Range = 0xFFFF;
-
-		for (int i = 0; i < Range; i++)
-		{
-			if (IsFunctionRet(Get<uint8_t>() + i))
-				return Address + i;
-		}
-
-		return  nullptr;
-	}
-
-	/* Helper function to find a Pattern in a Range relative to the current position */
-	inline MemAddress RelativePattern(const char* Pattern, int32_t Range, int32_t Relative = 0) const
-	{
-		if (!Address)
-			return nullptr;
-
-		return Platform::FindPatternInRange(Pattern, Get<uint8_t>(), Range, Relative != 0, Relative);
-	}
-
-	/*
-	* A Function to find calls relative to the instruction pointer (RIP). Other calls are ignored.
-	* 
-	* Disclaimers:
-	*	Negative index to search up, positive index to search down. 
-	*	Function considers all E8 bytes as 'call' instructsion, that would make for a valid call (to address within process-bounds).
-	* 
-	* OneBasedFuncIndex -> Index of a function we want to find, n-th sub_ in IDA starting from this MemAddress
-	* IsWantedTarget -> Allows for the caller to pass a callback to verify, that the function at index n is the target we're looking for; else continue searching for a valid target.
-	*/
-	inline MemAddress GetRipRelativeCalledFunction(int32_t OneBasedFuncIndex, bool(*IsWantedTarget)(MemAddress CalledAddr) = nullptr) const
-	{
-		if (!Address || OneBasedFuncIndex == 0)
-			return nullptr;
-
-		const int32_t Multiply = OneBasedFuncIndex > 0 ? 1 : -1;
-
-		/* Returns Index if FunctionIndex is positive, else -1 if the index is less than 0 */
-		auto GetIndex = [=](int32_t Index) -> int32_t { return Index * Multiply; };
-
-		constexpr int32_t RealtiveCallOpcodeCount = 0x5;
-
-		int32_t NumCalls = 0;
-
-		for (int i = 0; i < 0xFFF; i++)
-		{
-			const int32_t Index = GetIndex(i);
-
-			/* If this isn't a call, we don't care about it and want to continue */
-			if (Get<uint8_t>()[Index] != 0xE8)
-				continue;
-
-			const int32_t RelativeOffset = *reinterpret_cast<int32_t*>(Address + Index + 0x1 /* 0xE8 byte */);
-			MemAddress RelativeCallTarget = Address + Index + RelativeOffset + RealtiveCallOpcodeCount;
-
-			if (!Platform::IsAddressInProcessRange(RelativeCallTarget))
-				continue;
-
-			if (++NumCalls == abs(OneBasedFuncIndex))
-			{
-				/* This is not the target we wanted, even tho it's at the right index. Decrement the index to the value before and check if the next call satisfies the custom-condition. */
-				if (IsWantedTarget && !IsWantedTarget(RelativeCallTarget))
-				{
-					--NumCalls;
-					continue;
-				}
-
-				return RelativeCallTarget;
-			}
-		}
-
-		return nullptr;
-	}
-
-	/* Note: Unrealiable */
-	inline MemAddress FindNextFunctionStart() const
-	{
-		if (!Address)
-			return MemAddress(nullptr);
-
-		uintptr_t FuncEnd = (uintptr_t)FindFunctionEnd();
-
-		return FuncEnd % 0x10 != 0 ? FuncEnd + (0x10 - (FuncEnd % 0x10)) : FuncEnd;
-	}
-};
 
 template<typename Type = const char*>
-inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress = nullptr)
+inline void* FindUnrealExecFunctionByString(Type RefStr, void* StartAddress = nullptr)
 {
 	const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
 
@@ -325,13 +131,10 @@ inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress
 		if (*reinterpret_cast<int32_t*>(Address) == 0x284883EC || *reinterpret_cast<int32_t*>(Address) == 0x4883EC28)
 			return false;
 
-		MemAddress AsAddress(Address);
-
+		const void* SigOccurence = Platform::FindPatternInRange("48 8B 05 ? ? ? ? 48 85 C0 75 ? 48 8D 15", Address, 0x28);
+		
 		/* A signature specifically made for UFunctions-construction functions. If this signature is found we're in a function that we *don't* want. */
-		if (AsAddress.RelativePattern("48 8B 05 ? ? ? ? 48 85 C0 75 ? 48 8D 15", 0x28) != nullptr)
-			return false;
-
-		return true;
+		return SigOccurence == nullptr;
 	};
 
 	for (uintptr_t i = 0; i < (SearchRange - 0x8); i += sizeof(void*))
@@ -351,7 +154,7 @@ inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress
 			{
 				// std::cerr << "FoundStr ref: " << reinterpret_cast<const char*>(PossibleStringAddress) << "\n";
 
-				return { PossibleExecFuncAddress };
+				return reinterpret_cast<void*>(PossibleExecFuncAddress);
 			}
 		}
 		else
@@ -360,7 +163,7 @@ inline MemAddress FindUnrealExecFunctionByString(Type RefStr, void* StartAddress
 			{
 				// std::wcerr << L"FoundStr wref: " << reinterpret_cast<const wchar_t*>(PossibleStringAddress) << L"\n";
 
-				return { PossibleExecFuncAddress };
+				return reinterpret_cast<void*>(PossibleExecFuncAddress);
 			}
 		}
 	}

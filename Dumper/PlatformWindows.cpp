@@ -617,7 +617,7 @@ void* PlatformWindows::FindPattern(const char* Signature, const uint32_t Offset,
 	return Result;
 }
 
-void* PlatformWindows::FindPatternInRange(const char* Signature, const uint8_t* Start, const uintptr_t Range, const bool bRelative, const uint32_t Offset)
+void* PlatformWindows::FindPatternInRange(const char* Signature, const void* Start, const uintptr_t Range, const bool bRelative, const uint32_t Offset)
 {
 	static auto PatternToByte = [](const char* pattern) -> std::vector<int>
 	{
@@ -649,7 +649,12 @@ void* PlatformWindows::FindPatternInRange(const char* Signature, const uint8_t* 
 	return FindPatternInRange(PatternToByte(Signature), Start, Range, bRelative, Offset);
 }
 
-void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, const uint8_t* Start, const uintptr_t Range, const bool bRelative, uint32_t Offset, const uint32_t SkipCount)
+void* PlatformWindows::FindPatternInRange(const char* Signature, const uintptr_t Start, const uintptr_t Range, const bool bRelative, const uint32_t Offset)
+{
+	return FindPatternInRange(Signature, reinterpret_cast<void*>(Start), Range, bRelative, Offset);
+}
+
+void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, const void* Start, const uintptr_t Range, const bool bRelative, uint32_t Offset, const uint32_t SkipCount)
 {
 	const auto PatternLength = Signature.size();
 	const auto PatternBytes = Signature.data();
@@ -661,7 +666,7 @@ void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, const ui
 
 		for (auto j = 0ul; j < PatternLength; ++j)
 		{
-			if (Start[i + j] != PatternBytes[j] && PatternBytes[j] != -1)
+			if (static_cast<const uint8_t*>(Start)[i + j] != PatternBytes[j] && PatternBytes[j] != -1)
 			{
 				bFound = false;
 				break;
@@ -675,7 +680,7 @@ void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, const ui
 				continue;
 			}
 
-			uintptr_t Address = reinterpret_cast<uintptr_t>(Start + i);
+			uintptr_t Address = reinterpret_cast<uintptr_t>(Start) + i;
 			if (bRelative)
 			{
 				if (Offset == -1)

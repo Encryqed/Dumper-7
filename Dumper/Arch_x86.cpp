@@ -1,5 +1,7 @@
 #pragma once
+
 #include "Arch_x86.h"
+#include "Platform.h"
 
 // The processor (x86-64) only translates 52bits (or 57 bits) of a virtual address into a physical address and the unused bits need to be all 0 or all 1.
 bool Architecture_x86_64::IsValid64BitVirtualAddress(const uintptr_t Address)
@@ -103,3 +105,117 @@ uintptr_t Architecture_x86_64::Resolve32bitAbsoluteMove(const uintptr_t Address)
 	return *reinterpret_cast<int32_t*>(Address + 2);
 }
 
+
+bool Architecture_x86_64::IsFunctionRet(const uintptr_t Address)
+{
+	const uint8_t* AsBytePtr = reinterpret_cast<const uint8_t*>(Address);
+
+	if (!AsBytePtr || (AsBytePtr[0] != 0xC3 && AsBytePtr[0] != 0xCB))
+		return false;
+
+	/* Opcodes representing pop instructions for x64 registers. Pop operations for r8-r15 are prefixed with 0x41. */
+	const uint8_t AsmBytePopOpcodes[] = { 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F };
+
+	const uint8_t ByteOneBeforeRet = AsBytePtr[-1];
+	const uint8_t ByteTwoBeforeRet = AsBytePtr[-2];
+
+	for (const uint8_t AsmPopByte : AsmBytePopOpcodes)
+	{
+		if (ByteOneBeforeRet == AsmPopByte)
+			return true;
+	}
+
+	return false;
+}
+
+uintptr_t Architecture_x86_64::ResolveJumpIfInstructionIsJump(const uintptr_t Address, const uintptr_t DefaultReturnValueOnFail)
+{
+	if (!Is32BitRIPRelativeJump(Address))
+		return DefaultReturnValueOnFail;
+
+	const uintptr_t TargetAddress = Resolve32BitRIPRelativeJumpTarget(Address);
+
+	if (!Platform::IsAddressInProcessRange(TargetAddress))
+		return DefaultReturnValueOnFail;
+
+	return TargetAddress;
+}
+
+uintptr_t Architecture_x86_64::FindFunctionEnd(const uintptr_t Address, uint32_t Range)
+{
+	if (!Address)
+		return NULL;
+
+	if (Range > 0xFFFF)
+		Range = 0xFFFF;
+
+	for (int i = 0; i < Range; i++)
+	{
+		if (IsFunctionRet(Address + i))
+			return Address + i;
+	}
+
+	return NULL;
+}
+uintptr_t Architecture_x86_64::FindNextFunctionStart(const uintptr_t Address)
+{
+	if (!Address)
+		return NULL;
+
+	const uintptr_t FuncEnd = FindFunctionEnd(Address);
+
+	return FuncEnd % 0x10 != 0 ? FuncEnd + (0x10 - (FuncEnd % 0x10)) : FuncEnd;
+}
+
+uintptr_t Architecture_x86_64::FindNextFunctionStart(const void* Address)
+{
+	return FindNextFunctionStart(reinterpret_cast<uintptr_t>(Address));
+}
+
+
+
+uintptr_t Architecture_x86_64::GetRipRelativeCalledFunction(const uintptr_t Address, const int32_t OneBasedFuncIndex, bool(*IsWantedTarget)(const uintptr_t CalledAddr))
+{
+	if (!Address || OneBasedFuncIndex == 0)
+		return NULL;
+
+	const int32_t Multiply = OneBasedFuncIndex > 0 ? 1 : -1;
+
+	/* Returns Index if FunctionIndex is positive, else -1 if the index is less than 0 */
+	auto GetIndex = [=](const int32_t Index) -> int32_t { return Index * Multiply; };
+
+	constexpr int32_t RealtiveCallOpcodeCount = 0x5;
+
+	int32_t NumCalls = 0;
+
+	const uint8_t* AsBytePtr = reinterpret_cast<const uint8_t*>(Address);
+
+	for (int i = 0; i < 0xFFF; i++)
+	{
+		const int32_t Index = GetIndex(i);
+
+		/* If this isn't a call, we don't care about it and want to continue */
+		if (AsBytePtr[Index] != 0xE8)
+			continue;
+
+		const int32_t RelativeOffset = *reinterpret_cast<int32_t*>(Address + Index + 0x1 /* 0xE8 byte */);
+		const uintptr_t RelativeCallTarget = Address + Index + RelativeOffset + RealtiveCallOpcodeCount;
+
+		if (!Platform::IsAddressInProcessRange(RelativeCallTarget))
+			continue;
+
+		if (++NumCalls == abs(OneBasedFuncIndex))
+		{
+			/* This is not the target we wanted, even tho it's at the right index. Decrement the index to the value before and check if the next call satisfies the custom-condition. */
+			if (IsWantedTarget && !IsWantedTarget(RelativeCallTarget))
+			{
+				--NumCalls;
+				continue;
+			}
+
+			return RelativeCallTarget;
+		}
+	}
+
+	return NULL;
+}
