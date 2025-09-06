@@ -513,6 +513,41 @@ const void* PlatformWindows::GetAddressOfImportedFunctionFromAnyModule(const cha
 	return nullptr;
 }
 
+const void* PlatformWindows::GetAddressOfExportedFunction(const char* SearchModuleName, const char* SearchFunctionName)
+{
+	/* Get the module the function was exported from */
+	const uintptr_t ModuleBase = GetModuleBase(SearchModuleName);
+	const IMAGE_DOS_HEADER* DosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(ModuleBase);
+
+	if (ModuleBase == 0x0 || DosHeader->e_magic != IMAGE_DOS_SIGNATURE)
+		return nullptr;
+
+	const IMAGE_NT_HEADERS* NtHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(ModuleBase + reinterpret_cast<PIMAGE_DOS_HEADER>(ModuleBase)->e_lfanew);
+
+	if (!NtHeader)
+		return nullptr;
+
+	/* Get the table of functions exported by the module */
+	const IMAGE_EXPORT_DIRECTORY* ExportTable = reinterpret_cast<PIMAGE_EXPORT_DIRECTORY>(ModuleBase + NtHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+
+	const DWORD* NameOffsets = reinterpret_cast<const DWORD*>(ModuleBase + ExportTable->AddressOfNames);
+	const DWORD* FunctionOffsets = reinterpret_cast<const DWORD*>(ModuleBase + ExportTable->AddressOfFunctions);
+
+	const WORD* Ordinals = reinterpret_cast<const WORD*>(ModuleBase + ExportTable->AddressOfNameOrdinals);
+
+	/* Iterate all names and return the function if the name matches what we're looking for */
+	for (int i = 0; i < ExportTable->NumberOfFunctions; i++)
+	{
+		const WORD NameIndex = Ordinals[i];
+		const char* Name = reinterpret_cast<const char*>(ModuleBase + NameOffsets[NameIndex]);
+
+		if (strcmp(SearchFunctionName, Name) == 0)
+			return reinterpret_cast<void*>(ModuleBase + FunctionOffsets[i]);
+	}
+
+	return nullptr;
+}
+
 template<bool bShouldResolve32BitJumps>
 std::pair<const void*, int32_t> PlatformWindows::IterateVTableFunctions(void** VTable, const std::function<bool(const uint8_t* Address, int32_t Index)>& CallBackForEachFunc, int32_t NumFunctions, int32_t OffsetFromStart)
 {
@@ -739,7 +774,7 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 			if (!IsAddressInProcessRange(StrPtr))
 				continue;
 
-			if (!IsAddressInProcessRange(StrPtr))
+			if (!IsBadReadPtr(StrPtr))
 				continue;
 
 			if (StrnCmpHelper(RefStr, reinterpret_cast<const CharType*>(StrPtr), RefStrLen))

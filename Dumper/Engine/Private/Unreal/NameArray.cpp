@@ -364,7 +364,7 @@ bool NameArray::TryFindNameArray()
 	/* Range from 'FName::GetNames' which we want to search down for 'mov register, GNames' */
 	constexpr int32 GetNamesCallSearchRange = 0x100;
 
-	void* EnterCriticalSectionAddress = GetImportAddress(nullptr, "kernel32.dll", "EnterCriticalSection");
+	const void* EnterCriticalSectionAddress = Platform::GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "EnterCriticalSection");
 
 	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), Platform::GetModuleBase());
 

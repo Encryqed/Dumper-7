@@ -83,8 +83,6 @@ void Off::InSDK::World::InitGWorld()
 {
 	UEClass UWorld = ObjectArray::FindClassFast("World");
 
-	UEObject TmpObj = nullptr;
-
 	for (UEObject Obj : ObjectArray())
 	{
 		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject) || !Obj.IsA(UWorld))

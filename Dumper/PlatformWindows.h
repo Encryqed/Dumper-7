@@ -126,6 +126,8 @@ namespace PlatformWindows
 	const void* GetAddressOfImportedFunction(const char* SearchModuleName, const char* ModuleToImportFrom, const char* SearchFunctionName);
 	const void* GetAddressOfImportedFunctionFromAnyModule(const char* ModuleToImportFrom, const char* SearchFunctionName);
 
+	const void* GetAddressOfExportedFunction(const char* SearchModuleName, const char* SearchFunctionName);
+
 	template<bool bShouldResolve32BitJumps = true>
 	std::pair<const void*, int32_t> IterateVTableFunctions(void** VTable, const std::function<bool(const uint8_t* Address, int32_t Index)>&CallBackForEachFunc, int32_t NumFunctions = 0x150, int32_t OffsetFromStart = 0x0);
 
