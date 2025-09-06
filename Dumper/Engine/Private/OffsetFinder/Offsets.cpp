@@ -45,7 +45,7 @@ void Off::InSDK::ProcessEvent::InitPE()
 #if defined(_WIN64) or defined(_WIN32)
 		const void* StringRefAddr = Platform::FindByStringInAllSections(L"Accessed None", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 		/* ProcessEvent is sometimes located right after a func with the string L"Accessed None. Might as well check for it, because else we're going to crash anyways. */
-		void* PossiblePEAddr = reinterpret_cast<void*>(Architecture::FindNextFunctionStart(StringRefAddr));
+		void* PossiblePEAddr = reinterpret_cast<void*>(Architecture_x86_64::FindNextFunctionStart(StringRefAddr));
 #else
 #error "Platform specific code is not implemented for this platform"
 #endif // 

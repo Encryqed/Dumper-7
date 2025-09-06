@@ -4,8 +4,6 @@
 
 #include "Arch_x86.h"
 
-namespace Architecture = Architecture_x86_64;
-
 #elif defined (__ANDROID__)
 #error "The dumper does not support android."
 #else
