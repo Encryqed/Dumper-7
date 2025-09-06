@@ -12,8 +12,10 @@
 #include "Architecture.h"
 
 
-void Off::InSDK::ProcessEvent::InitPE()
+void Off::InSDK::ProcessEvent::InitPE_Windows()
 {
+#ifdef PLATFORM_WINDOWS
+
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
 #if defined(_WIN64)
@@ -35,27 +37,23 @@ void Off::InSDK::ProcessEvent::InitPE()
 	const void* ProcessEventAddr = nullptr;
 	int32_t ProcessEventIdx = 0;
 
-	auto [FuncPtr, FuncIdx] = Platform::IterateVTableFunctions(Vft, IsProcessEvent);
+	const auto [FuncPtr, FuncIdx] = Platform::IterateVTableFunctions(Vft, IsProcessEvent);
 
 	ProcessEventAddr = FuncPtr;
 	ProcessEventIdx = FuncIdx;
 
 	if (!FuncPtr)
 	{
-#if defined(_WIN64) or defined(_WIN32)
 		const void* StringRefAddr = Platform::FindByStringInAllSections(L"Accessed None", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 		/* ProcessEvent is sometimes located right after a func with the string L"Accessed None. Might as well check for it, because else we're going to crash anyways. */
-		void* PossiblePEAddr = reinterpret_cast<void*>(Architecture_x86_64::FindNextFunctionStart(StringRefAddr));
-#else
-#error "Platform specific code is not implemented for this platform"
-#endif // 
+		const void* PossiblePEAddr = reinterpret_cast<void*>(Architecture_x86_64::FindNextFunctionStart(StringRefAddr));
 
 		auto IsSameAddr = [PossiblePEAddr](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 		{
 			return FuncAddress == PossiblePEAddr;
 		};
 
-		auto [FuncPtr2, FuncIdx2] = Platform::IterateVTableFunctions(Vft, IsSameAddr);
+		const auto [FuncPtr2, FuncIdx2] = Platform::IterateVTableFunctions(Vft, IsSameAddr);
 		ProcessEventAddr = FuncPtr2;
 		ProcessEventIdx = FuncIdx2;
 	}
@@ -71,9 +69,11 @@ void Off::InSDK::ProcessEvent::InitPE()
 	}
 
 	std::cerr << "\nCouldn't find ProcessEvent!\n\n" << std::endl;
+
+#endif // PLATFORM_WINDOWS
 }
 
-void Off::InSDK::ProcessEvent::InitPE(int32 Index, const char* const ModuleName)
+void Off::InSDK::ProcessEvent::InitPE(const int32 Index, const char* const ModuleName)
 {
 	Off::InSDK::ProcessEvent::PEIndex = Index;
 

@@ -8,6 +8,7 @@
 
 #include "Architecture.h"
 
+
 std::string MakeNameValid(std::wstring&& Name)
 {
 	static constexpr const wchar_t* Numbers[10] =

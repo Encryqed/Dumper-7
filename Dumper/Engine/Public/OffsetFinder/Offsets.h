@@ -41,8 +41,8 @@ namespace Off
 			inline int32 PEIndex;
 			inline int32 PEOffset;
 
-			void InitPE();
-			void InitPE(int32 Index, const char* const ModuleName = nullptr);
+			void InitPE_Windows();
+			void InitPE(const int32 Index, const char* const ModuleName = nullptr);
 		}
 
 		namespace World
