@@ -6,6 +6,7 @@
 
 #include "Encoding/UnicodeNames.h"
 
+#include "Architecture.h"
 
 std::string MakeNameValid(std::wstring&& Name)
 {
@@ -111,8 +112,8 @@ void FName::Init(bool bForceGNames)
 		{
 			const uintptr_t ResultAsInt = reinterpret_cast<const uintptr_t>(SigScanResult);
 
-			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(ASMUtils::Resolve32BitRelativeCall(ResultAsInt + 0x3));
-			AppendString = reinterpret_cast<decltype(AppendString)>(ASMUtils::Resolve32BitRelativeCall(ResultAsInt + 0x10));
+			GetNameEntryFromName = reinterpret_cast<decltype(GetNameEntryFromName)>(Architecture_x86_64::Resolve32BitRelativeCall(ResultAsInt + 0x3));
+			AppendString = reinterpret_cast<decltype(AppendString)>(Architecture_x86_64::Resolve32BitRelativeCall(ResultAsInt + 0x10));
 
 			Off::InSDK::Name::GetNameEntryFromName = Platform::GetOffset(GetNameEntryFromName);
 			Off::InSDK::Name::bIsAppendStringInlinedAndUsed = true;

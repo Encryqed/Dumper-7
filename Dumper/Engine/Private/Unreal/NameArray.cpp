@@ -5,6 +5,7 @@
 #include "Unreal/NameArray.h"
 
 #include "Platform.h"
+#include "Architecture.h"
 
 uint8* NameArray::GNames = nullptr;
 
@@ -330,9 +331,9 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(const uintptr_t Ente
 			continue;
 
 #if defined(_WIN64)
-		const uintptr_t CallTarget = ASMUtils::Resolve32BitSectionRelativeCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
+		const uintptr_t CallTarget = Architecture_x86_64::Resolve32BitSectionRelativeCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
 #elif defined(_WIN32)
-		uintptr_t CallTarget = ASMUtils::Resolve32bitAbsoluteCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
+		uintptr_t CallTarget = Architecture_x86_64::Resolve32bitAbsoluteCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
 #endif
 
 		if (CallTarget != EnterCriticalSectionAddress)
@@ -342,13 +343,13 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(const uintptr_t Ente
 		
 		/* Check if we're dealing with a 'call' opcode */
 		if (*reinterpret_cast<const uint8*>(InstructionAfterCall) == 0xE8)
-			return { ASMUtils::Resolve32BitRelativeCall(InstructionAfterCall), false };
+			return { Architecture_x86_64::Resolve32BitRelativeCall(InstructionAfterCall), false };
 
 		// Looks like on 32bit like literally everything is absolute???? fuck you
 #if defined(_WIN64)
-		return { ASMUtils::Resolve32BitRelativeMove(InstructionAfterCall), true };
+		return { Architecture_x86_64::Resolve32BitRelativeMove(InstructionAfterCall), true };
 #elif defined(_WIN32)
-		return { ASMUtils::Resolve32bitAbsoluteMove(InstructionAfterCall), true };
+		return { Architecture_x86_64::Resolve32bitAbsoluteMove(InstructionAfterCall), true };
 #endif
 	}
 
@@ -391,12 +392,12 @@ bool NameArray::TryFindNameArray()
 		if (*reinterpret_cast<const uint16*>(Address + i) != 0x8B48)
 			continue;
 
-		uintptr_t MoveTarget = ASMUtils::Resolve32BitRelativeMove(Address + i);
+		const uintptr_t MoveTarget = Architecture_x86_64::Resolve32BitRelativeMove(Address + i);
 
 		if (!Platform::IsAddressInProcessRange(MoveTarget))
 			continue;
 
-		void* ValueOfMoveTargetAsPtr = *reinterpret_cast<void**>(MoveTarget);
+		const void* ValueOfMoveTargetAsPtr = *reinterpret_cast<void**>(MoveTarget);
 
 		if (Platform::IsBadReadPtr(ValueOfMoveTargetAsPtr) || ValueOfMoveTargetAsPtr != Names)
 			continue;
@@ -443,7 +444,7 @@ bool NameArray::TryFindNamePool()
 
 		constexpr int32 SizeOfMovInstructionBytes = 0x7;
 
-		const uintptr_t PossibleConstructorAddress = ASMUtils::Resolve32BitRelativeCall(SigOccurrence + SizeOfMovInstructionBytes);
+		const uintptr_t PossibleConstructorAddress = Architecture_x86_64::Resolve32BitRelativeCall(SigOccurrence + SizeOfMovInstructionBytes);
 
 		if (!Platform::IsAddressInProcessRange(PossibleConstructorAddress))
 			continue;
@@ -454,7 +455,7 @@ bool NameArray::TryFindNamePool()
 			if (*reinterpret_cast<uint16*>(PossibleConstructorAddress + i) != 0x15FF)
 				continue;
 
-			const uintptr_t RelativeCallTarget = ASMUtils::Resolve32BitSectionRelativeCall(PossibleConstructorAddress + i);
+			const uintptr_t RelativeCallTarget = Architecture_x86_64::Resolve32BitSectionRelativeCall(PossibleConstructorAddress + i);
 
 			if (!Platform::IsAddressInProcessRange(RelativeCallTarget))
 				continue;
@@ -473,7 +474,7 @@ bool NameArray::TryFindNamePool()
 
 			if (StringRef)
 			{
-				NamePoolIntance = reinterpret_cast<void*>(ASMUtils::Resolve32BitRelativeMove(SigOccurrence));
+				NamePoolIntance = reinterpret_cast<void*>(Architecture_x86_64::Resolve32BitRelativeMove(SigOccurrence));
 				break;
 			}
 		}
