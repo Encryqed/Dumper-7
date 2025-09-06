@@ -74,10 +74,10 @@
     <ClCompile Include="Settings.cpp">
       <Filter>Generator</Filter>
     </ClCompile>
-    <ClCompile Include="PlatformWindows.cpp">
+    <ClCompile Include="Platform\Private\Arch_x86.cpp">
       <Filter>Platform\Private</Filter>
     </ClCompile>
-    <ClCompile Include="Arch_x86.cpp">
+    <ClCompile Include="Platform\Private\PlatformWindows.cpp">
       <Filter>Platform\Private</Filter>
     </ClCompile>
   </ItemGroup>
@@ -249,20 +249,20 @@
     <ClInclude Include="Engine\Public\Unreal\UnrealTypes.h">
       <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
-    <ClInclude Include="Platform.h">
-      <Filter>Platform</Filter>
-    </ClInclude>
-    <ClInclude Include="PlatformWindows.h">
-      <Filter>Platform\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="Arch_x86.h">
-      <Filter>Platform\Public</Filter>
-    </ClInclude>
     <ClInclude Include="TmpUtils.h">
       <Filter>Platform</Filter>
     </ClInclude>
-    <ClInclude Include="Architecture.h">
-      <Filter>Platform</Filter>
+    <ClInclude Include="Platform\Private\Arch_x86.h">
+      <Filter>Platform\Private</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Private\PlatformWindows.h">
+      <Filter>Platform\Private</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Public\Architecture.h">
+      <Filter>Platform\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Public\Platform.h">
+      <Filter>Platform\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
