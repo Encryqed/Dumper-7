@@ -288,19 +288,12 @@ void MappingGenerator::GenerateEnum(const EnumWrapper& Enum, std::stringstream& 
 	const int32 EnumNameIndex = AddNameToData(NameTable, Enum.GetRawName());
 	WriteToStream(Data, EnumNameIndex);
 
-	const auto Pairs = Enum.GetUnrealEnum().GetNameValuePairs();
-	WriteToStream(Data, static_cast<uint16>(Pairs.size()));
+	WriteToStream(Data, static_cast<uint16>(Enum.GetNumMembers()));
 
-	for (const auto& [FNameName, RawValue] : Pairs)
+	for (EnumCollisionInfo Member : Enum.GetMembers())
 	{
-		WriteToStream(Data, static_cast<int64>(RawValue));
-
-		std::string s = FNameName.ToString();
-		if (auto pos = s.rfind("::"); pos != std::string::npos)
-			s = s.substr(pos + 2);
-
-		const int32 EnumMemberNameIdx =
-			AddNameToData(NameTable, s);
+		const int32 EnumMemberNameIdx = AddNameToData(NameTable, Member.GetUniqueName());
+		WriteToStream(Data, Member.GetValue());
 		WriteToStream(Data, EnumMemberNameIdx);
 	}
 }
