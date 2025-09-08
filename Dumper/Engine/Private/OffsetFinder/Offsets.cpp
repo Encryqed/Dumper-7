@@ -109,6 +109,7 @@ void Off::InSDK::World::InitGWorld()
 				auto ObjAddress = reinterpret_cast<uintptr_t>(Obj.GetAddress());
 				auto PossibleGWorld = reinterpret_cast<volatile uintptr_t*>(Results[0]);
 				auto CurrentValue = *PossibleGWorld;
+
 				for (int i = 0; CurrentValue == ObjAddress && i < 50; ++i)
 				{
 					::Sleep(1);
@@ -121,7 +122,7 @@ void Off::InSDK::World::InitGWorld()
 				else
 				{
 					Result = Results[1];
-					std::cerr << std::format("Filter GActiveLogWorld at 0x{:X}\n\n", (uintptr_t)PossibleGWorld);
+					std::cerr << std::format("Filter GActiveLogWorld at 0x{:X}\n\n", reinterpret_cast<uintptr_t>(PossibleGWorld));
 				}
 			}
 			else
@@ -158,7 +159,7 @@ void Off::InSDK::Text::InitTextOffsets()
 	};
 
 
-	UEFunction Conv_StringToText = ObjectArray::FindObjectFast<UEFunction>("Conv_StringToText", EClassCastFlags::Function);
+	const UEFunction Conv_StringToText = ObjectArray::FindObjectFast<UEFunction>("Conv_StringToText", EClassCastFlags::Function);
 
 	UEProperty InStringProp = nullptr;
 	UEProperty ReturnProp = nullptr;

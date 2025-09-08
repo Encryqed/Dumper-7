@@ -47,7 +47,7 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 		Off::FNameEntry::NamePool::StringOffset = NameEntryStringOffset;
 		Off::FNameEntry::NamePool::HeaderOffset = NameEntryStringOffset == 6 ? 4 : 0;
 
-		uint8* AssumedBytePropertyEntry = *reinterpret_cast<uint8* const*>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen;
+		const uint8* AssumedBytePropertyEntry = *reinterpret_cast<uint8* const*>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen;
 
 		/* Check if there's pading after an FNameEntry. Check if there's up to 0x4 bytes padding. */
 		for (int i = 0; i < 0x4; i++)
@@ -104,13 +104,13 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 	}
 	else
 	{
-		uint8_t* FNameEntryNone = (uint8_t*)NameArray::GetNameEntry(0x0).GetAddress();
-		uint8_t* FNameEntryIdxThree = (uint8_t*)NameArray::GetNameEntry(0x3).GetAddress();
-		uint8_t* FNameEntryIdxEight = (uint8_t*)NameArray::GetNameEntry(0x8).GetAddress();
+		const uint8_t* FNameEntryNone =     static_cast<uint8_t*>(NameArray::GetNameEntry(0x0).GetAddress());
+		const uint8_t* FNameEntryIdxThree = static_cast<uint8_t*>(NameArray::GetNameEntry(0x3).GetAddress());
+		const uint8_t* FNameEntryIdxEight = static_cast<uint8_t*>(NameArray::GetNameEntry(0x8).GetAddress());
 
 		for (int i = 0; i < 0x20; i++)
 		{
-			if (*reinterpret_cast<uint32*>(FNameEntryNone + i) == 'enoN') // None
+			if (*reinterpret_cast<const uint32*>(FNameEntryNone + i) == 'enoN') // None
 			{
 				Off::FNameEntry::NameArray::StringOffset = i;
 				break;
@@ -120,8 +120,8 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 		for (int i = 0; i < 0x20; i++)
 		{
 			// lowest bit is bIsWide mask, shift right by 1 to get the index
-			if ((*reinterpret_cast<uint32*>(FNameEntryIdxThree + i) >> 1) == 0x3 &&
-				(*reinterpret_cast<uint32*>(FNameEntryIdxEight + i) >> 1) == 0x8)
+			if ((*reinterpret_cast<const uint32*>(FNameEntryIdxThree + i) >> 1) == 0x3 &&
+				(*reinterpret_cast<const uint32*>(FNameEntryIdxEight + i) >> 1) == 0x8)
 			{
 				Off::FNameEntry::NameArray::IndexOffset = i;
 				break;
@@ -309,8 +309,10 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
  * 
  * returns { GetNames/GNames, bIsGNamesDirectly };
 */
-inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(const uintptr_t EnterCriticalSectionAddress, const uintptr_t StartAddress)
+inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames_Windows(const uintptr_t EnterCriticalSectionAddress, const uintptr_t StartAddress)
 {
+#ifdef PLATFORM_WINDOWS
+
 	/* 2 bytes operation + 4 bytes relative offset */
 	constexpr int32 ASMRelativeCallSizeBytes = 0x6;
 
@@ -354,11 +356,15 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(const uintptr_t Ente
 	}
 
 	/* Continue and search for another reference to "ByteProperty", safe because we're checking if another string-ref was found*/
-	return FindFNameGetNamesOrGNames(EnterCriticalSectionAddress, reinterpret_cast<uintptr_t>(BytePropertyStringAddress) + ASMRelativeCallSizeBytes);
+	return FindFNameGetNamesOrGNames_Windows(EnterCriticalSectionAddress, reinterpret_cast<uintptr_t>(BytePropertyStringAddress) + ASMRelativeCallSizeBytes);
+
+#endif // PLATFORM_WINDOWS
 };
 
-bool NameArray::TryFindNameArray()
+bool NameArray::TryFindNameArray_Windows()
 {
+#ifdef PLATFORM_WINDOWS
+
 	/* Type of 'static TNameEntryArray& FName::GetNames()' */
 	using GetNameType = void* (*)();
 
@@ -367,7 +373,7 @@ bool NameArray::TryFindNameArray()
 
 	const void* EnterCriticalSectionAddress = Platform::GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "EnterCriticalSection");
 
-	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), Platform::GetModuleBase());
+	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames_Windows(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), Platform::GetModuleBase());
 
 	if (Address == 0x0)
 		return false;
@@ -407,10 +413,14 @@ bool NameArray::TryFindNameArray()
 	}
 	
 	return false;
+
+#endif // PLATFORM_WINDOWS
 }
 
-bool NameArray::TryFindNamePool()
+bool NameArray::TryFindNamePool_Windows()
 {
+#ifdef PLATFORM_WINDOWS
+
 	// TODO (encryqed): Fix this below for 32-bit ue games ig?
 
 	/* Number of bytes we want to search for an indirect call to InitializeSRWLock */
@@ -420,8 +430,8 @@ bool NameArray::TryFindNamePool()
 	constexpr int32 BytePropertySearchRange = 0x2A0;
 
 	/* FNamePool::FNamePool contains a call to InitializeSRWLock or RtlInitializeSRWLock, we're going to check for that later */
-	uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(Platform::GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "InitializeSRWLock"));
-	uintptr_t RtlInitSRWLockAddress = reinterpret_cast<uintptr_t>(Platform::GetAddressOfImportedFunctionFromAnyModule("ntdll.dll", "RtlInitializeSRWLock"));
+	const uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(Platform::GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "InitializeSRWLock"));
+	const uintptr_t RtlInitSRWLockAddress = reinterpret_cast<uintptr_t>(Platform::GetAddressOfImportedFunctionFromAnyModule("ntdll.dll", "RtlInitializeSRWLock"));
 
 	/* Singleton instance of FNamePool, which is passed as a parameter to FNamePool::FNamePool */
 	void* NamePoolIntance = nullptr;
@@ -487,6 +497,8 @@ bool NameArray::TryFindNamePool()
 	}
 
 	return false;
+
+#endif // PLATFORM_WINDOWS
 }
 
 bool NameArray::TryInit(bool bIsTestOnly)
@@ -498,14 +510,14 @@ bool NameArray::TryInit(bool bIsTestOnly)
 	bool bFoundNameArray = false;
 	bool bFoundnamePool = false;
 
-	if (NameArray::TryFindNameArray())
+	if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNameArray))
 	{
 		std::cerr << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		GNamesAddress = *reinterpret_cast<uint8**>(ImageBase + Off::InSDK::NameArray::GNames);// Derefernce
 		Settings::Internal::bUseNamePool = false;
 		bFoundNameArray = true;
 	}
-	else if (NameArray::TryFindNamePool())
+	else if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNamePool))
 	{
 		std::cerr << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames); // No derefernce
@@ -536,10 +548,6 @@ bool NameArray::TryInit(bool bIsTestOnly)
 		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
 		return true;
 	}
-	 
-	//GNames = nullptr;
-	//Off::InSDK::NameArray::GNames = 0x0;
-	//Settings::Internal::bUseNamePool = false;
 
 	std::cerr << "The address that was found couldn't be used by the generator, this might be due to GNames-encryption.\n" << std::endl;
 
@@ -608,13 +616,13 @@ bool NameArray::SetGNamesWithoutCommiting()
 	if (Off::InSDK::NameArray::GNames != 0x0)
 		return false;
 
-	if (NameArray::TryFindNameArray())
+	if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNameArray))
 	{
 		std::cerr << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		Settings::Internal::bUseNamePool = false;
 		return true;
 	}
-	else if (NameArray::TryFindNamePool())
+	else if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNamePool))
 	{
 		std::cerr << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		Settings::Internal::bUseNamePool = true;

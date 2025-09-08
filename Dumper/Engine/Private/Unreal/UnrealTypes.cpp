@@ -66,8 +66,10 @@ FName::FName(const void* Ptr)
 {
 }
 
-void FName::Init(bool bForceGNames)
+void FName::Init_Windows(bool bForceGNames)
 {
+#ifdef PLATFORM_WINDOWS
+
 #if defined(_WIN64)
 	constexpr std::array<const char*, 6> PossibleSigs = 
 	{ 
@@ -188,6 +190,8 @@ void FName::Init(bool bForceGNames)
 
 		return OutputString;
 	};
+
+#endif // PLATFORM_WINDOWS
 }
 
 void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bIsNamePool, const char* const ModuleName)

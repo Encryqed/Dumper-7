@@ -367,7 +367,7 @@ void OffsetFinder::InitFNameSettings()
 
 void OffsetFinder::PostInitFNameSettings()
 {
-	UEClass PlayerStart = ObjectArray::FindClassFast("PlayerStart");
+	const UEClass PlayerStart = ObjectArray::FindClassFast("PlayerStart");
 
 	const int32 FNameSize = PlayerStart.FindMember("PlayerStartTag").GetSize();
 
