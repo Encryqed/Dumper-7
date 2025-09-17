@@ -12,7 +12,7 @@ SDK Generator for all Unreal Engine games. Supported versions are all of UE4 and
 ## Support Me
 
 KoFi: https://ko-fi.com/fischsalat \
-Patreon: https://patreon.com/user?u=119629245
+Patreon: https://www.patreon.com/u119629245
 
 LTC (LTC-network): `LLtXWxDbc5H9d96VJF36ZpwVX6DkYGpTJU` \
 BTC (Bitcoin): `1DVDUMcotWzEG1tyd1FffyrYeu4YEh7spx`
