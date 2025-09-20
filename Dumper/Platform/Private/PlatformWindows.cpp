@@ -292,6 +292,33 @@ namespace
 
 		return { SearchStartAddress, SearchRange };
 	}
+
+	bool IsInAnySection(const uintptr_t Address, const DWORD OptionalRequiredCharacteristics = 0)
+	{
+		const auto ModuleBase = PlatformWindows::GetModuleBase();
+
+		bool bFound = false;
+		IterateAllSectionObjects(ModuleBase, [&bFound, Address, ModuleBase, OptionalRequiredCharacteristics](const IMAGE_SECTION_HEADER* SectionHeader) -> bool
+			{
+				const uintptr_t SectionStart = ModuleBase + SectionHeader->VirtualAddress;
+				const uintptr_t SectionEnd = SectionStart + SectionHeader->Misc.VirtualSize;
+
+				if (Address >= SectionStart && Address < SectionEnd)
+				{
+					bFound = (SectionHeader->Characteristics & OptionalRequiredCharacteristics) == OptionalRequiredCharacteristics;
+					return true;
+				}
+
+				return false;
+			});
+
+		return bFound;
+	}
+
+	bool IsInAnySection(const void* Address, const DWORD OptionalRequiredCharacteristics = 0)
+	{
+		return IsInAnySection(reinterpret_cast<uintptr_t>(Address), OptionalRequiredCharacteristics);
+	}
 }
 
 
@@ -388,7 +415,7 @@ void* PlatformWindows::IterateSectionWithCallback(const SectionInfo& Info, const
 	const uintptr_t SectionBaseAddrss = WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress;
 	const uint32_t SectionIterationSize = GetAlignedSizeWithOffsetFromEnd(WinSectionInfo.SectionHeader->Misc.VirtualSize, Granularity, OffsetFromEnd);
 
-	for (uintptr_t CurrentAddress = SectionBaseAddrss; CurrentAddress < (CurrentAddress + SectionIterationSize); CurrentAddress += Granularity)
+	for (uintptr_t CurrentAddress = SectionBaseAddrss; CurrentAddress < (SectionBaseAddrss + SectionIterationSize); CurrentAddress += Granularity)
 	{
 		if (Callback(reinterpret_cast<void*>(CurrentAddress)))
 			return reinterpret_cast<void*>(CurrentAddress);
@@ -695,7 +722,6 @@ void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, const vo
 	return nullptr;
 }
 
-
 /* Slower than FindByString */
 template<bool bCheckIfLeaIsStrPtr, typename CharType>
 void* PlatformWindows::FindByStringInAllSections(const CharType* RefStr,const uintptr_t StartAddress, int32_t Range, const bool bSearchOnlyExecutableSections, const char* const ModuleName)
@@ -714,7 +740,6 @@ void* PlatformWindows::FindByStringInAllSections(const CharType* RefStr,const ui
 
 		if (SearchStartAddress == NULL || SearchRange == 0x0)
 			return false;
-
 
 		if (Range > 0x0)
 			Range -= SearchRange;
@@ -749,6 +774,10 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 
 			if (!IsAddressInProcessRange(StrPtr))
 				continue;
+
+			if (!IsInAnySection(StrPtr, IMAGE_SCN_MEM_READ) && IsBadReadPtr(StrPtr))
+				continue;
+
 
 			if (StrnCmpHelper(RefStr, reinterpret_cast<const CharType*>(StrPtr), RefStrLen))
 				return { SearchStart + i };

@@ -41,7 +41,7 @@ void Generator::InitEngineCore()
 
 	ObjectArray::Init();
 
-	CALL_PLATFORM_SPECIFIC_FUNCTION(FName::Init, /* Insert params here */);
+	CALL_PLATFORM_SPECIFIC_FUNCTION(FName::Init);
 
 	Off::Init();
 	PropertySizes::Init();
