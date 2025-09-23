@@ -87,19 +87,25 @@ void FName::Init_Windows(bool bForceGNames)
 	};
 #endif
 
-	void* StringRef = Platform::FindByStringInAllSections("ForwardShadingQuality_", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
-	const char* MatchingSig = nullptr;
+	const void* StringRef = Platform::FindByStringInAllSections("ForwardShadingQuality_", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
+	
+	bool bFoundPotentiallyOverlappingSig = false;
 
-	for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
+	if (!StringRef)
 	{
-		AppendString = static_cast<decltype(AppendString)>(Platform::FindPatternInRange(PossibleSigs[i], StringRef, 0x50, true, -1/* auto */));
+		const char* MatchingSig = nullptr;
 
-		if (AppendString)
-			MatchingSig = PossibleSigs[i];
+		for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
+		{
+			AppendString = static_cast<decltype(AppendString)>(Platform::FindPatternInRange(PossibleSigs[i], StringRef, 0x50, true, -1/* auto */));
+
+			if (AppendString)
+				MatchingSig = PossibleSigs[i];
+		}
+
+		// This signature partially overlaps with the signature for an inlined FName::AppendString call (see comment below)
+		bFoundPotentiallyOverlappingSig = MatchingSig && strcmp(MatchingSig, "48 8D ? ? ? 48 8B ? E8") == 0;
 	}
-
-	// This signature partially overlaps with the signature for an inlined FName::AppendString call (see comment below)
-	const bool bFoundPotentiallyOverlappingSig = MatchingSig && strcmp(MatchingSig, "48 8D ? ? ? 48 8B ? E8") == 0;
 
 	// Test if AppendString was inlined
 	if ((!AppendString || bFoundPotentiallyOverlappingSig) && !bForceGNames)
