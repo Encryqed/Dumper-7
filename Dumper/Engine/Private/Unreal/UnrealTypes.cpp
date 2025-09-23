@@ -91,7 +91,7 @@ void FName::Init_Windows(bool bForceGNames)
 	
 	bool bFoundPotentiallyOverlappingSig = false;
 
-	if (!StringRef)
+	if (StringRef)
 	{
 		const char* MatchingSig = nullptr;
 
