@@ -97,11 +97,14 @@ namespace KeyFunctions
 	uint64 GetKeyForCollisionInfo(UEStruct Super, UEFunction Function);
 }
 
+
 class CollisionManager
 {
 private:
 	friend class CollisionManagerTest;
 	friend class MemberManagerTest;
+
+	friend class StructManager_NameAccessHelper;
 
 public:
 	using NameContainer = std::vector<NameInfo>;
@@ -145,6 +148,32 @@ public:
 		uint64 NameInfoIndex = TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Struct, Member)];
 
 		return InfosForStruct.at(NameInfoIndex);
+	}
+
+private:
+	inline NameInfo& GetNameCollisionInfoRefUnchecked(UEStruct Struct, UEProperty Member)
+	{
+		CollisionManager::NameContainer& InfosForStruct = NameInfos.at(Struct.GetIndex());
+		uint64 NameInfoIndex = TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Struct, Member)];
+
+		return InfosForStruct.at(NameInfoIndex);
+	}
+};
+
+class StructManager_NameAccessHelper
+{
+private:
+	friend class StructManager;
+
+public:
+	static inline void ReplaceName(CollisionManager& Collisions, UEStruct Struct, UEProperty Member, const std::string& NameToReplaceWith)
+	{
+		const auto [Index, _] = Collisions.MemberNames.FindOrAdd(NameToReplaceWith);
+
+		auto& NameInfo = Collisions.GetNameCollisionInfoRefUnchecked(Struct, Member);
+
+		NameInfo.CollisionData = 0;
+		NameInfo.Name = Index;
 	}
 };
 
