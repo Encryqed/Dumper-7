@@ -8,46 +8,52 @@
 #include "Unreal/ObjectArray.h"
 #include "Unreal/NameArray.h"
 
+#include "Platform.h"
+#include "Architecture.h"
 
-void Off::InSDK::ProcessEvent::InitPE()
+
+void Off::InSDK::ProcessEvent::InitPE_Windows()
 {
+#ifdef PLATFORM_WINDOWS
+
 	void** Vft = *(void***)ObjectArray::GetByIndex(0).GetAddress();
 
 #if defined(_WIN64)
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 	{
-		return FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
-			&& FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
+		return Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
+			&& Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
 	};
 #elif defined(_WIN32)
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 	{
-		return FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x4, 0x0, 0x0 }, FuncAddress, 0x400)
-			&& FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
+		return Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x4, 0x0, 0x0 }, FuncAddress, 0x400)
+			&& Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
 	};
 #endif
 
 	const void* ProcessEventAddr = nullptr;
 	int32_t ProcessEventIdx = 0;
 
-	auto [FuncPtr, FuncIdx] = IterateVTableFunctions(Vft, IsProcessEvent);
+	const auto [FuncPtr, FuncIdx] = Platform::IterateVTableFunctions(Vft, IsProcessEvent);
 
 	ProcessEventAddr = FuncPtr;
 	ProcessEventIdx = FuncIdx;
 
 	if (!FuncPtr)
 	{
+		const void* StringRefAddr = Platform::FindByStringInAllSections(L"Accessed None", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 		/* ProcessEvent is sometimes located right after a func with the string L"Accessed None. Might as well check for it, because else we're going to crash anyways. */
-		void* PossiblePEAddr = (void*)FindByWStringInAllSections(L"Accessed None").FindNextFunctionStart();
+		const void* PossiblePEAddr = reinterpret_cast<void*>(Architecture_x86_64::FindNextFunctionStart(StringRefAddr));
 
 		auto IsSameAddr = [PossiblePEAddr](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 		{
 			return FuncAddress == PossiblePEAddr;
 		};
 
-		auto [FuncPtr2, FuncIdx2] = IterateVTableFunctions(Vft, IsSameAddr);
+		const auto [FuncPtr2, FuncIdx2] = Platform::IterateVTableFunctions(Vft, IsSameAddr);
 		ProcessEventAddr = FuncPtr2;
 		ProcessEventIdx = FuncIdx2;
 	}
@@ -55,7 +61,7 @@ void Off::InSDK::ProcessEvent::InitPE()
 	if (ProcessEventAddr)
 	{
 		Off::InSDK::ProcessEvent::PEIndex = ProcessEventIdx;
-		Off::InSDK::ProcessEvent::PEOffset = GetOffset(ProcessEventAddr);
+		Off::InSDK::ProcessEvent::PEOffset = Platform::GetOffset(ProcessEventAddr);
 
 		std::cerr << std::format("PE-Offset: 0x{:X}\n", Off::InSDK::ProcessEvent::PEOffset);
 		std::cerr << std::format("PE-Index: 0x{:X}\n\n", ProcessEventIdx);
@@ -63,15 +69,17 @@ void Off::InSDK::ProcessEvent::InitPE()
 	}
 
 	std::cerr << "\nCouldn't find ProcessEvent!\n\n" << std::endl;
+
+#endif // PLATFORM_WINDOWS
 }
 
-void Off::InSDK::ProcessEvent::InitPE(int32 Index, const char* const ModuleName)
+void Off::InSDK::ProcessEvent::InitPE(const int32 Index, const char* const ModuleName)
 {
 	Off::InSDK::ProcessEvent::PEIndex = Index;
 
 	void** VFT = *reinterpret_cast<void***>(ObjectArray::GetByIndex(0).GetAddress());
 
-	Off::InSDK::ProcessEvent::PEOffset = reinterpret_cast<uintptr_t>(VFT[Off::InSDK::ProcessEvent::PEIndex]) - GetModuleBase(ModuleName);
+	Off::InSDK::ProcessEvent::PEOffset = Platform::GetOffset(VFT[Off::InSDK::ProcessEvent::PEIndex], ModuleName);
 
 	std::cerr << std::format("PE-Offset: 0x{:X}\n", Off::InSDK::ProcessEvent::PEOffset);
 }
@@ -87,7 +95,8 @@ void Off::InSDK::World::InitGWorld()
 			continue;
 
 		/* Try to find a pointer to the word, aka UWorld** GWorld */
-		auto Results = FindAllAlignedValueInProcess(Obj.GetAddress());
+		auto Results = Platform::FindAllAlignedValuesInProcess(Obj.GetAddress());
+
 		void* Result = nullptr;
 		if (Results.size())
 		{
@@ -100,6 +109,7 @@ void Off::InSDK::World::InitGWorld()
 				auto ObjAddress = reinterpret_cast<uintptr_t>(Obj.GetAddress());
 				auto PossibleGWorld = reinterpret_cast<volatile uintptr_t*>(Results[0]);
 				auto CurrentValue = *PossibleGWorld;
+
 				for (int i = 0; CurrentValue == ObjAddress && i < 50; ++i)
 				{
 					::Sleep(1);
@@ -112,7 +122,7 @@ void Off::InSDK::World::InitGWorld()
 				else
 				{
 					Result = Results[1];
-					std::cerr << std::format("Filter GActiveLogWorld at {:x}\n\n", (uintptr_t)PossibleGWorld);
+					std::cerr << std::format("Filter GActiveLogWorld at 0x{:X}\n\n", reinterpret_cast<uintptr_t>(PossibleGWorld));
 				}
 			}
 			else
@@ -124,7 +134,7 @@ void Off::InSDK::World::InitGWorld()
 		/* Pointer to UWorld* couldn't be found */
 		if (Result)
 		{
-			Off::InSDK::World::GWorld = GetOffset(Result);
+			Off::InSDK::World::GWorld = Platform::GetOffset(Result);
 			std::cerr << std::format("GWorld-Offset: 0x{:X}\n\n", Off::InSDK::World::GWorld);
 			break;
 		}
@@ -145,11 +155,11 @@ void Off::InSDK::Text::InitTextOffsets()
 
 	auto IsValidPtr = [](void* a) -> bool
 	{
-		return !IsBadReadPtr(a) /* && (uintptr_t(a) & 0x1) == 0*/; // realistically, there wont be any pointers to unaligned memory
+		return !Platform::IsBadReadPtr(a) /* && (uintptr_t(a) & 0x1) == 0*/; // realistically, there wont be any pointers to unaligned memory
 	};
 
 
-	UEFunction Conv_StringToText = ObjectArray::FindObjectFast<UEFunction>("Conv_StringToText", EClassCastFlags::Function);
+	const UEFunction Conv_StringToText = ObjectArray::FindObjectFast<UEFunction>("Conv_StringToText", EClassCastFlags::Function);
 
 	UEProperty InStringProp = nullptr;
 	UEProperty ReturnProp = nullptr;

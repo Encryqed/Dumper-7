@@ -21,18 +21,6 @@ typedef unsigned __int32 uint32;
 typedef unsigned __int64 uint64;
 
 
-template<typename T>
-constexpr T Align(T Size, T Alignment)
-{
-	static_assert(std::is_integral_v<T>, "Align can only hanlde integral types!");
-	assert(Alignment != 0 && "Alignment was 0, division by zero exception.");
-
-	const T RequiredAlign = Alignment - (Size % Alignment);
-
-	return Size + (RequiredAlign != Alignment ? RequiredAlign : 0x0);
-}
-
-
 #define ENUM_OPERATORS(EEnumClass)																																		\
 																																										\
 inline constexpr EEnumClass operator|(EEnumClass Left, EEnumClass Right)																								\

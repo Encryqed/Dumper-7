@@ -8,6 +8,7 @@
 #include "HashStringTable.h"
 #include "Utils.h"
 
+#include "Platform.h"
 
 inline void InitSettings()
 {
@@ -39,10 +40,13 @@ void Generator::InitEngineCore()
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
 
 	ObjectArray::Init();
-	FName::Init();
+
+	CALL_PLATFORM_SPECIFIC_FUNCTION(FName::Init);
+
 	Off::Init();
 	PropertySizes::Init();
-	Off::InSDK::ProcessEvent::InitPE(); // Must be at this position, relies on offsets initialized in Off::Init()
+
+	CALL_PLATFORM_SPECIFIC_FUNCTION(Off::InSDK::ProcessEvent::InitPE); // Must be at this position, relies on offsets initialized in Off::Init()
 
 	Off::InSDK::World::InitGWorld(); // Must be at this position, relies on offsets initialized in Off::Init()
 

@@ -1525,7 +1525,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	File << "\n";
 
-	if constexpr (Settings::Is32Bit())
+	if constexpr (Platform::Is32Bit())
 	{
 		File << "#pragma pack(push, 0x4)\n";
 	}
@@ -1561,7 +1561,7 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 		File << "}\n\n";
 	}
 
-	if constexpr (Settings::Is32Bit())
+	if constexpr (Platform::Is32Bit())
 	{
 		File << "#pragma pack(pop)\n";
 	}
@@ -2474,7 +2474,7 @@ R"({
 			.ReturnType = "void", .NameWithParams = "ProcessEvent(class UFunction* Function, void* Parms)", .Body = std::format(
 R"({{
 	InSDKUtils::CallGameFunction(InSDKUtils::GetVirtualFunction<void({}*)(const UObject*, class UFunction*, void*)>(this, Offsets::ProcessEventIdx), this, Function, Parms);
-}})", Settings::Is32Bit() ? "__thiscall" : ""),
+}})", Platform::Is32Bit() ? "__thiscall" : ""),
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 	};
@@ -4407,7 +4407,7 @@ R"({
 
 	return TempString.ToString();
 }}
-)", Settings::Is32Bit() ? "__thiscall" : "");
+)", Platform::Is32Bit() ? "__thiscall" : "");
 
 	constexpr const char* GetRawStringWithInlinedAppendString =
 		R"({

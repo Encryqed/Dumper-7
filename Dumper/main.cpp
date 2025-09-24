@@ -59,6 +59,8 @@ DWORD MainThread(HMODULE Module)
 	std::cerr << "GameName: " << Settings::Generator::GameName << "\n";
 	std::cerr << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
 
+	std::cerr << "FolderName: " << (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName) << "\n\n";
+
 	Generator::Generate<CppGenerator>();
 	Generator::Generate<MappingGenerator>();
 	Generator::Generate<IDAMappingGenerator>();
