@@ -4,6 +4,8 @@
 #include "Unreal/ObjectArray.h"
 #include "Unreal/NameArray.h"
 
+#include "Platform.h"
+#include "Architecture.h"
 
 uint8* NameArray::GNames = nullptr;
 
@@ -45,7 +47,7 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 		Off::FNameEntry::NamePool::StringOffset = NameEntryStringOffset;
 		Off::FNameEntry::NamePool::HeaderOffset = NameEntryStringOffset == 6 ? 4 : 0;
 
-		uint8* AssumedBytePropertyEntry = *reinterpret_cast<uint8* const*>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen;
+		const uint8* AssumedBytePropertyEntry = *reinterpret_cast<uint8* const*>(FirstChunkPtr) + NameEntryStringOffset + NoneStrLen;
 
 		/* Check if there's pading after an FNameEntry. Check if there's up to 0x4 bytes padding. */
 		for (int i = 0; i < 0x4; i++)
@@ -102,13 +104,13 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 	}
 	else
 	{
-		uint8_t* FNameEntryNone = (uint8_t*)NameArray::GetNameEntry(0x0).GetAddress();
-		uint8_t* FNameEntryIdxThree = (uint8_t*)NameArray::GetNameEntry(0x3).GetAddress();
-		uint8_t* FNameEntryIdxEight = (uint8_t*)NameArray::GetNameEntry(0x8).GetAddress();
+		const uint8_t* FNameEntryNone =     static_cast<uint8_t*>(NameArray::GetNameEntry(0x0).GetAddress());
+		const uint8_t* FNameEntryIdxThree = static_cast<uint8_t*>(NameArray::GetNameEntry(0x3).GetAddress());
+		const uint8_t* FNameEntryIdxEight = static_cast<uint8_t*>(NameArray::GetNameEntry(0x8).GetAddress());
 
 		for (int i = 0; i < 0x20; i++)
 		{
-			if (*reinterpret_cast<uint32*>(FNameEntryNone + i) == 'enoN') // None
+			if (*reinterpret_cast<const uint32*>(FNameEntryNone + i) == 'enoN') // None
 			{
 				Off::FNameEntry::NameArray::StringOffset = i;
 				break;
@@ -118,8 +120,8 @@ void FNameEntry::Init(const uint8_t* FirstChunkPtr, int64 NameEntryStringOffset)
 		for (int i = 0; i < 0x20; i++)
 		{
 			// lowest bit is bIsWide mask, shift right by 1 to get the index
-			if ((*reinterpret_cast<uint32*>(FNameEntryIdxThree + i) >> 1) == 0x3 &&
-				(*reinterpret_cast<uint32*>(FNameEntryIdxEight + i) >> 1) == 0x8)
+			if ((*reinterpret_cast<const uint32*>(FNameEntryIdxThree + i) >> 1) == 0x3 &&
+				(*reinterpret_cast<const uint32*>(FNameEntryIdxEight + i) >> 1) == 0x8)
 			{
 				Off::FNameEntry::NameArray::IndexOffset = i;
 				break;
@@ -146,7 +148,7 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 
 	int32 PerChunk = 0x0;
 
-	if (!NameArray || IsBadReadPtr(NameArray))
+	if (!NameArray || Platform::IsBadReadPtr(NameArray))
 		return false;
 
 	for (int i = 0; i < 0x800; i += sizeof(void*))
@@ -307,8 +309,10 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
  * 
  * returns { GetNames/GNames, bIsGNamesDirectly };
 */
-inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriticalSectionAddress, uintptr_t StartAddress)
+inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames_Windows(const uintptr_t EnterCriticalSectionAddress, const uintptr_t StartAddress)
 {
+#ifdef PLATFORM_WINDOWS
+
 	/* 2 bytes operation + 4 bytes relative offset */
 	constexpr int32 ASMRelativeCallSizeBytes = 0x6;
 
@@ -316,7 +320,7 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriti
 	constexpr int32 GetNamesCallSearchRange = 0x150;
 
 	/* Find a reference to the string "ByteProperty" in 'FName::StaticInit' */
-	const uint8* BytePropertyStringAddress = static_cast<uint8*>(FindByStringInAllSections(L"ByteProperty", StartAddress));
+	const uint8* BytePropertyStringAddress = static_cast<uint8*>(Platform::FindByStringInAllSections(L"ByteProperty", StartAddress, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings));
 
 	/* Important to prevent infinite-recursion */
 	if (!BytePropertyStringAddress)
@@ -329,53 +333,57 @@ inline std::pair<uintptr_t, bool> FindFNameGetNamesOrGNames(uintptr_t EnterCriti
 			continue;
 
 #if defined(_WIN64)
-		uintptr_t CallTarget = ASMUtils::Resolve32BitSectionRelativeCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
+		const uintptr_t CallTarget = Architecture_x86_64::Resolve32BitSectionRelativeCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
 #elif defined(_WIN32)
-		uintptr_t CallTarget = ASMUtils::Resolve32bitAbsoluteCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
+		uintptr_t CallTarget = Architecture_x86_64::Resolve32bitAbsoluteCall(reinterpret_cast<uintptr_t>(BytePropertyStringAddress - i));
 #endif
 
 		if (CallTarget != EnterCriticalSectionAddress)
 			continue;
 
-		uintptr_t InstructionAfterCall = reinterpret_cast<uintptr_t>(BytePropertyStringAddress - (i - ASMRelativeCallSizeBytes));
+		const uintptr_t InstructionAfterCall = reinterpret_cast<uintptr_t>(BytePropertyStringAddress - (i - ASMRelativeCallSizeBytes));
 		
 		/* Check if we're dealing with a 'call' opcode */
 		if (*reinterpret_cast<const uint8*>(InstructionAfterCall) == 0xE8)
-			return { ASMUtils::Resolve32BitRelativeCall(InstructionAfterCall), false };
+			return { Architecture_x86_64::Resolve32BitRelativeCall(InstructionAfterCall), false };
 
 		// Looks like on 32bit like literally everything is absolute???? fuck you
 #if defined(_WIN64)
-		return { ASMUtils::Resolve32BitRelativeMove(InstructionAfterCall), true };
+		return { Architecture_x86_64::Resolve32BitRelativeMove(InstructionAfterCall), true };
 #elif defined(_WIN32)
-		return { ASMUtils::Resolve32bitAbsoluteMove(InstructionAfterCall), true };
+		return { Architecture_x86_64::Resolve32bitAbsoluteMove(InstructionAfterCall), true };
 #endif
 	}
 
 	/* Continue and search for another reference to "ByteProperty", safe because we're checking if another string-ref was found*/
-	return FindFNameGetNamesOrGNames(EnterCriticalSectionAddress, reinterpret_cast<uintptr_t>(BytePropertyStringAddress));
+	return FindFNameGetNamesOrGNames_Windows(EnterCriticalSectionAddress, reinterpret_cast<uintptr_t>(BytePropertyStringAddress) + ASMRelativeCallSizeBytes);
+
+#endif // PLATFORM_WINDOWS
 };
 
-bool NameArray::TryFindNameArray()
+bool NameArray::TryFindNameArray_Windows()
 {
+#ifdef PLATFORM_WINDOWS
+
 	/* Type of 'static TNameEntryArray& FName::GetNames()' */
 	using GetNameType = void* (*)();
 
 	/* Range from 'FName::GetNames' which we want to search down for 'mov register, GNames' */
 	constexpr int32 GetNamesCallSearchRange = 0x100;
 
-	void* EnterCriticalSectionAddress = GetImportAddress(nullptr, "kernel32.dll", "EnterCriticalSection");
+	const void* EnterCriticalSectionAddress = Platform::GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "EnterCriticalSection");
 
-	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), GetModuleBase());
+	auto [Address, bIsGNamesDirectly] = FindFNameGetNamesOrGNames_Windows(reinterpret_cast<uintptr_t>(EnterCriticalSectionAddress), Platform::GetModuleBase());
 
 	if (Address == 0x0)
 		return false;
 
 	if (bIsGNamesDirectly)
 	{
-		if (!IsInProcessRange(Address) || IsBadReadPtr(*reinterpret_cast<void**>(Address)))
+		if (!Platform::IsAddressInProcessRange(Address) || Platform::IsBadReadPtr(*reinterpret_cast<void**>(Address)))
 			return false;
 
-		Off::InSDK::NameArray::GNames = GetOffset(Address);
+		Off::InSDK::NameArray::GNames = Platform::GetOffset(Address);
 		return true;
 	}
 
@@ -390,25 +398,29 @@ bool NameArray::TryFindNameArray()
 		if (*reinterpret_cast<const uint16*>(Address + i) != 0x8B48)
 			continue;
 
-		uintptr_t MoveTarget = ASMUtils::Resolve32BitRelativeMove(Address + i);
+		const uintptr_t MoveTarget = Architecture_x86_64::Resolve32BitRelativeMove(Address + i);
 
-		if (!IsInProcessRange(MoveTarget))
+		if (!Platform::IsAddressInProcessRange(MoveTarget))
 			continue;
 
-		void* ValueOfMoveTargetAsPtr = *reinterpret_cast<void**>(MoveTarget);
+		const void* ValueOfMoveTargetAsPtr = *reinterpret_cast<void**>(MoveTarget);
 
-		if (IsBadReadPtr(ValueOfMoveTargetAsPtr) || ValueOfMoveTargetAsPtr != Names)
+		if (Platform::IsBadReadPtr(ValueOfMoveTargetAsPtr) || ValueOfMoveTargetAsPtr != Names)
 			continue;
 
-		Off::InSDK::NameArray::GNames = GetOffset(MoveTarget);
+		Off::InSDK::NameArray::GNames = Platform::GetOffset(MoveTarget);
 		return true;
 	}
 	
 	return false;
+
+#endif // PLATFORM_WINDOWS
 }
 
-bool NameArray::TryFindNamePool()
+bool NameArray::TryFindNamePool_Windows()
 {
+#ifdef PLATFORM_WINDOWS
+
 	// TODO (encryqed): Fix this below for 32-bit ue games ig?
 
 	/* Number of bytes we want to search for an indirect call to InitializeSRWLock */
@@ -418,8 +430,8 @@ bool NameArray::TryFindNamePool()
 	constexpr int32 BytePropertySearchRange = 0x2A0;
 
 	/* FNamePool::FNamePool contains a call to InitializeSRWLock or RtlInitializeSRWLock, we're going to check for that later */
-	uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "InitializeSRWLock"));
-	uintptr_t RtlInitSRWLockAddress = reinterpret_cast<uintptr_t>(GetAddressOfImportedFunctionFromAnyModule("ntdll.dll", "RtlInitializeSRWLock"));
+	const uintptr_t InitSRWLockAddress = reinterpret_cast<uintptr_t>(Platform::GetAddressOfImportedFunctionFromAnyModule("kernel32.dll", "InitializeSRWLock"));
+	const uintptr_t RtlInitSRWLockAddress = reinterpret_cast<uintptr_t>(Platform::GetAddressOfImportedFunctionFromAnyModule("ntdll.dll", "RtlInitializeSRWLock"));
 
 	/* Singleton instance of FNamePool, which is passed as a parameter to FNamePool::FNamePool */
 	void* NamePoolIntance = nullptr;
@@ -435,16 +447,16 @@ bool NameArray::TryFindNamePool()
 			SigOccurrence += 0x1;
 
 		/* Find the next occurence of this signature to see if that may be a call to the FNamePool constructor */
-		SigOccurrence = reinterpret_cast<uintptr_t>(FindPattern("48 8D 0D ? ? ? ? E8", 0x0, true, SigOccurrence));
+		SigOccurrence = reinterpret_cast<uintptr_t>(Platform::FindPattern("48 8D 0D ? ? ? ? E8", 0x0, true, SigOccurrence));
 
 		if (SigOccurrence == 0x0)
 			break;
 
 		constexpr int32 SizeOfMovInstructionBytes = 0x7;
 
-		const uintptr_t PossibleConstructorAddress = ASMUtils::Resolve32BitRelativeCall(SigOccurrence + SizeOfMovInstructionBytes);
+		const uintptr_t PossibleConstructorAddress = Architecture_x86_64::Resolve32BitRelativeCall(SigOccurrence + SizeOfMovInstructionBytes);
 
-		if (!IsInProcessRange(PossibleConstructorAddress))
+		if (!Platform::IsAddressInProcessRange(PossibleConstructorAddress))
 			continue;
 
 		for (int i = 0; i < InitSRWLockSearchRange; i++)
@@ -453,9 +465,9 @@ bool NameArray::TryFindNamePool()
 			if (*reinterpret_cast<uint16*>(PossibleConstructorAddress + i) != 0x15FF)
 				continue;
 
-			const uintptr_t RelativeCallTarget = ASMUtils::Resolve32BitSectionRelativeCall(PossibleConstructorAddress + i);
+			const uintptr_t RelativeCallTarget = Architecture_x86_64::Resolve32BitSectionRelativeCall(PossibleConstructorAddress + i);
 
-			if (!IsInProcessRange(RelativeCallTarget))
+			if (!Platform::IsAddressInProcessRange(RelativeCallTarget))
 				continue;
 
 			const uintptr_t ValueOfCallTarget = *reinterpret_cast<uintptr_t*>(RelativeCallTarget);
@@ -464,15 +476,15 @@ bool NameArray::TryFindNamePool()
 				continue;
 
 			/* Try to find the "ByteProperty" string, as it's always referenced in FNamePool::FNamePool, so we use it to verify that we got the right function */
-			MemAddress StringRef = FindByStringInAllSections(L"ByteProperty", PossibleConstructorAddress, BytePropertySearchRange);
+			const void* StringRef = Platform::FindByStringInAllSections(L"ByteProperty", PossibleConstructorAddress, BytePropertySearchRange, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 
 			/* We couldn't find a wchar_t string L"ByteProperty", now see if we can find a char string "ByteProperty" */
-			if (!StringRef)
-				StringRef = FindByStringInAllSections("ByteProperty", PossibleConstructorAddress, BytePropertySearchRange);
+			if (StringRef == nullptr)
+				StringRef = Platform::FindByStringInAllSections("ByteProperty", PossibleConstructorAddress, BytePropertySearchRange, Settings::General::bSearchOnlyExecutableSectionsForStrings);
 
 			if (StringRef)
 			{
-				NamePoolIntance = reinterpret_cast<void*>(ASMUtils::Resolve32BitRelativeMove(SigOccurrence));
+				NamePoolIntance = reinterpret_cast<void*>(Architecture_x86_64::Resolve32BitRelativeMove(SigOccurrence));
 				break;
 			}
 		}
@@ -480,30 +492,32 @@ bool NameArray::TryFindNamePool()
 
 	if (NamePoolIntance)
 	{
-		Off::InSDK::NameArray::GNames = GetOffset(NamePoolIntance);
+		Off::InSDK::NameArray::GNames = Platform::GetOffset(NamePoolIntance);
 		return true;
 	}
 
 	return false;
+
+#endif // PLATFORM_WINDOWS
 }
 
 bool NameArray::TryInit(bool bIsTestOnly)
 {
-	uintptr_t ImageBase = GetModuleBase();
+	const uintptr_t ImageBase = Platform::GetModuleBase();
 
 	uint8* GNamesAddress = nullptr;
 
 	bool bFoundNameArray = false;
 	bool bFoundnamePool = false;
 
-	if (NameArray::TryFindNameArray())
+	if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNameArray))
 	{
 		std::cerr << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		GNamesAddress = *reinterpret_cast<uint8**>(ImageBase + Off::InSDK::NameArray::GNames);// Derefernce
 		Settings::Internal::bUseNamePool = false;
 		bFoundNameArray = true;
 	}
-	else if (NameArray::TryFindNamePool())
+	else if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNamePool))
 	{
 		std::cerr << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames); // No derefernce
@@ -534,10 +548,6 @@ bool NameArray::TryInit(bool bIsTestOnly)
 		/* FNameEntry::Init() was moved into NameArray::InitializeNamePool to avoid duplicated logic */
 		return true;
 	}
-	 
-	//GNames = nullptr;
-	//Off::InSDK::NameArray::GNames = 0x0;
-	//Settings::Internal::bUseNamePool = false;
 
 	std::cerr << "The address that was found couldn't be used by the generator, this might be due to GNames-encryption.\n" << std::endl;
 
@@ -547,7 +557,7 @@ bool NameArray::TryInit(bool bIsTestOnly)
 
 bool NameArray::TryInit(int32 OffsetOverride, bool bIsNamePool, const char* const ModuleName)
 {
-	uintptr_t ImageBase = GetModuleBase(ModuleName);
+	const uintptr_t ImageBase = Platform::GetModuleBase(ModuleName);
 
 	uint8* GNamesAddress = nullptr;
 
@@ -606,13 +616,13 @@ bool NameArray::SetGNamesWithoutCommiting()
 	if (Off::InSDK::NameArray::GNames != 0x0)
 		return false;
 
-	if (NameArray::TryFindNameArray())
+	if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNameArray))
 	{
 		std::cerr << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		Settings::Internal::bUseNamePool = false;
 		return true;
 	}
-	else if (NameArray::TryFindNamePool())
+	else if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNamePool))
 	{
 		std::cerr << std::format("Found 'FNamePool GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		Settings::Internal::bUseNamePool = true;

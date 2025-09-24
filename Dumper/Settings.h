@@ -6,13 +6,10 @@
 
 namespace Settings
 {
-	constexpr bool Is32Bit()
+	namespace General
 	{
-#if defined(_WIN64)
-		return false;
-#elif defined(_WIN32)
-		return true;
-#endif
+		/* This option determines whether calls to FindByStringInAllSections should only search executable sections, or all sections. */
+		constexpr bool bSearchOnlyExecutableSectionsForStrings = true;
 	}
   
 	inline constexpr const char* GlobalConfigPath = "C:/Dumper-7/Dumper-7.ini";

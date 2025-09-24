@@ -8,6 +8,8 @@
 #include "OffsetFinder/Offsets.h"
 #include "Utils.h"
 
+#include "Platform.h"
+
 
 namespace fs = std::filesystem;
 
@@ -81,10 +83,10 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLay
 	if (NumElements < 0x1000)
 		return false;
 
-	if (IsBadReadPtr(ObjectsButDecrypted))
+	if (Platform::IsBadReadPtr(ObjectsButDecrypted))
 		return false;
 
-	if (IsBadReadPtr(ObjectsButDecrypted[5].Object))
+	if (Platform::IsBadReadPtr(ObjectsButDecrypted[5].Object))
 		return false;
 
 	const uintptr_t FifthObject = reinterpret_cast<uintptr_t>(ObjectsButDecrypted[0x5].Object);
@@ -139,12 +141,12 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectA
 	if (!bMaxChunksFitsMaxElements)
 		return false;
 
-	if (!ObjectsPtrButDecrypted || IsBadReadPtr(ObjectsPtrButDecrypted))
+	if (!ObjectsPtrButDecrypted || Platform::IsBadReadPtr(ObjectsPtrButDecrypted))
 		return false;
 
 	for (int i = 0; i < NumChunks; i++)
 	{
-		if (!ObjectsPtrButDecrypted[i] || IsBadReadPtr(ObjectsPtrButDecrypted[i]))
+		if (!ObjectsPtrButDecrypted[i] || Platform::IsBadReadPtr(ObjectsPtrButDecrypted[i]))
 			return false;
 	}
 
@@ -156,7 +158,7 @@ void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 {
 	for (int i = 0x0; i < 0x20; i += 4)
 	{
-		if (!IsBadReadPtr(*reinterpret_cast<uint8_t**>(FirstItemPtr + i)))
+		if (!Platform::IsBadReadPtr(*reinterpret_cast<uint8_t**>(FirstItemPtr + i)))
 		{
 			FUObjectItemInitialOffset = i;
 			break;
@@ -168,7 +170,8 @@ void ObjectArray::InitializeFUObjectItem(uint8_t* FirstItemPtr)
 		void* SecondObject = *reinterpret_cast<uint8**>(FirstItemPtr + i);
 		void* ThirdObject  = *reinterpret_cast<uint8**>(FirstItemPtr + (i * 2) - FUObjectItemInitialOffset);
 
-		if (!IsBadReadPtr(SecondObject) && !IsBadReadPtr(*reinterpret_cast<void**>(SecondObject)) && !IsBadReadPtr(ThirdObject) && !IsBadReadPtr(*reinterpret_cast<void**>(ThirdObject)))
+		if (!Platform::IsBadReadPtr(SecondObject) && !Platform::IsBadReadPtr(*reinterpret_cast<void**>(SecondObject)) &&
+			!Platform::IsBadReadPtr(ThirdObject) && !Platform::IsBadReadPtr(*reinterpret_cast<void**>(ThirdObject)))
 		{
 			SizeOfFUObjectItem = i - FUObjectItemInitialOffset;
 			break;
@@ -192,33 +195,10 @@ void ObjectArray::InitDecryption(uint8_t* (*DecryptionFunction)(void* ObjPtr), c
 void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 {
 	if (!bScanAllMemory)
-		std::cerr << "\nDumper-7 by me, you & him\n\n\n";
-
-	const auto [ImageBase, ImageSize] = GetImageBaseAndSize(ModuleName);
-
-	uintptr_t SearchBase = ImageBase;
-	DWORD SearchRange = ImageSize;
-
-	if (!bScanAllMemory)
 	{
-		const auto [DataSection, DataSize] = GetSectionByName(ImageBase, ".data");
-
-		if (DataSection != 0x0 && DataSize != 0x0)
-		{
-			SearchBase = DataSection;
-			SearchRange = DataSize;
-		}
-		else
-		{
-			bScanAllMemory = true;
-		}
-	}
-
-	/* Sub 0x50 so we don't try to read out of bounds memory when checking FixedArray->IsValid() or ChunkedArray->IsValid() */
-	SearchRange -= 0x50;
-
-	if (!bScanAllMemory)
+		std::cerr << "\nDumper-7 by me, you & him\n\n\n";
 		std::cerr << "Searching for GObjects...\n\n";
+	}
 
 	auto MatchesAnyLayout = []<typename ArrayLayoutType, size_t Size>(const std::array<ArrayLayoutType, Size>& ObjectArrayLayouts, uintptr_t Address)
 	{
@@ -244,16 +224,44 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 		return false;
 	};
 
-	for (int i = 0; i < SearchRange; i += 0x4)
+	bool bIsGObjectsChunked = false;
+	auto IsAddressValidGObjects = [MatchesAnyLayout, &bIsGObjectsChunked](const void* CurrentAddress) -> bool
 	{
-		const uintptr_t CurrentAddress = SearchBase + i;
-
-		if (MatchesAnyLayout(FFixedUObjectArrayLayouts, CurrentAddress))
+		//std::cerr << "checking addr: " << CurrentAddress << "\n";
+		if (MatchesAnyLayout(FFixedUObjectArrayLayouts, reinterpret_cast<uintptr_t>(CurrentAddress)))
 		{
-			GObjects = reinterpret_cast<uint8_t*>(SearchBase + i);
+			bIsGObjectsChunked = false;
+			return true;
+		}
+		else if (MatchesAnyLayout(FChunkedFixedUObjectArrayLayouts, reinterpret_cast<uintptr_t>(CurrentAddress)))
+		{
+			bIsGObjectsChunked = true;
+			return true;
+		}
+
+		return false;
+	};
+
+	void* GObjectsAddress = nullptr;
+
+	if (bScanAllMemory)
+	{
+		GObjectsAddress = Platform::IterateAllSectionsWithCallback(IsAddressValidGObjects, 0x4, 0x50, ModuleName);
+	}
+	else
+	{
+		GObjectsAddress = Platform::IterateSectionWithCallback(Platform::GetSectionInfo(".data"), IsAddressValidGObjects, 0x4, 0x50);
+	}
+
+
+	if (GObjectsAddress)
+	{
+		if (!bIsGObjectsChunked)
+		{
+			GObjects = static_cast<uint8*>(GObjectsAddress);
 			NumElementsPerChunk = -1;
 
-			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
+			Off::InSDK::ObjArray::GObjects = Platform::GetOffset(GObjectsAddress);
 
 			std::cerr << "Found FFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << "\n\n";
 
@@ -270,12 +278,10 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 			uint8_t* FirstItem = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
 
 			ObjectArray::InitializeFUObjectItem(FirstItem);
-
-			return;
 		}
-		else if (MatchesAnyLayout(FChunkedFixedUObjectArrayLayouts, CurrentAddress))
+		else
 		{
-			GObjects = reinterpret_cast<uint8_t*>(SearchBase + i);
+			GObjects = static_cast<uint8*>(GObjectsAddress);
 			
 			NumElementsPerChunk = Max() / MaxChunks();
 			Off::InSDK::ObjArray::ChunkSize = NumElementsPerChunk;
@@ -283,7 +289,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 			SizeOfFUObjectItem = sizeof(void*) + sizeof(int32) + sizeof(int32);
 			FUObjectItemInitialOffset = 0x0;
 
-			Off::InSDK::ObjArray::GObjects = (SearchBase + i) - ImageBase;
+			Off::InSDK::ObjArray::GObjects = Platform::GetOffset(GObjectsAddress);
 
 			std::cerr << "Found FChunkedFixedUObjectArray GObjects at offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << "\n\n";
 
@@ -306,9 +312,9 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 			uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
 
 			ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
-
-			return;
 		}
+
+		return;
 	}
 
 	if (!bScanAllMemory)
@@ -327,7 +333,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 
 void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& ObjectArrayLayout, const char* const ModuleName)
 {
-	GObjects = reinterpret_cast<uint8_t*>(GetModuleBase(ModuleName) + GObjectsOffset);
+	GObjects = reinterpret_cast<uint8_t*>(Platform::GetModuleBase(ModuleName) + GObjectsOffset);
 	Off::InSDK::ObjArray::GObjects = GObjectsOffset;
 
 	std::cerr << "GObjects: 0x" << (void*)GObjects << "\n" << std::endl;
@@ -354,7 +360,7 @@ void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& Obj
 
 void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, const FChunkedFixedUObjectArrayLayout& ObjectArrayLayout, const char* const ModuleName)
 {
-	GObjects = reinterpret_cast<uint8_t*>(GetModuleBase(ModuleName) + GObjectsOffset);
+	GObjects = reinterpret_cast<uint8_t*>(Platform::GetModuleBase(ModuleName) + GObjectsOffset);
 	Off::InSDK::ObjArray::GObjects = GObjectsOffset;
 
 	Off::FUObjectArray::bIsChunked = true;

@@ -74,6 +74,12 @@
     <ClCompile Include="Settings.cpp">
       <Filter>Generator</Filter>
     </ClCompile>
+    <ClCompile Include="Platform\Private\Arch_x86.cpp">
+      <Filter>Platform\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="Platform\Private\PlatformWindows.cpp">
+      <Filter>Platform\Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -141,6 +147,12 @@
     </Filter>
     <Filter Include="Engine\Public\Unreal">
       <UniqueIdentifier>{6a98b5e0-152b-44ed-a5f7-03f0b6fea706}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Platform\Private">
+      <UniqueIdentifier>{2a47e560-d29f-4ddb-9999-ffcd2bb39cd7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Platform\Public">
+      <UniqueIdentifier>{20b61d16-28a4-4662-9363-055d8d9d04c7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -236,6 +248,21 @@
     </ClInclude>
     <ClInclude Include="Engine\Public\Unreal\UnrealTypes.h">
       <Filter>Engine\Public\Unreal</Filter>
+    </ClInclude>
+    <ClInclude Include="TmpUtils.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Private\Arch_x86.h">
+      <Filter>Platform\Private</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Private\PlatformWindows.h">
+      <Filter>Platform\Private</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Public\Architecture.h">
+      <Filter>Platform\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Public\Platform.h">
+      <Filter>Platform\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

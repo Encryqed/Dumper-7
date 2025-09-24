@@ -221,6 +221,9 @@ public:
 	/* Add special names like "Class", "Flags, "Parms", etc. to avoid collisions on them */
 	static void InitReservedNames();
 
+	/* Fixes the casing of FRotator members. pitch -> Pitch, yaw -> Yaw, roll -> Roll */
+	static void FixIncorrectNames();
+
 	static inline void Init()
 	{
 		static bool bInitialized = false;
@@ -241,6 +244,8 @@ public:
 
 			AddStructToNameContainer(Obj.Cast<UEStruct>());
 		}
+
+		FixIncorrectNames();
 	}
 
 	static inline void AddStructToNameContainer(UEStruct Struct)
