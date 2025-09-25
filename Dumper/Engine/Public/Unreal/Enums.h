@@ -139,7 +139,7 @@ enum class EFunctionFlags : uint32
 	AllFlags = 0xFFFFFFFF,
 };
 
-enum class EObjectFlags
+enum class EObjectFlags : uint32
 {
 	NoFlags							= 0x00000000,
 
@@ -279,7 +279,7 @@ enum class EClassCastFlags : uint64
 	VCellProperty						= 0x4000000000000000,
 };
 
-enum class EClassFlags
+enum class EClassFlags : uint32
 {
 	None						= 0x00000000u,
 	Abstract					= 0x00000001u,

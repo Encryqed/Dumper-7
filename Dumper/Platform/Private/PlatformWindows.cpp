@@ -185,7 +185,7 @@ namespace
 	{
 		const IMAGE_SECTION_HEADER* Section = IterateAllSectionObjects(ImageBase, [ReqestedSectionName](const IMAGE_SECTION_HEADER* Section) -> bool
 			{
-				reinterpret_cast<const char*>(Section->Name) == ReqestedSectionName;
+				return reinterpret_cast<const char*>(Section->Name) == ReqestedSectionName;
 			});
 
 		if (Section)

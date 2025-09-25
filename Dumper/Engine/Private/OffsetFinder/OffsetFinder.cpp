@@ -82,6 +82,8 @@ int32_t OffsetFinder::FindUObjectClassOffset()
 			if (CurrentClassA == NextClassA && CurrentClassB == NextClassB)
 				return true;
 		}
+
+		return false;
 	};
 
 	const uint8_t* const ObjA = static_cast<const uint8_t*>(ObjectArray::GetByIndex(0x055).GetAddress());
