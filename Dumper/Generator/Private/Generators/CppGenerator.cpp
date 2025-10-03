@@ -5023,6 +5023,20 @@ public:
 };
 )";
 	
+	/* struct FEncryptedObjPtr */
+	BasicHpp <<
+		R"(
+class FEncryptedObjPtr
+{
+public:
+	union
+	{
+		uint64_t EncryptionIndex : 4;
+		uintptr_t Object : 60;
+	};
+};
+)";
+
 	/* struct TEncryptedObjPtr */
 	BasicHpp <<
 		R"(
@@ -5034,11 +5048,11 @@ public:
 public:
 	UEType* Get()
 	{
-		return static_cast<UEType*>(Object);
+		return reinterpret_cast<UEType*>(Object);
 	}
 	const UEType* Get() const
 	{
-		return static_cast<const UEType*>(Object);
+		return reinterpret_cast<const UEType*>(Object);
 	}
 
 	UEType* operator->()
@@ -5071,7 +5085,13 @@ public:
 
 	inline explicit operator bool() const
 	{
-		return Object != nullptr;
+		return Object != NULL;
+	}
+
+public:
+	inline uint8_t GetEncryptionIndex() const
+	{
+		return static_cast<uint8_t>(EncryptionIndex);
 	}
 };
 )";
