@@ -3565,7 +3565,7 @@ const FName& GetStaticName(const wchar_t* Name, FName& StaticName)
 	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-class local static class-pointer */
 	BasicHpp << R"(
 template<bool bIsFullName = false>
-class UClass* GetStaticClass(const char* Name, class UClass*& StaticClass)
+class UClass* GetStaticClassImpl(const char* Name, class UClass*& StaticClass)
 {
 	if (StaticClass == nullptr)
 	{
@@ -3648,13 +3648,13 @@ ClassType* GetDefaultObjImpl()
 #define STATIC_CLASS_IMPL(NameString) \
 { \
     static UClass* Clss = nullptr; \
-    return GetStaticClass(NameString, Clss); \
+    return GetStaticClassImpl(NameString, Clss); \
 }
 
 #define STATIC_CLASS_IMPL_FULLNAME(FullNameString) \
 { \
     static UClass* Clss = nullptr; \
-    return GetStaticClass<true>(FullNameString, Clss); \
+    return GetStaticClassImpl<true>(FullNameString, Clss); \
 }
 
 #define BP_STATIC_CLASS_IMPL(NameString) \
@@ -5012,20 +5012,11 @@ public:
 };
 )";	
 
-	/* struct FEncryptedObjPtr */
-	BasicHpp <<
-		R"(
-class FEncryptedObjPtr
-{
-public:
-	class UObject* Object;
-	uint64_t KeyOrSomething;
-};
-)";
-	
-	/* struct FEncryptedObjPtr */
-	BasicHpp <<
-		R"(
+	if constexpr (Settings::EngineCore::bEnableEncryptedObjectPropertySupport)
+	{
+		/* struct FEncryptedObjPtr */
+		BasicHpp <<
+			R"(
 class FEncryptedObjPtr
 {
 public:
@@ -5037,9 +5028,9 @@ public:
 };
 )";
 
-	/* struct TEncryptedObjPtr */
-	BasicHpp <<
-		R"(
+		/* struct TEncryptedObjPtr */
+		BasicHpp <<
+			R"(
 template<typename UEType>
 class TEncryptedObjPtr : public FEncryptedObjPtr
 {
@@ -5095,6 +5086,7 @@ public:
 	}
 };
 )";
+	}
 
 
 	/* class FScriptInterface */
