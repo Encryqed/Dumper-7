@@ -1001,8 +1001,19 @@ int32_t OffsetFinder::FindLevelActorsOffset()
 	SearchStart = sizeof(UObject) + sizeof(FURL)
 	SearchEnd = offsetof(ULevel, OwningWorld)
 	*/
-	int32 SearchStart = ObjectArray::FindClassFast("Object").GetStructSize() + ObjectArray::FindObjectFast<UEStruct>("URL", EClassCastFlags::Struct).GetStructSize();
-	int32 SearchEnd = Level.GetClass().FindMember("OwningWorld").GetOffset();
+	UEClass UObjectClass = ObjectArray::FindClassFast("Object");
+	if (!UObjectClass)
+		UObjectClass = ObjectArray::FindClassFast("object");
+
+	const UEStruct FURLStruct = ObjectArray::FindObjectFast<UEStruct>("URL", EClassCastFlags::Struct);
+
+	const UEProperty Level_OwningWorldProperty = Level.GetClass().FindMember("OwningWorld");
+
+	if (!UObjectClass || !FURLStruct || !Level_OwningWorldProperty)
+		return OffsetNotFound;
+
+	const int32 SearchStart = UObjectClass.GetStructSize() + FURLStruct.GetStructSize();
+	const int32 SearchEnd = Level_OwningWorldProperty.GetOffset();
 
 	for (int i = SearchStart; i <= (SearchEnd - 0x10); i += sizeof(void*))
 	{

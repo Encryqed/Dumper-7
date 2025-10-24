@@ -108,7 +108,7 @@ void FName::Init_Windows(bool bForceGNames)
 	}
 
 	// Test if AppendString was inlined
-	if ((!AppendString || bFoundPotentiallyOverlappingSig) && !bForceGNames)
+	if ((!AppendString || bFoundPotentiallyOverlappingSig) && !bForceGNames && StringRef)
 	{
 		/*
 		* 0x00: 8B ? ?          mov     ecx, [...]
