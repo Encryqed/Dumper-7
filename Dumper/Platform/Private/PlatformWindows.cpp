@@ -173,6 +173,9 @@ namespace
 		{
 			const IMAGE_SECTION_HEADER* CurrentSection = &Sections[i];
 
+			if ((CurrentSection->Characteristics & IMAGE_SCN_MEM_READ) == 0)
+				continue;
+
 			if (Callback(CurrentSection))
 				return CurrentSection;
 		}
