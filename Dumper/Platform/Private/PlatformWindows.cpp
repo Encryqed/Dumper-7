@@ -765,7 +765,8 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 {
 	uint8_t* const SearchStart = reinterpret_cast<uint8_t*>(StartAddress);
 
-	const int32_t RefStrLen = StrlenHelper(RefStr);
+	// Ensure the null-terminator is also compared, else strings that are substrings of other strings might be falsely matched.
+	const int32_t RefStrLen = StrlenHelper(RefStr) + 1;
 
 	for (uintptr_t i = 0; i < Range; i++)
 	{

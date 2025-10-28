@@ -102,6 +102,9 @@ public:
 
 	static void Init(int32 OverrideOffset, EOffsetOverrideType OverrideType = EOffsetOverrideType::AppendString, bool bIsNamePool = false, const char* const ModuleName = nullptr);
 
+private:
+	static void* TryFindApendStringBackupStringRef_Windows();
+
 public:
 	inline const void* GetAddress() const { return Address; }
 

@@ -146,6 +146,9 @@ void FName::Init_Windows(bool bForceGNames)
 		}
 	}
 
+	if (AppendString == nullptr)
+		AppendString = static_cast<decltype(AppendString)>(TryFindApendStringBackupStringRef_Windows());
+
 	Off::InSDK::Name::AppendNameToString = AppendString && !bForceGNames ? Platform::GetOffset(AppendString) : 0x0;
 
 	if (!AppendString || bForceGNames)
@@ -243,6 +246,48 @@ void FName::Init(int32 OverrideOffset, EOffsetOverrideType OverrideType, bool bI
 	};
 
 	std::cerr << std::format("Manual-Override: FName::{} --> Offset 0x{:X}\n\n", (Off::InSDK::Name::bIsUsingAppendStringOverToString ? "AppendString" : "ToString"), Off::InSDK::Name::AppendNameToString);
+}
+
+
+void* FName::TryFindApendStringBackupStringRef_Windows()
+{
+
+#ifdef PLATFORM_WINDOWS
+
+#if defined(_WIN64)
+	constexpr std::array<const char*, 3> PossibleSigs =
+	{
+		"48 8B ? 48 8B ? ? E8",
+		"48 8B ? ? 48 89 ? ? E8",
+		"48 8B ? 48 89 ? ? ? E8"
+	};
+#elif defined(_WIN32)
+	constexpr std::array<const char*, 0> PossibleSigs =
+	{
+		// Todo I guess.
+	};
+#endif
+
+	const void* StringRef = Platform::FindByStringInAllSections(L" Bone: ", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
+
+	if (StringRef)
+	{
+		const char* MatchingSig = nullptr;
+
+		// AppendString comes before the string ref, so search upwards (in IDA terms)
+		const uintptr_t SigSearchStartAddress = reinterpret_cast<uintptr_t>(StringRef) - 0xB0;
+
+		for (int i = 0; !AppendString && i < PossibleSigs.size(); i++)
+		{
+			AppendString = static_cast<decltype(AppendString)>(Platform::FindPatternInRange(PossibleSigs[i], SigSearchStartAddress, 0x100, true, -1/* auto */));
+
+			if (AppendString)
+				return AppendString;
+		}
+	}
+#endif // PLATFORM_WINDOWS
+
+	return nullptr;
 }
 
 void FName::InitFallback()
