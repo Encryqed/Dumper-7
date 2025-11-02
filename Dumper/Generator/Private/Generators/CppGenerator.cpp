@@ -3422,12 +3422,12 @@ namespace Offsets
 	constexpr int32 ProcessEvent      = 0x{:08X};
 	constexpr int32 ProcessEventIdx   = 0x{:08X};
 }}
-)", Off::InSDK::ObjArray::GObjects,
-	Off::InSDK::Name::AppendNameToString,
+)", max(Off::InSDK::ObjArray::GObjects, 0x0),
+	max(Off::InSDK::Name::AppendNameToString, 0x0),
 	GetNameEntryFromNameOffsetText,
-	Off::InSDK::NameArray::GNames,
-	Off::InSDK::World::GWorld,
-	Off::InSDK::ProcessEvent::PEOffset,
+	max(Off::InSDK::NameArray::GNames, 0x0),
+	max(Off::InSDK::World::GWorld, 0x0),
+	max(Off::InSDK::ProcessEvent::PEOffset, 0x0),
 	Off::InSDK::ProcessEvent::PEIndex);
 
 
@@ -5341,9 +5341,9 @@ public:
 	/* TMulticastInlineDelegate */
 	PredefinedStruct TMulticastInlineDelegate = PredefinedStruct{
 		.CustomTemplateText = "template<typename FunctionSignature>",
-		.UniqueName = "TMulticastInlineDelegate", .Size = sizeof(TArray<int>), .Alignment = alignof(TArray<int>), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+		.UniqueName = "TMulticastInlineDelegate", .Size = PropertySizes::MulticastInlineDelegateProperty, .Alignment = alignof(TArray<int>), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
-
+	
 	TMulticastInlineDelegate.Properties =
 	{
 		PredefinedMember {
@@ -5365,7 +5365,7 @@ public:
 	{
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "TArray<FScriptDelegate>", .Name = "InvocationList", .Offset = 0x0, .Size = sizeof(TArray<int>), .ArrayDim = 0x1, .Alignment = alignof(TArray<int>),
+			.Type = "TArray<FScriptDelegate>", .Name = "InvocationList", .Offset = static_cast<int32>(PropertySizes::MulticastInlineDelegateProperty - sizeof(TArray<int>)), .Size = sizeof(TArray<int>), .ArrayDim = 0x1, .Alignment = alignof(TArray<int>),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		}
 	};

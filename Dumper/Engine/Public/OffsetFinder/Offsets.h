@@ -312,4 +312,7 @@ namespace PropertySizes
 
 	inline int32 FieldPathProperty = 0x20;
 	void InitFFieldPathSize();
+
+	inline int32 MulticastInlineDelegateProperty = 0x10;
+	void InitTMulticastInlineDelegateSize();
 }

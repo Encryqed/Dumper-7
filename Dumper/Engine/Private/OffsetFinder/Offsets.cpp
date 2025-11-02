@@ -433,12 +433,13 @@ void PropertySizes::Init()
 {
 	InitTDelegateSize();
 	InitFFieldPathSize();
+	InitTMulticastInlineDelegateSize();
 }
 
 void PropertySizes::InitTDelegateSize()
 {
 	/* If the AudioComponent class or the OnQueueSubtitles member weren't found, fallback to looping GObjects and looking for a Delegate. */
-	auto OnPropertyNotFoudn = [&]() -> void
+	auto OnPropertyNotFound = [&]() -> void
 	{
 		for (UEObject Obj : ObjectArray())
 		{
@@ -459,12 +460,12 @@ void PropertySizes::InitTDelegateSize()
 	const UEClass AudioComponentClass = ObjectArray::FindClassFast("AudioComponent");
 
 	if (!AudioComponentClass)
-		return OnPropertyNotFoudn();
+		return OnPropertyNotFound();
 
 	const UEProperty OnQueueSubtitlesProp = AudioComponentClass.FindMember("OnQueueSubtitles", EClassCastFlags::DelegateProperty);
 
 	if (!OnQueueSubtitlesProp)
-		return OnPropertyNotFoudn();
+		return OnPropertyNotFound();
 
 	PropertySizes::DelegateProperty = OnQueueSubtitlesProp.GetSize();
 }
@@ -475,7 +476,7 @@ void PropertySizes::InitFFieldPathSize()
 		return;
 
 	/* If the SetFieldPathPropertyByName function or the Value parameter weren't found, fallback to looping GObjects and looking for a Delegate. */
-	auto OnPropertyNotFoudn = [&]() -> void
+	auto OnPropertyNotFound = [&]() -> void
 	{
 		for (UEObject Obj : ObjectArray())
 		{
@@ -496,12 +497,51 @@ void PropertySizes::InitFFieldPathSize()
 	const UEFunction SetFieldPathPropertyByNameFunc = ObjectArray::FindObjectFast<UEFunction>("SetFieldPathPropertyByName", EClassCastFlags::Function);
 
 	if (!SetFieldPathPropertyByNameFunc)
-		return OnPropertyNotFoudn();
+		return OnPropertyNotFound();
 
 	const UEProperty ValueParamProp = SetFieldPathPropertyByNameFunc.FindMember("Value", EClassCastFlags::FieldPathProperty);
 
 	if (!ValueParamProp)
-		return OnPropertyNotFoudn();
+		return OnPropertyNotFound();
 
 	PropertySizes::FieldPathProperty = ValueParamProp.GetSize();
+}
+
+void PropertySizes::InitTMulticastInlineDelegateSize()
+{
+	/* If the AudioComponent class or the OnQueueSubtitles member weren't found, fallback to looping GObjects and looking for a Delegate. */
+	auto OnPropertyNotFound = [&]() -> void
+		{
+			for (UEObject Obj : ObjectArray())
+			{
+				if (!Obj.IsA(EClassCastFlags::Struct))
+					continue;
+
+				for (UEProperty Prop : Obj.Cast<UEClass>().GetProperties())
+				{
+					if (Prop.IsA(EClassCastFlags::MulticastInlineDelegateProperty))
+					{
+						PropertySizes::DelegateProperty = Prop.GetSize();
+						return;
+					}
+				}
+			}
+		};
+
+	const UEClass EmitterClass = ObjectArray::FindClassFast("Emitter");
+
+	std::cerr << "EmitterClass: " << EmitterClass.GetAddress() << "\n";
+
+	if (!EmitterClass)
+		return OnPropertyNotFound();
+
+	const UEProperty OnParticleSpawn = EmitterClass.FindMember("OnParticleSpawn", EClassCastFlags::MulticastDelegateProperty);
+
+	std::cerr << "OnParticleSpawn: " << OnParticleSpawn.GetAddress() << "\n";
+	if (!OnParticleSpawn)
+		return OnPropertyNotFound();
+
+	std::cerr << std::format("OnParticleSpawn Property Size: 0x{:X}\n", OnParticleSpawn.GetSize());
+
+	PropertySizes::MulticastInlineDelegateProperty = OnParticleSpawn.GetSize();
 }
