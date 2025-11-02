@@ -10,6 +10,9 @@ namespace Settings
 	{
 		/* This option determines whether calls to FindByStringInAllSections should only search executable sections, or all sections. */
 		constexpr bool bSearchOnlyExecutableSectionsForStrings = true;
+
+		/* If the target module is not the main executable, specify it here (e.g. "Some-dll-name.dll") */
+		constexpr const char* DefaultModuleName = nullptr;
 	}
   
 	inline constexpr const char* GlobalConfigPath = "C:/Dumper-7/Dumper-7.ini";
@@ -25,7 +28,7 @@ namespace Settings
 	namespace EngineCore
 	{
 		/* A special setting to fix UEnum::Names where the type is sometimes TArray<FName> and sometimes TArray<TPair<FName, Some8BitData>> */
-		constexpr bool bCheckEnumNamesInUEnum = true;
+		constexpr bool bCheckEnumNamesInUEnum = false;
 
 		/* Enables support for TEncryptedObjectProperty */
 		constexpr bool bEnableEncryptedObjectPropertySupport = false;
@@ -122,6 +125,9 @@ R"(
 
 		/* Whether the 'Value' component in the Pair<Name, Value> UEnum::Names is a uint8 value, rather than the default int64 */
 		inline bool bIsSmallEnumValue = false;
+
+		/* Whether UEnum::Names is of the new 'FNameData' type, rather than TArray<...> */
+		inline bool bIsNewUE5EnumNamesContainer = false;
 
 		/* Whether TWeakObjectPtr contains 'TagAtLastTest' */
 		inline bool bIsWeakObjectPtrWithoutTag = false;

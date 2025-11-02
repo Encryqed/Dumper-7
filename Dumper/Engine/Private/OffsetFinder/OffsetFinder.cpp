@@ -489,6 +489,61 @@ int32_t OffsetFinder::FindFFieldClassOffset()
 	return GetValidPointerOffset<false>(GuidChild.GetAddress(), VectorChild.GetAddress(), 0x8, 0x30, true);
 }
 
+// This function assumes that the EnumObj passed in is valid and that the values of the enum are starting at 0
+void InializeUEnumSettings(const void* EnumObj, const uint32_t UEnumNumValuesOffset)
+{
+	constexpr uintptr_t UE5EnumDynamicAllocationTag = 0x1;
+
+	{
+		// On UE5.6+ there are two arrays, one for just the FName*/UTF8Char* and one for just int64* values. Check if the array before NumValues contains just Values or TPair<Name, Value>.
+		const uintptr_t PossibleValueArrayTaggedPtr = *reinterpret_cast<uintptr_t*>(reinterpret_cast<uintptr_t>(EnumObj) + UEnumNumValuesOffset - sizeof(void*));
+		const int64* PossibleValueArrayPtr = reinterpret_cast<const int64*>(PossibleValueArrayTaggedPtr & ~UE5EnumDynamicAllocationTag);
+
+		if (!Platform::IsBadReadPtr(PossibleValueArrayPtr) && !Platform::IsBadReadPtr(PossibleValueArrayPtr + 1) && !Platform::IsBadReadPtr(PossibleValueArrayPtr + 2))
+		{
+			if (PossibleValueArrayPtr[0] == 0 && PossibleValueArrayPtr[1] == 1 && PossibleValueArrayPtr[2] == 2)
+			{
+				Settings::Internal::bIsNewUE5EnumNamesContainer = true;
+				return;
+			}
+		}
+	}
+
+	using ValueType = std::conditional_t<sizeof(void*) == 0x8, int64, int32>;
+	struct Name08Byte { uint8 Pad[0x08]; };
+	struct Name16Byte { uint8 Pad[0x10]; };
+
+	const uint8* ArrayAddress = static_cast<const uint8*>(EnumObj) + UEnumNumValuesOffset - 0x8;
+
+	auto InitEnumSettings = []<typename NameType>(const TArray<TPair<NameType, ValueType>>&ArrayOfNameValuePairs)
+	{
+		if (ArrayOfNameValuePairs[1].Second == 1)
+			return;
+
+		if constexpr (Settings::EngineCore::bCheckEnumNamesInUEnum)
+		{
+			if (static_cast<uint8_t>(ArrayOfNameValuePairs[1].Second) == 1 && static_cast<uint8_t>(ArrayOfNameValuePairs[2].Second) == 2)
+			{
+
+				Settings::Internal::bIsSmallEnumValue = true;
+				return;
+			}
+		}
+
+		Settings::Internal::bIsEnumNameOnly = true;
+	};
+
+
+	if (Settings::Internal::bUseCasePreservingName)
+	{
+		InitEnumSettings(*reinterpret_cast<const TArray<TPair<Name16Byte, ValueType>>*>(ArrayAddress));
+	}
+	else
+	{
+		InitEnumSettings(*reinterpret_cast<const TArray<TPair<Name08Byte, ValueType>>*>(ArrayAddress));
+	}
+}
+
 /* UEnum */
 int32_t OffsetFinder::FindEnumNamesOffset()
 {
@@ -497,61 +552,19 @@ int32_t OffsetFinder::FindEnumNamesOffset()
 	Infos.push_back({ ObjectArray::FindObjectFast("ENetRole", EClassCastFlags::Enum).GetAddress(), 0x5 });
 	Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery", EClassCastFlags::Enum).GetAddress(), 0x22 });
 
-	int Ret = FindOffset(Infos) - sizeof(void*);
+	int UEnumNumValuesOffset = FindOffset(Infos);
 
-	if (Ret == (OffsetNotFound - (int32)sizeof(void*)))
+	if (UEnumNumValuesOffset == OffsetNotFound)
 	{
 		Infos[0] = { ObjectArray::FindObjectFast("EAlphaBlendOption", EClassCastFlags::Enum).GetAddress(), 0x10 };
 		Infos[1] = { ObjectArray::FindObjectFast("EUpdateRateShiftBucket", EClassCastFlags::Enum).GetAddress(), 0x8 };
 
-		Ret = FindOffset(Infos) - sizeof(void*);
+		UEnumNumValuesOffset = FindOffset(Infos);
 	}
 
-	using ValueType = std::conditional_t<sizeof(void*) == 0x8, int64, int32>;
-	struct Name08Byte { uint8 Pad[0x08]; };
-	struct Name16Byte { uint8 Pad[0x10]; };
+	InializeUEnumSettings(Infos[0].first, UEnumNumValuesOffset);
 
-	uint8* ArrayAddress = static_cast<uint8*>(Infos[0].first) + Ret;
-
-	if (Settings::Internal::bUseCasePreservingName)
-	{
-		auto& ArrayOfNameValuePairs = *reinterpret_cast<TArray<TPair<Name16Byte, ValueType>>*>(ArrayAddress);
-
-		if (ArrayOfNameValuePairs[1].Second == 1)
-			return Ret;
-
-		if constexpr (Settings::EngineCore::bCheckEnumNamesInUEnum)
-		{
-			if (static_cast<uint8_t>(ArrayOfNameValuePairs[1].Second) == 1 && static_cast<uint8_t>(ArrayOfNameValuePairs[2].Second) == 2)
-			{
-
-				Settings::Internal::bIsSmallEnumValue = true;
-				return Ret;
-			}
-		}
-
-		Settings::Internal::bIsEnumNameOnly = true;
-	}
-	else
-	{
-		const auto& Array = *reinterpret_cast<TArray<TPair<Name08Byte, ValueType>>*>(static_cast<uint8*>(Infos[0].first) + Ret);
-
-		if (Array[1].Second == 1)
-			return Ret;
-
-		if constexpr (Settings::EngineCore::bCheckEnumNamesInUEnum)
-		{
-			if (static_cast<uint8_t>(Array[1].Second) == 1 && static_cast<uint8_t>(Array[2].Second) == 2)
-			{
-				Settings::Internal::bIsSmallEnumValue = true;
-				return Ret;
-			}
-		}
-
-		Settings::Internal::bIsEnumNameOnly = true;
-	}
-
-	return Ret;
+	return UEnumNumValuesOffset - sizeof(void*);
 }
 
 /* UStruct */
