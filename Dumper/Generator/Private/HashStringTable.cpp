@@ -1,241 +1,235 @@
 #include "HashStringTable.h"
 
-
 #pragma warning(suppress: 26495)
-HashStringTable::HashStringTable(uint32 InitialBucketSize)
+HashStringTable::HashStringTable( uint32 InitialBucketSize )
 {
-    assert((InitialBucketSize) >= 0x0 && "HashStringTable(0x0) is invalid!");
+	assert( ( InitialBucketSize ) >= 0x0 && "HashStringTable(0x0) is invalid!" );
 
-    for (int i = 0; i < NumBuckets; i++)
-    {
-        StringBucket& CurrentBucket = Buckets[i];
-        CurrentBucket.Data = static_cast<uint8*>(malloc(InitialBucketSize));
+	for ( int i = 0; i < NumBuckets; i++ )
+	{
+		StringBucket& CurrentBucket = Buckets [ i ];
+		CurrentBucket.Data = static_cast< uint8* >( malloc( InitialBucketSize ) );
 
-        CurrentBucket.Size = 0x0;
-        CurrentBucket.SizeMax = InitialBucketSize;
-    }
+		CurrentBucket.Size = 0x0;
+		CurrentBucket.SizeMax = InitialBucketSize;
+	}
 }
 
-HashStringTable::~HashStringTable()
+HashStringTable::~HashStringTable( )
 {
-    for (int i = 0; i < NumBuckets; i++)
-    {
-        StringBucket& CurrentBucket = Buckets[i];
+	for ( int i = 0; i < NumBuckets; i++ )
+	{
+		StringBucket& CurrentBucket = Buckets [ i ];
 
-        if (!CurrentBucket.Data)
-            continue;
+		if ( !CurrentBucket.Data )
+			continue;
 
-        free(CurrentBucket.Data);
-        CurrentBucket.Data = nullptr;
-    }
+		free( CurrentBucket.Data );
+		CurrentBucket.Data = nullptr;
+	}
 }
 
-
-bool HashStringTable::CanFit(const StringBucket& Bucket, int32 StrLengthBytes) const
+bool HashStringTable::CanFit( const StringBucket& Bucket, int32 StrLengthBytes ) const
 {
-    const int32 EntryLength = StringEntry::StringEntrySizeWithoutStr + StrLengthBytes;
+	const int32 EntryLength = StringEntry::StringEntrySizeWithoutStr + StrLengthBytes;
 
-    return (Bucket.Size + EntryLength) <= Bucket.SizeMax;
+	return ( Bucket.Size + EntryLength ) <= Bucket.SizeMax;
 }
 
-StringEntry& HashStringTable::GetRefToEmpty(const StringBucket& Bucket)
+StringEntry& HashStringTable::GetRefToEmpty( const StringBucket& Bucket )
 {
-    return *reinterpret_cast<StringEntry*>(Bucket.Data + Bucket.Size);
+	return *reinterpret_cast< StringEntry* >( Bucket.Data + Bucket.Size );
 }
 
-const StringEntry& HashStringTable::GetStringEntry(const StringBucket& Bucket, int32 InBucketIndex) const
+const StringEntry& HashStringTable::GetStringEntry( const StringBucket& Bucket, int32 InBucketIndex ) const
 {
-    return *reinterpret_cast<StringEntry*>(Bucket.Data + InBucketIndex);
+	return *reinterpret_cast< StringEntry* >( Bucket.Data + InBucketIndex );
 }
 
-const StringEntry& HashStringTable::GetStringEntry(int32 BucketIndex, int32 InBucketIndex) const
+const StringEntry& HashStringTable::GetStringEntry( int32 BucketIndex, int32 InBucketIndex ) const
 {
-    assert(BucketIndex < 32 && "Bucket index out of range!");
+	assert( BucketIndex < 32 && "Bucket index out of range!" );
 
-    const StringBucket& Bucket = Buckets[BucketIndex];
+	const StringBucket& Bucket = Buckets [ BucketIndex ];
 
-    assert((InBucketIndex > 0 && InBucketIndex < Bucket.Size) && "InBucketIndex was out of range!");
+	assert( ( InBucketIndex > 0 && InBucketIndex < Bucket.Size ) && "InBucketIndex was out of range!" );
 
-    return *reinterpret_cast<StringEntry*>(Bucket.Data + InBucketIndex);
+	return *reinterpret_cast< StringEntry* >( Bucket.Data + InBucketIndex );
 }
 
-void HashStringTable::ResizeBucket(StringBucket& Bucket)
+void HashStringTable::ResizeBucket( StringBucket& Bucket )
 {
-    int32 BucketIdx = &Bucket - Buckets;
+	int32 BucketIdx = &Bucket - Buckets;
 
-    const uint32 OldBucketSize = Bucket.Size;
-    const uint64 NewBucketSizeMax = Bucket.SizeMax * 1.5;
+	const uint32 OldBucketSize = Bucket.Size;
+	// Use 2x growth factor for better amortized performance and reduce fragmentation
+	const uint64 NewBucketSizeMax = Bucket.SizeMax * 2;
 
-    uint8_t* NewData = static_cast<uint8_t*>(realloc(Bucket.Data, NewBucketSizeMax));
+	uint8_t* NewData = static_cast< uint8_t* >( realloc( Bucket.Data, NewBucketSizeMax ) );
 
-    assert(NewData != nullptr && "Realloc failed in function 'ResizeBucket()'.");
+	assert( NewData != nullptr && "Realloc failed in function 'ResizeBucket()'." );
 
-    Bucket.Data = NewData;
-    Bucket.SizeMax = NewBucketSizeMax;
-}
-
-template<typename CharType>
-std::pair<HashStringTableIndex, bool> HashStringTable::AddUnchecked(const CharType* Str, int32 Length, uint8 Hash)
-{
-    static_assert(std::is_same_v<CharType, char> || std::is_same_v<CharType, wchar_t>, "Invalid CharType! Type must be 'char' or 'wchar_t'.");
-
-    const int32 LengthBytes = Length * sizeof(CharType);
-
-    StringBucket& Bucket = Buckets[Hash];
-
-    if (!CanFit(Bucket, LengthBytes))
-        ResizeBucket(Bucket);
-
-    StringEntry& NewEmptyEntry = GetRefToEmpty(Bucket);
-
-    NewEmptyEntry.Length = Length;
-    NewEmptyEntry.bIsWide = std::is_same_v<CharType, wchar_t>;
-    NewEmptyEntry.Hash = Hash;
-
-    // Initially always true, later marked as false if duplicate is found
-    NewEmptyEntry.bIsUnique = true;
-    NewEmptyEntry.bIsUniqueTemp = true;
-
-    NewEmptyEntry.OptionalCollisionCount = 0;
-
-    // Always copy to the WChar, memcyp only copies bytes anways
-    memcpy(NewEmptyEntry.WChar, Str, LengthBytes);
-
-    HashStringTableIndex ReturnIndex;
-    ReturnIndex.Unused = 0x0;
-    ReturnIndex.HashIndex = Hash;
-    ReturnIndex.InBucketOffset = Bucket.Size;
-
-    Bucket.Size += NewEmptyEntry.GetLengthBytes();
-
-    return { ReturnIndex, true };
-}
-
-const StringEntry& HashStringTable::operator[](HashStringTableIndex Index) const
-{
-    return GetStringEntry(Index);
-}
-
-const HashStringTable::StringBucket& HashStringTable::GetBucket(uint32 Index) const
-{
-    assert(Index < NumBuckets && "Index out of range!");
-
-    return Buckets[Index];
-}
-
-const StringEntry& HashStringTable::GetStringEntry(HashStringTableIndex Index) const
-{
-    assert(Index.HashIndex < 32 && "Bucket index out of range!");
-
-    const StringBucket& Bucket = Buckets[Index.HashIndex];
-
-    assert((Index.InBucketOffset >= 0 && Index.InBucketOffset < (Bucket.Size)) && "InBucketIndex was out of range!");
-
-    return *reinterpret_cast<StringEntry*>(Bucket.Data + Index.InBucketOffset);
+	Bucket.Data = NewData;
+	Bucket.SizeMax = NewBucketSizeMax;
 }
 
 template<typename CharType>
-HashStringTableIndex HashStringTable::Find(const CharType* Str, int32 Length, uint8 Hash)
+std::pair<HashStringTableIndex, bool> HashStringTable::AddUnchecked( const CharType* Str, int32 Length, uint8 Hash )
 {
-    constexpr bool bIsWchar = std::is_same_v<CharType, wchar_t>;
+	static_assert( std::is_same_v<CharType, char> || std::is_same_v<CharType, wchar_t>, "Invalid CharType! Type must be 'char' or 'wchar_t'." );
 
-    StringBucket& Bucket = Buckets[Hash];
+	const int32 LengthBytes = Length * sizeof( CharType );
 
-    /* Try to find duplications withing 'checked' regions */
-    for (auto It = HashBucketIterator::begin(Bucket); It != HashBucketIterator::end(Bucket); ++It)
-    {
-        const StringEntry& Entry = *It;
+	StringBucket& Bucket = Buckets [ Hash ];
 
-        if (Entry.Length == Length && Entry.bIsWide == bIsWchar && Strcmp(Str, Entry) == 0)
-        {
-            HashStringTableIndex Idx;
-            Idx.Unused = 0x0;
-            Idx.HashIndex = Hash;
-            Idx.InBucketOffset = It.GetInBucketIndex();
+	if ( !CanFit( Bucket, LengthBytes ) )
+		ResizeBucket( Bucket );
 
-            return Idx;
-        }
-    }
+	StringEntry& NewEmptyEntry = GetRefToEmpty( Bucket );
 
-    return HashStringTableIndex::FromInt(-1);
+	NewEmptyEntry.Length = Length;
+	NewEmptyEntry.bIsWide = std::is_same_v<CharType, wchar_t>;
+	NewEmptyEntry.Hash = Hash;
+	NewEmptyEntry.bIsUnique = true;
+	NewEmptyEntry.bIsUniqueTemp = true;
+	NewEmptyEntry.OptionalCollisionCount = 0;
+
+	// Always copy to the WChar, memcyp only copies bytes anways
+	memcpy( NewEmptyEntry.WChar, Str, LengthBytes );
+
+	HashStringTableIndex ReturnIndex;
+	ReturnIndex.Unused = 0x0;
+	ReturnIndex.HashIndex = Hash;
+	ReturnIndex.InBucketOffset = Bucket.Size;
+
+	Bucket.Size += NewEmptyEntry.GetLengthBytes( );
+
+	return { ReturnIndex, true };
+}
+
+const StringEntry& HashStringTable::operator[]( HashStringTableIndex Index ) const
+{
+	return GetStringEntry( Index );
+}
+
+const HashStringTable::StringBucket& HashStringTable::GetBucket( uint32 Index ) const
+{
+	assert( Index < NumBuckets && "Index out of range!" );
+
+	return Buckets [ Index ];
+}
+
+const StringEntry& HashStringTable::GetStringEntry( HashStringTableIndex Index ) const
+{
+	assert( Index.HashIndex < 32 && "Bucket index out of range!" );
+
+	const StringBucket& Bucket = Buckets [ Index.HashIndex ];
+
+	assert( ( Index.InBucketOffset >= 0 && Index.InBucketOffset < ( Bucket.Size ) ) && "InBucketIndex was out of range!" );
+
+	return *reinterpret_cast< StringEntry* >( Bucket.Data + Index.InBucketOffset );
 }
 
 template<typename CharType>
-inline std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const CharType* Str, int32 Length, bool bShouldMarkAsDuplicated)
+HashStringTableIndex HashStringTable::Find( const CharType* Str, int32 Length, uint8 Hash )
 {
-    constexpr bool bIsWChar = std::is_same_v<CharType, wchar_t>;
+	constexpr bool bIsWchar = std::is_same_v<CharType, wchar_t>;
 
-    static_assert(!bIsWChar, "'wchar_t' is not supported by the hashing function yet!");
+	StringBucket& Bucket = Buckets [ Hash ];
 
-    if (!Str || Length <= 0 || Length > StringEntry::MaxStringLength)
-    {
-        std::cerr << std::format("Error on line {{{:d}}}: {}\n", __LINE__, !Str ? "!Str" : Length <= 0 ? "Length <= 0" : "Length > MaxStringLength") << std::endl;
-        return { HashStringTableIndex(-1), false };
-    }
+	/* Try to find duplications withing 'checked' regions */
+	for ( auto It = HashBucketIterator::begin( Bucket ); It != HashBucketIterator::end( Bucket ); ++It )
+	{
+		const StringEntry& Entry = *It;
 
-    uint8 Hash = SmallPearsonHash(Str);
+		if ( Entry.Length == Length && Entry.bIsWide == bIsWchar && Strcmp( Str, Entry ) == 0 )
+		{
+			HashStringTableIndex Idx;
+			Idx.Unused = 0x0;
+			Idx.HashIndex = Hash;
+			Idx.InBucketOffset = It.GetInBucketIndex( );
 
-    HashStringTableIndex ExistingIndex = Find(Str, Length, Hash);
+			return Idx;
+		}
+	}
 
-    if (ExistingIndex != -1)
-    {
-        const StringEntry& Entry = GetStringEntry(ExistingIndex);
+	return HashStringTableIndex::FromInt( -1 );
+}
 
-        if (bShouldMarkAsDuplicated)
-        {
-            Entry.bIsUnique = bShouldMarkAsDuplicated;
-            Entry.bIsUniqueTemp = false;
-            Entry.OptionalCollisionCount++;
-        }
+template<typename CharType>
+inline std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd( const CharType* Str, int32 Length, bool bShouldMarkAsDuplicated )
+{
+	constexpr bool bIsWChar = std::is_same_v<CharType, wchar_t>;
 
-        return { ExistingIndex, false };
-    }
+	static_assert( !bIsWChar, "'wchar_t' is not supported by the hashing function yet!" );
 
-    // Only reached if Str wasn't found in StringTable, else entry is marked as not unique
-    return AddUnchecked(Str, Length, Hash);
+	if ( !Str || Length <= 0 || Length > StringEntry::MaxStringLength )
+	{
+		std::cerr << std::format( "Error on line {{{:d}}}: {}\n", __LINE__, !Str ? "!Str" : Length <= 0 ? "Length <= 0" : "Length > MaxStringLength" ) << std::endl;
+		return { HashStringTableIndex( -1 ), false };
+	}
+
+	uint8 Hash = SmallPearsonHash( Str );
+
+	HashStringTableIndex ExistingIndex = Find( Str, Length, Hash );
+
+	if ( ExistingIndex != -1 )
+	{
+		if ( bShouldMarkAsDuplicated )
+		{
+			const StringEntry& Entry = GetStringEntry( ExistingIndex );
+			Entry.bIsUnique = false;
+			Entry.bIsUniqueTemp = false;
+			Entry.OptionalCollisionCount++;
+		}
+
+		return { ExistingIndex, false };
+	}
+
+	// Only reached if Str wasn't found in StringTable, else entry is marked as not unique
+	return AddUnchecked( Str, Length, Hash );
 }
 
 /* returns pair<Index, bWasAdded> */
-std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd(const std::string& String, bool bShouldMarkAsDuplicated)
+std::pair<HashStringTableIndex, bool> HashStringTable::FindOrAdd( const std::string& String, bool bShouldMarkAsDuplicated )
 {
-    return FindOrAdd(String.c_str(), String.size(), bShouldMarkAsDuplicated);
+	return FindOrAdd( String.c_str( ), String.size( ), bShouldMarkAsDuplicated );
 }
 
-int32 HashStringTable::GetTotalUsedSize() const
+int32 HashStringTable::GetTotalUsedSize( ) const
 {
-    uint64 TotalMemoryUsed = 0x0;
+	uint64 TotalMemoryUsed = 0x0;
 
-    for (int i = 0; i < NumBuckets; i++)
-    {
-        const StringBucket& Bucket = Buckets[i];
+	for ( int i = 0; i < NumBuckets; i++ )
+	{
+		const StringBucket& Bucket = Buckets [ i ];
 
-        TotalMemoryUsed += Bucket.Size;
-    }
+		TotalMemoryUsed += Bucket.Size;
+	}
 
-    return TotalMemoryUsed;
+	return TotalMemoryUsed;
 }
 
-void HashStringTable::DebugPrintStats() const
+void HashStringTable::DebugPrintStats( ) const
 {
-    uint64 TotalMemoryUsed = 0x0;
-    uint64 TotalMemoryAllocated = 0x0;
+	uint64 TotalMemoryUsed = 0x0;
+	uint64 TotalMemoryAllocated = 0x0;
 
-    for (int i = 0; i < NumBuckets; i++)
-    {
-        const StringBucket& Bucket = Buckets[i];
+	for ( int i = 0; i < NumBuckets; i++ )
+	{
+		const StringBucket& Bucket = Buckets [ i ];
 
-        TotalMemoryUsed += Bucket.Size;
-        TotalMemoryAllocated += Bucket.SizeMax;
+		TotalMemoryUsed += Bucket.Size;
+		TotalMemoryAllocated += Bucket.SizeMax;
 
-        std::cerr << std::format("Bucket[{:02d}] = {{ Data = {:p}, Size = {:05X}, SizeMax = {:05X} }}\n", i, static_cast<void*>(Bucket.Data), Bucket.Size, Bucket.SizeMax);
-    }
+		std::cerr << std::format( "Bucket[{:02d}] = {{ Data = {:p}, Size = {:05X}, SizeMax = {:05X} }}\n", i, static_cast< void* >( Bucket.Data ), Bucket.Size, Bucket.SizeMax );
+	}
 
-    std::cerr << std::endl;
+	std::cerr << std::endl;
 
-    std::cerr << std::format("TotalMemoryUsed: {:X}\n", TotalMemoryUsed);
-    std::cerr << std::format("TotalMemoryAllocated: {:X}\n", TotalMemoryAllocated);
-    std::cerr << std::format("Percentage of allocation in use: {:.3f}\n", static_cast<double>(TotalMemoryUsed) / TotalMemoryAllocated);
+	std::cerr << std::format( "TotalMemoryUsed: {:X}\n", TotalMemoryUsed );
+	std::cerr << std::format( "TotalMemoryAllocated: {:X}\n", TotalMemoryAllocated );
+	std::cerr << std::format( "Percentage of allocation in use: {:.3f}\n", static_cast< double >( TotalMemoryUsed ) / TotalMemoryAllocated );
 
-    std::cerr << "\n" << std::endl;
+	std::cerr << "\n" << std::endl;
 }
-

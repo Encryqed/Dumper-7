@@ -9,9 +9,13 @@
 int32_t OffsetFinder::FindUObjectFlagsOffset()
 {
 	constexpr auto EnumFlagValueToSearch = 0x43;
-
-	/* We're looking for a commonly occuring flag and this number basically defines the minimum number that counts ad "commonly occuring". */
 	constexpr auto MinNumFlagValuesRequiredAtOffset = 0xA0;
+	constexpr auto MaxObjectsToCheck = 0x100;
+
+	// Cache object array to avoid repeated calls
+	auto ObjectArrayCache = ObjectArray();
+	auto ObjectIter = ObjectArrayCache.begin();
+	const auto ObjectEnd = ObjectArrayCache.end();
 
 	for (int i = 0; i < 0x20; i++)
 	{
@@ -28,13 +32,9 @@ int32_t OffsetFinder::FindUObjectFlagsOffset()
 			int32 NumObjectsWithFlagAtOffset = 0x0;
 
 			int Counter = 0;
-			for (UEObject Obj : ObjectArray())
+			for (auto CachedIter = ObjectIter; CachedIter != ObjectEnd && Counter < MaxObjectsToCheck; ++CachedIter, ++Counter)
 			{
-				// Only check the (possible) flags of the first 0x100 objects
-				if (Counter++ == 0x100)
-					break;
-
-				const int32 TypedValueAtOffset = *reinterpret_cast<int32*>(reinterpret_cast<uintptr_t>(Obj.GetAddress()) + Offset);
+				const int32 TypedValueAtOffset = *reinterpret_cast<const int32*>(reinterpret_cast<uintptr_t>((*CachedIter).GetAddress()) + Offset);
 
 				if (TypedValueAtOffset == EnumFlagValueToSearch)
 					NumObjectsWithFlagAtOffset++;

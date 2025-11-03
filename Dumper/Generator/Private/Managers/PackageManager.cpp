@@ -241,17 +241,23 @@ namespace PackageManagerUtils
 void PackageManager::InitDependencies()
 {
 	// Collects all packages required to compile this file
-
+	
+	// Pre-allocate containers to reduce reallocations
+	PackageInfos.reserve(0x800);
+	
+	// Cache object array size to avoid repeated calls
+	const int32 ObjectCount = ObjectArray::Num();
+	
 	for (auto Obj : ObjectArray())
 	{
 		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
 			continue;
 
-		int32 CurrentPackageIdx = Obj.GetPackageIndex();
+		const int32 CurrentPackageIdx = Obj.GetPackageIndex();
 
+		// Cache type checks to avoid repeated calls
 		const bool bIsStruct = Obj.IsA(EClassCastFlags::Struct);
 		const bool bIsClass = Obj.IsA(EClassCastFlags::Class);
-
 		const bool bIsFunction = Obj.IsA(EClassCastFlags::Function);
 		const bool bIsEnum = Obj.IsA(EClassCastFlags::Enum);
 
@@ -436,7 +442,7 @@ void PackageManager::HandleCycles()
 	struct CycleInfo
 	{
 		int32 CurrentPackage;
-		int32 PreviousPacakge;
+		int32 PreviousPackage;
 
 		bool bAreStructsCyclic;
 		bool bAreclassesCyclic;
@@ -453,8 +459,8 @@ void PackageManager::HandleCycles()
 		/* Check if this pacakge was handled before, return if true */
 		for (const CycleInfo& Cycle : HandledPackages)
 		{
-			if (((Cycle.CurrentPackage == CurrentPackageIndex && Cycle.PreviousPacakge == PreviousPackageIndex)
-				|| (Cycle.CurrentPackage == PreviousPackageIndex && Cycle.PreviousPacakge == CurrentPackageIndex))
+			if (((Cycle.CurrentPackage == CurrentPackageIndex && Cycle.PreviousPackage == PreviousPackageIndex)
+				|| (Cycle.CurrentPackage == PreviousPackageIndex && Cycle.PreviousPackage == CurrentPackageIndex))
 				&& (Cycle.bAreStructsCyclic == bIsStruct || Cycle.bAreclassesCyclic == !bIsStruct))
 			{
 				return;
@@ -544,14 +550,14 @@ void PackageManager::HandleCycles()
 	for (const CycleInfo& Cycle : HandledPackages)
 	{
 		const PackageInfoHandle CurrentPackageInfo = GetInfo(Cycle.CurrentPackage);
-		const PackageInfoHandle PreviousPackageInfo = GetInfo(Cycle.PreviousPacakge);
+		const PackageInfoHandle PreviousPackageInfo = GetInfo(Cycle.PreviousPackage);
 
 		/* Add enum forward declarations to the package from which we remove the dependency, as enums are not considered by those dependencies */
-		HelperInitEnumFwdDeclarationsForPackage(Cycle.CurrentPackage, Cycle.PreviousPacakge, Cycle.bAreStructsCyclic);
+		HelperInitEnumFwdDeclarationsForPackage(Cycle.CurrentPackage, Cycle.PreviousPackage, Cycle.bAreStructsCyclic);
 
 		if (Cycle.bAreStructsCyclic)
 		{
-			CurrentPackageInfo.ErasePackageDependencyFromStructs(Cycle.PreviousPacakge);
+			CurrentPackageInfo.ErasePackageDependencyFromStructs(Cycle.PreviousPackage);
 			continue;
 		}
 
@@ -564,7 +570,7 @@ void PackageManager::HandleCycles()
 		}
 		else
 		{
-			CurrentPackageInfo.ErasePackageDependencyFromClasses(Cycle.PreviousPacakge);
+			CurrentPackageInfo.ErasePackageDependencyFromClasses(Cycle.PreviousPackage);
 		}
 	}
 }

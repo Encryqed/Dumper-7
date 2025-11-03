@@ -12,9 +12,9 @@ enum class ECollisionType : uint8
 	None,
 };
 
-inline std::string StringifyCollisionType(ECollisionType Type)
+inline std::string StringifyCollisionType( ECollisionType Type )
 {
-	switch (Type)
+	switch ( Type )
 	{
 	case ECollisionType::MemberName:
 		return "ECollisionType::MemberName";
@@ -65,38 +65,37 @@ public:
 		uint32 CollisionData;
 	};
 
-	static_assert(sizeof(CollisionData) >= (OwnTypeBitCount + (5 * PerCountBitCount)) / 32, "Too many bits to fit into uint32, recude the number of bits!");
+	static_assert( sizeof( CollisionData ) >= ( OwnTypeBitCount + ( 5 * PerCountBitCount ) ) / 32, "Too many bits to fit into uint32, recude the number of bits!" );
 
 public:
-	inline NameInfo()
-		: Name(HashStringTableIndex::FromInt(-1)), CollisionData(0x0)
+	inline NameInfo( )
+		: Name( HashStringTableIndex::FromInt( -1 ) ), CollisionData( 0x0 )
 	{
 	}
 
-	NameInfo(HashStringTableIndex NameIdx, ECollisionType CurrentType);
+	NameInfo( HashStringTableIndex NameIdx, ECollisionType CurrentType );
 
 public:
-	void InitCollisionData(const NameInfo& Existing, ECollisionType CurrentType, bool bIsSuper);
+	void InitCollisionData( const NameInfo& Existing, ECollisionType CurrentType, bool bIsSuper );
 
-	bool HasCollisions() const;
+	bool HasCollisions( ) const;
 
 public:
-	inline bool IsValid() const
+	inline bool IsValid( ) const
 	{
 		return Name != -1;
 	}
 
 public:
-	std::string DebugStringify() const;
+	std::string DebugStringify( ) const;
 };
 
 namespace KeyFunctions
 {
 	/* Make a unique key from UEProperty/UEFunction for NameTranslation */
-	uint64 GetKeyForCollisionInfo(UEStruct Super, UEProperty Member);
-	uint64 GetKeyForCollisionInfo(UEStruct Super, UEFunction Function);
+	uint64 GetKeyForCollisionInfo( UEStruct Super, UEProperty Member );
+	uint64 GetKeyForCollisionInfo( UEStruct Super, UEFunction Function );
 }
-
 
 class CollisionManager
 {
@@ -130,33 +129,33 @@ private:
 
 private:
 	/* Returns index of NameInfo inside of the NameContainer it was added to */
-	uint64 AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, bool bIsStruct, UEFunction Func = nullptr);
+	uint64 AddNameToContainer( NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, bool bIsStruct, UEFunction Func = nullptr );
 
 public:
 	/* For external use by 'MemberManager::InitReservedNames()' */
-	void AddReservedClassName(const std::string& Name, bool bIsParameterOrLocalVariable);
-	void AddReservedName(const std::string& Name);
-	void AddStructToNameContainer(UEStruct ObjAsStruct, bool bIsStruct);
+	void AddReservedClassName( const std::string& Name, bool bIsParameterOrLocalVariable );
+	void AddReservedName( const std::string& Name );
+	void AddStructToNameContainer( UEStruct ObjAsStruct, bool bIsStruct );
 
-	std::string StringifyName(UEStruct Struct, NameInfo Info);
+	std::string StringifyName( UEStruct Struct, NameInfo Info );
 
 public:
 	template<typename UEType>
-	inline NameInfo GetNameCollisionInfoUnchecked(UEStruct Struct, UEType Member)
+	inline NameInfo GetNameCollisionInfoUnchecked( UEStruct Struct, UEType Member )
 	{
-		CollisionManager::NameContainer& InfosForStruct = NameInfos.at(Struct.GetIndex());
-		uint64 NameInfoIndex = TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Struct, Member)];
+		CollisionManager::NameContainer& InfosForStruct = NameInfos.at( Struct.GetIndex( ) );
+		uint64 NameInfoIndex = TranslationMap [ KeyFunctions::GetKeyForCollisionInfo( Struct, Member ) ];
 
-		return InfosForStruct.at(NameInfoIndex);
+		return InfosForStruct.at( NameInfoIndex );
 	}
 
 private:
-	inline NameInfo& GetNameCollisionInfoRefUnchecked(UEStruct Struct, UEProperty Member)
+	inline NameInfo& GetNameCollisionInfoRefUnchecked( UEStruct Struct, UEProperty Member )
 	{
-		CollisionManager::NameContainer& InfosForStruct = NameInfos.at(Struct.GetIndex());
-		uint64 NameInfoIndex = TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Struct, Member)];
+		CollisionManager::NameContainer& InfosForStruct = NameInfos.at( Struct.GetIndex( ) );
+		uint64 NameInfoIndex = TranslationMap [ KeyFunctions::GetKeyForCollisionInfo( Struct, Member ) ];
 
-		return InfosForStruct.at(NameInfoIndex);
+		return InfosForStruct.at( NameInfoIndex );
 	}
 };
 
@@ -166,14 +165,13 @@ private:
 	friend class StructManager;
 
 public:
-	static inline void ReplaceName(CollisionManager& Collisions, UEStruct Struct, UEProperty Member, const std::string& NameToReplaceWith)
+	static inline void ReplaceName( CollisionManager& Collisions, UEStruct Struct, UEProperty Member, const std::string& NameToReplaceWith )
 	{
-		const auto [Index, _] = Collisions.MemberNames.FindOrAdd(NameToReplaceWith);
+		const auto [Index, _] = Collisions.MemberNames.FindOrAdd( NameToReplaceWith );
 
-		auto& NameInfo = Collisions.GetNameCollisionInfoRefUnchecked(Struct, Member);
+		auto& NameInfo = Collisions.GetNameCollisionInfoRefUnchecked( Struct, Member );
 
 		NameInfo.CollisionData = 0;
 		NameInfo.Name = Index;
 	}
 };
-

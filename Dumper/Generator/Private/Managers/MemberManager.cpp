@@ -201,9 +201,9 @@ void MemberManager::FixIncorrectNames()
 	if (const UEProperty PitchProperty = RotatorStruct.FindMember("pitch"))
 		StructManager_NameAccessHelper::ReplaceName(MemberNames, RotatorStruct, PitchProperty, "Pitch");
 
-	if (const UEProperty PitchProperty = RotatorStruct.FindMember("yaw"))
-		StructManager_NameAccessHelper::ReplaceName(MemberNames, RotatorStruct, PitchProperty, "Yaw");
+	if (const UEProperty YawProperty = RotatorStruct.FindMember("yaw"))
+		StructManager_NameAccessHelper::ReplaceName(MemberNames, RotatorStruct, YawProperty, "Yaw");
 
-	if (const UEProperty PitchProperty = RotatorStruct.FindMember("roll"))
-		StructManager_NameAccessHelper::ReplaceName(MemberNames, RotatorStruct, PitchProperty, "Roll");
+	if (const UEProperty RollProperty = RotatorStruct.FindMember("roll"))
+		StructManager_NameAccessHelper::ReplaceName(MemberNames, RotatorStruct, RollProperty, "Roll");
 }
