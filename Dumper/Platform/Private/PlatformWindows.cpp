@@ -197,9 +197,15 @@ namespace
 		return { NULL, 0 };
 	}
 
-	inline uint32_t GetAlignedSizeWithOffsetFromEnd(const uint32_t SizeToAlign, const uint32_t Alignment, const uint32_t OffsetFromEnd)
+	inline int64_t GetAlignedSizeWithOffsetFromEnd(const uint32_t SizeToAlign, const uint32_t Alignment, const uint32_t OffsetFromEnd)
 	{
-		return Align((SizeToAlign - (Alignment - 1) - OffsetFromEnd), Alignment);
+		const uint32_t ValueToAlign = (SizeToAlign - (Alignment - 1) - OffsetFromEnd);
+
+		// There was an underflow in the above subtraction
+		if (ValueToAlign > SizeToAlign)
+			return -1;
+
+		return Align(ValueToAlign, Alignment);
 	}
 
 	inline const PIMAGE_THUNK_DATA GetImportAddress(const uintptr_t ModuleBase, const char* ModuleToImportFrom, const char* SearchFunctionName)
@@ -327,10 +333,9 @@ namespace
 
 void* WindowsPrivateImplHelper::FinAlignedValueInRangeImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
 {
-	for (uint32_t i = 0x0; i <= GetAlignedSizeWithOffsetFromEnd(Range, Alignment, ValueTypeSize); i += Alignment)
+	for (int64_t i = 0x0; i <= GetAlignedSizeWithOffsetFromEnd(Range, Alignment, ValueTypeSize); i += Alignment)
 	{
 		void* TypedPtr = reinterpret_cast<void*>(StartAddress + i);
-
 
 		if (ComparisonFunction(ValuePtr, TypedPtr))
 			return TypedPtr;
@@ -686,10 +691,10 @@ void* PlatformWindows::FindPatternInRange(const char* Signature, const uintptr_t
 
 void* PlatformWindows::FindPatternInRange(std::vector<int>&& Signature, const void* Start, const uintptr_t Range, const bool bRelative, uint32_t Offset, const uint32_t SkipCount)
 {
-	const auto PatternLength = Signature.size();
+	const auto PatternLength = static_cast<int64_t>(Signature.size());
 	const auto PatternBytes = Signature.data();
 
-	for (int i = 0; i < (Range - PatternLength); i++)
+	for (int i = 0; i < (static_cast<int64_t>(Range) - PatternLength); i++)
 	{
 		bool bFound = true;
 		int CurrentSkips = 0;
@@ -768,7 +773,7 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 	// Ensure the null-terminator is also compared, else strings that are substrings of other strings might be falsely matched.
 	const int32_t RefStrLen = StrlenHelper(RefStr) + 1;
 
-	for (uintptr_t i = 0; i < Range; i++)
+	for (int32 i = 0; i < Range; i++)
 	{
 #if defined(_WIN64)
 		// opcode: lea
