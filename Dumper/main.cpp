@@ -7,6 +7,7 @@
 #include "Generators/MappingGenerator.h"
 #include "Generators/IDAMappingGenerator.h"
 #include "Generators/DumpspaceGenerator.h"
+#include "Generators/IDAMappingV2Generator.h"
 
 #include "Generators/Generator.h"
 
@@ -65,6 +66,7 @@ DWORD MainThread(HMODULE Module)
 	Generator::Generate<MappingGenerator>();
 	Generator::Generate<IDAMappingGenerator>();
 	Generator::Generate<DumpspaceGenerator>();
+	//Generator::Generate<IDAMappingV2Generator>();
 
 	auto DumpFinishTime = std::chrono::high_resolution_clock::now();
 

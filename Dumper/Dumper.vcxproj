@@ -161,6 +161,7 @@
     <ClCompile Include="Engine\Private\OffsetFinder\Offsets.cpp" />
     <ClCompile Include="Engine\Private\Unreal\UnrealObjects.cpp" />
     <ClCompile Include="Engine\Private\Unreal\UnrealTypes.cpp" />
+    <ClCompile Include="Generator\Private\Generators\IDAMappingV2Generator.cpp" />
     <ClCompile Include="Platform\Private\Arch_x86.cpp" />
     <ClCompile Include="Platform\Private\PlatformWindows.cpp" />
     <ClCompile Include="Settings.cpp" />
@@ -184,6 +185,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Generator\Public\Generators\DumpspaceGenerator.h" />
+    <ClInclude Include="Generator\Public\Generators\IDAMappingV2Generator.h" />
     <ClInclude Include="Platform\Private\Arch_x86.h" />
     <ClInclude Include="Platform\Private\PlatformWindows.h" />
     <ClInclude Include="Platform\Public\Architecture.h" />
