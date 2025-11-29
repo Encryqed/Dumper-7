@@ -323,6 +323,177 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 		return;
 	}
 
+	ObjectArray::Init(nullptr, bScanAllMemory, 0, ModuleName);
+}
+
+void ObjectArray::Init(bool* IsConstInit, bool bScanAllMemory, int32 GetObjectsOfClassOffset, const char* const ModuleName)
+{
+	static bool (*GetObjectsOfClass)(void*, TArray<void*>*, bool, EObjectFlags, int) = nullptr;
+
+	if (!GetObjectsOfClass)
+	{
+		if (GetObjectsOfClassOffset)
+		{
+			GetObjectsOfClass = reinterpret_cast<decltype(GetObjectsOfClass)>(Platform::GetModuleBase(ModuleName) + GetObjectsOfClassOffset);
+		}
+		else
+		{
+			const uint8* RefAddress = static_cast<uint8*>(Platform::FindByStringInAllSections("STAT_Hash_GetObjectsOfClass", Platform::GetModuleBase(ModuleName), 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings));
+
+			if (RefAddress)
+			{
+#if defined(_WIN64)
+				// opcode: lea
+				if (!((RefAddress[-7] == 0x4C || RefAddress[-7] == 0x48) && RefAddress[-6] == 0x8D))
+				{
+					RefAddress = static_cast<uint8*>(Platform::FindByStringInAllSections("STAT_Hash_GetObjectsOfClass", reinterpret_cast<const uintptr_t>(RefAddress), 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings));
+					if (!((RefAddress[-7] == 0x4C || RefAddress[-7] == 0x48) && RefAddress[-6] == 0x8D))
+					{
+						RefAddress = nullptr;
+					}
+				}
+#elif defined(_WIN32)
+#endif
+
+				if (RefAddress)
+				{
+					while (*reinterpret_cast<const uint16_t*>(RefAddress) != 0xCCCC)
+					{
+						--RefAddress;
+					}
+
+					RefAddress += sizeof(uint16_t);
+
+#if defined(_WIN64)
+					// opcode: mov
+					if ((RefAddress[0] == 0x4C || RefAddress[0] == 0x48) && RefAddress[1] == 0x89)
+					{
+						GetObjectsOfClass = reinterpret_cast<decltype(GetObjectsOfClass)>(RefAddress);
+					}
+#elif defined(_WIN32)
+#endif
+				}
+			}
+		}
+	}
+
+	std::cerr << "GetObjectsOfClass: 0x" << GetObjectsOfClass << std::endl;
+
+	if (GetObjectsOfClass)
+	{
+		void* UClassStaticAddress = nullptr;
+		void* UObjectStaticAddress = nullptr;
+
+		// https://github.com/EpicGames/UnrealEngine/blob/5.7/Engine/Source/Runtime/CoreUObject/Public/UObject/ObjectMacros.h#L2253
+		{
+			Off::UObject::Index = 0x8;
+			Off::UObject::Flags = 0xC;
+			Off::UObject::Class = 0x10;
+			Off::UObject::Name = 0x18;
+			Off::UObject::Outer = 0x20;
+			Off::UStruct::SuperStruct = 0x40;
+		}
+
+		auto IsAddressValidConstClass = [&UObjectStaticAddress](const void* CurrentAddress) -> bool
+		{
+			UEClass Object = UEClass(const_cast<void*>(CurrentAddress));
+			if (Object.GetFlags() == (EObjectFlags::Public | EObjectFlags::Standalone | EObjectFlags::Transient))
+			{
+				UEClass Class = Object.GetClass();
+				if (Object.GetAddress() == Class.GetAddress())
+				{
+					UEObject Package = Object.GetOuter();
+					if (!Package.GetAddress())
+						return false;
+
+					UEClass PackageClass = Package.GetClass();
+					if (!PackageClass.GetAddress())
+						return false;
+
+					if (Object.GetAddress() == PackageClass.GetClass().GetAddress())
+					{
+						UObjectStaticAddress = PackageClass.GetSuper().GetAddress();
+						return true;
+					}
+				}
+			}
+
+			return false;
+		};
+
+		if (bScanAllMemory)
+		{
+			UClassStaticAddress = Platform::IterateAllSectionsWithCallback(IsAddressValidConstClass, 0x4, 0x28, ModuleName);
+		}
+		else
+		{
+			UClassStaticAddress = Platform::IterateSectionWithCallback(Platform::GetSectionInfo(".data"), IsAddressValidConstClass, 0x4, 0x28);
+		}
+
+		if (!UObjectStaticAddress)
+		{
+			const auto [ImageBase, ImageSize] = GetImageBaseAndSize();
+
+			// L"UObject"
+			const void* RefAddress = Platform::FindPatternInRange({ 0x55, 0x00, 0x4F, 0x00, 0x62, 0x00, 0x6A, 0x00, 0x65, 0x00, 0x63, 0x00, 0x74, 0x00, 0x00, 0x00 }, reinterpret_cast<const void*>(ImageBase), ImageSize);
+
+			if (RefAddress)
+			{
+				auto Results = Platform::FindAllAlignedValuesInProcess(RefAddress);
+
+				for (const auto* Result : Results)
+				{
+					 void* Next = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(Result) + 8);
+					 if (!IsBadWritePtr(Next, 8))
+					 {
+						 UObjectStaticAddress = Next;
+						 break;
+					 }
+				}
+			}
+		}
+		else if (IsConstInit)
+		{
+			*IsConstInit = true;
+		}
+
+		std::cerr << "UClassStaticAddress: 0x" << UClassStaticAddress << std::endl;
+		std::cerr << "UObjectStaticAddress: 0x" << UObjectStaticAddress << std::endl;
+
+		if (UObjectStaticAddress)
+		{
+			TArray<void*> OutResults;
+			if (GetObjectsOfClass(UObjectStaticAddress, &OutResults, true, EObjectFlags::ClassDefaultObject, 0) && OutResults.Num())
+			{
+				GObjects = reinterpret_cast<uint8_t*>(&OutResults);
+
+				Off::FUObjectArray::bIsChunked = false;
+				Off::FUObjectArray::FixedLayout.ObjectsOffset = 0;      // offsetof(TArray<void*>, Data);
+				Off::FUObjectArray::FixedLayout.NumObjectsOffset = 0x8; // offsetof(TArray<void*>, NumElements);
+				Off::FUObjectArray::FixedLayout.MaxObjectsOffset = 0xC; // offsetof(TArray<void*>, MaxElements);
+
+				std::cerr << "GObjects: 0x" << (void*)GObjects << std::endl;
+				std::cerr << "GObjects Count: " << Num() << "\n" << std::endl;
+
+				ByIndex = [](void* ObjectsArray, int32 Index, uint32, uint32, uint32) -> void*
+				{
+					if (Index < 0 || Index > Num())
+						return nullptr;
+
+					return (*reinterpret_cast<void***>(ObjectsArray))[Index];
+				};
+
+				return;
+			}
+		}
+
+		if (!bScanAllMemory)
+		{
+			ObjectArray::Init(IsConstInit, true, GetObjectsOfClassOffset, ModuleName);
+			return;
+		}
+	}
+
 	if (GObjects == nullptr)
 	{
 		std::cerr << "\nGObjects couldn't be found!\n\n\n";
