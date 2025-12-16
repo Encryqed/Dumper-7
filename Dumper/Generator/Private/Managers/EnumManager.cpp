@@ -215,6 +215,12 @@ void EnumManager::InitIllegalNames()
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("NO_ERROR").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("EVENT_MAX").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("IGNORE").first);
+
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("short").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("long").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("int").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("signed").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("unsigned").first);
 }
 
 void EnumManager::Init()

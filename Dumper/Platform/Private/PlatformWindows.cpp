@@ -333,7 +333,12 @@ namespace
 
 void* WindowsPrivateImplHelper::FinAlignedValueInRangeImpl(const void* ValuePtr, ValueCompareFuncType ComparisonFunction, const int32_t ValueTypeSize, const int32_t Alignment, uintptr_t StartAddress, uint32_t Range)
 {
-	for (int64_t i = 0x0; i <= GetAlignedSizeWithOffsetFromEnd(Range, Alignment, ValueTypeSize); i += Alignment)
+	const auto SizeFromEnd = GetAlignedSizeWithOffsetFromEnd(Range, Alignment, ValueTypeSize);
+
+	if (SizeFromEnd == -1)
+		return nullptr;
+
+	for (int64_t i = 0x0; i <= SizeFromEnd; i += Alignment)
 	{
 		void* TypedPtr = reinterpret_cast<void*>(StartAddress + i);
 
@@ -422,6 +427,9 @@ void* PlatformWindows::IterateSectionWithCallback(const SectionInfo& Info, const
 
 	const uintptr_t SectionBaseAddrss = WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress;
 	const uint32_t SectionIterationSize = GetAlignedSizeWithOffsetFromEnd(WinSectionInfo.SectionHeader->Misc.VirtualSize, Granularity, OffsetFromEnd);
+
+	if (SectionIterationSize == -1)
+		return nullptr;
 
 	for (uintptr_t CurrentAddress = SectionBaseAddrss; CurrentAddress < (SectionBaseAddrss + SectionIterationSize); CurrentAddress += Granularity)
 	{

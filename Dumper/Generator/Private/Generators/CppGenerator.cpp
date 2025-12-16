@@ -4313,7 +4313,7 @@ R"({
 		},
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "ComparisonIndex", .Offset = 0x0, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
+			.Type = "int32", .Name = "ComparisonIndex = 0x0", .Offset = 0x0, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF,
 		},
 	};
@@ -4375,7 +4375,7 @@ R"({
 	{
 		FName.Properties.push_back(PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = (Settings::Internal::bUseNamePool ? "uint32" : "int32"), .Name = "Number", .Offset = Off::FName::Number, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
+			.Type = (Settings::Internal::bUseNamePool ? "uint32" : "int32"), .Name = "Number = 0x0", .Offset = Off::FName::Number, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF,
 			}
 		);
@@ -4387,7 +4387,7 @@ R"({
 
 		FName.Properties.push_back(PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "DisplayIndex", .Offset = DisplayIndexOffset, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
+			.Type = "int32", .Name = "DisplayIndex = 0x0", .Offset = DisplayIndexOffset, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF,
 			}
 		);
@@ -4483,7 +4483,7 @@ R"({
 		PredefinedFunction {
 			.CustomComment = "",
 			.ReturnType = "constexpr",
-			.NameWithParams = std::format("FName(int32 ComparisonIndex = 0{}{})",
+			.NameWithParams = std::format("explicit FName(int32 ComparisonIndex{}{})",
 				!Settings::Internal::bUseOutlineNumberName ? ", uint32 Number = 0" : "",
 				Settings::Internal::bUseCasePreservingName ? ", int32 DisplayIndex = 0" : ""),
 			.Body =
@@ -4496,13 +4496,32 @@ Settings::Internal::bUseCasePreservingName ? ", DisplayIndex(DisplayIndex)" : ""
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FName(const FName& other)",
-			.Body =
-std::format(R"(	: ComparisonIndex(other.ComparisonIndex){}{}
-{{
-}})",
-!Settings::Internal::bUseOutlineNumberName ? ", Number(other.Number)" : "",
-Settings::Internal::bUseCasePreservingName ? ", DisplayIndex(other.DisplayIndex)" : ""),
+			.ReturnType = "constexpr", .NameWithParams = "FName() = default;",
+			.Body = "",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FName(const FName&) = default;",
+			.Body = "",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FName(FName&&) = default;",
+			.Body = "",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "constexpr FName&", .NameWithParams = "operator=(const FName&) = default;",
+			.Body = "",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "",
+			.ReturnType = "constexpr  FName&", .NameWithParams = "operator=(FName&&) = default;",
+			.Body = "",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		},
 		/* static functions */
@@ -4556,18 +4575,6 @@ std::format(R"({{
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 		/* operators */
-		PredefinedFunction {
-			.CustomComment = "",
-			.ReturnType = "FName&", .NameWithParams = "operator=(const FName& Other)", .Body =
-std::format(R"({{
-	ComparisonIndex = Other.ComparisonIndex;{}{}
-
-	return *this;
-}})",
-!Settings::Internal::bUseOutlineNumberName ? "\n\tNumber = Other.Number;" : "",
-Settings::Internal::bUseCasePreservingName ? "\n\tDisplayIndex = Other.DisplayIndex;" : ""),
-			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
-		},
 		PredefinedFunction {
 			.CustomComment = "",
 			.ReturnType = "bool", .NameWithParams = "operator==(const FName& Other)", .Body =
