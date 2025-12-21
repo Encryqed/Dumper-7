@@ -1819,15 +1819,19 @@ void CppGenerator::InitPredefinedMembers()
 		},
 	};
 
-	PredefinedElements& UFieldPredefs = PredefinedMembers[ObjectArray::FindClassFast("Field").GetIndex()];
-	UFieldPredefs.Members =
+	const UEClass UField = ObjectArray::FindClassFast("Field");
+	PredefinedElements& UFieldPredefs = PredefinedMembers[UField.GetIndex()];
+
+	// Starting from UE5.7 UField::Next is reflected and doesn't need to be added manually anymore
+	if (!UField.FindMember("Next", EClassCastFlags::ObjectProperty))
 	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class UField*", .Name = "Next", .Offset = Off::UField::Next, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
+		UFieldPredefs.Members.insert(UFieldPredefs.Members.begin(),
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "class UField*", .Name = "Next", .Offset = Off::UField::Next, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			});
+	}
 
 	PredefinedElements& UEnumPredefs = PredefinedMembers[ObjectArray::FindClassFast("Enum").GetIndex()];
 	UEnumPredefs.Members =
@@ -1839,7 +1843,7 @@ void CppGenerator::InitPredefinedMembers()
 		},
 	};
 
-	UEObject UStruct = ObjectArray::FindClassFast("Struct");
+	UEClass UStruct = ObjectArray::FindClassFast("Struct");
 
 	if (UStruct == nullptr)
 		UStruct = ObjectArray::FindClassFast("struct");
@@ -1847,16 +1851,6 @@ void CppGenerator::InitPredefinedMembers()
 	PredefinedElements& UStructPredefs = PredefinedMembers[UStruct.GetIndex()];
 	UStructPredefs.Members =
 	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class UStruct*", .Name = "Super", .Offset = Off::UStruct::SuperStruct, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class UField*", .Name = "Children", .Offset = Off::UStruct::Children, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
 			.Type = "int16", .Name = "MinAlignment", .Offset = Off::UStruct::MinAlignment, .Size = sizeof(int16), .ArrayDim = 0x1, .Alignment = alignof(int16),
@@ -1868,6 +1862,27 @@ void CppGenerator::InitPredefinedMembers()
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
+
+	// Starting from UE5.7 UStruct::SuperStruct is reflected and doesn't need to be added manually anymore
+	if (!UStruct.FindMember("SuperStruct", EClassCastFlags::ObjectProperty))
+	{
+		UStructPredefs.Members.insert(UStructPredefs.Members.begin(),
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "class UStruct*", .Name = "SuperStruct", .Offset = Off::UStruct::SuperStruct, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			});
+	}
+	// Starting from UE5.7 UStruct::Children is reflected and doesn't need to be added manually anymore
+	if (!UStruct.FindMember("Children", EClassCastFlags::ObjectProperty))
+	{
+		UStructPredefs.Members.insert(UStructPredefs.Members.begin(),
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "class UField*", .Name = "Children", .Offset = Off::UStruct::Children, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			});
+	}
 
 	if (Settings::Internal::bUseFProperty)
 	{
@@ -1898,7 +1913,8 @@ void CppGenerator::InitPredefinedMembers()
 		},
 	};
 
-	PredefinedElements& UClassPredefs = PredefinedMembers[ObjectArray::FindClassFast("Class").GetIndex()];
+	const UEClass UClass = ObjectArray::FindClassFast("Class");
+	PredefinedElements& UClassPredefs = PredefinedMembers[UClass.GetIndex()];
 	UClassPredefs.Members =
 	{
 		PredefinedMember {
@@ -1906,12 +1922,18 @@ void CppGenerator::InitPredefinedMembers()
 			.Type = "enum class EClassCastFlags", .Name = "CastFlags", .Offset = Off::UClass::CastFlags, .Size = sizeof(EClassCastFlags), .ArrayDim = 0x1, .Alignment = alignof(EClassCastFlags),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class UObject*", .Name = "DefaultObject", .Offset = Off::UClass::ClassDefaultObject, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
 	};
+
+	// Starting from UE5.7 UClass::ClassDefaultObject is reflected and doesn't need to be added manually anymore
+	if (!UClass.FindMember("ClassDefaultObject", EClassCastFlags::ObjectProperty))
+	{
+		UClassPredefs.Members.insert(UClassPredefs.Members.begin(),
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "class UObject*", .Name = "ClassDefaultObject", .Offset = Off::UClass::ClassDefaultObject, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			});
+	}
 
 	std::string PropertyTypePtr = Settings::Internal::bUseFProperty ? "class FProperty*" : "class UProperty*";
 
@@ -2494,7 +2516,7 @@ R"({
 	if (!Base)
 		return false;
 
-	for (const UStruct* Struct = this; Struct; Struct = Struct->Super)
+	for (const UStruct* Struct = this; Struct; Struct = Struct->SuperStruct)
 	{
 		if (Struct == Base)
 			return true;
@@ -2511,7 +2533,7 @@ R"({
 	if (baseClassName.IsNone())
 		return false;
 
-	for (const UStruct* Struct = this; Struct; Struct = Struct->Super)
+	for (const UStruct* Struct = this; Struct; Struct = Struct->SuperStruct)
 	{
 		if (Struct->Name == baseClassName)
 			return true;
@@ -2532,7 +2554,7 @@ R"({
 			.CustomComment = "Gets a UFunction from this UClasses' 'Children' list",
 			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const char* ClassName, const char* FuncName)", .Body =
 R"({
-	for(const UStruct* Clss = this; Clss; Clss = Clss->Super)
+	for(const UStruct* Clss = this; Clss; Clss = Clss->SuperStruct)
 	{
 		if (Clss->GetName() != ClassName)
 			continue;
@@ -3637,7 +3659,7 @@ ClassType* GetDefaultObjImpl()
 
 	if (StaticClass)
 	{
-		return reinterpret_cast<ClassType*>(StaticClass->DefaultObject);
+		return reinterpret_cast<ClassType*>(StaticClass->ClassDefaultObject);
 	}
 
 	return nullptr;
