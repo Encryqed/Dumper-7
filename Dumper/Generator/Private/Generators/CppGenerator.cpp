@@ -2528,14 +2528,14 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "Checks if this class has a certain base",
-			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const FName& baseClassName)", .Body =
+			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const FName& BaseClassName)", .Body =
 R"({
-	if (baseClassName.IsNone())
+	if (BaseClassName.IsNone())
 		return false;
 
 	for (const UStruct* Struct = this; Struct; Struct = Struct->SuperStruct)
 	{
-		if (Struct->Name == baseClassName)
+		if (Struct->Name == BaseClassName)
 			return true;
 	}
 
