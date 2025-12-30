@@ -215,6 +215,7 @@ void EnumManager::InitIllegalNames()
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("NO_ERROR").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("EVENT_MAX").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("IGNORE").first);
+	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("small").first);
 
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("short").first);
 	IllegalNames.push_back(UniqueEnumValueNames.FindOrAdd("long").first);
