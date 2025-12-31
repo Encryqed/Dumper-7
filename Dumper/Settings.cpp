@@ -126,10 +126,36 @@ void Settings::Config::Load()
 	// If no config found, use defaults
 	if (!ConfigPath) 
 		return;
-
 	char SDKNamespace[256] = {};
 	GetPrivateProfileStringA("Settings", "SDKNamespaceName", "SDK", SDKNamespace, sizeof(SDKNamespace), ConfigPath);
-
 	SDKNamespaceName = SDKNamespace;
+
+	if (strcmp(SDKNamespace, "SDK") != 0)
+		std::cerr << "Using custom namespace: " << SDKNamespaceName << std::endl;
+
+	// Check for output path override. This will be relative to the game folder unless a drive is specified
+	char SDKPath[256] = {};
+	GetPrivateProfileStringA("Settings", "SDKGenerationPath", "C:/Dumper-7", SDKPath, sizeof(SDKPath), ConfigPath);
+
+	Settings::Generator::SDKGenerationPath = SDKPath;
+	std::cerr << "Dumper-7 SDK Generation Path: " << SDKPath << std::endl;
+
+	// VK scancode ID as an Int, e.g. 0x77 or 119 = VK_F8 (yes actually type 0x77 in your ini)
+	DumpKey = GetPrivateProfileIntA("Settings", "DumpKey", 0, ConfigPath);
+	if (DumpKey != 0)
+	{
+		// Use winapi to retrieve the real key name without needing to hardcode a mapping 
+		//	not necesssary but its nice QOL to know your key is set properly
+		char keyName[256] = {};
+		LONG lParamValue = (MapVirtualKeyA(DumpKey, MAPVK_VK_TO_VSC) << 16);
+		if (GetKeyNameTextA(lParamValue, keyName, sizeof(keyName)) != 0)
+			std::cerr << "Press " << keyName << " to begin dump." << std::endl;
+	}
+
+	// Set a sleep timeout after which point generation will begin automatically even if a key is set. 0 = disabled
 	SleepTimeout = max(GetPrivateProfileIntA("Settings", "SleepTimeout", 0, ConfigPath), 0);
+	// Convert seconds to ms automatically if a value under 1 second is set
+	if (SleepTimeout < 1000)
+		SleepTimeout *= 1000;
+	std::cerr << "Sleep Timeout: " << std::dec << SleepTimeout << "ms" << std::endl;
 }
