@@ -20,6 +20,7 @@ enum class EFortToastType : uint8
         EFortToastType_MAX             = 3,
 };
 
+// signal for our keylistener. must be declared at file scope to be readable in the lambda
 std::atomic<bool> dumpStarted = false;
 
 DWORD MainThread(HMODULE Module)
@@ -29,18 +30,17 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONOUT$", "w", stderr);
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
-/*
-	this block makes it so the game and main dump thread 
-	doesn't pause when clicking and highlighting text in the console
-	if this is considered a useful/desirable behavior remove this
-*/
+
+// clicking and highlighting text in the system console pauses execution of game and dump
+// this can be disabled by uncommenting the block below. left as an option for developers
+/*	
 	auto hStdin = GetStdHandle(STD_INPUT_HANDLE);
 	DWORD mode;
 	GetConsoleMode(hStdin, &mode);
 	mode &= ~ENABLE_QUICK_EDIT_MODE;   
 	SetConsoleMode(hStdin, mode);
-
-	// using shorthands to avoid wrapping some longer lines
+*/
+	// using std::chrono and aliasing cfg solely to avoid wrapping some long statements
 	using namespace std::chrono;
 	namespace cfg = Settings::Config;
 	auto t_1 = high_resolution_clock::now();
@@ -49,18 +49,14 @@ DWORD MainThread(HMODULE Module)
 	
 	if (cfg::DumpKey != 0)
 	{
-		// we must use a detached thread to wait for the keypress otherwise we just run or unload if the first check fails
-		// using a lambda improves readability but requires more care to avoid an std::terminate being called
-		// the thread has to be detached or joined before it goes out of scope and it can't have any dangling resources
-		// therefore we avoid capturing anything by reference and pass direct values for the minimal necessary data 
+		// crucial we capture needed data by value. references will lead to dangling resources and crash
 		std::thread listenerThread([Key = cfg::DumpKey, st = t_1, SleepTimeout = cfg::SleepTimeout]() 
 		{
-			while (true)
-			{
-				// 0x8000 means that the key has to be currently held so we need relatively frequent updates
-				if (GetAsyncKeyState(Key) & 0x8000) break;
-				// If sleep timeout is 0 we don't have to evaluate past the first expression
-				// If std::chrono isn't abbreviated we have to wrap this line or evaluate the time diff in a temp variable
+			while (true) // only allow manually breaking out of loop. detached thread can cleanup on early close
+			{	
+				// check if key is currently pressed
+				if (GetAsyncKeyState(Key) & 0x8000) break; 
+				// if SleepTimeout is 0 we only eval the first statement 
 				if (0 < SleepTimeout && duration_cast<milliseconds>(high_resolution_clock::now() - st).count() > SleepTimeout)
 				{
 					std::cerr << "Sleep Timeout exceeded, proceeding with dump...\n";
@@ -70,16 +66,16 @@ DWORD MainThread(HMODULE Module)
 			}
 			dumpStarted = true; // tell the main thread loop to proceed. This thread will cleanup on its own
 		});
-		listenerThread.detach();
-		// we have to do something to keep our main thread going and block the dump from starting
+		listenerThread.detach(); // detach immediately while lambda is in scope to avoid std::terminate
+		// spin lock main thread otherwise we end up unloading or proceeding to dump early
 		while (!dumpStarted) Sleep(50);	
 	}
-	else // no dump key set, default behavior, sleep timeout is printed during config load now
+	else // no dump key set, sleep timeout will occur if set
 	{
-		Sleep(cfg::SleepTimeout); // Sleep(0) is fine here it will just yield the thread
+		Sleep(cfg::SleepTimeout); // Sleep(0) simply yields the thread without delay so we don't even have to check the timeout
 	}
 
-	// move the started generation message after any timeout
+	// announce start only after we actually start
 	std::cerr << "Started Generation [Dumper-7]!\n";
 	// reuse the timepoint var we set for the dumpkey
 	t_1 = high_resolution_clock::now();
@@ -113,7 +109,7 @@ DWORD MainThread(HMODULE Module)
 	Generator::Generate<IDAMappingGenerator>();
 	Generator::Generate<DumpspaceGenerator>();
 	
-	// calculate time inline. only possible to fit without wrapping with std::chrono abbreviated, either way better to calc inline
+	// calculate time inline. without using namespace std::chrono this can still be a single statement but has to be wrapped
 	std::cerr << "\n\nGenerating SDK took (" << duration_cast<milliseconds>(high_resolution_clock::now() - t_1).count() << "ms)\n\n\n";
 	std::cerr << "\n\nPress F6 to unload";
 	while (true)
