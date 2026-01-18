@@ -125,37 +125,81 @@ void Settings::Config::Load()
 
 	// If no config found, use defaults
 	if (!ConfigPath) 
+	{
 		return;
+	}
+
 	char SDKNamespace[256] = {};
 	GetPrivateProfileStringA("Settings", "SDKNamespaceName", "SDK", SDKNamespace, sizeof(SDKNamespace), ConfigPath);
+
 	SDKNamespaceName = SDKNamespace;
 
 	if (strcmp(SDKNamespace, "SDK") != 0)
-		std::cerr << "Using custom namespace: " << SDKNamespaceName << std::endl;
+	{
+		std::cerr << "Using custom namespace: " << SDKNamespaceName << "\n";
+	}
 
-	// Check for output path override. This will be relative to the game folder unless a drive is specified
+	// Check for output path override
 	char SDKPath[256] = {};
 	GetPrivateProfileStringA("Settings", "SDKGenerationPath", "C:/Dumper-7", SDKPath, sizeof(SDKPath), ConfigPath);
 
-	Settings::Generator::SDKGenerationPath = SDKPath;
-	std::cerr << "Dumper-7 SDK Generation Path: " << SDKPath << std::endl;
-
-	// VK scancode ID as an Int, e.g. 0x77 or 119 = VK_F8 (yes actually type 0x77 in your ini)
-	DumpKey = GetPrivateProfileIntA("Settings", "DumpKey", 0, ConfigPath);
-	if (DumpKey != 0)
+	// Path issues are generally resolved during generation but its better to catch during config load
+	if (strcmp(SDKPath, "C:/Dumper-7") != 0)
 	{
-		// Use winapi to retrieve the real key name without needing to hardcode a mapping 
-		//	not necesssary but its nice QOL to know your key is set properly
-		char keyName[256] = {};
-		LONG lParamValue = (MapVirtualKeyA(DumpKey, MAPVK_VK_TO_VSC) << 16);
-		if (GetKeyNameTextA(lParamValue, keyName, sizeof(keyName)) != 0)
-			std::cerr << "Press " << keyName << " to begin dump." << std::endl;
+		try
+		{
+			auto UserSDKPath = fs::path(SDKPath);
+
+			// This can fail in some cases, e.g. a symbolic link to a non-existent directory can still exist
+			if (!fs::exists(UserSDKPath))
+			{
+				// Try to create the outer path for the dump if it doesn't exist
+				fs::create_directories(UserSDKPath);
+			}
+
+			std::error_code ec;
+			// Try to canonicalize the input which actually opens the path to resolve any link or permission issues
+			auto SDKCanonicalPath = fs::canonical(UserSDKPath, ec);
+			if (!ec) 
+			{
+				// Report the absolute path to the user
+				std::cerr << "SDK Generation Path: " << SDKCanonicalPath.string().c_str() << "\n";
+				// Only actually set the SDKGenerationPath if it is valid
+				Settings::Generator::SDKGenerationPath = SDKCanonicalPath.string();
+			}
+		}
+		catch (const std::filesystem::filesystem_error& fe)
+		{
+			std::cerr << "Invalid SDK Generation Path: \n";
+			std::cerr << fe.what() << std::endl;
+			std::cerr << "Falling back to default path: C:/Dumper-7 \n";
+		}
+	}
+	
+	SleepTimeout = max(GetPrivateProfileIntA("Settings", "SleepTimeout", 0, ConfigPath), 0);
+
+	if (SleepTimeout > 0) 
+	{
+		// Convert seconds to ms automatically if a value under 1 second is set
+		if (SleepTimeout < 1000) 
+		{
+			SleepTimeout *= 1000;
+		}
+
+		std::cerr << "Sleep Timeout: " << std::dec << SleepTimeout << "ms" << "\n";
 	}
 
-	// Set a sleep timeout after which point generation will begin automatically even if a key is set. 0 = disabled
-	SleepTimeout = max(GetPrivateProfileIntA("Settings", "SleepTimeout", 0, ConfigPath), 0);
-	// Convert seconds to ms automatically if a value under 1 second is set
-	if (SleepTimeout < 1000)
-		SleepTimeout *= 1000;
-	std::cerr << "Sleep Timeout: " << std::dec << SleepTimeout << "ms" << std::endl;
+	// DumpKey takes VK Scancodes as integers
+	DumpKey = GetPrivateProfileIntA ( "Settings", "DumpKey", 0, ConfigPath);
+
+	if (DumpKey != 0) 
+	{
+		// Map the virtual key and print the actual name
+		char KeyName[256] = {};
+		LONG lParamValue = MapVirtualKeyA(DumpKey, MAPVK_VK_TO_VSC) << 16;
+		if (GetKeyNameTextA(lParamValue, KeyName, sizeof(KeyName)) != 0) 
+		{
+			std::cerr << "Press " << KeyName << " to begin dump." << "\n";
+		}
+	}
 }
