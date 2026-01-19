@@ -610,7 +610,7 @@ bool NameArray::TryInit(int32 OffsetOverride, bool bIsNamePool, const char* cons
 	return false;
 }
 
-bool NameArray::SetGNamesWithoutCommiting()
+bool NameArray::SetGNamesWithoutCommitting()
 {
 	/* GNames is already set */
 	if (Off::InSDK::NameArray::GNames != 0x0)
