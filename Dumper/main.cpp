@@ -2,8 +2,6 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
-#include <thread>
-#include <atomic>
 
 #include "Generators/CppGenerator.h"
 #include "Generators/MappingGenerator.h"
@@ -14,10 +12,10 @@
 
 enum class EFortToastType : uint8
 {
-        Default                        = 0,
-        Subdued                        = 1,
-        Impactful                      = 2,
-        EFortToastType_MAX             = 3,
+		Default                        = 0,
+		Subdued                        = 1,
+		Impactful                      = 2,
+		EFortToastType_MAX             = 3,
 };
 
 // signal for our keylistener. must be declared at file scope to be readable in the lambda
@@ -30,55 +28,43 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONOUT$", "w", stderr);
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
+	std::cerr << "Initializing [Dumper-7]\n";
 
-// clicking and highlighting text in the system console pauses execution of game and dump
-// this can be disabled by uncommenting the block below. left as an option for developers
-/*	
-	auto hStdin = GetStdHandle(STD_INPUT_HANDLE);
-	DWORD mode;
-	GetConsoleMode(hStdin, &mode);
-	mode &= ~ENABLE_QUICK_EDIT_MODE;   
-	SetConsoleMode(hStdin, mode);
-*/
-	// using std::chrono and aliasing cfg solely to avoid wrapping some long statements
-	using namespace std::chrono;
-	namespace cfg = Settings::Config;
-	auto t_1 = high_resolution_clock::now();
-	
-	cfg::Load();
-	
-	if (cfg::DumpKey != 0)
+	Settings::Config::Load();
+
+	if (Settings::Config::DumpKey != 0)
 	{
-		// crucial we capture needed data by value. references will lead to dangling resources and crash
-		std::thread listenerThread([Key = cfg::DumpKey, st = t_1, SleepTimeout = cfg::SleepTimeout]() 
+		auto DelayStartTime = std::chrono::high_resolution_clock::now();
+
+		while (true)
 		{
-			while (true) // only allow manually breaking out of loop. detached thread can cleanup on early close
-			{	
-				// check if key is currently pressed
-				if (GetAsyncKeyState(Key) & 0x8000) break; 
-				// if SleepTimeout is 0 we only eval the first statement 
-				if (0 < SleepTimeout && duration_cast<milliseconds>(high_resolution_clock::now() - st).count() > SleepTimeout)
+			if (GetAsyncKeyState(Settings::Config::DumpKey) & 0x8000) 
+			{
+				break;
+			}
+
+			if (Settings::Config::SleepTimeout > 0) 
+			{
+				const auto Now = std::chrono::high_resolution_clock::now();
+				const auto ElapsedTime = std::chrono::duration<double, std::milli>(Now -DelayStartTime);
+				if (ElapsedTime.count() > Settings::Config::SleepTimeout) 
 				{
 					std::cerr << "Sleep Timeout exceeded, proceeding with dump...\n";
 					break;
 				}
-				Sleep(50); // 50ms should be a good balance to get keypresses without any cpu strain
 			}
-			dumpStarted = true; // tell the main thread loop to proceed. This thread will cleanup on its own
-		});
-		listenerThread.detach(); // detach immediately while lambda is in scope to avoid std::terminate
-		// spin lock main thread otherwise we end up unloading or proceeding to dump early
-		while (!dumpStarted) Sleep(50);	
+
+			Sleep(50);
+		}
 	}
-	else // no dump key set, sleep timeout will occur if set
+	else
 	{
-		Sleep(cfg::SleepTimeout); // Sleep(0) simply yields the thread without delay so we don't even have to check the timeout
+		// Sleeping for the default of 0 ms has no effect here 
+		Sleep(Settings::Config::SleepTimeout);
 	}
 
-	// announce start only after we actually start
 	std::cerr << "Started Generation [Dumper-7]!\n";
-	// reuse the timepoint var we set for the dumpkey
-	t_1 = high_resolution_clock::now();
+	auto DumpStartTime = std::chrono::high_resolution_clock::now();
 
 	Generator::InitEngineCore();
 	Generator::InitInternal();
@@ -109,15 +95,22 @@ DWORD MainThread(HMODULE Module)
 	Generator::Generate<IDAMappingGenerator>();
 	Generator::Generate<DumpspaceGenerator>();
 	
-	// calculate time inline. without using namespace std::chrono this can still be a single statement but has to be wrapped
-	std::cerr << "\n\nGenerating SDK took (" << duration_cast<milliseconds>(high_resolution_clock::now() - t_1).count() << "ms)\n\n\n";
-	std::cerr << "\n\nPress F6 to unload";
+	auto DumpFinishTime = std::chrono::high_resolution_clock::now();
+
+	std::chrono::duration<double, std::milli> DumpTime = DumpFinishTime - DumpStartTime;
+
+	std::cerr << "\n\nGenerating SDK took (" << DumpTime.count() << "ms)\n\n\n";
+
+	std::cerr << "\n\nPress F6 to unload\n\n\n";
 	while (true)
 	{
 		if (GetAsyncKeyState(VK_F6) & 1)
 		{
 			fclose(stderr);
-			if (Dummy) fclose(Dummy);
+			if (Dummy) 
+			{
+				fclose(Dummy);
+			}
 			FreeConsole();
 
 			FreeLibraryAndExitThread(Module, 0);

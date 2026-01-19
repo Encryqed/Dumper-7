@@ -21,6 +21,7 @@ namespace Settings
 	{
 		inline int DumpKey = 0;
 		inline int SleepTimeout = 0;
+		inline int DumpKey = 0;
 		inline std::string SDKNamespaceName = "SDK";
 
 		void Load();
@@ -109,7 +110,7 @@ R"(
 		inline constexpr bool bGenerateInlineAssertionsForStructSize = false;
 
 		/* Adds static_assert for member-offsets */
-		inline constexpr bool bGenerateInlineAssertionsForStructMembers = false;
+		inline constexpr bool bGenerateInlineAssertionsForStructMembers = true;
 
 
 		/* Prints debug information during Mapping-Generation */
