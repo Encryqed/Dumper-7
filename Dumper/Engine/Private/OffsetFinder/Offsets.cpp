@@ -530,18 +530,13 @@ void PropertySizes::InitTMulticastInlineDelegateSize()
 
 	const UEClass EmitterClass = ObjectArray::FindClassFast("Emitter");
 
-	std::cerr << "EmitterClass: " << EmitterClass.GetAddress() << "\n";
-
 	if (!EmitterClass)
 		return OnPropertyNotFound();
 
 	const UEProperty OnParticleSpawn = EmitterClass.FindMember("OnParticleSpawn", EClassCastFlags::MulticastDelegateProperty);
 
-	std::cerr << "OnParticleSpawn: " << OnParticleSpawn.GetAddress() << "\n";
 	if (!OnParticleSpawn)
 		return OnPropertyNotFound();
-
-	std::cerr << std::format("OnParticleSpawn Property Size: 0x{:X}\n", OnParticleSpawn.GetSize());
 
 	PropertySizes::MulticastInlineDelegateProperty = OnParticleSpawn.GetSize();
 }

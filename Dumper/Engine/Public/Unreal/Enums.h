@@ -99,6 +99,11 @@ enum class EPropertyFlags : uint64
 	NativeAccessSpecifierProtected	= 0x0020000000000000,
 	NativeAccessSpecifierPrivate	= 0x0040000000000000,	
 	SkipSerialization				= 0x0080000000000000, 
+	TObjectPtr						= 0x0100000000000000,
+	ExperimentalOverridableLogic	= 0x0200000000000000,
+	ExperimentalAlwaysOverriden		= 0x0400000000000000,
+	ExperimentalNeverOverriden		= 0x0800000000000000,
+	AllowSelfReference				= 0x1000000000000000,
 };
 
 enum class EFunctionFlags : uint32
@@ -473,6 +478,11 @@ static std::string StringifyPropertyFlags(EPropertyFlags PropertyFlags)
 	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierPublic) { RetFlags += "NativeAccessSpecifierPublic, "; }
 	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierProtected) { RetFlags += "NativeAccessSpecifierProtected, "; }
 	if (PropertyFlags & EPropertyFlags::NativeAccessSpecifierPrivate) { RetFlags += "NativeAccessSpecifierPrivate, "; }
+	if (PropertyFlags & EPropertyFlags::TObjectPtr) { RetFlags += "TObjectPtr, "; }
+	if (PropertyFlags & EPropertyFlags::ExperimentalOverridableLogic) { RetFlags += "ExperimentalOverridableLogic, "; }
+	if (PropertyFlags & EPropertyFlags::ExperimentalAlwaysOverriden) { RetFlags += "ExperimentalAlwaysOverriden, "; }
+	if (PropertyFlags & EPropertyFlags::ExperimentalNeverOverriden) { RetFlags += "ExperimentalNeverOverriden, "; }
+	if (PropertyFlags & EPropertyFlags::AllowSelfReference) { RetFlags += "AllowSelfReference, "; }
 
 	return RetFlags.size() > 2 ? RetFlags.erase(RetFlags.size() - 2) : RetFlags;
 }

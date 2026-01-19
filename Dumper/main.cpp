@@ -18,6 +18,9 @@ enum class EFortToastType : uint8
 		EFortToastType_MAX             = 3,
 };
 
+// signal for our keylistener. must be declared at file scope to be readable in the lambda
+std::atomic<bool> dumpStarted = false;
+
 DWORD MainThread(HMODULE Module)
 {
 	AllocConsole();

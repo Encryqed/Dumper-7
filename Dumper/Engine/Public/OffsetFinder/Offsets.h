@@ -143,7 +143,7 @@ namespace Off
 		// Fixed for OutlineNumber FNames by OffsetFinder::FixFNameSize();
 		inline int32 Name = 0x00;
 		inline int32 Id = 0x08;
-		inline int32 CastFlags = 0x10;
+		inline int32 CastFlags = 0x10; // 0x18 on UE5.7
 		inline int32 ClassFlags = 0x18;
 		inline int32 SuperClass = 0x20;
 	}

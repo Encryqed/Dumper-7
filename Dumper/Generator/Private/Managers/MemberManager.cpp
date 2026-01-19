@@ -160,6 +160,7 @@ void MemberManager::InitReservedNames()
 	MemberNames.AddReservedName("private");
 	MemberNames.AddReservedName("public");
 	MemberNames.AddReservedName("const");
+	MemberNames.AddReservedName("requires");
 
 	/* Unreal Engine typedefs */
 	MemberNames.AddReservedName("int8");
