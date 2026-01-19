@@ -19,7 +19,6 @@ namespace Settings
 
 	namespace Config
 	{
-		inline int DumpKey = 0;
 		inline int SleepTimeout = 0;
 		inline int DumpKey = 0;
 		inline std::string SDKNamespaceName = "SDK";
