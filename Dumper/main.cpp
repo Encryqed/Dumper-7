@@ -12,14 +12,11 @@
 
 enum class EFortToastType : uint8
 {
-		Default                        = 0,
-		Subdued                        = 1,
-		Impactful                      = 2,
-		EFortToastType_MAX             = 3,
+        Default                        = 0,
+        Subdued                        = 1,
+        Impactful                      = 2,
+        EFortToastType_MAX             = 3,
 };
-
-// signal for our keylistener. must be declared at file scope to be readable in the lambda
-std::atomic<bool> dumpStarted = false;
 
 DWORD MainThread(HMODULE Module)
 {
@@ -46,7 +43,7 @@ DWORD MainThread(HMODULE Module)
 			if (Settings::Config::SleepTimeout > 0) 
 			{
 				const auto Now = std::chrono::high_resolution_clock::now();
-				const auto ElapsedTime = std::chrono::duration<double, std::milli>(Now -DelayStartTime);
+				const auto ElapsedTime = std::chrono::duration<double, std::milli>(Now - DelayStartTime);
 				if (ElapsedTime.count() > Settings::Config::SleepTimeout) 
 				{
 					std::cerr << "Sleep Timeout exceeded, proceeding with dump...\n";
@@ -94,7 +91,7 @@ DWORD MainThread(HMODULE Module)
 	Generator::Generate<MappingGenerator>();
 	Generator::Generate<IDAMappingGenerator>();
 	Generator::Generate<DumpspaceGenerator>();
-	
+
 	auto DumpFinishTime = std::chrono::high_resolution_clock::now();
 
 	std::chrono::duration<double, std::milli> DumpTime = DumpFinishTime - DumpStartTime;
@@ -102,6 +99,7 @@ DWORD MainThread(HMODULE Module)
 	std::cerr << "\n\nGenerating SDK took (" << DumpTime.count() << "ms)\n\n\n";
 
 	std::cerr << "\n\nPress F6 to unload\n\n\n";
+
 	while (true)
 	{
 		if (GetAsyncKeyState(VK_F6) & 1)
