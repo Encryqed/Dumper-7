@@ -110,7 +110,7 @@ R"(
 		inline constexpr bool bGenerateInlineAssertionsForStructSize = false;
 
 		/* Adds static_assert for member-offsets */
-		inline constexpr bool bGenerateInlineAssertionsForStructMembers = true;
+		inline constexpr bool bGenerateInlineAssertionsForStructMembers = false;
 
 
 		/* Prints debug information during Mapping-Generation */
