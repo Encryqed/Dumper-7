@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Win32 Debug",
+            "compileCommands": "${workspaceFolder}/.vscode/compile_commands.json",
+            "cppStandard": "c++23",
+            "intelliSenseMode": "windows-msvc-x64",
+            "defines": [
+                "_DEBUG"
+            ]
+        },
+        {
+            "name": "Win32 Release",
+            "compileCommands": "${workspaceFolder}/.vscode/compile_commands.json",
+            "cppStandard": "c++23",
+            "intelliSenseMode": "windows-msvc-x64",
+            "defines": [
+                "NDEBUG"
+            ]
+        }
+    ],
+    "version": 4
+}
