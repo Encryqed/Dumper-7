@@ -72,14 +72,35 @@ USDT (Tron (TRC20)): `TWHDoUr2H52Gb2WYdZe7z1Ct316gMg64ps`
 ## Config File
 You can optionally dynamically change settings through a `Dumper-7.ini` file, instead of modifying `Settings.h`.
 - **Per-game**: Create `Dumper-7.ini` in the same directory as the game's exe file.
-- **Global**: Create `Dumper-7.ini` under `C:\Dumper-7`
+- **Global**: Create `Dumper-7.ini` under `C:\Dumper-7`.
+- Profiles do not merge. In other words your global profile does not change the default settings.
+  
+- **SleepTimeout:**
+  - If non-zero dump will start after a delay
+  - Values under 1000 assumed to be in seconds, otherwise in milliseconds
+  - If both SleepTimeout and DumpKey are set whichever occurs first will trigger the dump
+- **DumpKey:** 
+  - If non-zero dump will start upon key press
+  - Value should be a hex or decimal integer corresponding to a [virtual keycode](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes).
+  - Hex integers should start with 0x.
+- **SDKNamespaceName:**
+  - Changes the namespace in the generated files.
+- **SDKGenerationPath:**
+  - Generate output at the specified path instead of `C:/Dumper-7`.
+  - Paths are relative to game executable unless you use an absolute path including drive letter.
+  - Use `..` to access parent directories. Do not include quotes.
 
-Example:
+
+### Example:
 ```ini
 [Settings]
-SleepTimeout=100
+SleepTimeout=30
 SDKNamespaceName=MyOwnSDKNamespace
+DumpKey=0x77
+SDKGenerationPath=./
 ```
+- These settings would generate the SDK in the same folder as the game and would start after 30 seconds or upon pressing F8.
+
 ## Issues
 
 If you have any issues using the Dumper, please create an Issue on this repository\

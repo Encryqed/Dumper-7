@@ -25,16 +25,42 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONOUT$", "w", stderr);
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
-	std::cerr << "Started Generation [Dumper-7]!\n";
+	std::cerr << "Initializing [Dumper-7]\n";
 
 	Settings::Config::Load();
 
-	if (Settings::Config::SleepTimeout > 0)
+	if (Settings::Config::DumpKey != 0)
 	{
-		std::cerr << "Sleeping for " << Settings::Config::SleepTimeout << "ms...\n";
+		auto DelayStartTime = std::chrono::high_resolution_clock::now();
+
+		while (true)
+		{
+			if (GetAsyncKeyState(Settings::Config::DumpKey) & 0x8000) 
+			{
+				break;
+			}
+
+			if (Settings::Config::SleepTimeout > 0) 
+			{
+				const auto Now = std::chrono::high_resolution_clock::now();
+				const auto ElapsedTime = std::chrono::duration<double, std::milli>(Now - DelayStartTime);
+				if (ElapsedTime.count() > Settings::Config::SleepTimeout) 
+				{
+					std::cerr << "Sleep Timeout exceeded, proceeding with dump...\n";
+					break;
+				}
+			}
+
+			Sleep(50);
+		}
+	}
+	else
+	{
+		// Sleeping for the default of 0 ms has no effect here 
 		Sleep(Settings::Config::SleepTimeout);
 	}
 
+	std::cerr << "Started Generation [Dumper-7]!\n";
 	auto DumpStartTime = std::chrono::high_resolution_clock::now();
 
 	Generator::InitEngineCore();
@@ -72,12 +98,17 @@ DWORD MainThread(HMODULE Module)
 
 	std::cerr << "\n\nGenerating SDK took (" << DumpTime.count() << "ms)\n\n\n";
 
+	std::cerr << "\n\nPress F6 to unload\n\n\n";
+
 	while (true)
 	{
 		if (GetAsyncKeyState(VK_F6) & 1)
 		{
 			fclose(stderr);
-			if (Dummy) fclose(Dummy);
+			if (Dummy) 
+			{
+				fclose(Dummy);
+			}
 			FreeConsole();
 
 			FreeLibraryAndExitThread(Module, 0);
