@@ -5780,7 +5780,7 @@ using TActorBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<Under
 void CppGenerator::GenerateUnrealContainers(StreamType& UEContainersHeader)
 {
 	WriteFileHead(UEContainersHeader, nullptr, EFileType::UnrealContainers, 
-		"Container implementations with iterators. See https://github.com/Fischsalat/UnrealContainers", "#include <string>\n#include <stdexcept>\n#include <iostream>\n#include \"UtfN.hpp\"");
+		"Container implementations with iterators. See https://github.com/Fischsalat/UnrealContainers", "#include <string>\n#include <stdexcept>\n#include <iostream>\n#include <optional>\n#include \"UtfN.hpp\"");
 
 
 	UEContainersHeader << R"(
@@ -6079,6 +6079,43 @@ namespace UC
 			if (Data)
 				memset(Data, 0, NumElements * ElementSize);
 		}
+
+    public:
+        template<typename OtherType>
+        inline std::optional<ArrayElementType> Find(const OtherType& ElementToSearch, bool(*IsEqual)(const ArrayElementType&, const OtherType&)) const
+        {
+            for (const auto& Element : *this)
+            {
+                if (IsEqual(Element, ElementToSearch))
+                    return Element;
+            }
+
+            return {};
+        }
+
+        inline std::optional<ArrayElementType> Find(const ArrayElementType& ElementToSearch) const
+            requires std::equality_comparable<ArrayElementType>
+        {
+            for (const auto& Element : *this)
+            {
+                if (Element == ElementToSearch)
+                    return Element;
+            }
+
+            return {};
+        }
+
+        template<typename OtherType>
+        inline bool Contains(const OtherType& ElementToSearch,     bool(*IsEqual)(const ArrayElementType&, const OtherType&)) const
+        {
+            return Find<OtherType>(ElementToSearch, IsEqual).has_value();
+        }
+
+        inline bool Contains(const ArrayElementType& ElementToSearch) const
+            requires std::equality_comparable<ArrayElementType>
+        {
+            return Find(ElementToSearch).has_value();
+        }
 
 	public:
 		inline int32 Num() const { return NumElements; }
