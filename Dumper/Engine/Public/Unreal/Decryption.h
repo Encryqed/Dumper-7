@@ -4,48 +4,58 @@
 
 namespace Decryption
 {
-	// Pointer decryptors (encrypted pointer value -> decrypted address)
-	inline uint8_t* (*FFieldClass_SuperClass)(void* Ptr)                = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*FField_Owner)(void* Ptr)                          = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*FField_Class)(void* Ptr)                          = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*FField_Next)(void* Ptr)                           = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*UObject_Vft)(void* Ptr)                           = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*UObject_Class)(void* Ptr)                         = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*UObject_Outer)(void* Ptr)                         = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*UField_Next)(void* Ptr)                           = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*UStruct_SuperStruct)(void* Ptr)                   = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*UStruct_Children)(void* Ptr)                      = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*UStruct_ChildProperties)(void* Ptr)               = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*UClass_ClassDefaultObject)(void* Ptr)             = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*UFunction_ExecFunction)(void* Ptr)                = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*ByteProperty_Enum)(void* Ptr)                     = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*ObjectProperty_PropertyClass)(void* Ptr)          = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*ClassProperty_MetaClass)(void* Ptr)               = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*StructProperty_Struct)(void* Ptr)                 = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*ArrayProperty_Inner)(void* Ptr)                   = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*DelegateProperty_SignatureFunction)(void* Ptr)    = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*MapProperty_KeyProperty)(void* Ptr)               = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*MapProperty_ValueProperty)(void* Ptr)             = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*SetProperty_ElementProp)(void* Ptr)               = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*EnumProperty_UnderlayingProperty)(void* Ptr)      = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*EnumProperty_Enum)(void* Ptr)                     = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*FieldPathProperty_FieldClass)(void* Ptr)          = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*OptionalProperty_ValueProperty)(void* Ptr)        = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
-	inline uint8_t* (*OffsetFinder_PropertySizePointer)(void* Ptr)      = [](void* Ptr) -> uint8_t* { return static_cast<uint8_t*>(Ptr); };
+	// Pointer decryptors: take address of the member (where the pointer is stored); read + decrypt inside, return decrypted address.
+	inline uint8_t* (*FFieldClass_SuperClass)(const void* MemberAddress)                = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*FField_Owner)(const void* MemberAddress)                          = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*FField_Class)(const void* MemberAddress)                          = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*FField_Next)(const void* MemberAddress)                           = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*UObject_Vft)(const void* MemberAddress)                           = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*UObject_Class)(const void* MemberAddress)                         = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*UObject_Outer)(const void* MemberAddress)                         = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*UField_Next)(const void* MemberAddress)                           = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*UStruct_SuperStruct)(const void* MemberAddress)                   = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*UStruct_Children)(const void* MemberAddress)                      = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*UStruct_ChildProperties)(const void* MemberAddress)               = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*UClass_ClassDefaultObject)(const void* MemberAddress)             = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*UFunction_ExecFunction)(const void* MemberAddress)                = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*ByteProperty_Enum)(const void* MemberAddress)                     = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*ObjectProperty_PropertyClass)(const void* MemberAddress)          = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*ClassProperty_MetaClass)(const void* MemberAddress)               = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*StructProperty_Struct)(const void* MemberAddress)                 = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*ArrayProperty_Inner)(const void* MemberAddress)                   = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*DelegateProperty_SignatureFunction)(const void* MemberAddress)    = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*MapProperty_KeyProperty)(const void* MemberAddress)               = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*MapProperty_ValueProperty)(const void* MemberAddress)             = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*SetProperty_ElementProp)(const void* MemberAddress)               = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*EnumProperty_UnderlayingProperty)(const void* MemberAddress)      = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*EnumProperty_Enum)(const void* MemberAddress)                     = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*FieldPathProperty_FieldClass)(const void* MemberAddress)          = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*OptionalProperty_ValueProperty)(const void* MemberAddress)        = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*OffsetFinder_PropertySizePointer)(const void* MemberAddress)      = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
 
 	// Value decryptors (encrypted -> decrypted value)
-	inline int32_t (*UObject_Flags)(int32_t Raw)    = [](int32_t Raw) -> int32_t { return Raw; };
-	inline int32_t (*FField_Flags)(int32_t Raw)     = [](int32_t Raw) -> int32_t { return Raw; };
-	inline int32_t (*FName_CompIdx)(int32_t Raw)    = [](int32_t Raw) -> int32_t { return Raw; };
-	inline int32_t (*FName_Number)(int32_t Raw)     = [](int32_t Raw) -> int32_t { return Raw; };
+	inline int32_t (*UObject_Flags)(const void* Address)    = [](const void* Address) -> int32_t { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t (*FField_Flags)(const void* Address)     = [](const void* Address) -> int32_t { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t (*FName_CompIdx)(const void* Address)    = [](const void* Address) -> int32_t { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t (*FName_Number)(const void* Address)     = [](const void* Address) -> int32_t { return *reinterpret_cast<const int32_t*>(Address); };
 
 	void Init();
 }
 
 /*
- * Example:
- *   DECRYPT_UObject_Class([](void* Ptr) -> uint8_t* {
- *       return reinterpret_cast<uint8_t*>(uintptr_t(Ptr) ^ 0x1234ULL);
+ * Example pointer
+ *   DECRYPT_UObject_Class([](const void* MemberAddress) -> uint8_t* {
+ *       const uintptr_t Stored = *reinterpret_cast<const uintptr_t*>(MemberAddress);
+ *       const uintptr_t Key = 0xDEADBEEFULL;
+ *       void* const DecryptedPtr = reinterpret_cast<void*>(Stored ^ Key);
+ *       return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(DecryptedPtr));
+ *   })
+ *
+ * Example value (with key 4 bytes after the member):
+ *   DECRYPT_FName_CompIdx([](const void* Address) -> int32_t {
+ *       const int32_t Raw = *reinterpret_cast<const int32_t*>(Address);
+ *       const int32_t Key = *reinterpret_cast<const int32_t*>(static_cast<const uint8_t*>(Address) + 0x4);
+ *       return Raw ^ Key;
  *   })
  */
 #define DECRYPT_FFieldClass_SuperClass(L)                (Decryption::FFieldClass_SuperClass = (L));
