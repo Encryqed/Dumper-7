@@ -5,6 +5,7 @@
 #include "Managers/MemberManager.h"
 #include "Managers/PackageManager.h"
 
+#include "Unreal/Decryption.h"
 #include "HashStringTable.h"
 #include "Utils.h"
 
@@ -38,6 +39,9 @@ void Generator::InitEngineCore()
 
 	/* Multiversus [Unsupported, weird GObjects-struct] */
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
+
+	/* Member decryption [Edit Unreal/Decryption.cpp] */
+	Decryption::Init();
 
 	ObjectArray::Init();
 

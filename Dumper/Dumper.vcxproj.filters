@@ -80,6 +80,9 @@
     <ClCompile Include="Platform\Private\PlatformWindows.cpp">
       <Filter>Platform\Private</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\Private\Unreal\Decryption.cpp">
+      <Filter>Engine\Private\Unreal</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -263,6 +266,9 @@
     </ClInclude>
     <ClInclude Include="Platform\Public\Platform.h">
       <Filter>Platform\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Public\Unreal\Decryption.h">
+      <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

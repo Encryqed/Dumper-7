@@ -155,6 +155,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Engine\Private\OffsetFinder\OffsetFinder.cpp" />
+    <ClCompile Include="Engine\Private\Unreal\Decryption.cpp" />
     <ClCompile Include="Generator\Private\Generators\DumpspaceGenerator.cpp" />
     <ClCompile Include="Engine\Private\Unreal\NameArray.cpp" />
     <ClCompile Include="Engine\Private\Unreal\ObjectArray.cpp" />
@@ -183,6 +184,7 @@
     <ClCompile Include="Generator\Private\Wrappers\StructWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\Public\Unreal\Decryption.h" />
     <ClInclude Include="Generator\Public\Generators\DumpspaceGenerator.h" />
     <ClInclude Include="Platform\Private\Arch_x86.h" />
     <ClInclude Include="Platform\Private\PlatformWindows.h" />
