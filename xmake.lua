@@ -8,6 +8,7 @@ target("Dumper-7")
     add_files("Dumper/**.cpp")
     add_files("Dumper/**.c")
 
+    add_includedirs("Dumper", {public = true})
     add_includedirs("Dumper/Utils", {public = true})
     add_includedirs("Dumper/Engine/Public", {public = true})
     add_includedirs("Dumper/Generator/Public", {public = true})
