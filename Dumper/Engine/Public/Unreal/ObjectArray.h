@@ -62,7 +62,7 @@ public:
 	static UEType FindObjectFast(const std::string& Name, EClassCastFlags RequiredType = EClassCastFlags::None);
 
 	template<typename UEType = UEObject>
-	static UEType FindObjectFastInOuter(const std::string& Name, std::string Outer);
+	static UEType FindObjectFastInOuter(const std::string& Name, const std::string& Outer);
 
 	static UEStruct FindStruct(const std::string& FullName);
 	static UEStruct FindStructFast(const std::string& Name);

@@ -655,11 +655,13 @@ UEProperty UEStruct::FindMember(const std::string& MemberName, EClassCastFlags T
 	if (!Object)
 		return nullptr;
 
+	const std::string LowerMemberName = Utils::StrToLower(MemberName);
+
 	if (Settings::Internal::bUseFProperty)
 	{
 		for (UEFField Field = GetChildProperties(); Field; Field = Field.GetNext())
 		{
-			if (Field.IsA(TypeFlags) && Field.GetName() == MemberName)
+			if (Field.IsA(TypeFlags) && Utils::StrToLower(Field.GetName()) == LowerMemberName)
 			{
 				return Field.Cast<UEProperty>();
 			}
@@ -668,7 +670,7 @@ UEProperty UEStruct::FindMember(const std::string& MemberName, EClassCastFlags T
 
 	for (UEField Field = GetChild(); Field; Field = Field.GetNext())
 	{
-		if (Field.IsA(TypeFlags) && Field.GetName() == MemberName)
+		if (Field.IsA(TypeFlags) && Utils::StrToLower(Field.GetName()) == LowerMemberName)
 		{
 			return Field.Cast<UEProperty>();
 		}
@@ -729,19 +731,21 @@ TArray<FImplementedInterface> UEClass::GetImplementedInterfaces() const
 
 UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string& FuncName) const
 {
+	std::string ClassNameLower = Utils::StrToLower(ClassName);
+	std::string FuncNameLower = Utils::StrToLower(FuncName);
+
 	for (UEStruct Struct = *this; Struct; Struct = Struct.GetSuper())
 	{
-		if (Struct.GetName() != ClassName)
+		if (Utils::StrToLower(Struct.GetName()) != ClassNameLower)
 			continue;
 
 		for (UEField Field = Struct.GetChild(); Field; Field = Field.GetNext())
 		{
-			if (Field.IsA(EClassCastFlags::Function) && Field.GetName() == FuncName)
+			if (Field.IsA(EClassCastFlags::Function) && Utils::StrToLower(Field.GetName()) == FuncNameLower)
 			{
 				return Field.Cast<UEFunction>();
 			}
 		}
-
 	}
 
 	return nullptr;

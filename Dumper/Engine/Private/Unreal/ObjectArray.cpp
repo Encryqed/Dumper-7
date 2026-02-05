@@ -474,9 +474,11 @@ static UEType ObjectArray::GetByIndex(int32 Index)
 template<typename UEType>
 UEType ObjectArray::FindObject(const std::string& FullName, EClassCastFlags RequiredType)
 {
+	const std::string LowerFullName = Utils::StrToLower(FullName);
+
 	for (UEObject Object : ObjectArray())
 	{
-		if (Object.IsA(RequiredType) && Object.GetFullName() == FullName)
+		if (Object.IsA(RequiredType) && Utils::StrToLower(Object.GetFullName()) == LowerFullName)
 		{
 			return Object.Cast<UEType>();
 		}
@@ -488,11 +490,11 @@ UEType ObjectArray::FindObject(const std::string& FullName, EClassCastFlags Requ
 template<typename UEType>
 UEType ObjectArray::FindObjectFast(const std::string& Name, EClassCastFlags RequiredType)
 {
-	auto ObjArray = ObjectArray();
+	const std::string LowerName = Utils::StrToLower(Name);
 
-	for (UEObject Object : ObjArray)
+	for (UEObject Object : ObjectArray())
 	{
-		if (Object.IsA(RequiredType) && Object.GetName() == Name)
+		if (Object.IsA(RequiredType) && Utils::StrToLower(Object.GetName()) == LowerName)
 		{
 			return Object.Cast<UEType>();
 		}
@@ -502,13 +504,14 @@ UEType ObjectArray::FindObjectFast(const std::string& Name, EClassCastFlags Requ
 }
 
 template<typename UEType>
-static UEType ObjectArray::FindObjectFastInOuter(const std::string& Name, std::string Outer)
+static UEType ObjectArray::FindObjectFastInOuter(const std::string& Name, const std::string& Outer)
 {
-	auto ObjArray = ObjectArray();
+	const std::string LowerName = Utils::StrToLower(Name);
+	const std::string LowerOuter = Utils::StrToLower(Outer);
 
-	for (UEObject Object : ObjArray)
+	for (UEObject Object : ObjectArray())
 	{
-		if (Object.GetName() == Name && Object.GetOuter().GetName() == Outer)
+		if (Utils::StrToLower(Object.GetName()) == LowerName && Utils::StrToLower(Object.GetOuter().GetName()) == LowerOuter)
 		{
 			return Object.Cast<UEType>();
 		}
