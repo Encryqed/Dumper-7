@@ -325,8 +325,8 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 
 	if (GObjects == nullptr)
 	{
-		std::cerr << "\nGObjects couldn't be found!\n\n\n";
-		Sleep(3000);
+		std::cerr << "\nGObjects couldn't be found, please overwrite the offset in Generator.cpp.\n\n\n";
+		Sleep(10000);
 		exit(1);
 	}
 }
