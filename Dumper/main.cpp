@@ -66,7 +66,7 @@ DWORD MainThread(HMODULE Module)
 	Generator::Generate<MappingGenerator>();
 	Generator::Generate<IDAMappingGenerator>();
 	Generator::Generate<DumpspaceGenerator>();
-	//Generator::Generate<IDAMappingV2Generator>();
+	Generator::Generate<IDAMappingV2Generator>();
 
 	auto DumpFinishTime = std::chrono::high_resolution_clock::now();
 

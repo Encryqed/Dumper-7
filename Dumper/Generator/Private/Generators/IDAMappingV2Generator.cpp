@@ -5,11 +5,21 @@
 #include <fstream>
 
 
-int32 IDAMappingV2Generator::AddNameToData(std::stringstream& NameTable, const std::string& Name)
+std::string IDAMappingV2Generator::MangleFunctionName(const std::string& ClassName, const std::string& FunctionName)
+{
+	return "_ZN" + std::to_string(ClassName.length()) + ClassName + std::to_string(FunctionName.length()) + FunctionName + "Ev";
+}
+
+std::string IDAMappingV2Generator::MangleUFunctionName(const std::string& ClassName, const std::string& FunctionName)
+{
+	return MangleFunctionName(ClassName, "exec" + FunctionName);
+}
+
+IDAMappingsLayouts::StringOffset IDAMappingV2Generator::AddNameToData(std::stringstream& NameTable, const std::string& Name)
 {
 	if constexpr (Settings::MappingGenerator::bShouldCheckForDuplicatedNames)
 	{
-		static std::unordered_map<std::string, int32> NameMap;
+		static std::unordered_map<std::string, IDAMappingsLayouts::StringOffset> NameMap;
 
 		auto [It, bInserted] = NameMap.insert({ Name, NameCounter });
 
@@ -74,6 +84,22 @@ void IDAMappingV2Generator::GenerateSingleStruct(const StructWrapper& Struct, st
 	{
 		GenerateSingleMember(Member, StructData, NameData);
 	}
+}
+
+std::vector<IDAMappingsLayouts::NamedVariable> IDAMappingV2Generator::GenerateNamedVariables(StreamType& IdmapFile, std::stringstream& NameData)
+{
+	return {
+		IDAMappingsLayouts::NamedVariable {
+			.VariableOffset = static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::ObjArray::GObjects),
+			.Type = AddNameToData(NameData, "TUObjectArray"),
+			.Name = AddNameToData(NameData, "GObjects")
+		},
+		IDAMappingsLayouts::NamedVariable {
+			.VariableOffset = static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::NameArray::GNames),
+			.Type = AddNameToData(NameData, "TNameEntryArray"),
+			.Name = AddNameToData(NameData, "GNames")
+		},
+	};
 }
 
 void IDAMappingV2Generator::GenerateFileHeader(StreamType& InUsmap, const std::stringstream& Data)

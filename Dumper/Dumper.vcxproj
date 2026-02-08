@@ -162,6 +162,7 @@
     <ClCompile Include="Engine\Private\Unreal\UnrealObjects.cpp" />
     <ClCompile Include="Engine\Private\Unreal\UnrealTypes.cpp" />
     <ClCompile Include="Generator\Private\Generators\IDAMappingV2Generator.cpp" />
+    <ClInclude Include="IDAMappingV2Layouts.hpp" />
     <ClCompile Include="Platform\Private\Arch_x86.cpp" />
     <ClCompile Include="Platform\Private\PlatformWindows.cpp" />
     <ClCompile Include="Settings.cpp" />

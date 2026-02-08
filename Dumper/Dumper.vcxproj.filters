@@ -270,5 +270,8 @@
     <ClInclude Include="Generator\Public\Generators\IDAMappingV2Generator.h">
       <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
+    <ClInclude Include="IDAMappingV2Layouts.hpp">
+      <Filter>Generator\Public\Generators</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
