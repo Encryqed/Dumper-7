@@ -24,6 +24,7 @@ namespace Settings
 		inline std::string SDKNamespaceName = "SDK";
 
 		void Load();
+		void DelayDumperStart();
 	};
 
 	namespace EngineCore
