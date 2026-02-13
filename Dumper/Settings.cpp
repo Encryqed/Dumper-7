@@ -203,3 +203,38 @@ void Settings::Config::Load()
 		}
 	}
 }
+
+void Settings::Config::DelayDumperStart()
+{	
+	if (DumpKey == 0)
+	{
+		// Sleeping for the default of 0 ms has no effect here 
+		Sleep(SleepTimeout);
+		return;
+	}
+
+	const auto DelayStartTime = std::chrono::high_resolution_clock::now();
+
+	while (true)
+	{
+		if (GetAsyncKeyState(DumpKey) & 0x8000)
+		{
+			return;
+		}
+
+		if (SleepTimeout > 0) 
+		{
+			const auto Now = std::chrono::high_resolution_clock::now(); 
+			const auto ElapsedTime = std::chrono::duration<double, std::milli>(Now - DelayStartTime); 
+			if (ElapsedTime.count() > SleepTimeout) 
+			{
+				std::cerr << "Sleep Timeout exceeded, proceeding with dump...\n"; 
+				return;
+			}
+		}
+			
+		Sleep(50);
+	}
+}
+
+
