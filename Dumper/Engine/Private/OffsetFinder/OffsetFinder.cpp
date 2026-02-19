@@ -743,6 +743,49 @@ int32_t OffsetFinder::FindMinAlignmentOffset()
 	return FindOffset(Infos);
 }
 
+int32_t OffsetFinder::FindStructBaseChainOffset()
+{
+	// UStruct inherits from FStructBaseChain, so the members of base chain should come right after UField
+
+	UEStruct Struct = ObjectArray::FindStructFast("Struct");
+	if (!Struct)
+		Struct = ObjectArray::FindStructFast("struct");
+
+	const int32 UStructStart = Struct.GetSuper().GetStructSize();
+	const int32 UStructEnd = UStructStart + Struct.GetStructSize();
+
+	// If the members of UStruct come right after UField, FStructBaseChain either doesn't exist or is empty
+	if (UStructStart == Off::UStruct::ChildProperties || UStructStart == Off::UStruct::Children)
+		return OffsetNotFound;
+
+	auto CountSuperClasses = [](const UEStruct InStruct) -> int32
+	{
+		int32 Count = 0;
+
+		UEStruct CurrentSuper = InStruct.GetSuper();
+		while (CurrentSuper)
+		{
+			Count++;
+			CurrentSuper = CurrentSuper.GetSuper();
+		}
+
+		return Count;
+	};
+
+	/* Pair<UStruct, NumSuperClasses> */
+	std::vector<std::pair<void*, int32_t>> Infos;
+
+	UEStruct APlayerController = ObjectArray::FindClassFast("PlayerController");
+	UEStruct AActor = ObjectArray::FindClassFast("Actor");
+
+	Infos.push_back({ Struct.GetAddress(),              CountSuperClasses(Struct)            });
+	Infos.push_back({ APlayerController.GetAddress(),   CountSuperClasses(APlayerController) });
+	Infos.push_back({ AActor.GetAddress(),              CountSuperClasses(AActor)            });
+
+	// FStructBaseChain::NumStructBasesInChainMinusOne is at offset 0x8, after a pointer
+	return FindOffset(Infos, UStructStart, UStructEnd) - sizeof(void*);
+}
+
 /* UFunction */
 int32_t OffsetFinder::FindFunctionFlagsOffset()
 {

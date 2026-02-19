@@ -1893,6 +1893,15 @@ void CppGenerator::InitPredefinedMembers()
 		});
 	}
 
+	if (Off::UStruct::StructBaseChain != -1)
+	{
+		UStructPredefs.Members.push_back({
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "struct FStructBaseChain", .Name = "BaseChain", .Offset = Off::UStruct::StructBaseChain, .Size = sizeof(void*) + sizeof(int32) + sizeof(uint32) /* PAD */, .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		});
+	}
+
 	PredefinedElements& UFunctionPredefs = PredefinedMembers[ObjectArray::FindClassFast("Function").GetIndex()];
 	UFunctionPredefs.Members =
 	{
@@ -2507,11 +2516,7 @@ R"({{
 
 	PredefinedElements& UStructPredefs = PredefinedMembers[UStructIdx];
 
-	UStructPredefs.Functions =
-	{
-		PredefinedFunction {
-			.CustomComment = "Checks if this class has a certain base",
-			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const UStruct* Base)", .Body =
+	const char* IsStructOfTypeCode =
 R"({
 	if (!Base)
 		return false;
@@ -2523,7 +2528,25 @@ R"({
 	}
 
 	return false;
-})",
+})";
+
+	if (Off::UStruct::StructBaseChain != -1)
+	{
+		IsStructOfTypeCode =
+R"({
+	if (!Base)
+		return false;
+
+	const int32 NumParentStructBasesInChainMinusOne = Base->BaseChain.NumStructBasesInChainMinusOne;
+	return NumParentStructBasesInChainMinusOne <= BaseChain.NumStructBasesInChainMinusOne && BaseChain.StructBaseChainArray[NumParentStructBasesInChainMinusOne] == &Base->BaseChain;
+})";
+	}
+
+	UStructPredefs.Functions =
+	{
+		PredefinedFunction {
+			.CustomComment = "Checks if this class has a certain base",
+			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const UStruct* Base)", .Body = IsStructOfTypeCode,
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 		PredefinedFunction {
@@ -4697,6 +4720,28 @@ public:
 };
 )";
 
+	/* struct FStructBaseChain */
+	PredefinedStruct FStructBaseChain = PredefinedStruct{
+		.UniqueName = "FStructBaseChain", .Size = sizeof(void*) + sizeof(int32), .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = false, .bIsUnion = false, .Super = nullptr
+	};
+
+	FStructBaseChain.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FStructBaseChain**", .Name = "StructBaseChainArray", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "NumStructBasesInChainMinusOne", .Offset = sizeof(void*), .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	GenerateStruct(&FStructBaseChain, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
+
+
 	const int32 TextDataSize = (Off::InSDK::Text::InTextDataStringOffset + sizeof(FString));
 
 	/* class FTextData */
@@ -4713,7 +4758,8 @@ public:
 		},
 	};
 
-	BasicHpp << R"(namespace FTextImpl
+	BasicHpp << R"(
+namespace FTextImpl
 {)";
 	GenerateStruct(&FTextData, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 	BasicHpp << "}\n";
