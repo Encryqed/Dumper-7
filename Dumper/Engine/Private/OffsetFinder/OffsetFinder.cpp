@@ -532,10 +532,25 @@ int32_t OffsetFinder::FindFFieldEditorOnlyMetaDataOffset()
 		const TMap<Name08Byte, FString>* PossibleMetaDataPtr1 = *reinterpret_cast<TMap<Name08Byte, FString>**>(reinterpret_cast<uintptr_t>(GuidChild1.GetAddress()) + Offset);
 		const TMap<Name08Byte, FString>* PossibleMetaDataPtr2 = *reinterpret_cast<TMap<Name08Byte, FString>**>(reinterpret_cast<uintptr_t>(GuidChild2.GetAddress()) + Offset);
 
-		if (!PossibleMetaDataPtr1 || !PossibleMetaDataPtr2)
+		if (!PossibleMetaDataPtr1 || !PossibleMetaDataPtr2 || Platform::IsBadReadPtr(PossibleMetaDataPtr1) || Platform::IsBadReadPtr(PossibleMetaDataPtr2))
 			continue;
 
 		if (!PossibleMetaDataPtr1->IsValid() || !PossibleMetaDataPtr2->IsValid())
+			continue;
+
+		if (PossibleMetaDataPtr1->Num() <= 0 || PossibleMetaDataPtr2->Num() <= 0)
+			continue;
+
+		if (PossibleMetaDataPtr1->Num() >= 0x10 || PossibleMetaDataPtr2->Num() >= 0x10)
+			continue;
+
+		auto GetDataPtrOfArrayInMap = [](const auto& Map) -> const void*
+		{
+			// TMap data is stored at offset 0x0, this is a hacky way to get the TArray::Data member of the map
+			return *reinterpret_cast<const void* const*>(&Map);
+		};
+
+		if (Platform::IsBadReadPtr(GetDataPtrOfArrayInMap(PossibleMetaDataPtr1)) || Platform::IsBadReadPtr(GetDataPtrOfArrayInMap(PossibleMetaDataPtr2)))
 			continue;
 
 		if (Off::InSDK::Name::FNameSize <= 0x8)
