@@ -481,6 +481,78 @@ int32_t OffsetFinder::NewFindFFieldNameOffset()
 	return FindNameOffsetForSomeClass(IsPotentiallyValidOffset, TmpIt.begin(), TmpIt.end());
 }
 
+int32_t OffsetFinder::FindFFieldEditorOnlyMetaDataOffset()
+{
+	const UEFField GuidChild1 = ObjectArray::FindStructFast("Guid").GetChildProperties();
+	const UEFField GuidChild2 = GuidChild1.GetNext();
+
+	auto IsPotentiallyValidOffset = [](int32 Offset) -> bool
+		{
+			// Make sure 0x4 aligned Offsets are neither the start, nor the middle of a pointer-member. Irrelevant for 32-bit, because the 2nd check will be 0x2 aligned then.
+			return Offset != Off::FField::Class && Offset != (Off::FField::Class + (sizeof(void*) / 2))
+				&& Offset != Off::FField::Next && Offset != (Off::FField::Next + (sizeof(void*) / 2))
+				&& Offset != Off::FField::Vft && Offset != (Off::FField::Vft + (sizeof(void*) / 2))
+				&& Offset != Off::FField::Name && Offset != (Off::FField::Name + Off::InSDK::Name::FNameSize);
+		};
+
+	int32 StartingOffset = 0x8;
+
+	// Only pay attention to the 0x8 aligned size-options of FName, since the pair in the TMap is 0x8 aligned because of FString
+	struct alignas(0x4) Name08Byte { uint8 Pad[0x08]; };
+	struct alignas(0x4) Name16Byte { uint8 Pad[0x10]; };
+
+	static auto AreValidMetadataMaps = []<typename NameType>(const TMap<NameType, FString>* MetadataMap1, const TMap<NameType, FString>* MetadataMap2)
+	{
+		if (!MetadataMap1->IsValid() || !MetadataMap2->IsValid())
+			return false;
+
+		const FString& Value1 = MetadataMap1->operator[](0).Value();
+		const FString& Value2 = MetadataMap2->operator[](0).Value();
+
+		return Value1.IsValid() && Value2.IsValid();
+	};
+
+	while (true)
+	{
+		if (!IsPotentiallyValidOffset(StartingOffset))
+		{
+			StartingOffset += sizeof(void*);
+			continue;
+		}
+
+		const int32 Offset = GetValidPointerOffset<false>(GuidChild1.GetAddress(), GuidChild2.GetAddress(), StartingOffset, 0x40);
+		StartingOffset = Offset + sizeof(void*);
+
+		if (Offset == OffsetNotFound)
+			break;
+
+		if (!IsPotentiallyValidOffset(Offset))
+			continue;
+
+		const TMap<Name08Byte, FString>* PossibleMetaDataPtr1 = *reinterpret_cast<TMap<Name08Byte, FString>**>(reinterpret_cast<uintptr_t>(GuidChild1.GetAddress()) + Offset);
+		const TMap<Name08Byte, FString>* PossibleMetaDataPtr2 = *reinterpret_cast<TMap<Name08Byte, FString>**>(reinterpret_cast<uintptr_t>(GuidChild2.GetAddress()) + Offset);
+
+		if (!PossibleMetaDataPtr1 || !PossibleMetaDataPtr2)
+			continue;
+
+		if (!PossibleMetaDataPtr1->IsValid() || !PossibleMetaDataPtr2->IsValid())
+			continue;
+
+		if (Off::InSDK::Name::FNameSize <= 0x8)
+		{
+			if (AreValidMetadataMaps(PossibleMetaDataPtr1, PossibleMetaDataPtr2))
+				return Offset;
+		}
+		else
+		{
+			if (AreValidMetadataMaps(reinterpret_cast<const TMap<Name16Byte, FString>*>(PossibleMetaDataPtr1), reinterpret_cast<const TMap<Name16Byte, FString>*>(PossibleMetaDataPtr1)))
+				return Offset;
+		}
+	}
+
+	return OffsetNotFound;
+}
+
 int32_t OffsetFinder::FindFFieldClassOffset()
 {
 	const UEFField GuidChild = ObjectArray::FindStructFast("Guid").GetChildProperties();
@@ -542,6 +614,22 @@ void InializeUEnumSettings(const void* EnumObj, const uint32_t UEnumNumValuesOff
 	{
 		InitEnumSettings(*reinterpret_cast<const TArray<TPair<Name08Byte, ValueType>>*>(ArrayAddress));
 	}
+}
+
+/* FFieldClass */
+int32_t OffsetFinder::FindFieldClassCastFlagsOffset()
+{
+	std::vector<std::pair<void*, EClassCastFlags>> Infos;
+
+	const UEFField GuidChild = ObjectArray::FindStructFast("Guid").GetChildProperties();
+	const UEFField ColourChild = ObjectArray::FindStructFast("Color").GetChildProperties();
+
+	Infos.push_back({ GuidChild.GetClass().GetAddress(),   EClassCastFlags::Field | EClassCastFlags::Property | EClassCastFlags::NumericProperty | EClassCastFlags::IntProperty  });
+	Infos.push_back({ ColourChild.GetClass().GetAddress(), EClassCastFlags::Field | EClassCastFlags::Property | EClassCastFlags::NumericProperty | EClassCastFlags::ByteProperty });
+
+	const int32_t Offset = FindOffset(Infos, sizeof(void*), 0x30);
+
+	return Offset != OffsetNotFound ? Offset : 0x10;
 }
 
 /* UEnum */

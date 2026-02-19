@@ -10,6 +10,8 @@
 
 namespace fs = std::filesystem;
 
+void DumpEditorOnlyMetadata(const fs::path& DumperFolder);
+
 template<typename GeneratorType>
 concept GeneratorImplementation = requires(GeneratorType t)
 {
@@ -42,6 +44,7 @@ private:
 private:
     static inline fs::path DumperFolder;
     static inline bool bDumpedGObjects = false;
+	static inline bool bDumepdEditorOnlyMetadata = false;
 
 public:
     static void InitEngineCore();
@@ -69,6 +72,12 @@ public:
 
                 if (Settings::Internal::bUseFProperty)
                     ObjectArray::DumpObjectsWithProperties(DumperFolder);
+            }
+
+            if (!bDumepdEditorOnlyMetadata)
+            {
+                bDumepdEditorOnlyMetadata = true;
+                DumpEditorOnlyMetadata(DumperFolder);
             }
         }
 

@@ -135,6 +135,8 @@ namespace Off
 		inline int32 Next = 0x20;
 		inline int32 Name = 0x28;
 		inline int32 Flags = 0x30;
+
+		inline int32 EditorOnlyMetadata = -1; // Only present in editor builds
 	}
 
 	namespace FFieldClass
