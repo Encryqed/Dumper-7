@@ -128,11 +128,10 @@ namespace
 		const PEB* Peb = GetPEB();
 		const PEB_LDR_DATA* Ldr = Peb->Ldr;
 
-		int NumEntriesLeft = Ldr->Length;
-
 		const std::string LowercaseSearchModuleName = Utils::StrToLower(SearchModuleName);
 
-		for (const LIST_ENTRY* P = Ldr->InMemoryOrderModuleList.Flink; P && NumEntriesLeft-- > 0; P = P->Flink)
+		const LIST_ENTRY* FirstEntry = &Ldr->InMemoryOrderModuleList;
+		for (const LIST_ENTRY* P = Ldr->InMemoryOrderModuleList.Flink; P && P != FirstEntry; P = P->Flink)
 		{
 			const LDR_DATA_TABLE_ENTRY* Entry = reinterpret_cast<const LDR_DATA_TABLE_ENTRY*>(P);
 
@@ -573,13 +572,13 @@ const void* PlatformWindows::GetAddressOfExportedFunction(const char* SearchModu
 	const WORD* Ordinals = reinterpret_cast<const WORD*>(ModuleBase + ExportTable->AddressOfNameOrdinals);
 
 	/* Iterate all names and return the function if the name matches what we're looking for */
-	for (int i = 0; i < ExportTable->NumberOfFunctions; i++)
+	for (int i = 0; i < ExportTable->NumberOfNames; i++)
 	{
 		const WORD NameIndex = Ordinals[i];
-		const char* Name = reinterpret_cast<const char*>(ModuleBase + NameOffsets[NameIndex]);
+		const char* Name = reinterpret_cast<const char*>(ModuleBase + NameOffsets[i]);
 
 		if (strcmp(SearchFunctionName, Name) == 0)
-			return reinterpret_cast<void*>(ModuleBase + FunctionOffsets[i]);
+			return reinterpret_cast<void*>(ModuleBase + FunctionOffsets[NameIndex]);
 	}
 
 	return nullptr;
