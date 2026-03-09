@@ -124,6 +124,49 @@ UEFField UEFField::GetNext() const
 	return UEFField(*reinterpret_cast<void**>(Field + Off::FField::Next));
 }
 
+std::vector<std::pair<std::string, std::string>> UEFField::GetMetaData() const
+{
+	using ValueType = std::conditional_t<sizeof(void*) == 0x8, int64, int32>;
+
+	struct alignas(0x4) Name04Byte { uint8 Pad[0x04]; };
+	struct alignas(0x4) Name08Byte { uint8 Pad[0x08]; };
+	struct alignas(0x4) Name12Byte { uint8 Pad[0x0C]; };
+	struct alignas(0x4) Name16Byte { uint8 Pad[0x10]; };
+
+	static constexpr uintptr_t PointeFlagHasTag = 0x1;
+	static constexpr uintptr_t PointerMaskNoTag = ~0x1;
+
+
+	static auto GetPairsAsStrings = []<typename NameType>(const TMap<NameType, FString> &EnumNameValuePairs)
+	{
+		std::vector<std::pair<std::string, std::string>> Result;
+
+		for (const auto& [Key, Value] : EnumNameValuePairs)
+		{
+			Result.emplace_back(FName(&Key).ToString(), Value.ToString());
+		}
+
+		return Result;
+	};
+
+	if (Off::InSDK::Name::FNameSize > 0x8)
+	{
+		auto* Map = *reinterpret_cast<TMap<Name16Byte, FString>**>(Field + Off::FField::EditorOnlyMetadata);
+
+		if (!Map)
+			return {};
+
+		return GetPairsAsStrings(*Map);
+	}
+
+	auto* Map = *reinterpret_cast<TMap<Name08Byte, FString>**>(Field + Off::FField::EditorOnlyMetadata);
+
+	if (!Map)
+		return {};
+
+	return GetPairsAsStrings(*Map);
+}
+
 template<typename UEType>
 UEType UEFField::Cast() const
 {

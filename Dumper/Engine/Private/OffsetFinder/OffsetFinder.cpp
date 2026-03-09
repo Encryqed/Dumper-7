@@ -481,6 +481,93 @@ int32_t OffsetFinder::NewFindFFieldNameOffset()
 	return FindNameOffsetForSomeClass(IsPotentiallyValidOffset, TmpIt.begin(), TmpIt.end());
 }
 
+int32_t OffsetFinder::FindFFieldEditorOnlyMetaDataOffset()
+{
+	const UEFField GuidChild1 = ObjectArray::FindStructFast("Guid").GetChildProperties();
+	const UEFField GuidChild2 = GuidChild1.GetNext();
+
+	auto IsPotentiallyValidOffset = [](int32 Offset) -> bool
+		{
+			// Make sure 0x4 aligned Offsets are neither the start, nor the middle of a pointer-member. Irrelevant for 32-bit, because the 2nd check will be 0x2 aligned then.
+			return Offset != Off::FField::Class && Offset != (Off::FField::Class + (sizeof(void*) / 2))
+				&& Offset != Off::FField::Next && Offset != (Off::FField::Next + (sizeof(void*) / 2))
+				&& Offset != Off::FField::Vft && Offset != (Off::FField::Vft + (sizeof(void*) / 2))
+				&& Offset != Off::FField::Name && Offset != (Off::FField::Name + Off::InSDK::Name::FNameSize);
+		};
+
+	int32 StartingOffset = 0x8;
+
+	// Only pay attention to the 0x8 aligned size-options of FName, since the pair in the TMap is 0x8 aligned because of FString
+	struct alignas(0x4) Name08Byte { uint8 Pad[0x08]; };
+	struct alignas(0x4) Name16Byte { uint8 Pad[0x10]; };
+
+	static auto AreValidMetadataMaps = []<typename NameType>(const TMap<NameType, FString>* MetadataMap1, const TMap<NameType, FString>* MetadataMap2)
+	{
+		if (!MetadataMap1->IsValid() || !MetadataMap2->IsValid())
+			return false;
+
+		const FString& Value1 = MetadataMap1->operator[](0).Value();
+		const FString& Value2 = MetadataMap2->operator[](0).Value();
+
+		return Value1.IsValid() && Value2.IsValid();
+	};
+
+	while (true)
+	{
+		if (!IsPotentiallyValidOffset(StartingOffset))
+		{
+			StartingOffset += sizeof(void*);
+			continue;
+		}
+
+		const int32 Offset = GetValidPointerOffset<false>(GuidChild1.GetAddress(), GuidChild2.GetAddress(), StartingOffset, 0x40);
+		StartingOffset = Offset + sizeof(void*);
+
+		if (Offset == OffsetNotFound)
+			break;
+
+		if (!IsPotentiallyValidOffset(Offset))
+			continue;
+
+		const TMap<Name08Byte, FString>* PossibleMetaDataPtr1 = *reinterpret_cast<TMap<Name08Byte, FString>**>(reinterpret_cast<uintptr_t>(GuidChild1.GetAddress()) + Offset);
+		const TMap<Name08Byte, FString>* PossibleMetaDataPtr2 = *reinterpret_cast<TMap<Name08Byte, FString>**>(reinterpret_cast<uintptr_t>(GuidChild2.GetAddress()) + Offset);
+
+		if (!PossibleMetaDataPtr1 || !PossibleMetaDataPtr2 || Platform::IsBadReadPtr(PossibleMetaDataPtr1) || Platform::IsBadReadPtr(PossibleMetaDataPtr2))
+			continue;
+
+		if (!PossibleMetaDataPtr1->IsValid() || !PossibleMetaDataPtr2->IsValid())
+			continue;
+
+		if (PossibleMetaDataPtr1->Num() <= 0 || PossibleMetaDataPtr2->Num() <= 0)
+			continue;
+
+		if (PossibleMetaDataPtr1->Num() >= 0x10 || PossibleMetaDataPtr2->Num() >= 0x10)
+			continue;
+
+		auto GetDataPtrOfArrayInMap = [](const auto& Map) -> const void*
+		{
+			// TMap data is stored at offset 0x0, this is a hacky way to get the TArray::Data member of the map
+			return *reinterpret_cast<const void* const*>(&Map);
+		};
+
+		if (Platform::IsBadReadPtr(GetDataPtrOfArrayInMap(PossibleMetaDataPtr1)) || Platform::IsBadReadPtr(GetDataPtrOfArrayInMap(PossibleMetaDataPtr2)))
+			continue;
+
+		if (Off::InSDK::Name::FNameSize <= 0x8)
+		{
+			if (AreValidMetadataMaps(PossibleMetaDataPtr1, PossibleMetaDataPtr2))
+				return Offset;
+		}
+		else
+		{
+			if (AreValidMetadataMaps(reinterpret_cast<const TMap<Name16Byte, FString>*>(PossibleMetaDataPtr1), reinterpret_cast<const TMap<Name16Byte, FString>*>(PossibleMetaDataPtr1)))
+				return Offset;
+		}
+	}
+
+	return OffsetNotFound;
+}
+
 int32_t OffsetFinder::FindFFieldClassOffset()
 {
 	const UEFField GuidChild = ObjectArray::FindStructFast("Guid").GetChildProperties();
@@ -542,6 +629,22 @@ void InializeUEnumSettings(const void* EnumObj, const uint32_t UEnumNumValuesOff
 	{
 		InitEnumSettings(*reinterpret_cast<const TArray<TPair<Name08Byte, ValueType>>*>(ArrayAddress));
 	}
+}
+
+/* FFieldClass */
+int32_t OffsetFinder::FindFieldClassCastFlagsOffset()
+{
+	std::vector<std::pair<void*, EClassCastFlags>> Infos;
+
+	const UEFField GuidChild = ObjectArray::FindStructFast("Guid").GetChildProperties();
+	const UEFField ColourChild = ObjectArray::FindStructFast("Color").GetChildProperties();
+
+	Infos.push_back({ GuidChild.GetClass().GetAddress(),   EClassCastFlags::Field | EClassCastFlags::Property | EClassCastFlags::NumericProperty | EClassCastFlags::IntProperty  });
+	Infos.push_back({ ColourChild.GetClass().GetAddress(), EClassCastFlags::Field | EClassCastFlags::Property | EClassCastFlags::NumericProperty | EClassCastFlags::ByteProperty });
+
+	const int32_t Offset = FindOffset(Infos, sizeof(void*), 0x30);
+
+	return Offset != OffsetNotFound ? Offset : 0x10;
 }
 
 /* UEnum */
@@ -638,6 +741,49 @@ int32_t OffsetFinder::FindMinAlignmentOffset()
 	}
 
 	return FindOffset(Infos);
+}
+
+int32_t OffsetFinder::FindStructBaseChainOffset()
+{
+	// UStruct inherits from FStructBaseChain, so the members of base chain should come right after UField
+
+	UEStruct Struct = ObjectArray::FindStructFast("Struct");
+	if (!Struct)
+		Struct = ObjectArray::FindStructFast("struct");
+
+	const int32 UStructStart = Struct.GetSuper().GetStructSize();
+	const int32 UStructEnd = UStructStart + Struct.GetStructSize();
+
+	// If the members of UStruct come right after UField, FStructBaseChain either doesn't exist or is empty
+	if (UStructStart == Off::UStruct::ChildProperties || UStructStart == Off::UStruct::Children)
+		return OffsetNotFound;
+
+	auto CountSuperClasses = [](const UEStruct InStruct) -> int32
+	{
+		int32 Count = 0;
+
+		UEStruct CurrentSuper = InStruct.GetSuper();
+		while (CurrentSuper)
+		{
+			Count++;
+			CurrentSuper = CurrentSuper.GetSuper();
+		}
+
+		return Count;
+	};
+
+	/* Pair<UStruct, NumSuperClasses> */
+	std::vector<std::pair<void*, int32_t>> Infos;
+
+	UEStruct APlayerController = ObjectArray::FindClassFast("PlayerController");
+	UEStruct AActor = ObjectArray::FindClassFast("Actor");
+
+	Infos.push_back({ Struct.GetAddress(),              CountSuperClasses(Struct)            });
+	Infos.push_back({ APlayerController.GetAddress(),   CountSuperClasses(APlayerController) });
+	Infos.push_back({ AActor.GetAddress(),              CountSuperClasses(AActor)            });
+
+	// FStructBaseChain::NumStructBasesInChainMinusOne is at offset 0x8, after a pointer
+	return FindOffset(Infos, UStructStart, UStructEnd) - sizeof(void*);
 }
 
 /* UFunction */

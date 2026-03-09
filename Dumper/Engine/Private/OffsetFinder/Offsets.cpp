@@ -340,7 +340,18 @@ void Off::Init()
 		*/
 		Off::FField::Flags = Off::FField::Name + Off::InSDK::Name::FNameSize;
 		std::cerr << std::format("Off::FField::Flags: 0x{:X}\n", Off::FField::Flags);
+
+		Off::FField::EditorOnlyMetadata = OffsetFinder::FindFFieldEditorOnlyMetaDataOffset();
+		if (Off::FField::EditorOnlyMetadata != OffsetFinder::OffsetNotFound)
+			std::cerr << std::format("Off::FField::EditorOnlyMetadata: 0x{:X}\n", Off::FField::EditorOnlyMetadata);
+
+		Off::FFieldClass::CastFlags = OffsetFinder::FindFieldClassCastFlagsOffset();
+		std::cerr << std::format("Off::FFieldClass::CastFlags: 0x{:X}\n\n", Off::FFieldClass::CastFlags);
 	}
+
+	Off::UStruct::StructBaseChain = OffsetFinder::FindStructBaseChainOffset();
+	if (Off::UStruct::StructBaseChain != OffsetFinder::OffsetNotFound)
+		std::cerr << std::format("Off::UStruct::StructBaseChain: 0x{:X}\n", Off::UStruct::StructBaseChain);
 
 	Off::UClass::ClassDefaultObject = OffsetFinder::FindDefaultObjectOffset();
 	std::cerr << std::format("Off::UClass::ClassDefaultObject: 0x{:X}\n", Off::UClass::ClassDefaultObject);

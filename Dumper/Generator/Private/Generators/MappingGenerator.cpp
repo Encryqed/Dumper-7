@@ -127,6 +127,26 @@ EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 	{
 		return EMappingsTypeFlags::DelegateProperty;
 	}
+	else if (Flags & EClassCastFlags::Utf8StrProperty)
+	{
+		return EMappingsTypeFlags::Utf8StrProperty;
+	}
+	else if (Flags & EClassCastFlags::AnsiStrProperty)
+	{
+		return EMappingsTypeFlags::AnsiStrProperty;
+	}
+	else if (Flags & EClassCastFlags::ClassProperty)
+	{
+		return EMappingsTypeFlags::ClassProperty;
+	}
+	else if (Flags & EClassCastFlags::MulticastInlineDelegateProperty)
+	{
+		return EMappingsTypeFlags::MulticastInlineDelegateProperty;
+	}
+	else if (Flags & EClassCastFlags::SoftClassProperty)
+	{
+		return EMappingsTypeFlags::SoftClassProperty;
+	}
 	
 	return EMappingsTypeFlags::Unknown;
 }

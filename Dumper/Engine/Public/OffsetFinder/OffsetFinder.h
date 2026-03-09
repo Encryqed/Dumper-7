@@ -93,6 +93,10 @@ namespace OffsetFinder
 	int32_t FindFFieldNameOffset();
 	int32_t NewFindFFieldNameOffset();
 	int32_t FindFFieldClassOffset();
+	int32_t FindFFieldEditorOnlyMetaDataOffset();
+
+	/* FFieldClass */
+	int32_t FindFieldClassCastFlagsOffset();
 
 	/* UEnum */
 	int32_t FindEnumNamesOffset();
@@ -103,6 +107,7 @@ namespace OffsetFinder
 	int32_t FindChildPropertiesOffset();
 	int32_t FindStructSizeOffset();
 	int32_t FindMinAlignmentOffset();
+	int32_t FindStructBaseChainOffset();
 
 	/* UFunction */
 	int32_t FindFunctionFlagsOffset();

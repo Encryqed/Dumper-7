@@ -351,7 +351,16 @@ enum class EMappingsTypeFlags : uint8
 	SetProperty,
 	EnumProperty,
 	FieldPathProperty,
-	OptionalProperty,
+	OptionalProperty, // Last property for which support was added
+	Utf8StrProperty,
+	AnsiStrProperty,
+
+	ClassProperty,
+	MulticastInlineDelegateProperty,
+	SoftClassProperty,
+	VerseStringProperty,
+	VerseDynamicProperty,
+	VerseFunctionProperty,
 
 	Unknown = 0xFF
 };

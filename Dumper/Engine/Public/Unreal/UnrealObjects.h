@@ -78,6 +78,8 @@ public:
 	FName GetFName() const;
 	UEFField GetNext() const;
 
+	std::vector<std::pair<std::string, std::string>> GetMetaData() const;
+
 	template<typename UEType>
 	UEType Cast() const;
 
