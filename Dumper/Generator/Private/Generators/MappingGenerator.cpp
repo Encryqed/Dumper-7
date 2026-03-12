@@ -147,7 +147,62 @@ EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 	{
 		return EMappingsTypeFlags::SoftClassProperty;
 	}
-	
+	else if (Flags & EClassCastFlags::MulticastSparseDelegateProperty)
+	{
+		return EMappingsTypeFlags::MulticastSparseDelegateProperty;
+	}
+	else if (Flags & EClassCastFlags::LargeWorldCoordinatesRealProperty)
+	{
+		return EMappingsTypeFlags::LargeWorldCoordinatesRealProperty;
+	}
+	else if (Flags & EClassCastFlags::VValueProperty)
+	{
+		return EMappingsTypeFlags::VValueProperty;
+	}
+	else if (Flags & EClassCastFlags::VRestValueProperty)
+	{
+		return EMappingsTypeFlags::VRestValueProperty;
+	}
+	else if (Flags & EClassCastFlags::VCellProperty)
+	{
+		return EMappingsTypeFlags::VCellProperty;
+	}
+
+	if (!Class && FieldClass)
+	{
+		EFieldClassID Id = FieldClass.GetId();
+		if (Id & EFieldClassID::Byte) return EMappingsTypeFlags::ByteProperty;
+		if (Id & EFieldClassID::Int8) return EMappingsTypeFlags::Int8Property;
+		if (Id & EFieldClassID::Int) return EMappingsTypeFlags::IntProperty;
+		if (Id & EFieldClassID::Int16) return EMappingsTypeFlags::Int16Property;
+		if (Id & EFieldClassID::Int64) return EMappingsTypeFlags::Int64Property;
+		if (Id & EFieldClassID::UInt16) return EMappingsTypeFlags::UInt16Property;
+		if (Id & EFieldClassID::UInt32) return EMappingsTypeFlags::UInt32Property;
+		if (Id & EFieldClassID::UInt64) return EMappingsTypeFlags::UInt64Property;
+		if (Id & EFieldClassID::Float) return EMappingsTypeFlags::FloatProperty;
+		if (Id & EFieldClassID::Double) return EMappingsTypeFlags::DoubleProperty;
+		if (Id & EFieldClassID::Bool) return EMappingsTypeFlags::BoolProperty;
+		if (Id & EFieldClassID::Name) return EMappingsTypeFlags::NameProperty;
+		if (Id & EFieldClassID::String) return EMappingsTypeFlags::StrProperty;
+		if (Id & EFieldClassID::Text) return EMappingsTypeFlags::TextProperty;
+		if (Id & EFieldClassID::Struct) return EMappingsTypeFlags::StructProperty;
+		if (Id & EFieldClassID::Array) return EMappingsTypeFlags::ArrayProperty;
+		if (Id & EFieldClassID::Map) return EMappingsTypeFlags::MapProperty;
+		if (Id & EFieldClassID::Set) return EMappingsTypeFlags::SetProperty;
+		if (Id & EFieldClassID::Enum) return EMappingsTypeFlags::EnumProperty;
+		if (Id & EFieldClassID::Object) return EMappingsTypeFlags::ObjectProperty;
+		if (Id & EFieldClassID::ObjectPointer) return EMappingsTypeFlags::ObjectProperty;
+		if (Id & EFieldClassID::Class) return EMappingsTypeFlags::ClassProperty;
+		if (Id & EFieldClassID::Interface) return EMappingsTypeFlags::InterfaceProperty;
+		if (Id & EFieldClassID::Delegate) return EMappingsTypeFlags::DelegateProperty;
+		if (Id & EFieldClassID::MulticastInlineDelegate) return EMappingsTypeFlags::MulticastInlineDelegateProperty;
+		if (Id & EFieldClassID::MulticastSparseDelegate) return EMappingsTypeFlags::MulticastSparseDelegateProperty;
+		if (Id & EFieldClassID::SoftObject) return EMappingsTypeFlags::SoftObjectProperty;
+		if (Id & EFieldClassID::SoftClass) return EMappingsTypeFlags::SoftClassProperty;
+		if (Id & EFieldClassID::WeakObject) return EMappingsTypeFlags::WeakObjectProperty;
+		if (Id & EFieldClassID::LazyObject) return EMappingsTypeFlags::LazyObjectProperty;
+	}
+
 	return EMappingsTypeFlags::Unknown;
 }
 
@@ -373,10 +428,8 @@ std::stringstream MappingGenerator::GenerateFileData()
 		}
 	}
 
-	/* Combine all of the stringstreams into one Data block representing the entire payload of the file */
 	std::stringstream ReturnBuffer;
 
-	/* Write Name-count and names */
 	WriteToStream(ReturnBuffer, static_cast<uint32>(NameCounter));
 	WriteToStream(ReturnBuffer, NameData);
 

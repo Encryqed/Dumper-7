@@ -310,9 +310,32 @@ std::string DumpspaceGenerator::GetMemberTypeStr(UEProperty Property, std::strin
 
 		return "TOptional";
 	}
+	else if (Flags & EClassCastFlags::Utf8StrProperty)
+	{
+		return "FUtf8String";
+	}
+	else if (Flags & EClassCastFlags::AnsiStrProperty)
+	{
+		return "FAnsiString";
+	}
+	else if (Flags & EClassCastFlags::LargeWorldCoordinatesRealProperty)
+	{
+		return "double";
+	}
+	else if (Flags & EClassCastFlags::VValueProperty)
+	{
+		return "void*";
+	}
+	else if (Flags & EClassCastFlags::VRestValueProperty)
+	{
+		return "void*";
+	}
+	else if (Flags & EClassCastFlags::VCellProperty)
+	{
+		return "void*";
+	}
 	else
 	{
-		/* When changing this also change 'GetUnknownProperties()' */
 		return (Class ? Class.GetCppName() : FieldClass.GetCppName()) + "_";
 	}
 }

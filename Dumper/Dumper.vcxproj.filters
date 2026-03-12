@@ -53,6 +53,9 @@
     <ClCompile Include="Generator\Private\Generators\DumpspaceGenerator.cpp">
       <Filter>Generator\Private\Generators</Filter>
     </ClCompile>
+    <ClCompile Include="Generator\Private\Generators\JsonSdkGenerator.cpp">
+      <Filter>Generator\Private\Generators</Filter>
+    </ClCompile>
     <ClCompile Include="Engine\Private\OffsetFinder\Offsets.cpp">
       <Filter>Engine\Private\OffsetFinder</Filter>
     </ClCompile>
@@ -214,6 +217,9 @@
       <Filter>Utils\Json</Filter>
     </ClInclude>
     <ClInclude Include="Generator\Public\Generators\DumpspaceGenerator.h">
+      <Filter>Generator\Public\Generators</Filter>
+    </ClInclude>
+    <ClInclude Include="Generator\Public\Generators\JsonSdkGenerator.h">
       <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
     <ClInclude Include="Utils\Encoding\UnicodeNames.h">
