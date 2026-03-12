@@ -6,6 +6,7 @@
 #include <string>
 #include <algorithm>
 #include <functional>
+#include <bit>
 
 #include "Settings.h"
 
