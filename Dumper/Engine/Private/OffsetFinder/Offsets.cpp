@@ -58,6 +58,60 @@ void Off::InSDK::ProcessEvent::InitPE_Windows()
 		ProcessEventIdx = FuncIdx2;
 	}
 
+	/* Fallback: find the VTable function that calls the function containing "Accessed None" deepest in its body */
+	if (!ProcessEventAddr)
+	{
+		const void* StringRefAddr = Platform::FindByStringInAllSections(L"Accessed None", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
+		const uintptr_t StringRefUPtr = reinterpret_cast<uintptr_t>(StringRefAddr);
+
+		if (StringRefUPtr)
+		{
+			int32_t BestIdx = -1;
+			const void* BestAddr = nullptr;
+			int32_t BestCallOffset = 0;
+
+			for (int i = 0; i < 0x150; i++)
+			{
+				const uintptr_t VtAddr = reinterpret_cast<uintptr_t>(Vft[i]);
+				if (VtAddr == NULL || !Platform::IsAddressInProcessRange(VtAddr))
+					break;
+
+				const uint8_t* FuncAddr = reinterpret_cast<const uint8_t*>(VtAddr);
+
+				if (*FuncAddr == 0xE9)
+				{
+					const uint8_t* Resolved = ((FuncAddr + 5) + *reinterpret_cast<const int32_t*>(FuncAddr + 1));
+					if (Platform::IsAddressInProcessRange(Resolved))
+						FuncAddr = Resolved;
+				}
+
+				const uintptr_t FuncUPtr = reinterpret_cast<uintptr_t>(FuncAddr);
+
+				for (int j = 0; j < 0xF00; j++)
+				{
+					if (FuncAddr[j] == 0xE8)
+					{
+						const int32_t Rel = *reinterpret_cast<const int32_t*>(&FuncAddr[j + 1]);
+						const uintptr_t CallTarget = FuncUPtr + j + 5 + Rel;
+
+						if (CallTarget > (StringRefUPtr - 0x3000) && CallTarget <= StringRefUPtr && j > BestCallOffset)
+						{
+							BestCallOffset = j;
+							BestIdx = i;
+							BestAddr = FuncAddr;
+						}
+					}
+				}
+			}
+
+			if (BestAddr)
+			{
+				ProcessEventAddr = BestAddr;
+				ProcessEventIdx = BestIdx;
+			}
+		}
+	}
+
 	if (ProcessEventAddr)
 	{
 		Off::InSDK::ProcessEvent::PEIndex = ProcessEventIdx;
