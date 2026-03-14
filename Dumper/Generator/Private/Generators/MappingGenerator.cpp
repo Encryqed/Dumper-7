@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <string>
+#include <unordered_map>
 
 #include "Generators/MappingGenerator.h"
 #include "Managers/PackageManager.h"
@@ -8,6 +9,12 @@
 
 #include "../Settings.h"
 #include "Utils.h"
+
+namespace
+{
+	std::unordered_map<std::string, int32> GNameMap;
+}
+
 
 EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 {
@@ -155,16 +162,14 @@ int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::s
 {
 	if constexpr (Settings::MappingGenerator::bShouldCheckForDuplicatedNames)
 	{
-		static std::unordered_map<std::string, int32> NameMap;
-		
-		auto [It, bInserted] = NameMap.insert({ Name, NameCounter });
+		auto [It, bInserted] = GNameMap.insert({ Name, static_cast<int32>(NameCounter) });
 
 		/* The name didn't occure yet, write it to the NameTable */
 		if (bInserted)
 		{
 			WriteToStream(NameTable, static_cast<uint16>(Name.length()));
 			NameTable.write(Name.c_str(), Name.length());
-			return NameCounter++;
+			return static_cast<int32>(NameCounter++);
 		}
 
 		return It->second;
@@ -173,7 +178,7 @@ int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::s
 	WriteToStream(NameTable, static_cast<uint16>(Name.length()));
 	NameTable.write(Name.c_str(), Name.length());
 
-	return NameCounter++;
+	return static_cast<int32>(NameCounter++);
 }
 
 void MappingGenerator::GeneratePropertyType(UEProperty Property, std::stringstream& Data, std::stringstream& NameTable)
@@ -455,6 +460,8 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 
 void MappingGenerator::Generate()
 {
+	GNameMap.clear();
+
 	NameCounter = 0x0;
 
 	std::string MappingsFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".usmap");
@@ -470,4 +477,3 @@ void MappingGenerator::Generate()
 	/* Generate the header, and write both header and payload into the file. */
 	GenerateFileHeader(UsmapFile, FileData);
 }
-
