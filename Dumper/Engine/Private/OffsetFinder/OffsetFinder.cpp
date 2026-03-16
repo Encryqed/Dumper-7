@@ -1,4 +1,5 @@
 #include <vector>
+#include <random>
 
 #include "OffsetFinder/OffsetFinder.h"
 #include "Unreal/ObjectArray.h"
@@ -219,13 +220,27 @@ int32_t OffsetFinder::FindUObjectOuterOffset()
 {
 	int32_t LowestFoundOffset = 0xFFFF;
 
+	const int32 NumObjects = ObjectArray::Num();
+	if (NumObjects < 2)
+		return OffsetNotFound;
+
+	/* Seed with the address of the first object so it varies per game but is deterministic per run. */
+	std::mt19937 Rng(static_cast<uint32_t>(reinterpret_cast<uintptr_t>(ObjectArray::GetByIndex(0).GetAddress())));
+	const int32_t UpperBound = (NumObjects - 1 < 0x3FF) ? (NumObjects - 1) : 0x3FF;
+	std::uniform_int_distribution<int32_t> Dist(0, UpperBound);
+
 	// loop a few times in case we accidentally choose a UPackage (which doesn't have an Outer) to find Outer
 	for (int i = 0; i < 0x10; i++)
 	{
 		int32_t Offset = 0;
 
-		const void* ObjA = ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
-		const void* ObjB = ObjectArray::GetByIndex(rand() % 0x400).GetAddress();
+		const int32_t IndexA = Dist(Rng);
+		int32_t IndexB = Dist(Rng);
+		if (IndexB == IndexA)
+			IndexB = (IndexA + 1) % (UpperBound + 1);
+
+		const void* ObjA = ObjectArray::GetByIndex(IndexA).GetAddress();
+		const void* ObjB = ObjectArray::GetByIndex(IndexB).GetAddress();
 
 		while (Offset != OffsetNotFound)
 		{
@@ -278,7 +293,7 @@ void OffsetFinder::FixupHardcodedOffsets()
 
 		if (IsValidPtr(PossibleNextPtrOrBool0) && IsValidPtr(PossibleNextPtrOrBool1) && IsValidPtr(PossibleNextPtrOrBool2))
 		{
-			std::cerr << "Applaying fix to hardcoded offsets \n" << std::endl;
+			std::cerr << "Applying fix to hardcoded offsets \n" << std::endl;
 
 			Settings::Internal::bUseMaskForFieldOwner = true;
 
