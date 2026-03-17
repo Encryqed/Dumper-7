@@ -492,9 +492,14 @@ void ObjectArray::AddObjectToRoot(int32 Index)
 
 	if (!ItemPtr) return;
 
-	// EInternalObjectFlags::RootSet = 1 << 30 = 0x40000000
+	// EInternalObjectFlags::RootSet = 1 << 30 = 0x40000000 — this is what the UE5 GC checks
 	int32& InternalFlags = *reinterpret_cast<int32*>(ItemPtr + FUObjectItemInitialOffset + sizeof(void*));
 	InternalFlags |= 0x40000000;
+
+	// Also set RF_MarkAsRootSet on the UObject itself for belt-and-suspenders safety
+	uint8* ObjPtr = *reinterpret_cast<uint8**>(ItemPtr + FUObjectItemInitialOffset);
+	uint32& ObjFlags = *reinterpret_cast<uint32*>(ObjPtr + Off::UObject::Flags);
+	ObjFlags |= static_cast<uint32>(EObjectFlags::MarkAsRootSet);
 }
 
 template<typename UEType>
