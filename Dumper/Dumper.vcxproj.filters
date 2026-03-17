@@ -80,6 +80,9 @@
     <ClCompile Include="Platform\Private\PlatformWindows.cpp">
       <Filter>Platform\Private</Filter>
     </ClCompile>
+    <ClCompile Include="Capture\MultiLevelCapture.cpp">
+      <Filter>Capture</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -90,6 +93,9 @@
     </Filter>
     <Filter Include="Engine\Public">
       <UniqueIdentifier>{b5a6970c-66b5-4546-8bc3-8bc17d28045a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Capture">
+      <UniqueIdentifier>{a1b2c3d4-e5f6-7890-abcd-ef1234567890}</UniqueIdentifier>
     </Filter>
     <Filter Include="Utils">
       <UniqueIdentifier>{da88a5f5-413a-4b03-9503-d846f46c9162}</UniqueIdentifier>
@@ -263,6 +269,9 @@
     </ClInclude>
     <ClInclude Include="Platform\Public\Platform.h">
       <Filter>Platform\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="Capture\MultiLevelCapture.h">
+      <Filter>Capture</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

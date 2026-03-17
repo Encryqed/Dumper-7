@@ -132,4 +132,5 @@ void Settings::Config::Load()
 
 	SDKNamespaceName = SDKNamespace;
 	SleepTimeout = max(GetPrivateProfileIntA("Settings", "SleepTimeout", 0, ConfigPath), 0);
+	bMultiLevelCapture = GetPrivateProfileIntA("Settings", "MultiLevelCapture", 0, ConfigPath) != 0;
 }
