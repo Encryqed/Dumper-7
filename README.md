@@ -79,6 +79,9 @@ Example:
 [Settings]
 SleepTimeout=100
 SDKNamespaceName=MyOwnSDKNamespace
+; Enable multi-level capture: press F4 in each level to accumulate classes, then F5 to generate.
+; Useful for games that GC level-specific Blueprint classes on map unload (default: 0).
+MultiLevelCapture=0
 ```
 ## Issues
 
