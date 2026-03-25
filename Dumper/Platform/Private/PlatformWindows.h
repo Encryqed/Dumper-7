@@ -84,7 +84,7 @@ namespace PlatformWindows
 	T* FindAlignedValueInSection(const SectionInfo&, T, const int32_t);
 
 	template<typename T>
-	T* FindAlignedValueInAllSections(const T, const int32_t, const uintptr_t, int32_t, const char* const);
+	T* FindAlignedValueInAllSections(const T Value, const int32_t Alignment = alignof(T), const uintptr_t StartAddress = 0x0, int32_t Range = 0x0, const char* const ModuleName = Settings::General::DefaultModuleName);
 }
 
 class WindowsPrivateImplHelper
@@ -177,8 +177,9 @@ namespace PlatformWindows
 		return static_cast<T*>(WindowsPrivateImplHelper::FindAlignedValueInSectionImpl(Info, &Value, ComparisonFunction, sizeof(Value), Alignment));
 	}
 
+	/* See forward declaration in line 87 for default argument values */
 	template<typename T>
-	T* FindAlignedValueInAllSections(const T Value, const int32_t Alignment = alignof(T), const uintptr_t StartAddress = 0x0, int32_t Range = 0x0, const char* const ModuleName = Settings::General::DefaultModuleName)
+	T* FindAlignedValueInAllSections(const T Value, const int32_t Alignment, const uintptr_t StartAddress, int32_t Range, const char* const ModuleName)
 	{
 		auto ComparisonFunction = [](const void* ValueAddr, const void* PotentialMatchAddr) -> bool
 		{
