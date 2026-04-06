@@ -1532,17 +1532,15 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	if (!Settings::Config::SDKNamespaceName.empty())
 	{
-		File << std::format("namespace {}", Settings::Config::SDKNamespaceName);
-
+		File << "SDK_NAMESPACE_START\n";
+		
 		if (Type == EFileType::Parameters && CppSettings::ParamNamespaceName)
-			File << std::format("::{}", CppSettings::ParamNamespaceName);
-
-		File << "\n{\n";
+			File << "SDK_PARAM_NAMESPACE_START\n";
 	}
 	else if constexpr (CppSettings::ParamNamespaceName)
 	{
 		if (Type == EFileType::Parameters)
-			File << std::format("namespace {}\n{{\n", CppSettings::ParamNamespaceName);
+			File << "SDK_PARAM_NAMESPACE_START\n";
 	}
 }
 
@@ -1553,12 +1551,19 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 	if (Type == EFileType::SdkHpp || Type == EFileType::NameCollisionsInl || Type == EFileType::UnrealContainers || Type == EFileType::UnicodeLib)
 		return; /* No namespace or packing in SDK.hpp or NameCollisions.inl */
 
-	if (!Settings::Config::SDKNamespaceName.empty() || CppSettings::ParamNamespaceName)
+	if (!Settings::Config::SDKNamespaceName.empty())
 	{
-		if (Type != EFileType::Functions)
-			File << "\n";
+		File << "\n";
 
-		File << "}\n\n";
+		if (Type == EFileType::Parameters && CppSettings::ParamNamespaceName)
+			File << "SDK_PARAM_NAMESPACE_END\n";
+		
+		File << "SDK_NAMESPACE_END\n";
+	}
+	else if constexpr (CppSettings::ParamNamespaceName)
+	{
+		if (Type == EFileType::Parameters)
+			File << "\nSDK_PARAM_NAMESPACE_START\n";
 	}
 
 	if constexpr (Platform::Is32Bit())
@@ -3426,13 +3431,37 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 		std::sort(Members.begin(), Members.end(), ComparePredefinedMembers);
 	};
 
-	std::string CustomIncludes = R"(#define VC_EXTRALEAN
-#define WIN32_LEAN_AND_MEAN
+	const std::string SDKMacroDefinitions = std::format(R"(
 
+/*
+* Macros for opening and closing namespaces, in order to allow to remove the SDK namespace when importing the SDK into IDA.
+*
+* In IDA under "Options>Compiler" set "SourceParser" to "clang" and add the following arguments 
+* 
+*	-std=c++20 -Wno-invalid-offsetof -Wno-c++11-narrowing -D IMPORT_CPP_SDK_INTO_IDA=1 
+* 
+* Omit the '-D IMPORT_CPP_SDK_INTO_IDA=1' if you want to keep the SDK namespace in IDA
+*/
+#ifndef IMPORT_CPP_SDK_INTO_IDA
+	#define SDK_NAMESPACE_START namespace {} {{
+	#define SDK_NAMESPACE_END }}
+#else
+	#define SDK_NAMESPACE_START
+	#define SDK_NAMESPACE_END
+#endif
+
+#define SDK_PARAM_NAMESPACE_START namespace {} {{
+#define SDK_PARAM_NAMESPACE_END }}
+
+)", Settings::Config::SDKNamespaceName, CppSettings::ParamNamespaceName);
+
+	const std::string CustomIncludes = std::format(R"(#define VC_EXTRALEAN
+#define WIN32_LEAN_AND_MEAN
+{}
 #include <string>
 #include <functional>
 #include <type_traits>
-)";
+)", (!Settings::Config::SDKNamespaceName.empty() ? SDKMacroDefinitions : ""));
 
 	WriteFileHead(BasicHpp, nullptr, EFileType::BasicHpp, "Basic file containing structs required by the SDK", CustomIncludes);
 	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp", "#include <Windows.h>");
@@ -5389,10 +5418,10 @@ public:
 
 	TDelegate.Properties =
 	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "struct InvalidUseOfTDelegate", .Name = "TemplateParamIsNotAFunctionSignature", .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x1,
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		PredefinedMember{
+			.Comment = "Validity Check",
+			.Type = "static_assert(false, \"TDelegate should be used with a function signature. Something might be wrong in the SDK-Generator.\")", .Name = "", .Offset = 0x0, .Size = 0x10, .ArrayDim = 0x0, .Alignment = 0x8,
+			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
 
@@ -5424,10 +5453,10 @@ public:
 	
 	TMulticastInlineDelegate.Properties =
 	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "struct InvalidUseOfTMulticastInlineDelegate", .Name = "TemplateParamIsNotAFunctionSignature", .Offset = 0x0, .Size = ScriptDelegateSize, .ArrayDim = 0x1, .Alignment = 0x1,
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		PredefinedMember{
+			.Comment = "Validity Check",
+			.Type = "static_assert(false, \"TMulticastInlineDelegate should be used with a function signature. Something might be wrong in the SDK-Generator.\")", .Name = "", .Offset = 0x0, .Size = 0x10, .ArrayDim = 0x0, .Alignment = 0x8,
+			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
 
@@ -5454,22 +5483,29 @@ public:
 	/* UE_ENUM_OPERATORS - enum flag operations */
 	BasicHpp <<
 		R"(
-#define UE_ENUM_OPERATORS(EEnumClass)																																	\
-																																										\
-inline constexpr EEnumClass operator|(EEnumClass Left, EEnumClass Right)																								\
-{																																										\
-	return (EEnumClass)((std::underlying_type<EEnumClass>::type)(Left) | (std::underlying_type<EEnumClass>::type)(Right));												\
-}																																										\
-																																										\
-inline constexpr EEnumClass& operator|=(EEnumClass& Left, EEnumClass Right)																								\
-{																																										\
-	return (EEnumClass&)((std::underlying_type<EEnumClass>::type&)(Left) |= (std::underlying_type<EEnumClass>::type)(Right));											\
-}																																										\
-																																										\
-inline bool operator&(EEnumClass Left, EEnumClass Right)																												\
-{																																										\
-	return (((std::underlying_type<EEnumClass>::type)(Left) & (std::underlying_type<EEnumClass>::type)(Right)) == (std::underlying_type<EEnumClass>::type)(Right));		\
-}																																										
+#define UE_ENUM_OPERATORS(EEnumClassType)																													\
+																																							\
+inline constexpr EEnumClassType operator|(EEnumClassType Left, EEnumClassType Right)															 			\
+{																																							\
+	using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
+																																							\
+	return static_cast<EEnumClassType>(static_cast<EnumUnderlayingType>(Left) | static_cast<EnumUnderlayingType>(Right));									\
+}																																							\
+																																							\
+inline EEnumClassType& operator|=(EEnumClassType& Left, EEnumClassType Right)																				\
+{																																							\
+    using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
+																																							\
+    reinterpret_cast<EnumUnderlayingType&>(Left) |= static_cast<EnumUnderlayingType>(Right);																\
+	return Left;																																			\
+}																																							\
+																																							\
+inline bool operator&(EEnumClassType Left, EEnumClassType Right)																							\
+{																																							\
+	using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
+																																							\
+	return ((static_cast<EnumUnderlayingType>(Left) & static_cast<EnumUnderlayingType>(Right)) == static_cast<EnumUnderlayingType>(Right));					\
+}
 )";
 
 	/* enum class EObjectFlags */

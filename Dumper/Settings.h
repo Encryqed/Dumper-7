@@ -36,7 +36,7 @@ namespace Settings
 
 	namespace Generator
 	{
-		//Auto generated if no override is provided
+		/* Auto generated if no override is provided */
 		inline std::string GameName = "";
 		inline std::string GameVersion = "";
 
