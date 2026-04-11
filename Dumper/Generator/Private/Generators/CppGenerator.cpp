@@ -684,6 +684,12 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	const bool bIsTemplatedType = Struct.HasCustomTemplateText();
 
+	std::string AlignmentString = "";
+
+	if (Struct.ShouldUseExplicitAlignment())
+		AlignmentString = std::format("alignas(0x{:02X}) ", Struct.GetAlignment());
+	else if (bHasReusedTrailingPadding)
+		AlignmentString = std::format("SDK_ALIGN(0x{:02X}) ", Struct.GetAlignment());
 
 	StructFile << std::format(R"(
 // {}
@@ -697,7 +703,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
   , bHasReusedTrailingPadding ? "#pragma pack(push, 0x1)\n" : ""
   , bIsTemplatedType ? (Struct.GetCustomTemplateText() + "\n") : ""
   , bIsClass ? "class" : (bIsUnion ? "union" : "struct")
-  , Struct.ShouldUseExplicitAlignment() || bHasReusedTrailingPadding ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
+  , AlignmentString
   , UniqueName
   , Settings::CppGenerator::bAddFinalSpecifier && Struct.IsFinal() ? " final" : ""
   , bHasValidSuper ? (" : public " + UniqueSuperName) : "");
@@ -3445,9 +3451,11 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 #ifndef IMPORT_CPP_SDK_INTO_IDA
 	#define SDK_NAMESPACE_START namespace {} {{
 	#define SDK_NAMESPACE_END }}
+	#define SDK_ALIGN(x) alignas(x)
 #else
 	#define SDK_NAMESPACE_START
 	#define SDK_NAMESPACE_END
+	#define SDK_ALIGN(x)
 #endif
 
 #define SDK_PARAM_NAMESPACE_START namespace {} {{
