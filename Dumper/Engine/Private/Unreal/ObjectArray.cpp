@@ -471,6 +471,37 @@ static UEType ObjectArray::GetByIndex(int32 Index)
 	return UEType(ByIndex(GObjects + Off::FUObjectArray::GetObjectsOffset(), Index, SizeOfFUObjectItem, FUObjectItemInitialOffset, NumElementsPerChunk));
 }
 
+void ObjectArray::AddObjectToRoot(int32 Index)
+{
+	uint8* ObjectsArray = GObjects + Off::FUObjectArray::GetObjectsOffset();
+	uint8* ItemPtr = nullptr;
+
+	if (Off::FUObjectArray::bIsChunked)
+	{
+		const int32 ChunkIndex = Index / NumElementsPerChunk;
+		const int32 InChunkIdx = Index % NumElementsPerChunk;
+		uint8* ChunkPtr = DecryptPtr(*reinterpret_cast<uint8**>(ObjectsArray));
+		uint8* Chunk = reinterpret_cast<uint8**>(ChunkPtr)[ChunkIndex];
+		ItemPtr = Chunk + (InChunkIdx * SizeOfFUObjectItem);
+	}
+	else
+	{
+		uint8* ChunkPtr = DecryptPtr(*reinterpret_cast<uint8**>(ObjectsArray));
+		ItemPtr = ChunkPtr + (Index * SizeOfFUObjectItem);
+	}
+
+	if (!ItemPtr) return;
+
+	// EInternalObjectFlags::RootSet = 1 << 30 = 0x40000000 — this is what the UE5 GC checks
+	int32& InternalFlags = *reinterpret_cast<int32*>(ItemPtr + FUObjectItemInitialOffset + sizeof(void*));
+	InternalFlags |= 0x40000000;
+
+	// Also set RF_MarkAsRootSet on the UObject itself for belt-and-suspenders safety
+	uint8* ObjPtr = *reinterpret_cast<uint8**>(ItemPtr + FUObjectItemInitialOffset);
+	uint32& ObjFlags = *reinterpret_cast<uint32*>(ObjPtr + Off::UObject::Flags);
+	ObjFlags |= static_cast<uint32>(EObjectFlags::MarkAsRootSet);
+}
+
 template<typename UEType>
 UEType ObjectArray::FindObject(const std::string& FullName, EClassCastFlags RequiredType)
 {

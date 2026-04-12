@@ -22,6 +22,11 @@ namespace Settings
 		inline int SleepTimeout = 0;
 		inline std::string SDKNamespaceName = "SDK";
 
+		/* When enabled, the dumper waits for repeated F4 presses (one per level) to accumulate classes across
+		 * map transitions before generating the SDK with F5. Useful for games that stream level-specific
+		 * Blueprint classes out of GObjects on map unload. Set via 'MultiLevelCapture=1' in Dumper-7.ini. */
+		inline bool bMultiLevelCapture = false;
+
 		void Load();
 	};
 

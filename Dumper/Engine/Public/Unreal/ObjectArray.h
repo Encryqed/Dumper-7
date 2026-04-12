@@ -70,6 +70,8 @@ public:
 	static UEClass FindClass(const std::string& FullName);
 	static UEClass FindClassFast(const std::string& Name);
 
+	static void AddObjectToRoot(int32 Index);
+
 	class ObjectsIterator
 	{
 		UEObject CurrentObject;
