@@ -44,11 +44,11 @@ inline int32_t StrlenHelper(const CharType* Str)
 {
 	if constexpr (std::is_same<CharType, char>())
 	{
-		return strlen(Str);
+		return static_cast<int32_t>(strlen(Str));
 	}
 	else
 	{
-		return wcslen(Str);
+		return static_cast<int32_t>(wcslen(Str));
 	}
 }
 
