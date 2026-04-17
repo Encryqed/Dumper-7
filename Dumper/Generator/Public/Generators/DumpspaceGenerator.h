@@ -17,6 +17,7 @@ class DumpspaceGenerator
 private:
     friend class CppGeneratorTest;
     friend class Generator;
+    friend class JsonSdkGenerator;
 
 private:
     using StreamType = std::ofstream;
