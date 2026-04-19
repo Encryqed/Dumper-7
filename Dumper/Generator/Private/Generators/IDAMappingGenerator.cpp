@@ -51,7 +51,10 @@ void IDAMappingGenerator::GenerateVTableName(StreamType& IdmapFile, UEObject Def
 	const uint32 Offset = static_cast<uint32>(Platform::GetOffset(DefaultObject.GetVft()));
 	const uint16 NameLen = static_cast<uint16>(Name.length());
 
+	const uint32 SuperVTableOffset = Super ? static_cast<uint32>(Platform::GetOffset(Super.GetDefaultObject().GetVft())) : 0;
+
 	WriteToStream(IdmapFile, Offset);
+	WriteToStream(IdmapFile, SuperVTableOffset);
 	WriteToStream(IdmapFile, NameLen);
 	WriteToStream(IdmapFile, Name.c_str(), NameLen);
 }
@@ -79,6 +82,7 @@ void IDAMappingGenerator::GenerateClassFunctions(StreamType& IdmapFile, UEClass 
 		}
 
 		WriteToStream(IdmapFile, Offset);
+		WriteToStream(IdmapFile, 0);
 		WriteToStream(IdmapFile, NameLen);
 		WriteToStream(IdmapFile, MangledName.c_str(), NameLen);
 	}
