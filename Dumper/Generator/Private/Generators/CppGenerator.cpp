@@ -5521,6 +5521,77 @@ public:
 
 	GenerateStruct(&TMulticastInlineDelegateSpezialiation, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 
+	BasicHpp <<
+		R"(
+template<typename EnumType, typename UnderlyingType>
+class TFixedSizeEnum
+{
+private:
+	static_assert(std::is_enum_v<EnumType>, "EnumType must be an enum!");
+	static_assert(std::is_integral_v<UnderlyingType>, "UnderlyingType must be an integral type!");
+
+public:
+	UnderlyingType EnumValue = 0;
+
+public:
+	constexpr TFixedSizeEnum() = default;
+	constexpr TFixedSizeEnum(const EnumType InEnumValue)
+		: EnumValue(static_cast<UnderlyingType>(InEnumValue))
+	{
+	}
+
+public:
+	constexpr TFixedSizeEnum(TFixedSizeEnum&&) = default;
+	constexpr TFixedSizeEnum(const TFixedSizeEnum&) = default;
+
+	constexpr TFixedSizeEnum& operator=(TFixedSizeEnum&&) = default;
+	constexpr TFixedSizeEnum& operator=(const TFixedSizeEnum&) = default;
+
+public:
+	constexpr inline bool operator==(const TFixedSizeEnum Other) const
+	{
+		return EnumValue == Other.EnumValue;
+	}
+	constexpr inline bool operator==(const EnumType Other) const
+	{
+		return EnumValue == static_cast<UnderlyingType>(Other);
+	}
+
+	constexpr std::strong_ordering operator<=>(TFixedSizeEnum Other) const
+	{
+		return EnumValue <=> Other.EnumValue;
+	}
+	constexpr std::strong_ordering operator<=>(EnumType Other) const
+	{
+		return EnumValue <=> static_cast<UnderlyingType>(Other);
+	}
+};
+
+template<typename EnumType>
+using T1ByteSignedEnum = TFixedSizeEnum<EnumType, int8>;
+
+template<typename EnumType>
+using T2ByteSignedEnum = TFixedSizeEnum<EnumType, int16>;
+
+template<typename EnumType>
+using T4ByteSignedEnum = TFixedSizeEnum<EnumType, int32>;
+
+template<typename EnumType>
+using T8ByteSignedEnum = TFixedSizeEnum<EnumType, int64>;
+
+template<typename EnumType>
+using T1ByteEnum = TFixedSizeEnum<EnumType, uint8>;
+
+template<typename EnumType>
+using T2ByteEnum = TFixedSizeEnum<EnumType, uint16>;
+
+template<typename EnumType>
+using T4ByteEnum = TFixedSizeEnum<EnumType, uint32>;
+
+template<typename EnumType>
+using T8ByteEnum = TFixedSizeEnum<EnumType, uint64>;
+
+)";
 
 	/* UE_ENUM_OPERATORS - enum flag operations */
 	BasicHpp <<
