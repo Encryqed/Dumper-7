@@ -71,11 +71,6 @@ const void* UEFField::GetAddress() const
 	return Field;
 }
 
-EObjectFlags UEFField::GetFlags() const
-{
-	return *reinterpret_cast<EObjectFlags*>(Field + Off::FField::Flags);
-}
-
 class UEObject UEFField::GetOwnerAsUObject() const
 {
 	if (IsOwnerUObject())
@@ -616,6 +611,20 @@ std::string UEEnum::GetEnumPrefixedName() const
 std::string UEEnum::GetEnumTypeAsStr() const
 {
 	return "enum class " + GetEnumPrefixedName();
+}
+
+
+std::pair<uint8_t, bool> UEEnum::GetSizeSignedPair() const
+{
+	if (Settings::Internal::bHasUnderlayingTypeInUEnum)
+		return { 1, false };
+
+	const EUnderlyingType Type = *reinterpret_cast<EUnderlyingType*>(Object + Off::UEnum::UnderlyingType);
+
+	const bool bIsSigned = Type < EUnderlyingType::uint8;
+	const uint8_t Size = 1 << (static_cast<uint8_t>(Type) % 4);
+
+	return { Size, bIsSigned };
 }
 
 UEStruct UEStruct::GetSuper() const

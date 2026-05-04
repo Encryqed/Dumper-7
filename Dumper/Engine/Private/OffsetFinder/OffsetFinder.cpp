@@ -670,6 +670,27 @@ int32_t OffsetFinder::FindEnumNamesOffset()
 	return UEnumNumValuesOffset - sizeof(void*);
 }
 
+int32_t OffsetFinder::FindEnumUnderlayingTypeOffset()
+{
+	std::vector<std::pair<void*, UEEnum::EUnderlyingType>> Infos;
+	Infos.push_back({ ObjectArray::FindObjectFast("ENetRole", EClassCastFlags::Enum).GetAddress(), UEEnum::EUnderlyingType::uint8 });
+	Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery", EClassCastFlags::Enum).GetAddress(), UEEnum::EUnderlyingType::uint8 });
+
+	int UEnumUnderlayingTypeOffset = FindOffset(Infos);
+
+	if (UEnumUnderlayingTypeOffset == OffsetNotFound)
+	{
+		Infos[0] = { ObjectArray::FindObjectFast("EAlphaBlendOption", EClassCastFlags::Enum).GetAddress(), UEEnum::EUnderlyingType::uint8 };
+		Infos[1] = { ObjectArray::FindObjectFast("EUpdateRateShiftBucket", EClassCastFlags::Enum).GetAddress(), UEEnum::EUnderlyingType::uint8 };
+
+		UEnumUnderlayingTypeOffset = FindOffset(Infos);
+	}
+
+	Settings::Internal::bHasUnderlayingTypeInUEnum = UEnumUnderlayingTypeOffset != OffsetNotFound;
+
+	return UEnumUnderlayingTypeOffset;
+}
+
 /* UStruct */
 int32_t OffsetFinder::FindSuperOffset()
 {

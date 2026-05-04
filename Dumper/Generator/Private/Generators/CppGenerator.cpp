@@ -8,18 +8,18 @@
 
 #include "../Settings.h"
 
-constexpr std::string GetTypeFromSize(uint8 Size)
+constexpr std::string GetTypeFromSize(uint8 Size, bool bIsSigned = false)
 {
 	switch (Size)
 	{
 	case 1:
-		return "uint8";
+		return bIsSigned ? "int8" : "uint8";
 	case 2:
-		return "uint16";
+		return bIsSigned ? "int16" : "uint16";
 	case 4:
-		return "uint32";
+		return bIsSigned ? "int32" : "uint32";
 	case 8:
-		return "uint64";
+		return bIsSigned ? "int64" : "uint64";
 	default:
 		return "INVALID_TYPE_SIZE_FOR_BIT_PADDING";
 	}
@@ -847,17 +847,37 @@ std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 std::string CppGenerator::GetEnumUnderlayingType(const EnumWrapper& Enum)
 {
 	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
+		"int8",
+		"int16",
+		"int32",
+		"int64",
 		"uint8",
 		"uint16",
-		"InvalidEnumSize",
 		"uint32",
-		"InvalidEnumSize",
-		"InvalidEnumSize",
-		"InvalidEnumSize",
-		"uint64"
+		"uint64",
 	};
 
-	return Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlayingTypesBySize[static_cast<size_t>(Enum.GetUnderlyingTypeSize()) - 1] : "uint8";
+	const uint8_t Index = std::log2(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
+
+	return Index > 7 ? UnderlayingTypesBySize[Index] : "uint8";
+}
+
+std::string CppGenerator::GetEnumForcedSizeType(const EnumWrapper& Enum)
+{
+	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
+		"T1ByteSignedEnum",
+		"T2ByteSignedEnum",
+		"T4ByteSignedEnum",
+		"T8ByteSignedEnum",
+		"T1ByteEnum",
+		"T2ByteEnum",
+		"T4ByteEnum",
+		"T8ByteEnum",
+	};
+
+	const uint8_t Index = std::log2(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
+
+	return Index > 7 ? UnderlayingTypesBySize[Index] : "T1ByteEnum";
 }
 
 std::string CppGenerator::GetAssertionMacroString(const std::string& PrefixedStructUniqueName)
@@ -939,7 +959,14 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	if (Flags & EClassCastFlags::ByteProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEByteProperty>().GetEnum())
-			return GetEnumPrefixedName(Enum);
+		{
+			EnumWrapper WrappedEnum = EnumWrapper(Enum);
+
+			if (WrappedEnum.GetUnderlyingTypeSize() > 1)
+				return GetEnumForcedSizeType(WrappedEnum);
+
+			return GetEnumPrefixedName(WrappedEnum);
+		}
 
 		return "uint8";
 	}
@@ -1070,7 +1097,14 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	else if (Flags & EClassCastFlags::EnumProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEEnumProperty>().GetEnum())
-			return GetEnumPrefixedName(Enum);
+		{
+			EnumWrapper WrappedEnum = EnumWrapper(Enum);
+
+			if (WrappedEnum.GetUnderlyingTypeSize() > 1)
+				return GetEnumForcedSizeType(WrappedEnum);
+
+			return GetEnumPrefixedName(WrappedEnum);
+		}
 
 		return GetMemberTypeStringWithoutConst(Member.Cast<UEEnumProperty>().GetUnderlayingProperty(), PackageIndex);
 	}

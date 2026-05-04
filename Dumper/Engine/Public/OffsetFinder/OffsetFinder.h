@@ -100,6 +100,7 @@ namespace OffsetFinder
 
 	/* UEnum */
 	int32_t FindEnumNamesOffset();
+	int32_t FindEnumUnderlayingTypeOffset();
 
 	/* UStruct */
 	int32_t FindSuperOffset();
