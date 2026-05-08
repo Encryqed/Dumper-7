@@ -4,27 +4,17 @@
 #include "Wrappers/EnumWrapper.h"
 #include "Wrappers/MemberWrappers.h"
 
-#pragma once
-
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include "Unreal/ObjectArray.h"
 #include "PredefinedMembers.h"
 
-#include "IDAMappingV2Layouts.hpp"
+#include "IDAMappingV2Layouts.h"
 
 class IDAMappingV2Generator
 {
-private:
-    enum class EIDAMappingsVersion : uint8_t
-    {
-        Initial = 1,
-    };
-
-private:
-    static constexpr uint16 IdmapFileMagic = 'D7';
-
 private:
     using StreamType = std::ofstream;
 
@@ -60,25 +50,25 @@ private:
     static std::string MangleUFunctionName(const std::string& ClassName, const std::string& FunctionName);
 
     static std::string GetIDACppType(const PropertyWrapper& Member, bool& OutIsPtr);
+    static std::string GetIDACppTypeForProperty(UEProperty Property, bool& OutIsPtr);
+
+    static std::string GetStructPrefixedName(const StructWrapper& Struct);
+    static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
 
 private:
-    static void WriteReadMe(StreamType& ReadMe);
+    static void GenerateVTableName(std::stringstream& ExecFuncData, std::stringstream& NameData, UEObject DefaultObject);
+    static void GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& NameData, UEClass Class);
 
-    static void GenerateVTableName(std::stringstream& NameData, UEObject DefaultObject);
-    static void GenerateClassFunctions(std::stringstream& NameData, UEClass Class);
-
-    static void GenerateSingleMember(const PropertyWrapper& Member, std::stringstream& StructData, std::stringstream& NameData);
+    static void GenerateSingleMember(const PropertyWrapper& Member, std::stringstream& StructData, std::stringstream& NameData, int32 StructSize);
     static void GenerateSingleStruct(const StructWrapper& Struct, std::stringstream& StructData, std::stringstream& NameData);
-    static void GenerateSingleEnum(StreamType& IdmapFile, const EnumWrapper& Enum, std::stringstream& SerializedEnumData);
+    static void GenerateSingleEnum(const EnumWrapper& Enum, std::stringstream& EnumData, std::stringstream& NameData);
 
-	static std::vector<IDAMappingsLayouts::NamedVariable> GenerateNamedVariables(StreamType& IdmapFile, std::stringstream& NameData);
-
-    void GenerateFileHeader(StreamType& InUsmap, const std::stringstream& Data);
+    static uint32_t GeneratePredefinedTypes(std::stringstream& StructData, std::stringstream& NameData);
+    static uint32_t GenerateInternalEnums(std::stringstream& EnumData, std::stringstream& NameData);
 
 public:
     static void Generate();
 
-    /* Always empty, there are no predefined members for IDAMappings */
-    static void InitPredefinedMembers() {}
+    static void InitPredefinedMembers();
     static void InitPredefinedFunctions() {}
 };
