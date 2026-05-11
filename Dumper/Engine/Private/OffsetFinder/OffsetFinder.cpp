@@ -676,14 +676,14 @@ int32_t OffsetFinder::FindEnumUnderlayingTypeOffset()
 	Infos.push_back({ ObjectArray::FindObjectFast("ENetRole", EClassCastFlags::Enum).GetAddress(), UEEnum::EUnderlyingType::uint8 });
 	Infos.push_back({ ObjectArray::FindObjectFast("ETraceTypeQuery", EClassCastFlags::Enum).GetAddress(), UEEnum::EUnderlyingType::uint8 });
 
-	int UEnumUnderlayingTypeOffset = FindOffset(Infos);
+	int UEnumUnderlayingTypeOffset = FindOffset(Infos, OffsetFinderMinValue, 0xA0);
 
 	if (UEnumUnderlayingTypeOffset == OffsetNotFound)
 	{
 		Infos[0] = { ObjectArray::FindObjectFast("EAlphaBlendOption", EClassCastFlags::Enum).GetAddress(), UEEnum::EUnderlyingType::uint8 };
 		Infos[1] = { ObjectArray::FindObjectFast("EUpdateRateShiftBucket", EClassCastFlags::Enum).GetAddress(), UEEnum::EUnderlyingType::uint8 };
 
-		UEnumUnderlayingTypeOffset = FindOffset(Infos);
+		UEnumUnderlayingTypeOffset = FindOffset(Infos, OffsetFinderMinValue, 0xA0);
 	}
 
 	Settings::Internal::bHasUnderlayingTypeInUEnum = UEnumUnderlayingTypeOffset != OffsetNotFound;

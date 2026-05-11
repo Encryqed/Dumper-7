@@ -106,12 +106,12 @@ private: /* utility functions */
     static std::string GetMemberTypeString(UEProperty Member, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false);
     static std::string GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex = -1, bool* bOutIsUnknownProperty = nullptr);
 
-    static std::string GetFunctionSignature(UEFunction Func);
+    static std::string GetFunctionSignature(StructWrapper Func);
 
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
     static std::string GetEnumUnderlayingType(const EnumWrapper& Enm);
-	static std::string GetEnumForcedSizeType(const EnumWrapper& Enm);
+	static std::string GetEnumForcedSizeType(const EnumWrapper& Enm, const uint8_t PropertySize);
 
     static std::string GetAssertionMacroString(const std::string& PrefixedStructUniqueName);
 

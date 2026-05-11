@@ -25,6 +25,8 @@ constexpr std::string GetTypeFromSize(uint8 Size, bool bIsSigned = false)
 	}
 }
 
+// GetTypeFromSize(2); -> GetTypeFromSize(2, false)
+
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
 {
 	//<tab><--45 chars--><-------50 chars----->
@@ -712,7 +714,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	const bool bHasStaticClass = (bIsClass && Struct.IsUnrealStruct());
 
-	const bool bHasMembers = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment());
+	const bool bHasMembers = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment()/*&& Struct.GetSize() != 0x1*/);
 	const bool bHasFunctions = (Members.HasFunctions() && !Struct.IsFunction()) || bHasStaticClass;
 
 	if (bHasMembers || bHasFunctions)
@@ -857,27 +859,31 @@ std::string CppGenerator::GetEnumUnderlayingType(const EnumWrapper& Enum)
 		"uint64",
 	};
 
-	const uint8_t Index = std::log2(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
+	const uint8_t Index = std::countr_zero(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
 
-	return Index > 7 ? UnderlayingTypesBySize[Index] : "uint8";
+	return Index < 7 ? UnderlayingTypesBySize[Index] : "uint8";
 }
 
-std::string CppGenerator::GetEnumForcedSizeType(const EnumWrapper& Enum)
+std::string CppGenerator::GetEnumForcedSizeType(const EnumWrapper& Enum, const uint8_t PropertySize)
 {
 	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
-		"T1ByteSignedEnum",
-		"T2ByteSignedEnum",
-		"T4ByteSignedEnum",
-		"T8ByteSignedEnum",
-		"T1ByteEnum",
-		"T2ByteEnum",
-		"T4ByteEnum",
-		"T8ByteEnum",
+		"T1ByteSignedEnum<{}>",
+		"T2ByteSignedEnum<{}>",
+		"T4ByteSignedEnum<{}>",
+		"T8ByteSignedEnum<{}>",
+		"T1ByteEnum<{}>",
+		"T2ByteEnum<{}>",
+		"T4ByteEnum<{}>",
+		"T8ByteEnum<{}>",
 	};
 
-	const uint8_t Index = std::log2(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
+	const uint8_t Index = std::countr_zero(PropertySize) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
 
-	return Index > 7 ? UnderlayingTypesBySize[Index] : "T1ByteEnum";
+	if (Index > 7)
+		return std::format("T1ByteEnum<{}>", GetEnumPrefixedName(Enum));
+
+	std::string Value = GetEnumPrefixedName(Enum);
+	return std::vformat(UnderlayingTypesBySize[Index], std::make_format_args(Value));
 }
 
 std::string CppGenerator::GetAssertionMacroString(const std::string& PrefixedStructUniqueName)
@@ -962,8 +968,8 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		{
 			EnumWrapper WrappedEnum = EnumWrapper(Enum);
 
-			if (WrappedEnum.GetUnderlyingTypeSize() > 1)
-				return GetEnumForcedSizeType(WrappedEnum);
+			if (WrappedEnum.GetUnderlyingTypeSize() > sizeof(uint8))
+				return GetEnumForcedSizeType(WrappedEnum, sizeof(uint8));
 
 			return GetEnumPrefixedName(WrappedEnum);
 		}
@@ -1100,8 +1106,8 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		{
 			EnumWrapper WrappedEnum = EnumWrapper(Enum);
 
-			if (WrappedEnum.GetUnderlyingTypeSize() > 1)
-				return GetEnumForcedSizeType(WrappedEnum);
+			//if (WrappedEnum.GetUnderlyingTypeSize() != Member.GetSize())
+			//	return GetEnumForcedSizeType(WrappedEnum, Member.GetSize());
 
 			return GetEnumPrefixedName(WrappedEnum);
 		}
@@ -1169,7 +1175,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 }
 
-std::string CppGenerator::GetFunctionSignature(UEFunction Func)
+std::string CppGenerator::GetFunctionSignature(StructWrapper Func)
 {
 	std::string RetType = "void";
 
@@ -1177,10 +1183,9 @@ std::string CppGenerator::GetFunctionSignature(UEFunction Func)
 
 	bool bIsFirstParam = true;
 
-	std::vector<UEProperty> Params = Func.GetProperties();
-	std::sort(Params.begin(), Params.end(), CompareUnrealProperties);
+	MemberManager Members = Func.GetMembers();
 
-	for (UEProperty Param : Params)
+	for (PropertyWrapper Param : Members.IterateMembers())
 	{
 		std::string Type = GetMemberTypeString(Param);
 
@@ -1212,7 +1217,7 @@ std::string CppGenerator::GetFunctionSignature(UEFunction Func)
 				Type = "const " + Type;
 		}
 
-		std::string ParamName = Param.GetValidName();
+		std::string ParamName = Param.GetName();
 
 		if (!bIsFirstParam)
 			OutParameters += ", ";

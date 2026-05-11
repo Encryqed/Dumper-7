@@ -124,13 +124,15 @@ void EnumManager::InitInternal()
 				/* Check if the size of this enums underlaying type is greater than the default size (0x1) */
 				if (Enum)
 				{
-					Info.UnderlyingTypeSize = max(Info.UnderlyingTypeSize, Property.GetSize());
+					const int32 PropertySize = Property.GetSize();
+					Info.UnderlyingTypeSize = max(Info.UnderlyingTypeSize, PropertySize);
 					continue;
 				}
 
 				if (UnderlayingProperty)
 				{
-					Info.UnderlyingTypeSize = max(Info.UnderlyingTypeSize, UnderlayingProperty.GetSize());
+					const int32 PropertySize = UnderlayingProperty.GetSize();
+					Info.UnderlyingTypeSize = max(Info.UnderlyingTypeSize, PropertySize);
 					continue;
 				}
 			}
