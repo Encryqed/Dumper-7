@@ -780,7 +780,7 @@ inline void* PlatformWindows::FindStringInRange(const CharType* RefStr, const ui
 	// Ensure the null-terminator is also compared, else strings that are substrings of other strings might be falsely matched.
 	const int32_t RefStrLen = StrlenHelper(RefStr) + 1;
 
-	for (int32 i = 0; i < Range; i++)
+	for (int32_t i = 0; i < Range; i++)
 	{
 #if defined(_WIN64)
 		// opcode: lea

@@ -859,9 +859,18 @@ std::string CppGenerator::GetEnumUnderlayingType(const EnumWrapper& Enum)
 		"uint64",
 	};
 
+	if (Enum.GetName() == "EMaterialValueTypeBridge")
+	{
+		std::cerr << "This is the enum:\n";
+		std::cerr << "Enum.GetUnderlyingTypeSize(): " << +Enum.GetUnderlyingTypeSize() << '\n';
+		std::cerr << "Enum.IsUnderlyingTypeSigned(): " << +Enum.IsUnderlyingTypeSigned() << '\n';
+		std::cerr << "Index: " << (std::countr_zero(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4)) << '\n';
+		std::cerr << "Type: " << UnderlayingTypesBySize[std::countr_zero(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4)] << '\n';
+	}
+
 	const uint8_t Index = std::countr_zero(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
 
-	return Index < 7 ? UnderlayingTypesBySize[Index] : "uint8";
+	return Index <= 7 ? UnderlayingTypesBySize[Index] : "uint8";
 }
 
 std::string CppGenerator::GetEnumForcedSizeType(const EnumWrapper& Enum, const uint8_t PropertySize)
@@ -1491,6 +1500,11 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	File << std::format("\n// {}\n\n", Package.IsValidHandle() ? std::format("Package: {}", Package.GetName()) : CustomFileComment);
 
+	/* The precompiled header needs to be the first include.*/
+	if ((Type == EFileType::Functions || Type == EFileType::BasicCpp) && Settings::CppGenerator::PrecompiledHeaderFileName)
+	{
+		File << std::format("#include <{}>\n\n", Settings::CppGenerator::PrecompiledHeaderFileName);
+	}
 
 	if (!CustomIncludes.empty())
 		File << CustomIncludes + "\n";

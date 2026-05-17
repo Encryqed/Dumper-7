@@ -47,6 +47,9 @@ namespace Settings
 
 	namespace CppGenerator
 	{
+		/* The name of the precompiled header file. -> No precompiled headers = nullptr. */
+		constexpr const char* PrecompiledHeaderFileName = nullptr;
+
 		/* No prefix for files->FilePrefix = "" */
 		constexpr const char* FilePrefix = "";
 
