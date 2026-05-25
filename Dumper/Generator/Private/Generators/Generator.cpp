@@ -37,6 +37,7 @@ void Generator::InitEngineCore()
 	//Off::InSDK::Name::FNameCtorWcharOffset = 0x????????; Settings::Internal::bHasFNameCtorWchar = true;
 	//Off::InSDK::Text::FTextCtorFStringOffset = 0x????????; Settings::Internal::bHasFTextCtor = true;
 	//Off::InSDK::Engine::UGameEngineTickOffset = 0x????????; Settings::Internal::bHasGameEngineTick = true;
+	//Off::InSDK::Construct::StaticConstructObjectInternalOffset = 0x????????; Settings::Internal::bHasStaticConstructObject = true;
 
 	/* Back4Blood (requires manual GNames override) */
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
@@ -60,9 +61,10 @@ void Generator::InitEngineCore()
 	Off::InSDK::Text::InitTextOffsets(); // Must be at this position, relies on offsets initialized in Off::InitPE()
 
 	/* Auxiliary function-address scanners (best-effort; SDK emitter omits offset on failure). */
-	Off::InSDK::Name::InitFNameCtorWchar();    // Relies on UFunction::ExecFunction (set by Off::Init)
-	Off::InSDK::Text::InitFTextCtorFString();  // Relies on UFunction::ExecFunction (set by Off::Init)
-	Off::InSDK::Engine::InitUGameEngineTick(); // Relies on PEIndex (set by InitPE) and UClass::CDO (set by Off::Init)
+	Off::InSDK::Name::InitFNameCtorWchar();                  // Relies on UFunction::ExecFunction (set by Off::Init)
+	Off::InSDK::Text::InitFTextCtorFString();                // Relies on UFunction::ExecFunction (set by Off::Init)
+	Off::InSDK::Engine::InitUGameEngineTick();               // Relies on PEIndex (set by InitPE) and UClass::CDO (set by Off::Init)
+	Off::InSDK::Construct::InitStaticConstructObjectInternal();
 
 	InitSettings();
 }

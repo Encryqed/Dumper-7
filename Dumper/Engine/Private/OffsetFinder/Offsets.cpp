@@ -375,6 +375,66 @@ void Off::InSDK::Engine::InitUGameEngineTick()
 #endif
 }
 
+/*
+* StaticConstructObject_Internal — multi-pattern scan.
+*
+* No stable string anchor lives inside this function in shipping builds, so we fall back to prologue
+* signatures. MSVC chooses different callee-saved-storage strategies (push vs shadow-space save)
+* per build, so four distinct prologue families cover the common UE 4.27 -> UE 5.6 shapes:
+*   A) UE 5.6 r11-frame-aliased       (Deadly Days, Tokyo Xtreme, Whiskerwood, Drainsim)
+*   B) UE 4.27 DRG-style              (Deep Rock Galactic, Ghost Wire Tokyo)
+*   C) UE 5.6 three-shadow-saves      (StarRupture, Vein)
+*   D) UE 4.27 Walking Dead-style     (Walking Dead Saints & Sinners)
+* Frame sizes and the LEA displacement are wildcarded so each family covers minor build variations.
+* False-positive risk is real on busy binaries; the chosen address is logged and a manual override
+* is provided in Generator::InitEngineCore() for cases where the auto-pick is wrong.
+*/
+void Off::InSDK::Construct::InitStaticConstructObjectInternal()
+{
+#ifdef PLATFORM_WINDOWS
+#if defined(_WIN64)
+	// A: mov r11, rsp; push rbp/rbx/r14; lea rbp, [r11+disp]; sub rsp, N
+	const char* sigA = "4C 8B DC 55 53 41 56 49 8D AB ?? ?? ?? ?? 48 81 EC ?? ?? ?? ??";
+	// B: mov [rsp+10/18], rbx/rsi; push rbp/rdi/r12/r14/r15; lea rbp, [rsp+disp]; sub rsp, N
+	const char* sigB = "48 89 5C 24 10 48 89 74 24 18 55 57 41 54 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ??";
+	// C: mov [rsp+10/18/20], rbx/rsi/rdi; push rbp/r12/r13/r14/r15; lea rbp, [rsp+disp]; sub rsp, N
+	const char* sigC = "48 89 5C 24 10 48 89 74 24 18 48 89 7C 24 20 55 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ??";
+	// D: mov [rsp+10/18/20], rbx/rbp/rsi; push rdi/r14/r15; sub rsp, N
+	const char* sigD = "48 89 5C 24 10 48 89 6C 24 18 48 89 74 24 20 57 41 56 41 57 48 81 EC ?? ?? ?? ??";
+
+	struct Candidate { const char* sig; const char* family; };
+	const Candidate candidates[] = { {sigA, "A"}, {sigB, "B"}, {sigC, "C"}, {sigD, "D"} };
+
+	void* match = nullptr;
+	const char* matchedFamily = nullptr;
+	for (const auto& c : candidates)
+	{
+		match = Platform::FindPattern(c.sig, 0x0, false, 0x0, nullptr);
+		if (match)
+		{
+			matchedFamily = c.family;
+			break;
+		}
+	}
+
+	if (!match)
+	{
+		std::cerr << "StaticConstructObject_Internal: no prologue pattern matched, override manually.\n";
+		return;
+	}
+
+	const uint64 base = Platform::GetModuleBase();
+	Off::InSDK::Construct::StaticConstructObjectInternalOffset =
+		static_cast<int32>(reinterpret_cast<uint8_t*>(match) - reinterpret_cast<uint8_t*>(base));
+	Settings::Internal::bHasStaticConstructObject = true;
+
+	std::cerr << std::format(
+		"StaticConstructObject_Internal (family {}): 0x{:X}\n",
+		matchedFamily, Off::InSDK::Construct::StaticConstructObjectInternalOffset);
+#endif
+#endif
+}
+
 /* UWorld */
 void Off::InSDK::World::InitGWorld()
 {

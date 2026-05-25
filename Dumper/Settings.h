@@ -171,6 +171,9 @@ R"(
 
 		/* Whether UGameEngine::Tick offset was located */
 		inline bool bHasGameEngineTick = false;
+
+		/* Whether StaticConstructObject_Internal offset was located */
+		inline bool bHasStaticConstructObject = false;
 	}
 
 	extern void InitWeakObjectPtrSettings();

@@ -111,6 +111,12 @@ namespace Off
 			void InitUGameEngineTick();
 		}
 
+		namespace Construct
+		{
+			inline int32 StaticConstructObjectInternalOffset = 0x0; // StaticConstructObject_Internal, module-relative; 0 if not found
+			void InitStaticConstructObjectInternal();
+		}
+
 		namespace ULevel
 		{
 			inline int32 Actors;
