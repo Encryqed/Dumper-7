@@ -137,14 +137,14 @@ int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::s
 	{
 		static std::unordered_map<std::string, int32> NameMap;
 		
-		auto [It, bInserted] = NameMap.insert({ Name, NameCounter });
+		auto [It, bInserted] = NameMap.insert({ Name, static_cast<int32>(NameCounter) });
 
 		/* The name didn't occure yet, write it to the NameTable */
 		if (bInserted)
 		{
 			WriteToStream(NameTable, static_cast<uint16>(Name.length()));
 			NameTable.write(Name.c_str(), Name.length());
-			return NameCounter++;
+			return static_cast<int32>(NameCounter++);
 		}
 
 		return It->second;
@@ -153,7 +153,7 @@ int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::s
 	WriteToStream(NameTable, static_cast<uint16>(Name.length()));
 	NameTable.write(Name.c_str(), Name.length());
 
-	return NameCounter++;
+	return static_cast<int32>(NameCounter++);
 }
 
 void MappingGenerator::GeneratePropertyType(UEProperty Property, std::stringstream& Data, std::stringstream& NameTable)
@@ -166,7 +166,7 @@ void MappingGenerator::GeneratePropertyType(UEProperty Property, std::stringstre
 
 	EMappingsTypeFlags MappingType = GetMappingType(Property);
 
-	/* Serialize ByteProperty as an EnumProperty with 'UnderlayingType == uint8' if the inner enum is valid */
+	/* Serialize ByteProperty as an EnumProperty with 'UnderlyingType == uint8' if the inner enum is valid */
 	const bool bIsFakeEnumProperty = MappingType == EMappingsTypeFlags::ByteProperty && Property.Cast<UEByteProperty>().GetEnum();
 
 	WriteToStream(Data, static_cast<uint8>(!bIsFakeEnumProperty ? MappingType : EMappingsTypeFlags::EnumProperty));

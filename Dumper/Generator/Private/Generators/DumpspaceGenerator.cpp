@@ -2,6 +2,16 @@
 
 std::string DumpspaceGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 {
+	if (!Struct.IsUnrealStruct())
+	{
+		// Predefined structs should be handled at generation time, not here
+		assert(false && "GetStructPrefixedName called on predefined struct - this shouldn't happen");
+		return Struct.GetName();
+	}
+
+	if (!Struct.GetUnrealStruct())
+		return "UObject";
+
 	if (Struct.IsFunction())
 		return Struct.GetUnrealStruct().GetOuter().GetValidName() + "_" + Struct.GetName();
 
@@ -27,7 +37,7 @@ std::string DumpspaceGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 
 std::string DumpspaceGenerator::EnumSizeToType(const int32 Size)
 {
-	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
+	static constexpr std::array<const char*, 8> UnderlyingTypesBySize = {
 		"uint8",
 		"uint16",
 		"InvalidEnumSize",
@@ -38,7 +48,7 @@ std::string DumpspaceGenerator::EnumSizeToType(const int32 Size)
 		"uint64"
 	};
 
-	return Size <= 0x8 ? UnderlayingTypesBySize[static_cast<size_t>(Size) - 1] : "uint8";
+	return Size <= 0x8 ? UnderlyingTypesBySize[static_cast<size_t>(Size) - 1] : "uint8";
 }
 
 DSGen::EType DumpspaceGenerator::GetMemberEType(const PropertyWrapper& Property)
@@ -138,7 +148,19 @@ std::string DumpspaceGenerator::GetMemberTypeStr(UEProperty Property, std::strin
 	{
 		if (Member.HasPropertyFlags(EPropertyFlags::UObjectWrapper))
 		{
-			OutSubtypes.emplace_back(GetMemberType(Member.Cast<UEClassProperty>().GetMetaClass()));
+			UEClass MetaClass = Member.Cast<UEClassProperty>().GetMetaClass();
+			if (MetaClass)
+			{
+				OutSubtypes.emplace_back(GetMemberType(MetaClass));
+			}
+			else
+			{
+				DSGen::MemberType Fallback;
+				Fallback.type = DSGen::ET_Class;
+				Fallback.typeName = "UObject";
+				Fallback.extendedType = "*";
+				OutSubtypes.emplace_back(std::move(Fallback));
+			}
 
 			return "TSubclassOf";
 		}
@@ -427,7 +449,7 @@ DSGen::EnumHolder DumpspaceGenerator::GenerateEnum(const EnumWrapper& Enum)
 	Enumerator.enumMembers.reserve(Enum.GetNumMembers());
 		
 	for (const EnumCollisionInfo& Info : Enum.GetMembers())
-		Enumerator.enumMembers.emplace_back(Info.GetUniqueName(), Info.GetValue());
+		Enumerator.enumMembers.emplace_back(Info.GetUniqueName(), static_cast<int32>(Info.GetValue()));
 
 	return Enumerator;
 }

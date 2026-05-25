@@ -35,7 +35,13 @@ namespace Off
 
 	//Offsets not to be used during generation but inside of the generated SDK
 	namespace InSDK
-	{
+	{	
+		namespace GMalloc 
+		{
+			inline int32 GMallocOffset = 0x0;
+			inline int32 CreateGMallocOffset = 0x0;
+			void InitGMalloc();
+		}
 		namespace ProcessEvent
 		{
 			inline int32 PEIndex;
@@ -68,6 +74,9 @@ namespace Off
 			inline int32 AppendNameToString;
 			inline int32 GetNameEntryFromName;
 			inline int32 FNameSize;
+
+			inline int32 FNameCtorWcharOffset = 0x0; // FName::FName(const wchar_t*[, EFindName]), module-relative; 0 if not found
+			void InitFNameCtorWchar();
 		}
 
 		namespace NameArray
@@ -91,6 +100,15 @@ namespace Off
 			inline int32 TextSize = 0x0;
 
 			void InitTextOffsets();
+
+			inline int32 FTextCtorFStringOffset = 0x0; // FText::FText(FString&&), module-relative; 0 if not found
+			void InitFTextCtorFString();
+		}
+
+		namespace Engine
+		{
+			inline int32 UGameEngineTickOffset = 0x0; // UGameEngine::Tick, module-relative; 0 if not found
+			void InitUGameEngineTick();
 		}
 
 		namespace ULevel
@@ -218,7 +236,14 @@ namespace Off
 		inline int32 ArrayDim;
 		inline int32 ElementSize;
 		inline int32 PropertyFlags;
+		inline int32 RepIndex;
+		inline int32 BlueprintReplicationCondition;
 		inline int32 Offset_Internal;
+		inline int32 RepNotifyFunc;
+		inline int32 PropertyLinkNext;
+		inline int32 NextRef;
+		inline int32 DestructorLinkNext;
+		inline int32 PostConstructLinkNext;
 	}
 
 	namespace ByteProperty
@@ -242,6 +267,15 @@ namespace Off
 	namespace ObjectProperty
 	{
 		inline int32 PropertyClass;
+	}
+
+	namespace InterfaceProperty {
+		inline int32 InterfaceClass;
+	}
+
+	namespace MulticastDelegateProperty
+	{
+		inline int32 SignatureFunction;
 	}
 
 	namespace ClassProperty

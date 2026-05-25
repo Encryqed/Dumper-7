@@ -45,6 +45,7 @@ namespace Settings
 
 	namespace CppGenerator
 	{
+		constexpr const char* InitGMallocManuallyBody = "";
 		/* No prefix for files->FilePrefix = "" */
 		constexpr const char* FilePrefix = "";
 
@@ -158,6 +159,18 @@ R"(
 
 		/* Whether this game uses uint8 for UEProperty::ArrayDim, instead of int32 */
 		inline bool bUseUint8ArrayDim = false;
+
+		/* Whether GMalloc/GCreateMalloc offsets were successfully located */
+		inline bool bHasGMalloc = false;
+
+		/* Whether FName::FName(const wchar_t*) ctor offset was located */
+		inline bool bHasFNameCtorWchar = false;
+
+		/* Whether FText::FText(FString&&) ctor offset was located */
+		inline bool bHasFTextCtor = false;
+
+		/* Whether UGameEngine::Tick offset was located */
+		inline bool bHasGameEngineTick = false;
 	}
 
 	extern void InitWeakObjectPtrSettings();

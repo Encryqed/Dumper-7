@@ -62,29 +62,29 @@ int32_t OffsetFinder::FindUObjectClassOffset()
 {
 	/* Checks for a pointer that points to itself in the end. The UObject::Class pointer of "Class CoreUObject.Class" will point to "Class CoreUObject.Class". */
 	auto IsValidCyclicUClassPtrOffset = [](const uint8_t* ObjA, const uint8_t* ObjB, int32_t ClassPtrOffset)
-	{
-		/* Will be advanced before they are used. */
-		const uint8_t* NextClassA = ObjA;
-		const uint8_t* NextClassB = ObjB;
-
-		for (int MaxLoopCount = 0; MaxLoopCount < 0x10; MaxLoopCount++)
 		{
-			const uint8_t* CurrentClassA = NextClassA;
-			const uint8_t* CurrentClassB = NextClassB;
+			/* Will be advanced before they are used. */
+			const uint8_t* NextClassA = ObjA;
+			const uint8_t* NextClassB = ObjB;
 
-			NextClassA = *reinterpret_cast<const uint8_t* const*>(NextClassA + ClassPtrOffset);
-			NextClassB = *reinterpret_cast<const uint8_t* const*>(NextClassB + ClassPtrOffset);
+			for (int MaxLoopCount = 0; MaxLoopCount < 0x10; MaxLoopCount++)
+			{
+				const uint8_t* CurrentClassA = NextClassA;
+				const uint8_t* CurrentClassB = NextClassB;
 
-			/* If this was UObject::Class it would never be invalid. The pointer would simply point to itself.*/
-			if (!NextClassA || !NextClassB || Platform::IsBadReadPtr(NextClassA) || Platform::IsBadReadPtr(NextClassB))
-				return false;
+				NextClassA = *reinterpret_cast<const uint8_t* const*>(NextClassA + ClassPtrOffset);
+				NextClassB = *reinterpret_cast<const uint8_t* const*>(NextClassB + ClassPtrOffset);
 
-			if (CurrentClassA == NextClassA && CurrentClassB == NextClassB)
-				return true;
-		}
+				/* If this was UObject::Class it would never be invalid. The pointer would simply point to itself.*/
+				if (!NextClassA || !NextClassB || Platform::IsBadReadPtr(NextClassA) || Platform::IsBadReadPtr(NextClassB))
+					return false;
 
-		return false;
-	};
+				if (CurrentClassA == NextClassA && CurrentClassB == NextClassB)
+					return true;
+			}
+
+			return false;
+		};
 
 	const uint8_t* const ObjA = static_cast<const uint8_t*>(ObjectArray::GetByIndex(0x055).GetAddress());
 	const uint8_t* const ObjB = static_cast<const uint8_t*>(ObjectArray::GetByIndex(0x123).GetAddress());
@@ -104,7 +104,7 @@ int32_t OffsetFinder::FindUObjectClassOffset()
 /*
 * IsPotentialValidOffset: A function to filter offsets that can not possibly be valid for UObject::Name or FField::Name.
 *						  Example for UObject::Name: it can 100% not be at the same offset as UObject::Class
-* 
+*
 * DataGatherer: A function to gather values at the offsets not filterd by 'IsPotentialValidOffset'. Data is later used to filter more offsets, until hopefully only one is left.
 */
 template<typename IteratorType>
@@ -203,14 +203,14 @@ int32_t FindNameOffsetForSomeClass(std::function<bool(int32_t Value)> IsPotentia
 int32_t OffsetFinder::FindUObjectNameOffset()
 {
 	auto IsPotentiallyValidOffset = [](int32 Offset) -> bool
-	{
-		// Make sure 0x4 aligned Offsets are neither the start, nor the middle of a pointer-member. Irrelevant for 32-bit, because the 2nd check will be 0x2 aligned then.
-		return Offset != Off::UObject::Class && Offset != (Off::UObject::Class + (sizeof(void*) / 2))
-			&& Offset != Off::UObject::Outer && Offset != (Off::UObject::Outer + (sizeof(void*) / 2))
-			&& Offset != Off::UObject::Flags
-			&& Offset != Off::UObject::Index
-			&& Offset != Off::UObject::Vft && Offset != (Off::UObject::Vft + (sizeof(void*) / 2));
-	};
+		{
+			// Make sure 0x4 aligned Offsets are neither the start, nor the middle of a pointer-member. Irrelevant for 32-bit, because the 2nd check will be 0x2 aligned then.
+			return Offset != Off::UObject::Class && Offset != (Off::UObject::Class + (sizeof(void*) / 2))
+				&& Offset != Off::UObject::Outer && Offset != (Off::UObject::Outer + (sizeof(void*) / 2))
+				&& Offset != Off::UObject::Flags
+				&& Offset != Off::UObject::Index
+				&& Offset != Off::UObject::Vft && Offset != (Off::UObject::Vft + (sizeof(void*) / 2));
+		};
 
 	return FindNameOffsetForSomeClass(IsPotentiallyValidOffset, ObjectArray().begin(), ObjectArray().end());
 }
@@ -272,9 +272,9 @@ void OffsetFinder::FixupHardcodedOffsets()
 		void* PossibleNextPtrOrBool2 = *(void**)((uint8*)ObjectArray::FindClassFast("Pawn").GetChildProperties().GetAddress() + OffsetToCheck);
 
 		auto IsValidPtr = [](void* a) -> bool
-		{
-			return !Platform::IsBadReadPtr(a) && (uintptr_t(a) & 0x1) == 0; // realistically, there wont be any pointers to unaligned memory
-		};
+			{
+				return !Platform::IsBadReadPtr(a) && (uintptr_t(a) & 0x1) == 0; // realistically, there wont be any pointers to unaligned memory
+			};
 
 		if (IsValidPtr(PossibleNextPtrOrBool0) && IsValidPtr(PossibleNextPtrOrBool1) && IsValidPtr(PossibleNextPtrOrBool2))
 		{
@@ -304,21 +304,21 @@ void OffsetFinder::InitFNameSettings()
 	Off::FName::CompIdx = 0x0;
 	Off::FName::Number = 0x4; // defaults for check
 
-	 // FNames for which FName::Number == [1...4]
+	// FNames for which FName::Number == [1...4]
 	auto GetNumNamesWithNumberOneToFour = []() -> int32
-	{
-		int32 NamesWithNumberOneToFour = 0x0;
-
-		for (UEObject Obj : ObjectArray())
 		{
-			const uint32 Number = Obj.GetFName().GetNumber();
+			int32 NamesWithNumberOneToFour = 0x0;
 
-			if (Number > 0x0 && Number < 0x5)
-				NamesWithNumberOneToFour++;
-		}
+			for (UEObject Obj : ObjectArray())
+			{
+				const uint32 Number = Obj.GetFName().GetNumber();
 
-		return NamesWithNumberOneToFour;
-	};
+				if (Number > 0x0 && Number < 0x5)
+					NamesWithNumberOneToFour++;
+			}
+
+			return NamesWithNumberOneToFour;
+		};
 
 	/*
 	* Games without FNAME_OUTLINE_NUMBER have a min. percentage of 6% of all object-names for which FName::Number is in a [1...4] range
@@ -469,12 +469,12 @@ int32_t OffsetFinder::FindFFieldNameOffset()
 int32_t OffsetFinder::NewFindFFieldNameOffset()
 {
 	auto IsPotentiallyValidOffset = [](int32 Offset) -> bool
-	{
-		// Make sure 0x4 aligned Offsets are neither the start, nor the middle of a pointer-member. Irrelevant for 32-bit, because the 2nd check will be 0x2 aligned then.
-		return Offset != Off::FField::Class && Offset != (Off::FField::Class + (sizeof(void*) / 2))
-			&& Offset != Off::FField::Next && Offset != (Off::FField::Next + (sizeof(void*) / 2))
-			&& Offset != Off::FField::Vft && Offset != (Off::FField::Vft + (sizeof(void*) / 2));
-	};
+		{
+			// Make sure 0x4 aligned Offsets are neither the start, nor the middle of a pointer-member. Irrelevant for 32-bit, because the 2nd check will be 0x2 aligned then.
+			return Offset != Off::FField::Class && Offset != (Off::FField::Class + (sizeof(void*) / 2))
+				&& Offset != Off::FField::Next && Offset != (Off::FField::Next + (sizeof(void*) / 2))
+				&& Offset != Off::FField::Vft && Offset != (Off::FField::Vft + (sizeof(void*) / 2));
+		};
 
 	AllFieldIterator TmpIt;
 
@@ -853,7 +853,7 @@ int32_t OffsetFinder::FindEnumPropertyBaseOffset()
 	Infos.push_back({ CreationMethodMember, ComponentCreationMethod });
 	Infos.push_back({ AutoPossessAIMember , AutoPossessAI });
 
-	// EnumProperty::Enum is the 2nd member after 'NumericProperty UnderlayingType'
+	// EnumProperty::Enum is the 2nd member after 'NumericProperty UnderlyingType'
 	return FindOffset(Infos, Off::Property::Offset_Internal) - sizeof(void*);
 }
 
@@ -984,8 +984,47 @@ int32_t OffsetFinder::FindMapPropertyBaseOffset(const int32 PropertySize)
 	return PropertySize;
 }
 
+/*
+ * TODO: replace each stub body with a real pattern-scan or FindOffset() call.
+ */
+
+int32 OffsetFinder::FindRepIndexOffset(const int32 PropertyFlagsOffset)
+{
+	return PropertyFlagsOffset + sizeof(uint64);
+}
+
+int32 OffsetFinder::FindBlueprintReplicationConditionOffset(const int32 RepIndexOffset)
+{
+	return RepIndexOffset + sizeof(uint16);
+}
+
+int32 OffsetFinder::FindRepNotifyFuncOffset(const int32 OffsetInternalOffset)
+{
+	return OffsetInternalOffset + sizeof(uint32);
+}
+
+int32 OffsetFinder::FindPropertyLinkNextOffset(const int32 RepNotifyFuncOffset)
+{
+	return RepNotifyFuncOffset + sizeof(uint64);
+}
+
+int32 OffsetFinder::FindNextRefOffset(const int32 PropertyLinkNextOffset)
+{
+	return PropertyLinkNextOffset + Off::InSDK::Name::FNameSize;
+}
+
+int32 OffsetFinder::FindDestructorLinkNextOffset(const int32 NextRefOffset)
+{
+	return NextRefOffset + sizeof(void*);
+}
+
+int32 OffsetFinder::FindPostConstructLinkNextOffset(const int32 DestructorLinkNextOffset)
+{
+	return DestructorLinkNextOffset + sizeof(void*);
+}
+
 /* InSDK -> ULevel */
-int32_t OffsetFinder::FindLevelActorsOffset()
+int32 OffsetFinder::FindLevelActorsOffset()
 {
 	UEObject Level = nullptr;
 	uintptr_t Lvl = 0x0;
@@ -1043,7 +1082,7 @@ int32_t OffsetFinder::FindLevelActorsOffset()
 
 
 /* InSDK -> UDataTable */
-int32_t OffsetFinder::FindDatatableRowMapOffset()
+int32 OffsetFinder::FindDatatableRowMapOffset()
 {
 	const UEClass DataTable = ObjectArray::FindClassFast("DataTable");
 
@@ -1067,3 +1106,13 @@ int32_t OffsetFinder::FindDatatableRowMapOffset()
 	return RowStructProp.GetOffset() + RowStructProp.GetSize();
 }
 
+/* FieldPathProperty (hardcoded, pending real discovery) */
+int32 OffsetFinder::FindFieldPathPropertyFieldClassOffset(int32 PropertySize) {
+	return PropertySize;
+}
+
+/* OptionalProperty (hardcoded, pending real discovery) */
+int32 OffsetFinder::FindOptionalPropertyValuePropertyOffset(int32 PropertySize)
+{
+	return PropertySize;
+}

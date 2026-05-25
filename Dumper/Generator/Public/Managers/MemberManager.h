@@ -77,7 +77,7 @@ public:
 public:
 	inline MemberIterator begin() const { return *this; }
 
-	inline MemberIterator end() const { return MemberIterator(Struct, Members, PredefElements, Members.size(), PredefElements ? PredefElements->size() : 0x0); }
+	inline MemberIterator end() const { return MemberIterator(Struct, Members, PredefElements, static_cast<int32>(Members.size()), PredefElements ? static_cast<int32>(PredefElements->size()) : 0x0); }
 };
 
 template<bool bIsDeferredTemplateCreation = true>
@@ -167,7 +167,7 @@ public:
 public:
 	inline FunctionIterator begin() const { return *this; }
 
-	inline FunctionIterator end() const { return FunctionIterator(Struct, Members, PredefElements, Members.size(), PredefElements ? PredefElements->size() : 0x0); }
+	inline FunctionIterator end() const { return FunctionIterator(Struct, Members, PredefElements, static_cast<int32>(Members.size()), PredefElements ? static_cast<int>(PredefElements->size()) : 0x0); }
 };
 
 

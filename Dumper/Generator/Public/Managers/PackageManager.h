@@ -291,6 +291,6 @@ public:
 	{
 		CurrentIterationHitCount++;
 
-		return PackageInfoIterator(PackageInfos, CurrentIterationHitCount);
+		return PackageInfoIterator(PackageInfos, static_cast<uint8>(CurrentIterationHitCount));
 	}
 };

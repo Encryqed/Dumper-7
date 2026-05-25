@@ -21,17 +21,17 @@ void Off::InSDK::ProcessEvent::InitPE_Windows()
 #if defined(_WIN64)
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
-	{
-		return Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
-			&& Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
-	};
+		{
+			return Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
+				&& Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
+		};
 #elif defined(_WIN32)
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
-	{
-		return Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x4, 0x0, 0x0 }, FuncAddress, 0x400)
-			&& Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
-	};
+		{
+			return Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x4, 0x0, 0x0 }, FuncAddress, 0x400)
+				&& Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
+		};
 #endif
 
 	const void* ProcessEventAddr = nullptr;
@@ -49,9 +49,9 @@ void Off::InSDK::ProcessEvent::InitPE_Windows()
 		const void* PossiblePEAddr = reinterpret_cast<void*>(Architecture_x86_64::FindNextFunctionStart(StringRefAddr));
 
 		auto IsSameAddr = [PossiblePEAddr](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
-		{
-			return FuncAddress == PossiblePEAddr;
-		};
+			{
+				return FuncAddress == PossiblePEAddr;
+			};
 
 		const auto [FuncPtr2, FuncIdx2] = Platform::IterateVTableFunctions(Vft, IsSameAddr);
 		ProcessEventAddr = FuncPtr2;
@@ -61,7 +61,7 @@ void Off::InSDK::ProcessEvent::InitPE_Windows()
 	if (ProcessEventAddr)
 	{
 		Off::InSDK::ProcessEvent::PEIndex = ProcessEventIdx;
-		Off::InSDK::ProcessEvent::PEOffset = Platform::GetOffset(ProcessEventAddr);
+		Off::InSDK::ProcessEvent::PEOffset = static_cast<int32>(Platform::GetOffset(ProcessEventAddr));
 
 		std::cerr << std::format("PE-Offset: 0x{:X}\n", Off::InSDK::ProcessEvent::PEOffset);
 		std::cerr << std::format("PE-Index: 0x{:X}\n\n", ProcessEventIdx);
@@ -73,15 +73,306 @@ void Off::InSDK::ProcessEvent::InitPE_Windows()
 #endif // PLATFORM_WINDOWS
 }
 
+void Off::InSDK::GMalloc::InitGMalloc()
+{
+#ifdef PLATFORM_WINDOWS
+#if defined(_WIN64)
+
+	// CreateGMalloc prologue: sub rsp, N then mov rax, gs:[0x58].
+	// UE5.x inserts a `mov ecx, [rip+_tls_index]` (8B 0D ..) between them for thread-safe-static init;
+	// UE4.27 has no interlude. Try UE5 first, fall back to UE4.
+	const char* createSig_UE5 = "48 81 EC ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 65 48 8B 04 25 58 00 00 00";
+	const char* createSig_UE4 = "48 81 EC ?? ?? ?? ?? 65 48 8B 04 25 58 00 00 00";
+
+	void* createMatch = Platform::FindPattern(createSig_UE5, 0x0, false, 0x0, nullptr);
+	if (!createMatch)
+		createMatch = Platform::FindPattern(createSig_UE4, 0x0, false, 0x0, nullptr);
+
+	if (!createMatch)
+	{
+		std::cerr << "Failed to find CreateGMalloc\n";
+		return;
+	}
+
+	uint8_t* createBase = reinterpret_cast<uint8_t*>(createMatch);
+	uint64 base = Platform::GetModuleBase();
+
+	CreateGMallocOffset = static_cast<int32>(createBase - reinterpret_cast<uint8_t*>(base));
+	std::cerr << std::format("CreateGMalloc-Offset: 0x{:X}\n", CreateGMallocOffset);
+
+	// Scan CreateGMalloc body for the first RIP-relative reference to a global -> GMalloc.
+	// Matches: mov reg, [rip+disp] / mov [rip+disp], reg / cmp [rip+disp], imm8.
+	// All three forms put the disp32 at +3 with instruction length 7.
+	uint8_t* gmallocRef = nullptr;
+	for (int32_t i = 0; i + 7 <= 0x200; ++i)
+	{
+		const uint8_t b0 = createBase[i + 0];
+		const uint8_t b1 = createBase[i + 1];
+		const uint8_t b2 = createBase[i + 2];
+
+		const bool bIsMov = (b0 == 0x48) && (b1 == 0x89 || b1 == 0x8B) && ((b2 & 0xC7) == 0x05);
+		const bool bIsCmp = (b0 == 0x48) && (b1 == 0x83) && (b2 == 0x3D); // cmp [rip+disp32], imm8
+
+		if (!bIsMov && !bIsCmp)
+			continue;
+
+		const int32_t rel = *reinterpret_cast<int32_t*>(createBase + i + 3);
+		uint8_t* const target = createBase + i + 7 + rel;
+
+		if (!Platform::IsAddressInProcessRange(reinterpret_cast<uintptr_t>(target)))
+			continue;
+
+		gmallocRef = createBase + i;
+		GMallocOffset = static_cast<int32>(target - reinterpret_cast<uint8_t*>(base));
+		break;
+	}
+
+	if (!gmallocRef)
+	{
+		std::cerr << "Failed to find GMalloc reference inside CreateGMalloc\n";
+		return;
+	}
+
+	std::cerr << std::format("GMalloc-Offset: 0x{:X}\n", GMallocOffset);
+
+	Settings::Internal::bHasGMalloc = true;
+
+#endif
+#endif
+}
 void Off::InSDK::ProcessEvent::InitPE(const int32 Index, const char* const ModuleName)
 {
 	Off::InSDK::ProcessEvent::PEIndex = Index;
 
 	void** VFT = *reinterpret_cast<void***>(ObjectArray::GetByIndex(0).GetAddress());
 
-	Off::InSDK::ProcessEvent::PEOffset = Platform::GetOffset(VFT[Off::InSDK::ProcessEvent::PEIndex], ModuleName);
+	Off::InSDK::ProcessEvent::PEOffset = static_cast<int32>(Platform::GetOffset(VFT[Off::InSDK::ProcessEvent::PEIndex], ModuleName));
 
 	std::cerr << std::format("PE-Offset: 0x{:X}\n", Off::InSDK::ProcessEvent::PEOffset);
+}
+
+/* Native exec address of a Kismet helper UFUNCTION by name. Returns 0 if unavailable. */
+static uintptr_t GetKismetExecAddress(const char* const FunctionName)
+{
+	const UEFunction Fn = ObjectArray::FindObjectFast<UEFunction>(FunctionName, EClassCastFlags::Function);
+	if (!Fn)
+		return 0x0;
+
+	if (Off::UFunction::ExecFunction == 0x0)
+		return 0x0;
+
+	void* const ExecPtr = *reinterpret_cast<void**>(reinterpret_cast<uint8_t*>(const_cast<void*>(Fn.GetAddress())) + Off::UFunction::ExecFunction);
+	if (!ExecPtr || !Platform::IsAddressInProcessRange(reinterpret_cast<uintptr_t>(ExecPtr)))
+		return 0x0;
+
+	return reinterpret_cast<uintptr_t>(ExecPtr);
+}
+
+/*
+* Joint resolver for FName::FName(const wchar_t*) and FText::FText(FString&&) / FText::FromString.
+*
+* execConv_StringToName and execConv_StringToText share their UHT prologue (P_GET_PROPERTY(FStrProperty)),
+* so any "first reasonable call" heuristic locks both onto the same shared helper. Instead we collect the
+* first N calls from each exec and pick the first index where they differ.
+*/
+static void ResolveNameAndTextCtorsByDiff()
+{
+#ifdef PLATFORM_WINDOWS
+#if defined(_WIN64)
+	// Idempotent — both Init functions route through this.
+	static bool bAttempted = false;
+	if (bAttempted)
+		return;
+	bAttempted = true;
+
+	const uintptr_t NameExec = GetKismetExecAddress("Conv_StringToName");
+	const uintptr_t TextExec = GetKismetExecAddress("Conv_StringToText");
+	if (!NameExec || !TextExec)
+	{
+		std::cerr << "FName/FText ctors: Conv_StringToName or Conv_StringToText UFunction not found, skipping.\n";
+		return;
+	}
+
+	constexpr int32_t kMaxCalls = 8;
+	uintptr_t NameCalls[kMaxCalls] = {};
+	uintptr_t TextCalls[kMaxCalls] = {};
+
+	for (int32_t i = 0; i < kMaxCalls; ++i)
+	{
+		NameCalls[i] = Architecture_x86_64::GetRipRelativeCalledFunction(NameExec, i + 1, nullptr);
+		TextCalls[i] = Architecture_x86_64::GetRipRelativeCalledFunction(TextExec, i + 1, nullptr);
+	}
+
+	const uint64 base = Platform::GetModuleBase();
+
+	for (int32_t i = 0; i < kMaxCalls; ++i)
+	{
+		const uintptr_t N = NameCalls[i];
+		const uintptr_t T = TextCalls[i];
+
+		if (!N || !T || N == T)
+			continue;
+		if (!Platform::IsAddressInProcessRange(N) || !Platform::IsAddressInProcessRange(T))
+			continue;
+
+		Off::InSDK::Name::FNameCtorWcharOffset = static_cast<int32>(N - base);
+		Off::InSDK::Text::FTextCtorFStringOffset = static_cast<int32>(T - base);
+		Settings::Internal::bHasFNameCtorWchar = true;
+		Settings::Internal::bHasFTextCtor = true;
+
+		std::cerr << std::format(
+			"FName/FText ctors (call-diff at index {}): FName=0x{:X}, FText=0x{:X}\n",
+			i + 1,
+			Off::InSDK::Name::FNameCtorWcharOffset,
+			Off::InSDK::Text::FTextCtorFStringOffset);
+		return;
+	}
+
+	std::cerr << "FName/FText ctors: no diverging call found, override manually.\n";
+#endif
+#endif
+}
+
+void Off::InSDK::Name::InitFNameCtorWchar() { ResolveNameAndTextCtorsByDiff(); }
+void Off::InSDK::Text::InitFTextCtorFString() { ResolveNameAndTextCtorsByDiff(); }
+
+/*
+* UGameEngine::Tick — anchored off UGameEngine::HandleBrowseToDefaultMapFailure.
+*
+* HandleBrowseToDefaultMapFailure contains a `lea rN, [rip+disp]` loading the unique UTF-16 literal
+* "UGameEngine::HandleBrowseToDefaultMapFailure" (passed to a Request-Exit call). Once we find which
+* UGameEngine vtable slot's function contains that LEA, Tick sits at a known fixed offset earlier in
+* the override block:
+*
+*     Tick                            vtable[N - 7 or N - 8]
+*     GetMaxTickRate, ProcessToggleFreeze*, NetworkRemapPath, ShouldDoAsyncEndOfFrameTasks
+*     [Exec]                          (only when UE_ALLOW_EXEC_COMMANDS == 1)
+*     GetGameViewportWidget
+*     HandleBrowseToDefaultMapFailure vtable[N]
+*
+* Window is widened to {-6..-9} to absorb minor UE5.x layout shifts; pick the largest function in that
+* window (Tick is ~2-5KB, comfortably larger than Exec).
+*/
+void Off::InSDK::Engine::InitUGameEngineTick()
+{
+#ifdef PLATFORM_WINDOWS
+#if defined(_WIN64)
+	const UEClass GameEngine = ObjectArray::FindClassFast("GameEngine");
+	if (!GameEngine)
+	{
+		std::cerr << "UGameEngine::Tick: GameEngine class not found, skipping.\n";
+		return;
+	}
+
+	const void* const CDO = *reinterpret_cast<void* const*>(
+		reinterpret_cast<const uint8_t*>(GameEngine.GetAddress()) + Off::UClass::ClassDefaultObject);
+	if (!CDO || Platform::IsBadReadPtr(CDO))
+	{
+		std::cerr << "UGameEngine::Tick: GameEngine CDO unreadable, skipping.\n";
+		return;
+	}
+
+	void** const Vft = *reinterpret_cast<void** const*>(CDO);
+	if (!Vft || Platform::IsBadReadPtr(Vft))
+	{
+		std::cerr << "UGameEngine::Tick: GameEngine vtable unreadable, skipping.\n";
+		return;
+	}
+
+	// FindByStringInAllSections returns the LEA address, not the string address. Resolve to verify.
+	const void* const LeaAddr = Platform::FindByStringInAllSections(
+		L"UGameEngine::HandleBrowseToDefaultMapFailure", 0x0, 0x0, /*bSearchOnlyExecutableSections=*/true);
+	if (!LeaAddr)
+	{
+		std::cerr << "UGameEngine::Tick: no LEA referencing 'UGameEngine::HandleBrowseToDefaultMapFailure' found, skipping.\n";
+		return;
+	}
+
+	const uintptr_t StringTarget = Architecture_x86_64::Resolve32BitRelativeLea(reinterpret_cast<uintptr_t>(LeaAddr));
+	if (!Platform::IsAddressInProcessRange(StringTarget))
+	{
+		std::cerr << "UGameEngine::Tick: resolved string address out of range, skipping.\n";
+		return;
+	}
+
+	// Find the vtable slot whose function contains the LEA: largest slot start <= LEA, within a sane
+	// function-size bound. Avoids FindFunctionEnd, which doesn't terminate on jmp-tail-call functions.
+	const uintptr_t LeaAddrUint = reinterpret_cast<uintptr_t>(LeaAddr);
+	const int32 StartIdx = Off::InSDK::ProcessEvent::PEIndex + 1;
+	const int32 EndIdx = StartIdx + 0x80;
+
+	constexpr uintptr_t MaxPlausibleFnSize = 0x400;
+
+	int32 AnchorIdx = -1;
+	uintptr_t BestSlotAddr = 0;
+	for (int32 i = StartIdx; i < EndIdx; ++i)
+	{
+		const uintptr_t SlotAddr = reinterpret_cast<uintptr_t>(Vft[i]);
+		if (!SlotAddr || !Platform::IsAddressInProcessRange(SlotAddr))
+			break; // End of vtable
+
+		if (SlotAddr > LeaAddrUint)
+			continue;
+		if (LeaAddrUint - SlotAddr > MaxPlausibleFnSize)
+			continue;
+
+		if (SlotAddr > BestSlotAddr)
+		{
+			BestSlotAddr = SlotAddr;
+			AnchorIdx = i;
+		}
+	}
+
+	if (AnchorIdx == -1)
+	{
+		std::cerr << "UGameEngine::Tick: LEA address not contained by any UGameEngine vtable slot, skipping.\n";
+		return;
+	}
+
+	const uint64 base = Platform::GetModuleBase();
+
+	// Tick is the largest function in {-6..-9} from the anchor.
+	int32 BestTickIdx = -1;
+	uintptr_t BestTickTarget = 0;
+	uintptr_t BestTickSize = 0x400;
+
+	for (int32 Delta = 6; Delta <= 9; ++Delta)
+	{
+		const int32 TickIdx = AnchorIdx - Delta;
+		if (TickIdx <= Off::InSDK::ProcessEvent::PEIndex)
+			continue;
+
+		const uintptr_t Target = reinterpret_cast<uintptr_t>(Vft[TickIdx]);
+		if (!Platform::IsAddressInProcessRange(Target))
+			continue;
+
+		const uintptr_t End = Architecture_x86_64::FindFunctionEnd(Target, 0x4000);
+		const uintptr_t Size = End ? (End - Target) : 0;
+
+		if (Size > BestTickSize)
+		{
+			BestTickSize = Size;
+			BestTickTarget = Target;
+			BestTickIdx = TickIdx;
+		}
+	}
+
+	if (BestTickIdx != -1)
+	{
+		Off::InSDK::Engine::UGameEngineTickOffset = static_cast<int32>(BestTickTarget - base);
+		Settings::Internal::bHasGameEngineTick = true;
+		std::cerr << std::format(
+			"UGameEngine::Tick: 0x{:X} (vtable[{}], HandleBrowse anchor at vtable[{}], size 0x{:X})\n",
+			Off::InSDK::Engine::UGameEngineTickOffset, BestTickIdx, AnchorIdx, BestTickSize);
+	}
+	else
+	{
+		std::cerr << std::format(
+			"UGameEngine::Tick: HandleBrowse at vtable[{}] but no slot in [-9..-6] looks like Tick, override manually.\n",
+			AnchorIdx);
+	}
+#endif
+#endif
 }
 
 /* UWorld */
@@ -134,7 +425,7 @@ void Off::InSDK::World::InitGWorld()
 		/* Pointer to UWorld* couldn't be found */
 		if (Result)
 		{
-			Off::InSDK::World::GWorld = Platform::GetOffset(Result);
+			Off::InSDK::World::GWorld = static_cast<int32>(Platform::GetOffset(Result));
 			std::cerr << std::format("GWorld-Offset: 0x{:X}\n\n", Off::InSDK::World::GWorld);
 			break;
 		}
@@ -154,9 +445,9 @@ void Off::InSDK::Text::InitTextOffsets()
 	}
 
 	auto IsValidPtr = [](void* a) -> bool
-	{
-		return !Platform::IsBadReadPtr(a) /* && (uintptr_t(a) & 0x1) == 0*/; // realistically, there wont be any pointers to unaligned memory
-	};
+		{
+			return !Platform::IsBadReadPtr(a) /* && (uintptr_t(a) & 0x1) == 0*/; // realistically, there wont be any pointers to unaligned memory
+		};
 
 
 	const UEFunction Conv_StringToText = ObjectArray::FindObjectFast<UEFunction>("Conv_StringToText", EClassCastFlags::Function);
@@ -253,13 +544,13 @@ void Off::InSDK::Text::InitTextOffsets()
 void Off::Init()
 {
 	auto OverwriteIfInvalidOffset = [](int32& Offset, int32 DefaultValue)
-	{
-		if (Offset == OffsetFinder::OffsetNotFound)
 		{
-			std::cerr << std::format("Defaulting to offset: 0x{:X}\n", DefaultValue);
-			Offset = DefaultValue;
-		}
-	};
+			if (Offset == OffsetFinder::OffsetNotFound)
+			{
+				std::cerr << std::format("Defaulting to offset: 0x{:X}\n", DefaultValue);
+				Offset = DefaultValue;
+			}
+		};
 
 	Off::UObject::Flags = OffsetFinder::FindUObjectFlagsOffset();
 	OverwriteIfInvalidOffset(Off::UObject::Flags, sizeof(void*)); // Default to right after VTable
@@ -369,6 +660,27 @@ void Off::Init()
 	Off::Property::PropertyFlags = OffsetFinder::FindPropertyFlagsOffset();
 	std::cerr << std::format("Off::Property::PropertyFlags: 0x{:X}\n", Off::Property::PropertyFlags);
 
+	Off::Property::RepIndex = OffsetFinder::FindRepIndexOffset(Off::Property::PropertyFlags);
+	std::cerr << std::format("Off::Property::RepIndex: 0x{:X}\n", Off::Property::RepIndex);
+
+	Off::Property::BlueprintReplicationCondition = OffsetFinder::FindBlueprintReplicationConditionOffset(Off::Property::RepIndex);
+	std::cerr << std::format("Off::Property::BlueprintReplicationCondition: 0x{:X}\n", Off::Property::BlueprintReplicationCondition);
+
+	Off::Property::RepNotifyFunc = OffsetFinder::FindRepNotifyFuncOffset(Off::Property::Offset_Internal);
+	std::cerr << std::format("Off::Property::RepNotifyFunc: 0x{:X}\n", Off::Property::RepNotifyFunc);
+
+	Off::Property::PropertyLinkNext = OffsetFinder::FindPropertyLinkNextOffset(Off::Property::RepNotifyFunc);
+	std::cerr << std::format("Off::Property::PropertyLinkNext: 0x{:X}\n", Off::Property::PropertyLinkNext);
+
+	Off::Property::NextRef = OffsetFinder::FindNextRefOffset(Off::Property::PropertyLinkNext);
+	std::cerr << std::format("Off::Property::NextRef: 0x{:X}\n", Off::Property::NextRef);
+
+	Off::Property::DestructorLinkNext = OffsetFinder::FindDestructorLinkNextOffset(Off::Property::NextRef);
+	std::cerr << std::format("Off::Property::DestructorLinkNext: 0x{:X}\n", Off::Property::DestructorLinkNext);
+
+	Off::Property::PostConstructLinkNext = OffsetFinder::FindPostConstructLinkNextOffset(Off::Property::DestructorLinkNext);
+	std::cerr << std::format("Off::Property::PostConstructLinkNext: 0x{:X}\n", Off::Property::PostConstructLinkNext);
+
 	Off::BoolProperty::Base = OffsetFinder::FindBoolPropertyBaseOffset();
 	std::cerr << std::format("UBoolProperty::Base: 0x{:X}\n", Off::BoolProperty::Base) << std::endl;
 
@@ -419,12 +731,18 @@ void Off::Init()
 	Off::InSDK::UDataTable::RowMap = OffsetFinder::FindDatatableRowMapOffset();
 	std::cerr << std::format("Off::InSDK::UDataTable::RowMap: 0x{:X}\n", Off::InSDK::UDataTable::RowMap) << std::endl;
 
+	Off::InterfaceProperty::InterfaceClass = Off::DelegateProperty::SignatureFunction;
+	std::cerr << std::format("Off::InterfaceProperty::InterfaceClass: 0x{:X}\n", Off::InterfaceProperty::InterfaceClass) << std::endl;
+
+	Off::MulticastDelegateProperty::SignatureFunction = Off::DelegateProperty::SignatureFunction;
+	std::cerr << std::format("Off::MulticastDelegateProperty::SignatureFunction: 0x{:X}\n", Off::MulticastDelegateProperty::SignatureFunction) << std::endl;
+
 	OffsetFinder::PostInitFNameSettings();
 
 	std::cerr << std::endl;
 
-	Off::FieldPathProperty::FieldClass = Off::InSDK::Properties::PropertySize;
-	Off::OptionalProperty::ValueProperty = Off::InSDK::Properties::PropertySize;
+	Off::FieldPathProperty::FieldClass = OffsetFinder::FindFieldPathPropertyFieldClassOffset(Off::InSDK::Properties::PropertySize);
+	Off::OptionalProperty::ValueProperty = OffsetFinder::FindOptionalPropertyValuePropertyOffset(Off::InSDK::Properties::PropertySize);
 
 	Off::ClassProperty::MetaClass = Off::ObjectProperty::PropertyClass + sizeof(void*); //0x8 inheritance from ObjectProperty
 }
@@ -440,22 +758,22 @@ void PropertySizes::InitTDelegateSize()
 {
 	/* If the AudioComponent class or the OnQueueSubtitles member weren't found, fallback to looping GObjects and looking for a Delegate. */
 	auto OnPropertyNotFound = [&]() -> void
-	{
-		for (UEObject Obj : ObjectArray())
 		{
-			if (!Obj.IsA(EClassCastFlags::Struct))
-				continue;
-
-			for (UEProperty Prop : Obj.Cast<UEClass>().GetProperties())
+			for (UEObject Obj : ObjectArray())
 			{
-				if (Prop.IsA(EClassCastFlags::DelegateProperty))
+				if (!Obj.IsA(EClassCastFlags::Struct))
+					continue;
+
+				for (UEProperty Prop : Obj.Cast<UEClass>().GetProperties())
 				{
-					PropertySizes::DelegateProperty = Prop.GetSize();
-					return;
+					if (Prop.IsA(EClassCastFlags::DelegateProperty))
+					{
+						PropertySizes::DelegateProperty = Prop.GetSize();
+						return;
+					}
 				}
 			}
-		}
-	};
+		};
 
 	const UEClass AudioComponentClass = ObjectArray::FindClassFast("AudioComponent");
 
@@ -477,22 +795,22 @@ void PropertySizes::InitFFieldPathSize()
 
 	/* If the SetFieldPathPropertyByName function or the Value parameter weren't found, fallback to looping GObjects and looking for a Delegate. */
 	auto OnPropertyNotFound = [&]() -> void
-	{
-		for (UEObject Obj : ObjectArray())
 		{
-			if (!Obj.IsA(EClassCastFlags::Struct))
-				continue;
-
-			for (UEProperty Prop : Obj.Cast<UEClass>().GetProperties())
+			for (UEObject Obj : ObjectArray())
 			{
-				if (Prop.IsA(EClassCastFlags::FieldPathProperty))
+				if (!Obj.IsA(EClassCastFlags::Struct))
+					continue;
+
+				for (UEProperty Prop : Obj.Cast<UEClass>().GetProperties())
 				{
-					PropertySizes::FieldPathProperty = Prop.GetSize();
-					return;
+					if (Prop.IsA(EClassCastFlags::FieldPathProperty))
+					{
+						PropertySizes::FieldPathProperty = Prop.GetSize();
+						return;
+					}
 				}
 			}
-		}
-	};
+		};
 
 	const UEFunction SetFieldPathPropertyByNameFunc = ObjectArray::FindObjectFast<UEFunction>("SetFieldPathPropertyByName", EClassCastFlags::Function);
 

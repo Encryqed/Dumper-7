@@ -41,7 +41,7 @@ std::string CppGenerator::MakeMemberString(const std::string& Type, const std::s
 	}
 	else
 	{
-		NumSpacesToComment = 50 - (Type.length() - 45);
+		NumSpacesToComment = 50 - static_cast<int>(Type.length() - 45);
 	}
 
 	return std::format("\t{:{}} {:{}} // {}\n", Type, 45, Name + ";", NumSpacesToComment, std::move(Comment));
@@ -54,7 +54,12 @@ std::string CppGenerator::MakeMemberStringWithoutName(const std::string& Type)
 
 std::string CppGenerator::GenerateBytePadding(const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
-	return MakeMemberString("uint8", std::format("Pad_{:X}[0x{:X}]", Offset, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason)));
+	std::string OutString = std::format(
+		"private:\n"
+		"{}"
+		"public:\n", 
+MakeMemberString("uint8", std::format("Pad_{:X}[0x{:X}]", Offset, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, PadSize, std::move(Reason))));
+	return OutString;
 }
 
 std::string CppGenerator::GenerateBitPadding(uint8 UnderlayingSizeBytes, const uint8 PrevBitPropertyEndBit, const int32 Offset, const int32 PadSize, std::string&& Reason)
@@ -102,7 +107,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 
 	uint8 PrevBitPropertySize = 0x1;
 	int32 PrevBitPropertyOffset = 0x0;
-	uint64 PrevNumBitsInUnderlayingType = 0x8;
+	uint64 PrevNumBitsInUnderlyingType = 0x8;
 
 	const int32 SuperTrailingPaddingSize = SuperSize - SuperLastMemberEnd;
 	bool bIsFirstSizedMember = true;
@@ -121,9 +126,9 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 		const bool bIsBitField = Member.IsBitField();
 
 		/* Padding between two bitfields at different byte-offsets */
-		if (CurrentPropertyEnd > PrevPropertyEnd && bLastPropertyWasBitField && bIsBitField && PrevBitPropertyEndBit < PrevNumBitsInUnderlayingType && !bIsUnion)
+		if (CurrentPropertyEnd > PrevPropertyEnd && bLastPropertyWasBitField && bIsBitField && PrevBitPropertyEndBit < PrevNumBitsInUnderlyingType && !bIsUnion)
 		{
-			OutMembers += GenerateBitPadding(PrevBitPropertySize, PrevBitPropertyEndBit, PrevBitPropertyOffset, PrevNumBitsInUnderlayingType - PrevBitPropertyEndBit, "Fixing Bit-Field Size For New Byte [ Dumper-7 ]");
+			OutMembers += GenerateBitPadding(PrevBitPropertySize, PrevBitPropertyEndBit, PrevBitPropertyOffset, static_cast<int32>(PrevNumBitsInUnderlyingType - PrevBitPropertyEndBit), "Fixing Bit-Field Size For New Byte [ Dumper-7 ]");
 			PrevBitPropertyEndBit = 0;
 		}
 
@@ -155,7 +160,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 			PrevBitPropertySize = MemberSize;
 			PrevBitPropertyOffset = MemberOffset;
 
-			PrevNumBitsInUnderlayingType = (MemberSize * 0x8ull);
+			PrevNumBitsInUnderlyingType = (MemberSize * 0x8ull);
 		}
 
 		bLastPropertyWasBitField = bIsBitField;
@@ -809,12 +814,21 @@ enum class {} : {}
 )", Enum.GetFullName()
   , NumValues
   , GetEnumPrefixedName(Enum)
-  , GetEnumUnderlayingType(Enum)
+  , GetEnumUnderlyingType(Enum)
   , MemberString);
 }
 
 std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 {
+	if (!Struct.IsUnrealStruct())
+	{
+		assert(false && "GetStructPrefixedName called on predefined struct - this shouldn't happen");
+		return Struct.GetName();
+	}
+
+	if (!Struct.GetUnrealStruct())
+		return "UObject";
+
 	if (Struct.IsFunction())
 		return Struct.GetUnrealStruct().GetOuter().GetValidName() + "_" + Struct.GetName();
 
@@ -838,9 +852,9 @@ std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 	return PackageManager::GetName(Enum.GetUnrealEnum().GetPackageIndex()) + "::" + ValidName;
 }
 
-std::string CppGenerator::GetEnumUnderlayingType(const EnumWrapper& Enum)
+std::string CppGenerator::GetEnumUnderlyingType(const EnumWrapper& Enum)
 {
-	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
+	static constexpr std::array<const char*, 8> UnderlyingTypesBySize = {
 		"uint8",
 		"uint16",
 		"InvalidEnumSize",
@@ -851,7 +865,7 @@ std::string CppGenerator::GetEnumUnderlayingType(const EnumWrapper& Enum)
 		"uint64"
 	};
 
-	return Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlayingTypesBySize[static_cast<size_t>(Enum.GetUnderlyingTypeSize()) - 1] : "uint8";
+	return Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlyingTypesBySize[static_cast<size_t>(Enum.GetUnderlyingTypeSize()) - 1] : "uint8";
 }
 
 std::string CppGenerator::GetAssertionMacroString(const std::string& PrefixedStructUniqueName)
@@ -976,7 +990,12 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	else if (Flags & EClassCastFlags::ClassProperty)
 	{
 		if (Member.HasPropertyFlags(EPropertyFlags::UObjectWrapper))
-			return std::format("TSubclassOf<class {}>", GetStructPrefixedName(Member.Cast<UEClassProperty>().GetMetaClass()));
+		{
+			UEClass MetaClass = Member.Cast<UEClassProperty>().GetMetaClass();
+			if (MetaClass)
+				return std::format("TSubclassOf<class {}>", GetStructPrefixedName(MetaClass));
+			return "TSubclassOf<class UObject>";
+		}
 
 		return "class UClass*";
 	}
@@ -998,7 +1017,19 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else if (Flags & EClassCastFlags::StructProperty)
 	{
-		const StructWrapper& UnderlayingStruct = Member.Cast<UEStructProperty>().GetUnderlayingStruct();
+		const UEStruct RawUnderlayingStruct = Member.Cast<UEStructProperty>().GetUnderlayingStruct();
+
+		// Fall through to the unknown path if the underlying struct wasn't registered by StructManager
+		// (tagged/new-variant pointers on UE5.x, etc.) — otherwise StructWrapper's ctor throws.
+		if (!StructManager::IsRegistered(RawUnderlayingStruct))
+		{
+			if (bOutIsUnknownProperty)
+				*bOutIsUnknownProperty = true;
+
+			return (Class ? Class.GetCppName() : FieldClass.GetCppName()) + "_";
+		}
+
+		const StructWrapper UnderlayingStruct(RawUnderlayingStruct);
 
 		if (UnderlayingStruct.IsCyclicWithPackage(PackageIndex)) [[unlikely]]
 			return std::format("{}", GetCycleFixupType(UnderlayingStruct, false));
@@ -1197,6 +1228,13 @@ std::unordered_map<std::string, UEProperty> CppGenerator::GetUnknownProperties()
 
 		for (UEProperty Prop : Obj.Cast<UEStruct>().GetProperties())
 		{
+		//	auto [Class, FieldClass] = Prop.GetClass();
+		//	if (!Class && !FieldClass)
+		//		continue;
+		//
+		//	EClassCastFlags Flags = Class ? Class.GetCastFlags() : FieldClass.GetCastFlags();
+		//	if (Flags == EClassCastFlags::None)
+		//		continue;
 			bool bIsUnknownProperty = false;
 			const std::string TypeName = GetMemberTypeStringWithoutConst(Prop, -1, &bIsUnknownProperty);
 
@@ -1233,7 +1271,7 @@ void CppGenerator::GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, Pa
 
 		EnumWrapper Enum = EnumWrapper(ObjectArray::GetByIndex<UEEnum>(EnumIndex));
 
-		ClassOrStructFile << std::format("enum class {} : {};\n", GetEnumPrefixedName(Enum), GetEnumUnderlayingType(Enum));
+		ClassOrStructFile << std::format("enum class {} : {};\n", GetEnumPrefixedName(Enum), GetEnumUnderlyingType(Enum));
 	}
 }
 
@@ -1255,6 +1293,9 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 
 		UEStruct Struct = ObjectArray::GetByIndex<UEStruct>(Index);
 
+		if (!Struct)
+			continue;
+
 		if (Struct.IsA(EClassCastFlags::Function))
 			continue;
 
@@ -1271,9 +1312,12 @@ void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
 
 		UEEnum Enum = ObjectArray::GetByIndex<UEEnum>(Index);
 
+		if (!Enum)
+			continue;
+
 		auto& [ForwardDeclarations, Count] = PackagesAndForwardDeclarations[Enum.GetPackageIndex()];
 
-		ForwardDeclarations += std::format("\tenum class {} : {};\n", Enum.GetEnumPrefixedName(), GetEnumUnderlayingType(Enum));
+		ForwardDeclarations += std::format("\tenum class {} : {};\n", Enum.GetEnumPrefixedName(), GetEnumUnderlyingType(Enum));
 		Count++;
 	}
 
@@ -1710,7 +1754,16 @@ void CppGenerator::Generate()
 
 		/* Closes any namespaces if required */
 		if (Package.HasClasses())
+		{
+			if (Package.GetName() == "CoreUObject" && Settings::Internal::bUseFProperty)
+			{
+				ClassesFile << R"(
+using UFieldIterator = TLinkedListIterator<UField>;
+using UFieldRange    = TLinkedListRange<UField>;
+)";
+			}
 			WriteFileEnd(ClassesFile, EFileType::Classes);
+		}
 
 		if (Package.HasStructs() || Package.HasEnums())
 			WriteFileEnd(StructsFile, EFileType::Structs);
@@ -1742,7 +1795,10 @@ void CppGenerator::InitPredefinedMembers()
 			return;
 
 		if (Struct.Properties.empty() && Struct.Super)
+		{
 			Struct.Size = Struct.Super->Size;
+			return;
+		}
 
 		const PredefinedMember& LastMember = Struct.Properties[Struct.Properties.size() - 1];
 		Struct.Size = LastMember.Offset + LastMember.Size;
@@ -1956,7 +2012,42 @@ void CppGenerator::InitPredefinedMembers()
 		},
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint16", .Name = "RepIndex", .Offset = Off::Property::RepIndex, .Size = sizeof(uint16), .ArrayDim = 0x1, .Alignment = alignof(uint16),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint8", .Name = "BlueprintReplicationCondition", .Offset = Off::Property::BlueprintReplicationCondition, .Size = sizeof(uint8), .ArrayDim = 0x1, .Alignment = alignof(uint8),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
 			.Type = "int32", .Name = "Offset", .Offset = Off::Property::Offset_Internal, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FName", .Name = "RepNotifyFunc", .Offset = Off::Property::RepNotifyFunc, .Size = Off::InSDK::Name::FNameSize, .ArrayDim = 0x1, .Alignment = alignof(int32),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class FProperty*", .Name = "PropertyLinkNext", .Offset = Off::Property::PropertyLinkNext, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class FProperty*", .Name = "NextRef", .Offset = Off::Property::NextRef, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class FProperty*", .Name = "DestructorLinkNext", .Offset = Off::Property::DestructorLinkNext, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class FProperty*", .Name = "PostConstructLinkNext", .Offset = Off::Property::PostConstructLinkNext, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
@@ -2035,6 +2126,15 @@ void CppGenerator::InitPredefinedMembers()
 		PredefinedMember {
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
 			.Type = "class UFunction*", .Name = "SignatureFunction", .Offset = Off::DelegateProperty::SignatureFunction, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	std::vector<PredefinedMember> InterfacePropertyMembers =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "class UClass*", .Name = "InterfaceClass", .Offset = Off::InterfaceProperty::InterfaceClass, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
 			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 		},
 	};
@@ -2140,58 +2240,132 @@ void CppGenerator::InitPredefinedMembers()
 	else
 	{
 		/* Reserving enough space is required because otherwise the vector could reallocate and invalidate some structs' 'Super' pointer */
-		PredefinedStructs.reserve(0x20);
+		PredefinedStructs.reserve(0x40);
+
 
 		PredefinedStruct& FFieldClass = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FFieldClass", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .Super = nullptr
-		});
+			});
 		PredefinedStruct& FFieldVariant = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FFieldVariant", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .Super = nullptr
-		});
+			});
 
 		PredefinedStruct& FField = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FField", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .Super = nullptr
-		});
+			});
 
 		PredefinedStruct& FProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FProperty", .Size = Off::InSDK::Properties::PropertySize, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .Super = &FField  /* FField */
-		});
+			});
 		PredefinedStruct& FByteProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FByteProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FBoolProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FBoolProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FObjectPropertyBase = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FObjectPropertyBase", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FClassProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FClassProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FObjectPropertyBase  /* FObjectPropertyBase */
-		});
+			});
 		PredefinedStruct& FStructProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FStructProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FArrayProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FArrayProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FDelegateProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FDelegateProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FMapProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FMapProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FSetProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FSetProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FEnumProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FEnumProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FFieldPathProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FFieldPathProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
 		PredefinedStruct& FOptionalProperty = PredefinedStructs.emplace_back(PredefinedStruct{
 			.UniqueName = "FOptionalProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
-		});
+			});
+
+		PredefinedStruct& FNumericProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FNumericProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .Super = &FProperty  /* FProperty */
+			});
+
+		PredefinedStruct& FInt8Property = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FInt8Property", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FNumericProperty  /* FNumericProperty */
+			});
+		PredefinedStruct& FInt16Property = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FInt16Property", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FNumericProperty  /* FNumericProperty */
+			});
+		PredefinedStruct& FIntProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FIntProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FNumericProperty  /* FNumericProperty */
+			});
+		PredefinedStruct& FInt64Property = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FInt64Property", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FNumericProperty  /* FNumericProperty */
+			});
+		PredefinedStruct& FUInt16Property = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FUInt16Property", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FNumericProperty  /* FNumericProperty */
+			});
+		PredefinedStruct& FUInt32Property = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FUInt32Property", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FNumericProperty  /* FNumericProperty */
+			});
+		PredefinedStruct& FUInt64Property = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FUInt64Property", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FNumericProperty  /* FNumericProperty */
+			});
+		PredefinedStruct& FFloatProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FFloatProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FNumericProperty  /* FNumericProperty */
+			});
+		PredefinedStruct& FDoubleProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FDoubleProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FNumericProperty  /* FNumericProperty */
+			});
+
+		PredefinedStruct& FStrProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FStrProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
+			});
+		PredefinedStruct& FNameProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FNameProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
+			});
+		PredefinedStruct& FTextProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FTextProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
+			});
+
+		PredefinedStruct& FInterfaceProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FInterfaceProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FProperty  /* FProperty */
+			});
+
+		PredefinedStruct& FSoftObjectProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FSoftObjectProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .Super = &FObjectPropertyBase  /* FObjectPropertyBase */
+			});
+		PredefinedStruct& FSoftClassProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FSoftClassProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FSoftObjectProperty  /* FSoftObjectProperty */
+			});
+		PredefinedStruct& FWeakObjectProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FWeakObjectProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FObjectPropertyBase  /* FObjectPropertyBase */
+			});
+		PredefinedStruct& FLazyObjectProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FLazyObjectProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FObjectPropertyBase  /* FObjectPropertyBase */
+			});
+		PredefinedStruct& FObjectProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FObjectProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FObjectPropertyBase  /* FObjectPropertyBase */
+			});
+
+		/* Multicast delegate properties */
+		PredefinedStruct& FMulticastDelegateProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FMulticastDelegateProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .Super = &FProperty  /* FProperty */
+			});
+		PredefinedStruct& FMulticastInlineDelegateProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FMulticastInlineDelegateProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FMulticastDelegateProperty  /* FMulticastDelegateProperty */
+			});
+		PredefinedStruct& FMulticastSparseDelegateProperty = PredefinedStructs.emplace_back(PredefinedStruct{
+			.UniqueName = "FMulticastSparseDelegateProperty", .Size = 0x0, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .Super = &FMulticastDelegateProperty  /* FMulticastDelegateProperty */
+			});
 
 		FFieldClass.Properties =
 		{
@@ -2295,12 +2469,37 @@ void CppGenerator::InitPredefinedMembers()
 		FStructProperty.Properties = StructPropertyMembers;
 		FArrayProperty.Properties = ArrayPropertyMembers;
 		FDelegateProperty.Properties = DelegatePropertyMembers;
+		FMulticastDelegateProperty.Properties = DelegatePropertyMembers;
+		FInterfaceProperty.Properties = InterfacePropertyMembers;
 		FMapProperty.Properties = MapPropertyMembers;
 		FSetProperty.Properties = SetPropertyMembers;
 		FEnumProperty.Properties = EnumPropertyMembers;
 		FFieldPathProperty.Properties = FieldPathPropertyMembers;
 		FOptionalProperty.Properties = OptionalPropertyMembers;
+		
+		FNumericProperty.Properties = {};
+		FInt8Property.Properties = {};
+		FInt16Property.Properties = {};
+		FIntProperty.Properties = {};
+		FInt64Property.Properties = {};
+		FUInt16Property.Properties = {};
+		FUInt32Property.Properties = {};
+		FUInt64Property.Properties = {};
+		FFloatProperty.Properties = {};
+		FDoubleProperty.Properties = {};
 
+		FStrProperty.Properties = {};
+		FNameProperty.Properties = {};
+		FTextProperty.Properties = {};
+		FSoftObjectProperty.Properties = {};
+		FSoftClassProperty.Properties = {};
+		FWeakObjectProperty.Properties = {};
+		FLazyObjectProperty.Properties = {};
+		FObjectProperty.Properties = {};
+
+		FMulticastInlineDelegateProperty.Properties = {};
+		FMulticastSparseDelegateProperty.Properties = {};
+		
 		/* Init PredefindedStruct::Size **after** sorting the members */
 		InitStructSize(FFieldClass);
 		InitStructSize(FFieldVariant);
@@ -2320,6 +2519,33 @@ void CppGenerator::InitPredefinedMembers()
 		InitStructSize(FEnumProperty);
 		InitStructSize(FFieldPathProperty);
 		InitStructSize(FOptionalProperty);
+		InitStructSize(FInterfaceProperty);
+
+		InitStructSize(FNumericProperty);
+		InitStructSize(FInt8Property);
+		InitStructSize(FInt16Property);
+		InitStructSize(FIntProperty);
+		InitStructSize(FInt64Property);
+		InitStructSize(FUInt16Property);
+		InitStructSize(FUInt32Property);
+		InitStructSize(FUInt64Property);
+		InitStructSize(FFloatProperty);
+		InitStructSize(FDoubleProperty);
+
+		InitStructSize(FStrProperty);
+		InitStructSize(FNameProperty);
+		InitStructSize(FTextProperty);
+
+		InitStructSize(FSoftObjectProperty);
+		InitStructSize(FSoftClassProperty);
+		InitStructSize(FWeakObjectProperty);
+		InitStructSize(FLazyObjectProperty);
+		InitStructSize(FObjectProperty);
+
+		InitStructSize(FMulticastDelegateProperty);
+		InitStructSize(FMulticastInlineDelegateProperty);
+		InitStructSize(FMulticastSparseDelegateProperty);
+
 	}
 }
 
@@ -2660,7 +2886,7 @@ std::format(R"({{{}
 	FVectorPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = std::format("using UnderlayingType = {}", (Settings::Internal::bUseLargeWorldCoordinates ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.Type = std::format("using UnderlyingType = {}", (Settings::Internal::bUseLargeWorldCoordinates ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
 			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF,
 		}
 	});
@@ -2670,7 +2896,7 @@ std::format(R"({{{}
 		/* constructors */
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FVector(UnderlayingType X = 0, UnderlayingType Y = 0, UnderlayingType Z = 0)", .Body =
+			.ReturnType = "constexpr", .NameWithParams = "FVector(UnderlyingType X = 0, UnderlyingType Y = 0, UnderlyingType Z = 0)", .Body =
 R"(	: X(X), Y(Y), Z(Z)
 {
 })",
@@ -2704,7 +2930,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator*(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator*(UnderlyingType Scalar)", .Body =
 R"({
 	return { X * Scalar, Y * Scalar, Z * Scalar };
 })",
@@ -2720,7 +2946,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector", .NameWithParams = "operator/(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FVector", .NameWithParams = "operator/(UnderlyingType Scalar)", .Body =
 R"({
 	if (Scalar == 0)
 		return *this;
@@ -2792,7 +3018,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator*=(UnderlyingType Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
 
@@ -2812,7 +3038,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator/=(UnderlyingType Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
 
@@ -2842,7 +3068,7 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "UnderlayingType", .NameWithParams = "Dot(const FVector& Other)", .Body =
+			.ReturnType = "UnderlyingType", .NameWithParams = "Dot(const FVector& Other)", .Body =
 R"({
 	return (X * Other.X) + (Y * Other.Y) + (Z * Other.Z);
 })",
@@ -2850,7 +3076,7 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "UnderlayingType", .NameWithParams = "Magnitude()", .Body =
+			.ReturnType = "UnderlyingType", .NameWithParams = "Magnitude()", .Body =
 R"({
 	return std::sqrt((X * X) + (Y * Y) + (Z * Z));
 })",
@@ -2866,7 +3092,7 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceTo(const FVector& Other)", .Body =
+			.ReturnType = "UnderlyingType", .NameWithParams = "GetDistanceTo(const FVector& Other)", .Body =
 R"({
 	FVector DiffVector = Other - *this;
 
@@ -2876,9 +3102,9 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceToInMeters(const FVector& Other)", .Body =
+			.ReturnType = "UnderlyingType", .NameWithParams = "GetDistanceToInMeters(const FVector& Other)", .Body =
 R"({
-	return GetDistanceTo(Other) * static_cast<UnderlayingType>(0.01);
+	return GetDistanceTo(Other) * static_cast<UnderlyingType>(0.01);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
@@ -2903,7 +3129,7 @@ R"({
 	FVector2DPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = std::format("using UnderlayingType = {}", (Settings::Internal::bUseLargeWorldCoordinates ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.Type = std::format("using UnderlyingType = {}", (Settings::Internal::bUseLargeWorldCoordinates ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
 			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF,
 		}
 	});
@@ -2913,7 +3139,7 @@ R"({
 		/* constructors */
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FVector2D(UnderlayingType X = 0, UnderlayingType Y = 0)", .Body =
+			.ReturnType = "constexpr", .NameWithParams = "FVector2D(UnderlyingType X = 0, UnderlyingType Y = 0)", .Body =
 R"(	: X(X), Y(Y)
 {
 })",
@@ -2947,7 +3173,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D", .NameWithParams = "operator*(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FVector2D", .NameWithParams = "operator*(UnderlyingType Scalar)", .Body =
 R"({
 	return { X * Scalar, Y * Scalar };
 })",
@@ -2963,7 +3189,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D", .NameWithParams = "operator/(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FVector2D", .NameWithParams = "operator/(UnderlyingType Scalar)", .Body =
 R"({
 	if (Scalar == 0)
 		return *this;
@@ -3034,7 +3260,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FVector2D&", .NameWithParams = "operator*=(UnderlyingType Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
 
@@ -3054,7 +3280,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FVector2D&", .NameWithParams = "operator/=(UnderlyingType Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
 
@@ -3084,7 +3310,7 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "UnderlayingType", .NameWithParams = "Dot(const FVector2D& Other)", .Body =
+			.ReturnType = "UnderlyingType", .NameWithParams = "Dot(const FVector2D& Other)", .Body =
 R"({
 	return (X * Other.X) + (Y * Other.Y);
 })",
@@ -3092,7 +3318,7 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "UnderlayingType", .NameWithParams = "Magnitude()", .Body =
+			.ReturnType = "UnderlyingType", .NameWithParams = "Magnitude()", .Body =
 R"({
 	return std::sqrt((X * X) + (Y * Y));
 })",
@@ -3108,7 +3334,7 @@ R"({
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "UnderlayingType", .NameWithParams = "GetDistanceTo(const FVector2D& Other)", .Body =
+			.ReturnType = "UnderlyingType", .NameWithParams = "GetDistanceTo(const FVector2D& Other)", .Body =
 R"({
 	FVector2D DiffVector = Other - *this;
 
@@ -3138,7 +3364,7 @@ R"({
 	FRotatorPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = std::format("using UnderlayingType = {}", (Settings::Internal::bUseLargeWorldCoordinates ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
+			.Type = std::format("using UnderlyingType = {}", (Settings::Internal::bUseLargeWorldCoordinates ? "double" : "float")), .Name = "", .Offset = 0x0, .Size = 0x08, .ArrayDim = 0x1, .Alignment = 0x8,
 			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF,
 		}
 		});
@@ -3148,7 +3374,7 @@ R"({
 		/* constructors */
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FRotator(UnderlayingType Pitch = 0, UnderlayingType Yaw = 0, UnderlayingType Roll = 0)", .Body =
+			.ReturnType = "constexpr", .NameWithParams = "FRotator(UnderlyingType Pitch = 0, UnderlyingType Yaw = 0, UnderlyingType Roll = 0)", .Body =
 R"(	: Pitch(Pitch), Yaw(Yaw), Roll(Roll)
 {
 })",
@@ -3166,11 +3392,11 @@ R"(	: Pitch(other.Pitch), Yaw(other.Yaw), Roll(other.Roll)
 		/* static functions */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "UnderlayingType", .NameWithParams = "ClampAxis(UnderlayingType Angle)", .Body =
+			.ReturnType = "UnderlyingType", .NameWithParams = "ClampAxis(UnderlyingType Angle)", .Body =
 R"({
-	Angle = std::fmod(Angle, static_cast<UnderlayingType>(360));
-	if (Angle < static_cast<UnderlayingType>(0))
-		Angle += static_cast<UnderlayingType>(360);
+	Angle = std::fmod(Angle, static_cast<UnderlyingType>(360));
+	if (Angle < static_cast<UnderlyingType>(0))
+		Angle += static_cast<UnderlyingType>(360);
 
 	return Angle;
 })",
@@ -3178,11 +3404,11 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "UnderlayingType", .NameWithParams = "NormalizeAxis(UnderlayingType Angle)", .Body =
+			.ReturnType = "UnderlyingType", .NameWithParams = "NormalizeAxis(UnderlyingType Angle)", .Body =
 R"({
 	Angle = ClampAxis(Angle);
-	if (Angle > static_cast<UnderlayingType>(180))
-		Angle -= static_cast<UnderlayingType>(360);
+	if (Angle > static_cast<UnderlyingType>(180))
+		Angle -= static_cast<UnderlyingType>(360);
 
 	return Angle;
 })",
@@ -3208,7 +3434,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FRotator", .NameWithParams = "operator*(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FRotator", .NameWithParams = "operator*(UnderlyingType Scalar)", .Body =
 R"({
 	return { Pitch * Scalar, Yaw * Scalar, Roll * Scalar };
 })",
@@ -3224,7 +3450,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FRotator", .NameWithParams = "operator/(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FRotator", .NameWithParams = "operator/(UnderlyingType Scalar)", .Body =
 R"({
 	if (Scalar == 0)
 		return *this;
@@ -3296,7 +3522,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FRotator&", .NameWithParams = "operator*=(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FRotator&", .NameWithParams = "operator*=(UnderlyingType Scalar)", .Body =
 R"({
 	*this = *this * Scalar;
 
@@ -3316,7 +3542,7 @@ R"({
 		},
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FRotator&", .NameWithParams = "operator/=(UnderlayingType Scalar)", .Body =
+			.ReturnType = "FRotator&", .NameWithParams = "operator/=(UnderlyingType Scalar)", .Body =
 R"({
 	*this = *this / Scalar;
 
@@ -3405,8 +3631,12 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 
 	std::string CustomIncludes = R"(#define VC_EXTRALEAN
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 
+#include <cassert>
+#include <iterator>
 #include <string>
+#include <concepts>
 #include <functional>
 #include <type_traits>
 )";
@@ -3428,6 +3658,33 @@ using namespace UC;
 	if (Off::InSDK::Name::bIsAppendStringInlinedAndUsed)
 		GetNameEntryFromNameOffsetText = std::format("\n	constexpr int32 GetNameEntry      = 0x{:08X};", Off::InSDK::Name::GetNameEntryFromName);
 
+	std::string GmallocOffsetsText;
+
+	if (Settings::Internal::bHasGMalloc)
+		GmallocOffsetsText = std::format(
+			"\n\tconstexpr int32 GMalloc          = 0x{:08X};"
+			"\n\tconstexpr int32 CreateGMalloc    = 0x{:08X};",
+			max(Off::InSDK::GMalloc::GMallocOffset, 0x0),
+			max(Off::InSDK::GMalloc::CreateGMallocOffset, 0x0)
+		);
+
+	std::string AuxFunctionOffsetsText;
+
+	if (Settings::Internal::bHasFNameCtorWchar)
+		AuxFunctionOffsetsText += std::format(
+			"\n\tconstexpr int32 FNameCtorWchar   = 0x{:08X};",
+			max(Off::InSDK::Name::FNameCtorWcharOffset, 0x0));
+
+	if (Settings::Internal::bHasFTextCtor)
+		AuxFunctionOffsetsText += std::format(
+			"\n\tconstexpr int32 FTextCtorFString = 0x{:08X};",
+			max(Off::InSDK::Text::FTextCtorFStringOffset, 0x0));
+
+	if (Settings::Internal::bHasGameEngineTick)
+		AuxFunctionOffsetsText += std::format(
+			"\n\tconstexpr int32 UGameEngineTick  = 0x{:08X};",
+			max(Off::InSDK::Engine::UGameEngineTickOffset, 0x0));
+
 	/* Offsets and disclaimer */
 	BasicHpp << std::format(R"(
 /*
@@ -3442,7 +3699,7 @@ namespace Offsets
 	constexpr int32 GNames            = 0x{:08X};
 	constexpr int32 GWorld            = 0x{:08X};
 	constexpr int32 ProcessEvent      = 0x{:08X};
-	constexpr int32 ProcessEventIdx   = 0x{:08X};
+	constexpr int32 ProcessEventIdx   = 0x{:08X};{}{}
 }}
 )", max(Off::InSDK::ObjArray::GObjects, 0x0),
 	max(Off::InSDK::Name::AppendNameToString, 0x0),
@@ -3450,7 +3707,121 @@ namespace Offsets
 	max(Off::InSDK::NameArray::GNames, 0x0),
 	max(Off::InSDK::World::GWorld, 0x0),
 	max(Off::InSDK::ProcessEvent::PEOffset, 0x0),
-	Off::InSDK::ProcessEvent::PEIndex);
+	max(Off::InSDK::ProcessEvent::PEIndex, 0x0),
+	GmallocOffsetsText,
+	AuxFunctionOffsetsText);
+
+	if (Settings::Internal::bHasGMalloc)
+	{
+		BasicHpp <<
+			R"(
+namespace InSDKUtils { uintptr_t GetImageBase(); }
+
+class UnrealAllocator
+{
+    UnrealAllocator() = default;
+
+    static inline UnrealAllocator* Cached = nullptr;
+    static inline bool TriedCreate = false;
+
+    using GCreateMallocFn = void(*)();
+
+    static inline GCreateMallocFn GetCreate()
+    {
+        if constexpr (Offsets::CreateGMalloc != 0)
+        {
+            return reinterpret_cast<GCreateMallocFn>(InSDKUtils::GetImageBase() + Offsets::CreateGMalloc);
+        }
+        return nullptr;
+    }
+
+public:
+    static UnrealAllocator* Get(bool forceRetry = false)
+    {
+        if (Cached && !forceRetry)
+            return Cached;
+
+        uintptr_t base = InSDKUtils::GetImageBase();
+        if (!base)
+            return nullptr;
+
+        auto gmPtr = reinterpret_cast<UnrealAllocator**>(base + Offsets::GMalloc);
+
+        if (!gmPtr)
+            return nullptr;
+
+        UnrealAllocator* alloc = *gmPtr;
+
+        if (!alloc && !TriedCreate)
+        {
+            TriedCreate = true;
+
+            if (auto fn = GetCreate())
+                fn();
+
+            alloc = *gmPtr;
+        }
+
+        Cached = alloc;
+        return Cached;
+    }
+
+    static bool IsReady()
+    {
+        return Get() != nullptr;
+    }
+
+    UnrealAllocator(const UnrealAllocator&) = delete;
+    UnrealAllocator& operator=(const UnrealAllocator&) = delete;
+
+    virtual void Pad00_Destructor() = 0;
+    virtual bool Exec(void* World, const wchar_t* Cmd, void* Ar) = 0;
+
+    virtual void* Malloc(uint64_t Count, uint32_t Alignment = 1) = 0;
+    virtual void* TryMalloc(uint64_t Count, uint32_t Alignment = 1) = 0;
+    virtual void* Realloc(void* Original, uint64_t Count, uint32_t Alignment = 1) = 0;
+    virtual void* TryRealloc(void* Original, uint64_t Count, uint32_t Alignment = 1) = 0;
+    virtual void  Free(void* Original) = 0;
+
+    virtual uint64_t QuantizeSize(uint64_t Count, uint32_t Alignment = 1) = 0;
+    virtual bool GetAllocationSize(void* Original, uint64_t& SizeOut) = 0;
+
+    virtual void Trim(bool bTrimThreadCaches) = 0;
+    virtual void SetupTLSCachesOnCurrentThread() = 0;
+    virtual void ClearAndDisableTLSCachesOnCurrentThread() = 0;
+    virtual void InitializeStatsMetadata() = 0;
+
+    virtual void UpdateStats() = 0;
+    virtual void GetAllocatorStats(void* out_Stats) = 0;
+    virtual void DumpAllocatorStats(void* Ar) = 0;
+
+    virtual bool IsInternallyThreadSafe() = 0;
+    virtual bool ValidateHeap() = 0;
+    virtual const wchar_t* GetDescriptiveName() = 0;
+};
+
+)";
+
+		BasicHpp << R"(
+
+template<typename T, typename... Args>
+T* UE_New(Args&&... args)
+{
+    auto* alloc = UnrealAllocator::Get();
+    void* mem = alloc->Malloc(sizeof(T));
+    return new (mem) T(std::forward<Args>(args)...);
+}
+
+template<typename T>
+void UE_Delete(T* obj)
+{
+    if (!obj) return;
+    obj->~T();
+    UnrealAllocator::Get()->Free(obj);
+}
+
+)";
+	} /* End if (Settings::Internal::bHasGMalloc) */
 
 
 	// Start Namespace 'InSDKUtils'
@@ -3490,7 +3861,18 @@ namespace InSDKUtils
 class UClass;
 class UObject;
 class UFunction;
+)";
 
+	if (Settings::Internal::bUseFProperty)
+	{
+		BasicHpp << R"(
+class FField;
+class FFieldClass;
+class FFieldVariant;
+)";
+	}
+
+	BasicHpp << R"(
 class FName;
 )";
 
@@ -3727,7 +4109,7 @@ ClassType* GetDefaultObjImpl()
 	{
 #undef max
 		const auto& ObjectsArrayLayout = Off::FUObjectArray::FixedLayout;
-		const int32 ObjectArraySize = std::max({ ObjectsArrayLayout.ObjectsOffset + sizeof(void*), ObjectsArrayLayout.NumObjectsOffset + sizeof(int), ObjectsArrayLayout.MaxObjectsOffset + sizeof(int),});
+		const int32 ObjectArraySize = static_cast<int32>(std::max({ ObjectsArrayLayout.ObjectsOffset + sizeof(void*), ObjectsArrayLayout.NumObjectsOffset + sizeof(int), ObjectsArrayLayout.MaxObjectsOffset + sizeof(int), }));
 #define max(A, B) (A > B ? A : B)
 
 		// Start class 'TUObjectArray'
@@ -3801,13 +4183,13 @@ R"({
 
 #undef max
 		const auto& ObjectsArrayLayout = Off::FUObjectArray::ChunkedFixedLayout;
-		const int32 ObjectArraySize = std::max({
+		const int32 ObjectArraySize = static_cast<int32>(std::max({
 			ObjectsArrayLayout.ObjectsOffset + sizeof(void*),
 			ObjectsArrayLayout.MaxElementsOffset + sizeof(void*),
 			ObjectsArrayLayout.NumElementsOffset + sizeof(int),
 			ObjectsArrayLayout.MaxChunksOffset + sizeof(int),
 			ObjectsArrayLayout.NumChunksOffset + sizeof(int)
-		});
+		}));
 #define max(A, B) (A > B ? A : B)
 
 		// Start class 'TUObjectArray'
@@ -4532,6 +4914,16 @@ Settings::Internal::bUseCasePreservingName ? ", DisplayIndex(DisplayIndex)" : ""
 			.CustomComment = "",
 			.ReturnType = "constexpr", .NameWithParams = "FName(FName&&) = default;",
 			.Body = "",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "Constructor from wide string",
+			.ReturnType = "explicit",
+			.NameWithParams = "FName(const wchar_t* Name)",
+			.Body = R"({ 
+	*this = BasicFilesImpleUtils::StringToName(Name);
+})"
+			,
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		},
 		PredefinedFunction {
@@ -5769,6 +6161,141 @@ using TObjectBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<Unde
 template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8>
 using TActorBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<UnderlayingClassType, Size, Align, class AActor>;
 )";
+
+	if (Settings::Internal::bUseFProperty)
+	{
+
+	BasicHpp << R"(
+
+// Linked list iterators for FField / UField chains
+
+template<typename TNode, typename T = TNode>
+struct TLinkedListIterator
+{
+	using iterator_category = std::forward_iterator_tag;
+	using value_type        = T;
+	using difference_type   = std::ptrdiff_t;
+	using pointer           = T*;
+	using reference         = T&;
+
+	explicit TLinkedListIterator(TNode* start) : current_(start) {}
+
+	pointer operator*()  const { return static_cast<pointer>(current_); }
+	pointer operator->() const { return static_cast<pointer>(current_); }
+	TLinkedListIterator& operator++() { current_ = current_ ? current_->Next : nullptr; return *this; }
+	TLinkedListIterator  operator++(int) { auto tmp = *this; ++(*this); return tmp; }
+	bool operator==(const TLinkedListIterator& o) const { return current_ == o.current_; }
+	bool operator!=(const TLinkedListIterator& o) const { return current_ != o.current_; }
+private:
+	TNode* current_;
+};
+
+template<typename TNode, typename T = TNode>
+struct TLinkedListRange
+{
+	explicit TLinkedListRange(TNode* start) : start_(start) {}
+	TLinkedListIterator<TNode, T> begin() const { return TLinkedListIterator<TNode, T>(start_); }
+	TLinkedListIterator<TNode, T> end()   const { return TLinkedListIterator<TNode, T>(nullptr); }
+private:
+	TNode* start_;
+};
+
+using FFieldIterator = TLinkedListIterator<FField>;
+using FFieldRange    = TLinkedListRange<FField>;
+
+// FieldCast — cast FField* by EClassCastFlags, with visitor dispatch
+
+namespace FieldCast
+{
+	template<typename T> struct TCastFlagTraits;
+	template<> struct TCastFlagTraits<FField>                      { static constexpr EClassCastFlags Flag = EClassCastFlags::Field; };
+	template<> struct TCastFlagTraits<FProperty>                   { static constexpr EClassCastFlags Flag = EClassCastFlags::Property; };
+	template<> struct TCastFlagTraits<FNumericProperty>            { static constexpr EClassCastFlags Flag = EClassCastFlags::NumericProperty; };
+	template<> struct TCastFlagTraits<FByteProperty>               { static constexpr EClassCastFlags Flag = EClassCastFlags::ByteProperty; };
+	template<> struct TCastFlagTraits<FBoolProperty>               { static constexpr EClassCastFlags Flag = EClassCastFlags::BoolProperty; };
+	template<> struct TCastFlagTraits<FIntProperty>                { static constexpr EClassCastFlags Flag = EClassCastFlags::IntProperty; };
+	template<> struct TCastFlagTraits<FInt8Property>               { static constexpr EClassCastFlags Flag = EClassCastFlags::Int8Property; };
+	template<> struct TCastFlagTraits<FInt16Property>              { static constexpr EClassCastFlags Flag = EClassCastFlags::Int16Property; };
+	template<> struct TCastFlagTraits<FInt64Property>              { static constexpr EClassCastFlags Flag = EClassCastFlags::Int64Property; };
+	template<> struct TCastFlagTraits<FUInt16Property>             { static constexpr EClassCastFlags Flag = EClassCastFlags::UInt16Property; };
+	template<> struct TCastFlagTraits<FUInt32Property>             { static constexpr EClassCastFlags Flag = EClassCastFlags::UInt32Property; };
+	template<> struct TCastFlagTraits<FUInt64Property>             { static constexpr EClassCastFlags Flag = EClassCastFlags::UInt64Property; };
+	template<> struct TCastFlagTraits<FFloatProperty>              { static constexpr EClassCastFlags Flag = EClassCastFlags::FloatProperty; };
+	template<> struct TCastFlagTraits<FDoubleProperty>             { static constexpr EClassCastFlags Flag = EClassCastFlags::DoubleProperty; };
+	template<> struct TCastFlagTraits<FStrProperty>                { static constexpr EClassCastFlags Flag = EClassCastFlags::StrProperty; };
+	template<> struct TCastFlagTraits<FNameProperty>               { static constexpr EClassCastFlags Flag = EClassCastFlags::NameProperty; };
+	template<> struct TCastFlagTraits<FTextProperty>               { static constexpr EClassCastFlags Flag = EClassCastFlags::TextProperty; };
+	template<> struct TCastFlagTraits<FObjectPropertyBase>         { static constexpr EClassCastFlags Flag = EClassCastFlags::ObjectPropertyBase; };
+	template<> struct TCastFlagTraits<FObjectProperty>             { static constexpr EClassCastFlags Flag = EClassCastFlags::ObjectProperty; };
+	template<> struct TCastFlagTraits<FClassProperty>              { static constexpr EClassCastFlags Flag = EClassCastFlags::ClassProperty; };
+	template<> struct TCastFlagTraits<FWeakObjectProperty>         { static constexpr EClassCastFlags Flag = EClassCastFlags::WeakObjectProperty; };
+	template<> struct TCastFlagTraits<FLazyObjectProperty>         { static constexpr EClassCastFlags Flag = EClassCastFlags::LazyObjectProperty; };
+	template<> struct TCastFlagTraits<FSoftObjectProperty>         { static constexpr EClassCastFlags Flag = EClassCastFlags::SoftObjectProperty; };
+	template<> struct TCastFlagTraits<FSoftClassProperty>          { static constexpr EClassCastFlags Flag = EClassCastFlags::SoftClassProperty; };
+	template<> struct TCastFlagTraits<FInterfaceProperty>          { static constexpr EClassCastFlags Flag = EClassCastFlags::InterfaceProperty; };
+	template<> struct TCastFlagTraits<FStructProperty>             { static constexpr EClassCastFlags Flag = EClassCastFlags::StructProperty; };
+	template<> struct TCastFlagTraits<FEnumProperty>               { static constexpr EClassCastFlags Flag = EClassCastFlags::EnumProperty; };
+	template<> struct TCastFlagTraits<FArrayProperty>              { static constexpr EClassCastFlags Flag = EClassCastFlags::ArrayProperty; };
+	template<> struct TCastFlagTraits<FMapProperty>                { static constexpr EClassCastFlags Flag = EClassCastFlags::MapProperty; };
+	template<> struct TCastFlagTraits<FSetProperty>                { static constexpr EClassCastFlags Flag = EClassCastFlags::SetProperty; };
+	template<> struct TCastFlagTraits<FOptionalProperty>           { static constexpr EClassCastFlags Flag = EClassCastFlags::OptionalProperty; };
+	template<> struct TCastFlagTraits<FDelegateProperty>           { static constexpr EClassCastFlags Flag = EClassCastFlags::DelegateProperty; };
+	template<> struct TCastFlagTraits<FMulticastDelegateProperty>  { static constexpr EClassCastFlags Flag = EClassCastFlags::MulticastDelegateProperty; };
+	template<> struct TCastFlagTraits<FFieldPathProperty>          { static constexpr EClassCastFlags Flag = EClassCastFlags::FieldPathProperty; };
+
+	inline bool HasFlag(const FField* Field, EClassCastFlags Flag)
+	{
+		if (!Field || !Field->ClassPrivate) return false;
+		return (Field->ClassPrivate->CastFlags & static_cast<uint64>(Flag)) != 0;
+	}
+
+	template<typename T> inline bool     IsA(const FField* Field)       { return HasFlag(Field, TCastFlagTraits<T>::Flag); }
+	template<typename T> inline T*       Cast(FField* Field)            { return IsA<T>(Field) ? static_cast<T*>(Field) : nullptr; }
+	template<typename T> inline const T* Cast(const FField* Field)      { return IsA<T>(Field) ? static_cast<const T*>(Field) : nullptr; }
+	template<typename T> inline T*       CastChecked(FField* Field)     { assert(IsA<T>(Field)); return static_cast<T*>(Field); }
+
+	template<typename Fn>
+	bool Visit(FField* Field, Fn&& Visitor)
+	{
+		if (!Field) return false;
+		if (auto* p = Cast<FMapProperty>(Field))               { Visitor(p); return true; }
+		if (auto* p = Cast<FSetProperty>(Field))               { Visitor(p); return true; }
+		if (auto* p = Cast<FArrayProperty>(Field))             { Visitor(p); return true; }
+		if (auto* p = Cast<FOptionalProperty>(Field))          { Visitor(p); return true; }
+		if (auto* p = Cast<FClassProperty>(Field))             { Visitor(p); return true; }
+		if (auto* p = Cast<FSoftClassProperty>(Field))         { Visitor(p); return true; }
+		if (auto* p = Cast<FSoftObjectProperty>(Field))        { Visitor(p); return true; }
+		if (auto* p = Cast<FWeakObjectProperty>(Field))        { Visitor(p); return true; }
+		if (auto* p = Cast<FLazyObjectProperty>(Field))        { Visitor(p); return true; }
+		if (auto* p = Cast<FObjectProperty>(Field))            { Visitor(p); return true; }
+		if (auto* p = Cast<FObjectPropertyBase>(Field))        { Visitor(p); return true; }
+		if (auto* p = Cast<FStructProperty>(Field))            { Visitor(p); return true; }
+		if (auto* p = Cast<FEnumProperty>(Field))              { Visitor(p); return true; }
+		if (auto* p = Cast<FMulticastDelegateProperty>(Field)) { Visitor(p); return true; }
+		if (auto* p = Cast<FDelegateProperty>(Field))          { Visitor(p); return true; }
+		if (auto* p = Cast<FBoolProperty>(Field))              { Visitor(p); return true; }
+		if (auto* p = Cast<FByteProperty>(Field))              { Visitor(p); return true; }
+		if (auto* p = Cast<FFloatProperty>(Field))             { Visitor(p); return true; }
+		if (auto* p = Cast<FDoubleProperty>(Field))            { Visitor(p); return true; }
+		if (auto* p = Cast<FInt8Property>(Field))              { Visitor(p); return true; }
+		if (auto* p = Cast<FInt16Property>(Field))             { Visitor(p); return true; }
+		if (auto* p = Cast<FIntProperty>(Field))               { Visitor(p); return true; }
+		if (auto* p = Cast<FInt64Property>(Field))             { Visitor(p); return true; }
+		if (auto* p = Cast<FUInt16Property>(Field))            { Visitor(p); return true; }
+		if (auto* p = Cast<FUInt32Property>(Field))            { Visitor(p); return true; }
+		if (auto* p = Cast<FUInt64Property>(Field))            { Visitor(p); return true; }
+		if (auto* p = Cast<FStrProperty>(Field))               { Visitor(p); return true; }
+		if (auto* p = Cast<FNameProperty>(Field))              { Visitor(p); return true; }
+		if (auto* p = Cast<FTextProperty>(Field))              { Visitor(p); return true; }
+		if (auto* p = Cast<FInterfaceProperty>(Field))         { Visitor(p); return true; }
+		if (auto* p = Cast<FFieldPathProperty>(Field))         { Visitor(p); return true; }
+		if (auto* p = Cast<FProperty>(Field))                  { Visitor(p); return true; }
+		return false;
+	}
+} // namespace FieldCast
+)";
+
+	} /* End if (Settings::Internal::bUseFProperty) */
 
 
 	WriteFileEnd(BasicHpp, EFileType::BasicHpp);

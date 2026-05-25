@@ -34,22 +34,22 @@ MemberManager::MemberManager(const PredefinedStruct* Str)
 
 int32 MemberManager::GetNumFunctions() const
 {
-	return Functions.size();
+	return static_cast<int32>(Functions.size());
 }
 
 int32 MemberManager::GetNumPredefFunctions() const
 {
-	return PredefFunctions ? PredefFunctions->size() : 0x0;
+	return PredefFunctions ? static_cast<int32>(PredefFunctions->size()) : 0x0;
 }
 
 int32 MemberManager::GetNumMembers() const
 {
-	return Members.size();
+	return static_cast<int32>(Members.size());
 }
 
 int32 MemberManager::GetNumPredefMembers() const
 {
-	return PredefMembers ? PredefMembers->size() : 0x0;
+	return PredefMembers ? static_cast<int32>(PredefMembers->size()) : 0x0;
 }
 
 bool MemberManager::HasFunctions() const

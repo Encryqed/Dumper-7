@@ -110,7 +110,7 @@ private: /* utility functions */
 
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
-    static std::string GetEnumUnderlayingType(const EnumWrapper& Enm);
+    static std::string GetEnumUnderlyingType(const EnumWrapper& Enm);
 
     static std::string GetAssertionMacroString(const std::string& PrefixedStructUniqueName);
 

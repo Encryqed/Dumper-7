@@ -126,12 +126,24 @@ public:
 		return UniqueNameTable[NameIndex].GetName();
 	}
 
+	// Non-throwing — returns empty handle (Info==nullptr) for null or unregistered structs.
+	// Callers receiving unregistered structs (e.g. tagged UEStructProperty underlying pointers on UE5.x)
+	// must check IsRegistered() before constructing a StructWrapper.
 	static inline StructInfoHandle GetInfo(const UEStruct Struct)
 	{
 		if (!Struct)
 			return {};
 
-		return StructInfoOverrides.at(Struct.GetIndex());
+		auto It = StructInfoOverrides.find(Struct.GetIndex());
+		if (It == StructInfoOverrides.end())
+			return {};
+
+		return It->second;
+	}
+
+	static inline bool IsRegistered(const UEStruct Struct)
+	{
+		return Struct && StructInfoOverrides.contains(Struct.GetIndex());
 	}
 
 	static inline bool IsStructCyclicWithPackage(int32 StructIndex, int32 PackageIndex)

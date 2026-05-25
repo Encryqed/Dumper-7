@@ -30,8 +30,13 @@ void Generator::InitEngineCore()
 	//FName::Init(/*AppendString, FName::EOffsetOverrideType::AppendString*/);
 	//FName::Init(/*ToString, FName::EOffsetOverrideType::ToString*/);
 	//FName::Init(/*GNames, FName::EOffsetOverrideType::GNames, true/false*/);
- 
+
 	//Off::InSDK::ProcessEvent::InitPE(/*PEIndex*/);
+
+	/* Manual override for auxiliary function-address scanners; comment out the matching InitXxx() call below if used. */
+	//Off::InSDK::Name::FNameCtorWcharOffset = 0x????????; Settings::Internal::bHasFNameCtorWchar = true;
+	//Off::InSDK::Text::FTextCtorFStringOffset = 0x????????; Settings::Internal::bHasFTextCtor = true;
+	//Off::InSDK::Engine::UGameEngineTickOffset = 0x????????; Settings::Internal::bHasGameEngineTick = true;
 
 	/* Back4Blood (requires manual GNames override) */
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x8375); });
@@ -40,6 +45,8 @@ void Generator::InitEngineCore()
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
 
 	ObjectArray::Init();
+
+	Off::InSDK::GMalloc::InitGMalloc();
 
 	CALL_PLATFORM_SPECIFIC_FUNCTION(FName::Init);
 
@@ -51,6 +58,11 @@ void Generator::InitEngineCore()
 	Off::InSDK::World::InitGWorld(); // Must be at this position, relies on offsets initialized in Off::Init()
 
 	Off::InSDK::Text::InitTextOffsets(); // Must be at this position, relies on offsets initialized in Off::InitPE()
+
+	/* Auxiliary function-address scanners (best-effort; SDK emitter omits offset on failure). */
+	Off::InSDK::Name::InitFNameCtorWchar();    // Relies on UFunction::ExecFunction (set by Off::Init)
+	Off::InSDK::Text::InitFTextCtorFString();  // Relies on UFunction::ExecFunction (set by Off::Init)
+	Off::InSDK::Engine::InitUGameEngineTick(); // Relies on PEIndex (set by InitPE) and UClass::CDO (set by Off::Init)
 
 	InitSettings();
 }

@@ -36,7 +36,7 @@ private:
 	/* Name of this Enum*/
 	HashStringTableIndex Name;
 
-	/* sizeof(UnderlayingType) */
+	/* sizeof(UnderlyingType) */
 	uint8 UnderlyingTypeSize = 0x1;
 
 	/* Wether an occurence of this enum was found, if not guess the type by the enums' max value */

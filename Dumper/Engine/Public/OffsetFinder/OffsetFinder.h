@@ -119,6 +119,21 @@ namespace OffsetFinder
 	int32_t FindPropertyFlagsOffset();
 	int32_t FindOffsetInternalOffset();
 
+	/* Property (hardcoded, pending real discovery) */
+	int32 FindRepIndexOffset(int32 PropertySize);
+	int32 FindBlueprintReplicationConditionOffset(int32 PropertySize);
+	int32 FindRepNotifyFuncOffset(int32 PropertySize);
+	int32 FindPropertyLinkNextOffset(int32 PropertySize);
+	int32 FindNextRefOffset(int32 PropertySize);
+	int32 FindDestructorLinkNextOffset(int32 PropertySize);
+	int32 FindPostConstructLinkNextOffset(int32 PropertySize);
+
+	/* FieldPathProperty (hardcoded, pending real discovery) */
+	int32 FindFieldPathPropertyFieldClassOffset(int32 PropertySize);
+
+	/* OptionalProperty (hardcoded, pending real discovery) */
+	int32 FindOptionalPropertyValuePropertyOffset(int32 PropertySize);
+
 	/* BoolProperty */
 	int32_t FindBoolPropertyBaseOffset();
 
@@ -127,7 +142,7 @@ namespace OffsetFinder
 
 	/* EnumProperty */
 	int32_t FindEnumPropertyBaseOffset();
-	
+
 	/* ByteProperty */
 	int32_t FindBytePropertyEnumOffset();
 
