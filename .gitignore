@@ -17,6 +17,7 @@
 mono_crash.*
 
 /SDKTest/
+.*/
 
 # Build results
 [Dd]ebug/
