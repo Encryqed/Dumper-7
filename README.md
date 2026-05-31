@@ -110,6 +110,7 @@ and explain the problem **in detail**.
 Then include screenshots of the exception causing the crash, a screenshot of the callstack, as well as the console output.
 
 - Should there be any compiler-errors in the SDK please send screenshots of them. Please note that **only build errors** are considered errors, as Intellisense often reports false positives.
+Also send a screenshot of the first error in the **Output**-window (NOT the error-window) and one of the code location causing that exact error.
 Make sure to always send screenshots of the code causing the first error, as it's likely to cause a chain-reaction of errors.
 
 - Should your own dll-project crash, verify your code thoroughly to make sure the error actually lies within the generated SDK.
