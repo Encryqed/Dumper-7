@@ -109,8 +109,10 @@ and explain the problem **in detail**.
 - Should your game be crashing while dumping, attach Visual Studios' debugger to the game and inject the Dumper-7.dll in debug-configuration.
 Then include screenshots of the exception causing the crash, a screenshot of the callstack, as well as the console output.
 
-- Should there be any compiler-errors in the SDK please send screenshots of them. Please note that **only build errors** are considered errors, as Intellisense often reports false positives.
-Also send a screenshot of the first error in the **Output**-window (NOT the error-window) and one of the code location causing that exact error.
-Make sure to always send screenshots of the code causing the first error, as it's likely to cause a chain-reaction of errors.
+- For compiler-errors in the SDK (first verify you followed all of the steps from [UsingTheSDK](UsingTheSDK.md) correctly):
+  1. Send screenshots of the errors in the error-window, make sure to select **`Build Only`**, not `Build + Intellisense`, as Intellisense often reports false positives.
+  2. Also send a screenshot of the first error in the **Output**-window (NOT the error-window) and one of the code location causing that exact error.
+  3. If you're able to fix the error (eg. missing padding in predefined struct, or incorrect use of macro name) please still report it in an issue with the fix included.
+  4. If you're not able to resolve the issue yourself please upload the entire generated folder (not just CppSDK) somewhere and attach the link to your issue.
 
 - Should your own dll-project crash, verify your code thoroughly to make sure the error actually lies within the generated SDK.
