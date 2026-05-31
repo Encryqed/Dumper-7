@@ -572,7 +572,7 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	}
 
 	/* Skip predefined classes, all structs and classes which don't inherit from UObject (very rare). */
-	if (!Struct.IsUnrealStruct() || !Struct.IsClass() || !Struct.GetSuper().IsValid())
+	if (!Struct.IsUnrealStruct() || !Struct.IsClass() || !(Struct.GetSuper().IsValid() || Struct.IsExactClassUObject()))
 		return InHeaderFunctionText;
 
 	/* Special spacing for UClass specific functions 'StaticClass' and 'GetDefaultObj' */
@@ -858,15 +858,6 @@ std::string CppGenerator::GetEnumUnderlayingType(const EnumWrapper& Enum)
 		"uint32",
 		"uint64",
 	};
-
-	if (Enum.GetName() == "EMaterialValueTypeBridge")
-	{
-		std::cerr << "This is the enum:\n";
-		std::cerr << "Enum.GetUnderlyingTypeSize(): " << +Enum.GetUnderlyingTypeSize() << '\n';
-		std::cerr << "Enum.IsUnderlyingTypeSigned(): " << +Enum.IsUnderlyingTypeSigned() << '\n';
-		std::cerr << "Index: " << (std::countr_zero(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4)) << '\n';
-		std::cerr << "Type: " << UnderlayingTypesBySize[std::countr_zero(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4)] << '\n';
-	}
 
 	const uint8_t Index = std::countr_zero(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
 
@@ -3522,6 +3513,7 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 #include <string>
 #include <functional>
 #include <type_traits>
+#include <format>
 )", (!Settings::Config::SDKNamespaceName.empty() ? SDKMacroDefinitions : ""));
 
 	WriteFileHead(BasicHpp, nullptr, EFileType::BasicHpp, "Basic file containing structs required by the SDK", CustomIncludes);
@@ -5987,9 +5979,67 @@ template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8>
 using TActorBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<UnderlayingClassType, Size, Align, class AActor>;
 )";
 
-
 	WriteFileEnd(BasicHpp, EFileType::BasicHpp);
 	WriteFileEnd(BasicCpp, EFileType::BasicCpp);
+
+	/* Write the std::formatter specialisation into global namespace. */
+	BasicHpp << std::format(R"DEL(
+
+template <typename T>
+	requires std::derived_from<T, {0}::UObject>
+struct std::formatter<T*> : std::formatter<std::string>
+{{
+	auto format(T* Object, std::format_context& Context) const
+	{{
+		const std::string ClassName = Object && Object->Class ? Object->Class->GetName() : T::StaticClass()->GetName();
+		if (Object)
+		{{
+			return std::formatter<std::string>::format(std::format("{{}}(0x{{:X}}, {{}})", ClassName, reinterpret_cast<uintptr_t>(Object), Object->GetName()), Context);
+		}}
+		else
+		{{
+			return std::formatter<std::string>::format(std::format("{{}}(nullptr)", ClassName), Context);
+		}}
+	}}
+}};
+
+template <typename T>
+	requires std::derived_from<T, {0}::UObject>
+struct std::formatter<{0}::TSubclassOf<T>> : std::formatter<std::string>
+{{
+	auto format({0}::TSubclassOf<T> Class, std::format_context& Context) const
+	{{
+		return std::formatter<std::string>::format(Class.Get() ? Class.Get()->GetName() : std::format("{{}}(nullptr)", T::StaticClass()->GetName()), Context);
+	}}
+}};
+
+template <>
+struct std::formatter<{0}::FName> : std::formatter<std::string>
+{{
+	auto format({0}::FName Name, std::format_context& Context) const
+	{{
+		return std::formatter<std::string>::format(Name.ToString(), Context);
+	}}
+}};
+
+template <>
+struct std::formatter<{0}::FString> : std::formatter<std::string>
+{{
+	auto format({0}::FString String, std::format_context& Context) const
+	{{
+		return std::formatter<std::string>::format(String.ToString(), Context);
+	}}
+}};
+
+template <>
+struct std::formatter<{0}::FText> : std::formatter<std::string>
+{{
+	auto format({0}::FText Text, std::format_context& Context) const
+	{{
+		return std::formatter<std::string>::format(Text.ToString(), Context);
+	}}
+}};
+)DEL", Settings::Config::SDKNamespaceName);
 }
 
 

@@ -236,10 +236,7 @@ void CollisionManager::AddStructToNameContainer(UEStruct Struct, bool bIsStruct)
 	{
 		const uint64 Index = AddNameToContainer(StructNames, Struct, MemberNames.FindOrAdd(Member.GetValidName()), CollisionType, bIsStruct, Func);
 
-		const auto [It, bInserted] = TranslationMap.emplace(KeyFunctions::GetKeyForCollisionInfo(Struct, Member), Index);
-		
-		if (!bInserted)
-			std::cerr << "Error, no insertion took place, key {0x" << std::hex << KeyFunctions::GetKeyForCollisionInfo(Struct, Member) << "} duplicated!" << std::endl;
+		(void)TranslationMap.emplace(KeyFunctions::GetKeyForCollisionInfo(Struct, Member), Index);
 	};
 
 	for (UEProperty Prop : Struct.GetProperties())
