@@ -1955,6 +1955,22 @@ void CppGenerator::InitPredefinedMembers()
 			});
 	}
 
+	const UEStruct FInstancedStruct = ObjectArray::FindStructFast("InstancedStruct");
+	PredefinedElements& FInstancedStructPredefs = PredefinedMembers[FInstancedStruct.GetIndex()];
+	FInstancedStructPredefs.Members =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "UScriptStruct*", .Name = "ScriptStruct", .Offset = Off::FInstancedStruct::ScriptStruct, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "uint8*", .Name = "StructMemory", .Offset = Off::FInstancedStruct::StructMemory, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		}
+	};
+
 	std::string PropertyTypePtr = Settings::Internal::bUseFProperty ? "class FProperty*" : "class UProperty*";
 
 	std::vector<PredefinedMember> PropertyMembers =
@@ -2120,6 +2136,7 @@ void CppGenerator::InitPredefinedMembers()
 	SortMembers(UStructPredefs.Members);
 	SortMembers(UFunctionPredefs.Members);
 	SortMembers(UClassPredefs.Members);
+	SortMembers(FInstancedStructPredefs.Members);
 
 	SortMembers(PropertyMembers);
 	SortMembers(BytePropertyMembers);
