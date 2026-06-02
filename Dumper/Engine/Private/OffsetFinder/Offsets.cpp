@@ -438,6 +438,9 @@ void Off::Init()
 	Off::OptionalProperty::ValueProperty = Off::InSDK::Properties::PropertySize;
 
 	Off::ClassProperty::MetaClass = Off::ObjectProperty::PropertyClass + sizeof(void*); //0x8 inheritance from ObjectProperty
+
+	Off::FInstancedStruct::ScriptStruct = 0x00;
+	Off::FInstancedStruct::StructMemory = Off::FInstancedStruct::ScriptStruct + sizeof(void*);
 }
 
 void PropertySizes::Init()

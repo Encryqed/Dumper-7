@@ -218,6 +218,12 @@ namespace Off
 		inline int32 ImplementedInterfaces;
 	}
 
+	namespace FInstancedStruct
+	{
+		inline int32 ScriptStruct;
+		inline int32 StructMemory;
+	}
+
 	namespace Property
 	{
 		inline int32 ArrayDim;
