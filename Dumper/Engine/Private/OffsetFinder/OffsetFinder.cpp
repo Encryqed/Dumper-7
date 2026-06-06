@@ -766,6 +766,10 @@ int32_t OffsetFinder::FindMinAlignmentOffset()
 
 int32_t OffsetFinder::FindStructBaseChainOffset()
 {
+	/* FStructBaseChain was added in UE5.3, which doesn't support 32-bit anymore and always uses FProperty. */
+	if (Platform::Is32Bit() || !Settings::Internal::bUseFProperty)
+		return OffsetNotFound;
+
 	// UStruct inherits from FStructBaseChain, so the members of base chain should come right after UField
 
 	UEStruct Struct = ObjectArray::FindStructFast("Struct");
@@ -803,8 +807,10 @@ int32_t OffsetFinder::FindStructBaseChainOffset()
 	Infos.push_back({ APlayerController.GetAddress(),   CountSuperClasses(APlayerController) });
 	Infos.push_back({ AActor.GetAddress(),              CountSuperClasses(AActor)            });
 
+	constexpr auto FStructBaseChainSize = Align(sizeof(void*) + sizeof(int32_t), alignof(void*));
+
 	// FStructBaseChain::NumStructBasesInChainMinusOne is at offset 0x8, after a pointer
-	return FindOffset(Infos, UStructStart, UStructEnd) - sizeof(void*);
+	return FindOffset(Infos, UStructStart, UStructEnd - FStructBaseChainSize) - sizeof(void*);
 }
 
 /* UFunction */

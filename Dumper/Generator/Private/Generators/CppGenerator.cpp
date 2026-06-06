@@ -3493,10 +3493,12 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 * Omit the '-D IMPORT_CPP_SDK_INTO_IDA=1' if you want to keep the SDK namespace in IDA
 */
 #ifndef IMPORT_CPP_SDK_INTO_IDA
-	#define SDK_NAMESPACE_START namespace {} {{
+	#define SDK_NAMESPACE_NAME {}
+	#define SDK_NAMESPACE_START namespace SDK_NAMESPACE_NAME {{
 	#define SDK_NAMESPACE_END }}
 	#define SDK_ALIGN(x) alignas(x)
 #else
+	#define SDK_NAMESPACE_NAME
 	#define SDK_NAMESPACE_START
 	#define SDK_NAMESPACE_END
 	#define SDK_ALIGN(x)
@@ -5986,7 +5988,7 @@ using TActorBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<Under
 	BasicHpp << std::format(R"DEL(
 
 template <typename T>
-	requires std::derived_from<T, {0}::UObject>
+	requires std::derived_from<T, SDK_NAMESPACE_NAME ::UObject>
 struct std::formatter<T*> : std::formatter<std::string>
 {{
 	auto format(T* Object, std::format_context& Context) const
@@ -6004,42 +6006,42 @@ struct std::formatter<T*> : std::formatter<std::string>
 }};
 
 template <typename T>
-	requires std::derived_from<T, {0}::UObject>
-struct std::formatter<{0}::TSubclassOf<T>> : std::formatter<std::string>
+	requires std::derived_from<T, SDK_NAMESPACE_NAME ::UObject>
+struct std::formatter<SDK_NAMESPACE_NAME ::TSubclassOf<T>> : std::formatter<std::string>
 {{
-	auto format({0}::TSubclassOf<T> Class, std::format_context& Context) const
+	auto format(SDK_NAMESPACE_NAME ::TSubclassOf<T> Class, std::format_context& Context) const
 	{{
 		return std::formatter<std::string>::format(Class.Get() ? Class.Get()->GetName() : std::format("{{}}(nullptr)", T::StaticClass()->GetName()), Context);
 	}}
 }};
 
 template <>
-struct std::formatter<{0}::FName> : std::formatter<std::string>
+struct std::formatter<SDK_NAMESPACE_NAME ::FName> : std::formatter<std::string>
 {{
-	auto format({0}::FName Name, std::format_context& Context) const
+	auto format(SDK_NAMESPACE_NAME ::FName Name, std::format_context& Context) const
 	{{
 		return std::formatter<std::string>::format(Name.ToString(), Context);
 	}}
 }};
 
 template <>
-struct std::formatter<{0}::FString> : std::formatter<std::string>
+struct std::formatter<SDK_NAMESPACE_NAME ::FString> : std::formatter<std::string>
 {{
-	auto format({0}::FString String, std::format_context& Context) const
+	auto format(SDK_NAMESPACE_NAME ::FString String, std::format_context& Context) const
 	{{
 		return std::formatter<std::string>::format(String.ToString(), Context);
 	}}
 }};
 
 template <>
-struct std::formatter<{0}::FText> : std::formatter<std::string>
+struct std::formatter<SDK_NAMESPACE_NAME ::FText> : std::formatter<std::string>
 {{
-	auto format({0}::FText Text, std::format_context& Context) const
+	auto format(SDK_NAMESPACE_NAME ::FText Text, std::format_context& Context) const
 	{{
 		return std::formatter<std::string>::format(Text.ToString(), Context);
 	}}
 }};
-)DEL", Settings::Config::SDKNamespaceName);
+)DEL");
 }
 
 
