@@ -125,6 +125,47 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 		return false;
 	};
 
+	/*
+	* Checks whether the last entry pushed to TargetContainer has an effective name (as produced by StringifyName)
+	* that conflicts with any earlier entry in the same container. If so, MemberNameCollisionCount is incremented
+	* until the output name is unique. This resolves cases where two properties with different raw names
+	* (e.g. "Params" and "Params_0") both produce the same final output name (e.g. both → "Params_0") after
+	* the reserved-name collision suffix is applied.
+	*/
+	auto ResolveEffectiveNameConflicts = [&](NameContainer* TargetContainer) -> void
+	{
+		if (!TargetContainer || TargetContainer->size() < 2)
+			return;
+
+		NameInfo& NewInfo = TargetContainer->back();
+
+		if (static_cast<ECollisionType>(NewInfo.OwnType) != ECollisionType::MemberName)
+			return;
+
+		const size_t NewInfoIndex = TargetContainer->size() - 1;
+
+		bool bFoundConflict = true;
+		while (bFoundConflict)
+		{
+			bFoundConflict = false;
+
+			const std::string NewOutputName = StringifyName(Struct, NewInfo);
+
+			for (size_t i = 0; i < NewInfoIndex; i++)
+			{
+				if (StringifyName(Struct, (*TargetContainer)[i]) == NewOutputName)
+				{
+					if (NewInfo.MemberNameCollisionCount >= ((1u << PerCountBitCount) - 1))
+						return;
+
+					NewInfo.MemberNameCollisionCount++;
+					bFoundConflict = true;
+					break;
+				}
+			}
+		}
+	};
+
 	const bool bIsParameter = CurrentType == ECollisionType::ParameterName;
 
 	auto [NameIdx, bWasInserted] = NamePair;
@@ -133,6 +174,7 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 	{
 		// Create new empty NameInfo
 		StructNames.emplace_back(NameIdx, CurrentType);
+		ResolveEffectiveNameConflicts(&StructNames);
 		return StructNames.size() - 1;
 	}
 
@@ -179,12 +221,18 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 	{
 		/* Serach ReservedNames last, just in case there was a predefined member of the super-class, or local variable, that collids with it. */
 		if (AddCollidingName(ClassReservedNames, TargetNameContainer, NameIdx, CurrentType, false))
+		{
+			ResolveEffectiveNameConflicts(TargetNameContainer);
 			return TargetNameContainer->size() - 1;
+		}
 	}
 
 	/* Serach ReservedNames last, just in case there was a property in the struct or parent struct, which also collided with a reserved name already */
 	if (AddCollidingName(ReservedNames, TargetNameContainer, NameIdx, CurrentType, false))
+	{
+		ResolveEffectiveNameConflicts(TargetNameContainer);
 		return TargetNameContainer->size() - 1;
+	}
 
 	/* Searching this structs' name list, the super's name list, as well as ReservedNames did not yield any results. No collision on this name, add it! */
 	if (bIsParameter && FuncParamNames)
@@ -195,6 +243,7 @@ uint64 CollisionManager::AddNameToContainer(NameContainer& StructNames, UEStruct
 	else
 	{
 		StructNames.emplace_back(NameIdx, CurrentType);
+		ResolveEffectiveNameConflicts(&StructNames);
 		return StructNames.size() - 1;
 	}
 }
