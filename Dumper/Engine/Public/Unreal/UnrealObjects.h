@@ -70,7 +70,6 @@ public:
 	void* GetAddress();
 	const void* GetAddress() const;
 
-	EObjectFlags GetFlags() const;
 	class UEObject GetOwnerAsUObject() const;
 	class UEFField GetOwnerAsFField() const;
 	class UEObject GetOwnerUObject() const;
@@ -178,10 +177,26 @@ class UEEnum : public UEField
 	using UEField::UEField;
 
 public:
+	enum class EUnderlyingType : uint8
+	{
+		int8,
+		int16,
+		int32,
+		int64,
+		uint8,
+		uint16,
+		uint32,
+		uint64,
+	};
+
+public:
 	std::vector<std::pair<FName, int64>> GetNameValuePairs() const;
 	std::string GetSingleName(int32 Index) const;
 	std::string GetEnumPrefixedName() const;
 	std::string GetEnumTypeAsStr() const;
+
+	/* This function is only valid on UE5.8 and above (or games that added 'EUnderlyingType'). Returns Pair<Size, IsSigned> */
+	std::pair<uint8_t, bool>  GetSizeSignedPair() const;
 };
 
 class UEStruct : public UEField

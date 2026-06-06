@@ -191,6 +191,7 @@ namespace Off
 	namespace UEnum
 	{
 		inline int32 Names;
+		inline int32 UnderlyingType = -1;
 	}
 
 	namespace UStruct

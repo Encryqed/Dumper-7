@@ -291,6 +291,8 @@ void PackageManager::InitDependencies()
 				{
 					/* A package can't depend on itself, super of a structs will always be in _"structs" file, same for classes and "_classes" files */
 					RequirementInfo& ReqInfo = PackageDependencyList[SuperPackageIdx];
+					ReqInfo.PackageIdx = SuperPackageIdx;
+
 					BooleanOrEqual(ReqInfo.bShouldIncludeStructs, !bIsClass);
 					BooleanOrEqual(ReqInfo.bShouldIncludeClasses, bIsClass);
 				}
@@ -520,8 +522,10 @@ void PackageManager::HandleCycles()
 
 			DependencyManager::OnVisitCallbackType SetCycleCallback = [PackageIndexWithLeastDependencies, PackageIndexToMarkCyclicWith, bIsStruct](int32 Index) -> void
 			{
-				HelperMarkStructDependenciesOfPackage(ObjectArray::GetByIndex<UEStruct>(Index), PackageIndexToMarkCyclicWith, PackageIndexWithLeastDependencies, !bIsStruct);
+				HelperMarkStructDependenciesOfPackage(ObjectArray::GetByIndex<UEStruct>(Index), PackageIndexWithLeastDependencies, PackageIndexToMarkCyclicWith, !bIsStruct);
 			};
+
+			const DependencyManager& LoserStructsOrClasses = (PackageIndexWithLeastDependencies == PreviousPackageIndex) ? PreviousStructsOrClasses : CurrentStructsOrClasses;
 
 			PreviousStructsOrClasses.VisitAllNodesWithCallback(SetCycleCallback);
 		}

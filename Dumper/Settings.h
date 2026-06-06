@@ -47,6 +47,9 @@ namespace Settings
 
 	namespace CppGenerator
 	{
+		/* The name of the precompiled header file. -> No precompiled headers = nullptr. */
+		constexpr const char* PrecompiledHeaderFileName = nullptr;
+
 		/* No prefix for files->FilePrefix = "" */
 		constexpr const char* FilePrefix = "";
 
@@ -99,6 +102,12 @@ R"(
 	/* Partially implemented  */
 	namespace Debug
 	{
+		/* Generates an SDKTest.py script. When run this script test whether the SDK compiles under MSVC and Clang. */
+		inline constexpr bool bShouldGenerateSDKCompilationTestScript = false;
+
+		/* Whether to execute the SDK compilation test script after generation. */
+		inline constexpr bool bExecuteSDKTestScript = false;
+
 		/* Generates a dedicated file defining macros for static asserts (Make sure InlineAssertions are off) */
 		inline constexpr bool bGenerateAssertionFile = true;
 
@@ -127,6 +136,9 @@ R"(
 
 		/* Whether the 'Value' component in the Pair<Name, Value> UEnum::Names is a uint8 value, rather than the default int64 */
 		inline bool bIsSmallEnumValue = false;
+
+		/* Whether UEnum has 'EUnderlyingType UnderlyingType' */
+		inline bool bHasUnderlayingTypeInUEnum = false;
 
 		/* Whether UEnum::Names is of the new 'FNameData' type, rather than TArray<...> */
 		inline bool bIsNewUE5EnumNamesContainer = false;

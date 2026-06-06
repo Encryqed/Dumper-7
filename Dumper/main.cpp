@@ -68,6 +68,12 @@ DWORD MainThread(HMODULE Module)
 
 	std::cerr << "\n\nGenerating SDK took (" << DumpTime.count() << "ms)\n\n\n";
 
+	if (Settings::Debug::bExecuteSDKTestScript)
+	{
+		/* Executes a python script to test if the SDK compiles correctly. */
+		CppGenerator::ExecuteSDKCompilationTestScript();
+	}
+
 	std::cerr << "\n\nPress F6 to unload\n\n\n";
 
 	while (true)

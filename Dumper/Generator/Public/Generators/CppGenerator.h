@@ -106,11 +106,12 @@ private: /* utility functions */
     static std::string GetMemberTypeString(UEProperty Member, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false);
     static std::string GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex = -1, bool* bOutIsUnknownProperty = nullptr);
 
-    static std::string GetFunctionSignature(UEFunction Func);
+    static std::string GetFunctionSignature(StructWrapper Func);
 
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
     static std::string GetEnumUnderlayingType(const EnumWrapper& Enm);
+	static std::string GetEnumForcedSizeType(const EnumWrapper& Enm, const uint8_t PropertySize);
 
     static std::string GetAssertionMacroString(const std::string& PrefixedStructUniqueName);
 
@@ -122,9 +123,13 @@ private:
     static void GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, PackageInfoHandle Package, bool bIsClassFile);
 
 private:
+    static fs::path GetSDKTestScriptPath();
+
+private:
     static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);
     static void GeneratePropertyFixupFile(StreamType& PropertyFixup);
     static void GenerateDebugAssertions(StreamType& AssertionStream);
+	static void GenerateSDKTestScript(StreamType& TestScript);
     static void WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment = "", const std::string& CustomIncludes = "");
     static void WriteFileEnd(StreamType& File, EFileType Type);
 
@@ -152,4 +157,7 @@ public:
 
     static void InitPredefinedMembers();
     static void InitPredefinedFunctions();
+
+public:
+	static bool ExecuteSDKCompilationTestScript();
 };
