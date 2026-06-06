@@ -123,9 +123,13 @@ private:
     static void GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, PackageInfoHandle Package, bool bIsClassFile);
 
 private:
+    static fs::path GetSDKTestScriptPath();
+
+private:
     static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);
     static void GeneratePropertyFixupFile(StreamType& PropertyFixup);
     static void GenerateDebugAssertions(StreamType& AssertionStream);
+	static void GenerateSDKTestScript(StreamType& TestScript);
     static void WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment = "", const std::string& CustomIncludes = "");
     static void WriteFileEnd(StreamType& File, EFileType Type);
 
@@ -153,4 +157,7 @@ public:
 
     static void InitPredefinedMembers();
     static void InitPredefinedFunctions();
+
+public:
+	static bool ExecuteSDKCompilationTestScript();
 };

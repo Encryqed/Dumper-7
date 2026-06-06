@@ -102,6 +102,12 @@ R"(
 	/* Partially implemented  */
 	namespace Debug
 	{
+		/* Generates an SDKTest.py script. When run this script test whether the SDK compiles under MSVC and Clang. */
+		inline constexpr bool bShouldGenerateSDKCompilationTestScript = false;
+
+		/* Whether to execute the SDK compilation test script after generation. */
+		inline constexpr bool bExecuteSDKTestScript = false;
+
 		/* Generates a dedicated file defining macros for static asserts (Make sure InlineAssertions are off) */
 		inline constexpr bool bGenerateAssertionFile = true;
 
