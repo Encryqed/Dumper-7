@@ -235,9 +235,6 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 	bool bIsGObjectsChunked = false;
 	auto IsAddressValidGObjects = [MatchesAnyLayout, &bIsGObjectsChunked](const void* CurrentAddress) -> bool
 	{
-		if (Platform::GetOffset(CurrentAddress) == 0x2DA13F40)
-			std::cerr << "Checking address: " << CurrentAddress << "\n";
-
 		//std::cerr << "checking addr: " << CurrentAddress << "\n";
 		if (MatchesAnyLayout(FFixedUObjectArrayLayouts, reinterpret_cast<uintptr_t>(CurrentAddress)))
 		{
