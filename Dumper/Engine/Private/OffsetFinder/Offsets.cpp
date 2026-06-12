@@ -22,8 +22,25 @@ void Off::InSDK::ProcessEvent::InitPE_Windows()
 	/* Primary, and more reliable, check for ProcessEvent */
 	auto IsProcessEvent = [](const uint8_t* FuncAddress, [[maybe_unused]] int32_t Index) -> bool
 	{
-		return Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
-			&& Platform::FindPatternInRange({ 0xF7, -0x1, Off::UFunction::FunctionFlags, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00);
+		/*
+		* ProcessEvent tests Function->FunctionFlags for FUNC_Native (0x400) and
+		* FUNC_HasOutParms (0x400000). Older compilers emit a 32-bit TEST on the
+		* whole flags dword (TEST [reg+FunctionFlags], imm32). Newer ones (e.g.
+		* Avowed UE5.3, build 2.1) fold the constant into an 8-bit TEST on the
+		* relevant flags byte: TEST [reg+FunctionFlags+1], 0x04 for FUNC_Native and
+		* TEST [reg+FunctionFlags+2], 0x40 for FUNC_HasOutParms. Accept either form.
+		*/
+		const int32_t FF = Off::UFunction::FunctionFlags;
+
+		const bool bTestsNative =
+			Platform::FindPatternInRange({ 0xF7, -0x1, FF, 0x0, 0x0, 0x0, 0x0, 0x04, 0x0, 0x0 }, FuncAddress, 0x400)
+			|| Platform::FindPatternInRange({ 0xF6, -0x1, FF + 1, 0x0, 0x0, 0x0, 0x04 }, FuncAddress, 0x400);
+
+		const bool bTestsOutParms =
+			Platform::FindPatternInRange({ 0xF7, -0x1, FF, 0x0, 0x0, 0x0, 0x0, 0x0, 0x40, 0x0 }, FuncAddress, 0xF00)
+			|| Platform::FindPatternInRange({ 0xF6, -0x1, FF + 2, 0x0, 0x0, 0x0, 0x40 }, FuncAddress, 0xF00);
+
+		return bTestsNative && bTestsOutParms;
 	};
 #elif defined(_WIN32)
 	/* Primary, and more reliable, check for ProcessEvent */
