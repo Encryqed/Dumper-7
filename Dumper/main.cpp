@@ -23,6 +23,7 @@ DWORD MainThread(HMODULE Module)
 	AllocConsole();
 	FILE* Dummy;
 	freopen_s(&Dummy, "CONOUT$", "w", stderr);
+	std::cerr.clear(); // clear internal error flags on cerr after redirect
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
 	std::cerr << "Initializing [Dumper-7]\n";

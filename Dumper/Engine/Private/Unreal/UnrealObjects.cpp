@@ -1067,6 +1067,19 @@ int32 UEProperty::GetAlignment() const
 
 	if (Settings::Internal::bUseFProperty)
 	{
+		if (TypeFlags & EClassCastFlags::Utf8StrProperty)
+		{
+			return alignof(FString); // 0x8, same as StrProperty
+		}
+		else if (TypeFlags & EClassCastFlags::AnsiStrProperty)
+		{
+			return alignof(FString); // 0x8, same as StrProperty
+		}
+		else if (TypeFlags & EClassCastFlags::VCellProperty)
+		{
+			return sizeof(void*); // pointer-sized
+		}
+
 		static std::unordered_map<void*, int32> UnknownProperties;
 
 		static auto TryFindPropertyRefInOptionalToGetAlignment = [](std::unordered_map<void*, int32>& OutProperties, void* PropertyClass) -> int32
@@ -1158,6 +1171,14 @@ std::string UEProperty::GetCppType() const
 		return "class FName";
 	}
 	else if (TypeFlags & EClassCastFlags::StrProperty)
+	{
+		return "class FString";
+	}
+	else if (TypeFlags & EClassCastFlags::Utf8StrProperty)
+	{
+		return "class FString";
+	}
+	else if (TypeFlags & EClassCastFlags::AnsiStrProperty)
 	{
 		return "class FString";
 	}
