@@ -1066,11 +1066,11 @@ int32 UEProperty::GetAlignment() const
 	}
 	else if (TypeFlags & EClassCastFlags::Utf8StrProperty)
 	{
-		return alignof(FString); // 0x8, same as StrProperty
+		return alignof(FUtf8String); // 0x8, same as StrProperty
 	}
 	else if (TypeFlags & EClassCastFlags::AnsiStrProperty)
 	{
-		return alignof(FString); // 0x8, same as StrProperty
+		return alignof(FAnsiString); // 0x8, same as StrProperty
 	}
 	else if (TypeFlags & EClassCastFlags::VCellProperty)
 	{
