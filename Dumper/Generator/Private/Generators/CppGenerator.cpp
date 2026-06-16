@@ -1163,7 +1163,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else if (Flags & EClassCastFlags::AnsiStrProperty)
 	{
-		return "FUtf8String";
+		return "FAnsiString";
 	}
 	else
 	{
