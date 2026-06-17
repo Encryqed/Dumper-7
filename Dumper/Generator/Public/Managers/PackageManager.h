@@ -266,7 +266,8 @@ public:
 
 	static inline std::string GetName(int32 PackageIndex)
 	{
-		 return GetInfo(PackageIndex).GetName();
+		PackageInfoHandle Handle = GetInfo(PackageIndex);
+		return Handle.IsValidHandle() ? Handle.GetName() : "<unknown_package>";
 	}
 
 	static inline bool IsPackageNameUnique(const PackageInfo& Info)
@@ -276,15 +277,17 @@ public:
 
 	static inline PackageInfoHandle GetInfo(int32 PackageIndex)
 	{
-		return PackageInfos.at(PackageIndex);
+		auto It = PackageInfos.find(PackageIndex);
+		return It != PackageInfos.end() ? PackageInfoHandle(It->second) : PackageInfoHandle(nullptr);
 	}
 
 	static inline PackageInfoHandle GetInfo(const UEObject Package)
 	{
 		if (!Package)
-			return {};
+			return PackageInfoHandle(nullptr);
 
-		return PackageInfos.at(Package.GetIndex());
+		auto It = PackageInfos.find(Package.GetIndex());
+		return It != PackageInfos.end() ? PackageInfoHandle(It->second) : PackageInfoHandle(nullptr);
 	}
 
 	static inline PackageInfoIterator IterateOverPackageInfos()

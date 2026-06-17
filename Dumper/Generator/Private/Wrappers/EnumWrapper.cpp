@@ -28,6 +28,12 @@ std::string EnumWrapper::GetFullName() const
 
 std::pair<std::string, bool> EnumWrapper::GetUniqueName() const
 {
+    /* The enum was never registered with the EnumManager (e.g. an EnumProperty referencing an enum
+       without a valid underlaying property). Its InfoHandle is invalid, so fall back to the enum's own
+       name instead of dereferencing a null Info pointer. */
+    if (!InfoHandle.IsValid()) [[unlikely]]
+        return { Enum.GetEnumPrefixedName(), true };
+
     const StringEntry& Name = InfoHandle.GetName();
 
     return { Name.GetName(), Name.IsUnique() };
@@ -36,6 +42,11 @@ std::pair<std::string, bool> EnumWrapper::GetUniqueName() const
 uint8 EnumWrapper::GetUnderlyingTypeSize() const
 {
     return InfoHandle.GetUnderlyingTypeSize();
+}
+
+bool EnumWrapper::IsUnderlyingTypeSigned() const
+{
+    return InfoHandle.IsUnderlyingTypeSigned();
 }
 
 int32 EnumWrapper::GetNumMembers() const
@@ -50,6 +61,6 @@ CollisionInfoIterator EnumWrapper::GetMembers() const
 
 bool EnumWrapper::IsValid() const
 {
-    return Enum != nullptr;
+    return Enum != nullptr && InfoHandle.IsValid();
 }
 

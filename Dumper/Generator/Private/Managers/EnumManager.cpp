@@ -60,6 +60,11 @@ uint8 EnumInfoHandle::GetUnderlyingTypeSize() const
 	return Info->UnderlyingTypeSize;
 }
 
+bool EnumInfoHandle::IsUnderlyingTypeSigned() const
+{
+	return Info->bIsSigned;
+}
+
 const StringEntry& EnumInfoHandle::GetName() const
 {
 	return EnumManager::GetEnumName(*Info);
@@ -147,6 +152,10 @@ void EnumManager::InitInternal()
 				auto& [Name, Value] = NameValuePairs[i];
 					
 				std::wstring NameWitPrefix = Name.ToWString();
+
+				/* A negative member forces a signed underlying type so the value can be represented */
+				if (Value < 0)
+					NewOrExistingInfo.bIsSigned = true;
 
 				if (!NameWitPrefix.ends_with(L"_MAX"))
 					EnumMaxValue = max(EnumMaxValue, Value);

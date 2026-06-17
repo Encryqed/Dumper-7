@@ -39,6 +39,9 @@ private:
 	/* sizeof(UnderlyingType) */
 	uint8 UnderlyingTypeSize = 0x1;
 
+	/* Whether any member holds a negative value, in which case the underlying type must be signed */
+	bool bIsSigned = false;
+
 	/* Wether an occurence of this enum was found, if not guess the type by the enums' max value */
 	bool bWasInstanceFound = false;
 
@@ -68,14 +71,18 @@ public:
 class EnumInfoHandle
 {
 private:
-	const EnumInfo* Info;
+	const EnumInfo* Info = nullptr;
 
 public:
 	EnumInfoHandle() = default;
 	EnumInfoHandle(const EnumInfo& InInfo);
 
 public:
+	/* False for handles to enums that were never registered (e.g. an EnumProperty without a valid underlaying property) */
+	bool IsValid() const { return Info != nullptr; }
+
 	uint8 GetUnderlyingTypeSize() const;
+	bool IsUnderlyingTypeSigned() const;
 	const StringEntry& GetName() const;
 
 	int32 GetNumMembers() const;
@@ -143,7 +150,12 @@ public:
 		if (!Enum)
 			return {};
 
-		return EnumInfoOverrides.at(Enum.GetIndex());
+		/* Use find rather than at() - a property can reference an enum that was never registered (returns an invalid handle instead of throwing) */
+		auto It = EnumInfoOverrides.find(Enum.GetIndex());
+		if (It == EnumInfoOverrides.end())
+			return {};
+
+		return It->second;
 	}
 };
 

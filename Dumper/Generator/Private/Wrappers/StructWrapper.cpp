@@ -49,6 +49,11 @@ std::pair<std::string, bool> StructWrapper::GetUniqueName() const
 {
     if (bIsUnrealStruct)
     {
+        /* The struct was never registered with the StructManager (e.g. a tagged UEStructProperty's underlying struct).
+           Its InfoHandle is invalid, so fall back to the raw valid name instead of dereferencing a null Info pointer. */
+        if (!InfoHandle.IsValid()) [[unlikely]]
+            return { Struct.GetValidName(), true };
+
         const auto& StringEntry = InfoHandle.GetName();
 
         return { StringEntry.GetName(), StringEntry.IsUnique() };

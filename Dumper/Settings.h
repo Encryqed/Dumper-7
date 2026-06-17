@@ -99,7 +99,7 @@ R"(
 	namespace Debug
 	{
 		/* Generates a dedicated file defining macros for static asserts (Make sure InlineAssertions are off) */
-		inline constexpr bool bGenerateAssertionFile = true;
+		inline constexpr bool bGenerateAssertionFile = false;
 
 		/* Prefix for assertion macros in assertion file. Example for "MyPackage_params.hpp": #define DUMPER7_ASSERTS_PARAMS_MyPackage */
 		inline constexpr const char* AssertionMacroPrefix = "DUMPER7_ASSERTS_";

@@ -55,13 +55,16 @@ class StructManager;
 class StructInfoHandle
 {
 private:
-	const StructInfo* Info;
+	const StructInfo* Info = nullptr;
 
 public:
 	StructInfoHandle() = default;
 	StructInfoHandle(const StructInfo& InInfo);
 
 public:
+	/* False for handles to structs that were never registered (e.g. a tagged UEStructProperty whose underlying struct isn't in the StructManager). */
+	bool IsValid() const { return Info != nullptr; }
+
 	int32 GetLastMemberEnd() const;
 	int32 GetSize() const;
 	int32 GetUnalignedSize() const;

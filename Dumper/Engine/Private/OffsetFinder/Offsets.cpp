@@ -80,13 +80,22 @@ void Off::InSDK::GMalloc::InitGMalloc()
 
 	// CreateGMalloc prologue: sub rsp, N then mov rax, gs:[0x58].
 	// UE5.x inserts a `mov ecx, [rip+_tls_index]` (8B 0D ..) between them for thread-safe-static init;
-	// UE4.27 has no interlude. Try UE5 first, fall back to UE4.
-	const char* createSig_UE5 = "48 81 EC ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 65 48 8B 04 25 58 00 00 00";
-	const char* createSig_UE4 = "48 81 EC ?? ?? ?? ?? 65 48 8B 04 25 58 00 00 00";
+	// UE4.27 has no interlude. The generic UE4 wildcard is broad enough to hit other TLS-using
+	// functions, so try the most-specific sigs first and fall back to the wildcard last.
+	//   UE4.27 (DRG): sub rsp, 0xA8 ; mov rax, gs:[0x58] ; mov ecx, [rip+tls_index]
+	//                The tls_index load follows the gs read (not before it as in UE5).
+	//                Exact rsp size + trailing 8B 0D makes this unique (2 matches without it).
+	//   UE5.x:        sub rsp, N ; mov ecx, [rip+tls_index] ; mov rax, gs:[0x58]
+	//   UE4 generic:  sub rsp, N ; mov rax, gs:[0x58]  (last resort, any rsp size)
+	const char* createSig_UE4_DRG     = "48 81 EC A8 00 00 00 65 48 8B 04 25 58 00 00 00 8B 0D ?? ?? ?? ??";
+	const char* createSig_UE5         = "48 81 EC ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 65 48 8B 04 25 58 00 00 00";
+	const char* createSig_UE4_generic = "48 81 EC ?? ?? ?? ?? 65 48 8B 04 25 58 00 00 00";
 
-	void* createMatch = Platform::FindPattern(createSig_UE5, 0x0, false, 0x0, nullptr);
+	void* createMatch = Platform::FindPattern(createSig_UE4_DRG, 0x0, false, 0x0, nullptr);
 	if (!createMatch)
-		createMatch = Platform::FindPattern(createSig_UE4, 0x0, false, 0x0, nullptr);
+		createMatch = Platform::FindPattern(createSig_UE5, 0x0, false, 0x0, nullptr);
+	if (!createMatch)
+		createMatch = Platform::FindPattern(createSig_UE4_generic, 0x0, false, 0x0, nullptr);
 
 	if (!createMatch)
 	{
@@ -360,6 +369,7 @@ void Off::InSDK::Engine::InitUGameEngineTick()
 	if (BestTickIdx != -1)
 	{
 		Off::InSDK::Engine::UGameEngineTickOffset = static_cast<int32>(BestTickTarget - base);
+		Off::InSDK::Engine::UGameEngineTickIndex = BestTickIdx;
 		Settings::Internal::bHasGameEngineTick = true;
 		std::cerr << std::format(
 			"UGameEngine::Tick: 0x{:X} (vtable[{}], HandleBrowse anchor at vtable[{}], size 0x{:X})\n",

@@ -74,7 +74,7 @@ private:
 public:
     static inline PredefinedMemberLookupMapType PredefinedMembers;
 
-    static inline std::string MainFolderName = "CppSDK";
+    static inline std::string MainFolderName = "SDK";
     static inline std::string SubfolderName = "SDK";
 
     static inline fs::path MainFolder;
@@ -146,6 +146,14 @@ private:
     * See https://github.com/Fischsalat/UTF-N
     */
     static void GenerateUnicodeLib(StreamType& UnicodeLib);
+
+    /*
+    * Creates the VTableOffsets.hpp file for the SDK.
+    * Contains constexpr vtable slot indices for well-known engine classes.
+    * Layout is selected based on Settings::Internal::bUseLargeWorldCoordinates
+    * (false = UE4.27, true = UE5.06).
+    */
+    static void GenerateVTableOffsets(StreamType& VTableHeader);
 
 public:
     static void Generate();

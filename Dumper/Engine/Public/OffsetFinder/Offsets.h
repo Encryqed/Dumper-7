@@ -108,6 +108,7 @@ namespace Off
 		namespace Engine
 		{
 			inline int32 UGameEngineTickOffset = 0x0; // UGameEngine::Tick, module-relative; 0 if not found
+			inline int32 UGameEngineTickIndex = -1;   // UGameEngine::Tick vtable slot index; -1 if not found
 			void InitUGameEngineTick();
 		}
 

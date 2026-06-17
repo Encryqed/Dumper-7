@@ -285,6 +285,10 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 
 void MappingGenerator::GenerateEnum(const EnumWrapper& Enum, std::stringstream& Data, std::stringstream& NameTable)
 {
+	/* Skip enums that were never registered with the EnumManager - their InfoHandle is invalid and GetNumMembers()/GetMembers() would dereference a null Info pointer. */
+	if (!Enum.IsValid())
+		return;
+
 	const int32 EnumNameIndex = AddNameToData(NameTable, Enum.GetRawName());
 	WriteToStream(Data, EnumNameIndex);
 
@@ -319,7 +323,13 @@ std::stringstream MappingGenerator::GenerateFileData()
 
 		for (int32 EnumIdx : Package.GetEnums())
 		{
-			GenerateEnum(ObjectArray::GetByIndex<UEEnum>(EnumIdx), EnumData, NameData);
+			EnumWrapper Enum = ObjectArray::GetByIndex<UEEnum>(EnumIdx);
+
+			/* Skip unregistered enums so the written enum count stays in sync with the data actually emitted. */
+			if (!Enum.IsValid())
+				continue;
+
+			GenerateEnum(Enum, EnumData, NameData);
 			NumEnums++;
 		}
 	}

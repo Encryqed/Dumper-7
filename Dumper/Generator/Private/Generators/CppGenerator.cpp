@@ -742,7 +742,17 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 		if (bIsTemplatedType)
 			return;
 
-		const std::string AssertionMacroName = GetAssertionMacroString(UniqueName);
+		std::string AssertionMacroName = GetAssertionMacroString(UniqueName);
+
+		/* Distinct blueprint classes can collapse to an identical generated name (e.g. same-named assets in the same package).
+		   That would emit the same assertion macro twice, triggering 'C4005: macro redefinition'. Append a counter to keep the
+		   macro name unique. Both the invocation below and the definition further down reuse this same disambiguated name. */
+		{
+			static std::unordered_map<std::string, int> AssertionMacroNameCounts;
+			const int SeenCount = AssertionMacroNameCounts[AssertionMacroName]++;
+			if (SeenCount > 0)
+				AssertionMacroName += '_' + std::to_string(SeenCount);
+		}
 
 		// Place the macro below the struct so members etc. are verified
 		StructFile << AssertionMacroName << ";\n";
@@ -785,6 +795,9 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	}
 }
 
+/* Defined further below - returns the fixed-width integer type name of 'Size' bytes, signed or unsigned. */
+static const char* GetIntegerTypeBySize(uint8 Size, bool bIsSigned);
+
 void CppGenerator::GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile)
 {
 	if (!Enum.IsValid())
@@ -792,13 +805,59 @@ void CppGenerator::GenerateEnum(const EnumWrapper& Enum, StreamType& StructFile)
 
 	CollisionInfoIterator EnumValueIterator = Enum.GetMembers();
 
+	const uint8 UnderlyingSize = Enum.GetUnderlyingTypeSize();
+	const bool bIsSigned = Enum.IsUnderlyingTypeSigned();
+
+	/* Inclusive range of values representable by the (layout-fixed) underlying type. Enumerators outside it
+	   - in practice only the auto-generated 'Enum_MAX' sentinel (== MaxValue + 1) - would otherwise emit a
+	   compiler warning/error, so they are skipped. The underlying size mirrors the real UE storage and must
+	   not change, as struct layout is padded against the property size, not the enum's sizeof. */
+	const uint32 NumBits = UnderlyingSize * 0x8u;
+	const bool bSpansFullWidth = NumBits >= 64; /* a 64-bit underlying type can represent every value, no clamping needed */
+	const int64 MinValue = (bIsSigned && !bSpansFullWidth) ? -(1ll << (NumBits - 1)) : 0;
+	const uint64 MaxValue = bSpansFullWidth ? ~0ull : (bIsSigned ? ((1ull << (NumBits - 1)) - 1) : ((1ull << NumBits) - 1));
+
+	/* Type wide enough to hold the out-of-range members (one size class up; their value is always UnderlyingMax + 1). */
+	const uint8 OobConstantSize = UnderlyingSize >= 0x4 ? 0x8 : (UnderlyingSize * 2);
+	const char* const OobConstantType = GetIntegerTypeBySize(OobConstantSize, bIsSigned);
+
+	auto IsRepresentable = [&](uint64 RawValue) -> bool
+	{
+		if (bSpansFullWidth)
+			return true;
+
+		if (bIsSigned)
+		{
+			const int64 SignedValue = static_cast<int64>(RawValue);
+			return SignedValue >= MinValue && SignedValue <= static_cast<int64>(MaxValue);
+		}
+
+		return RawValue <= MaxValue;
+	};
+
+	auto FormatValue = [&](uint64 RawValue) -> std::string
+	{
+		return bIsSigned ? std::to_string(static_cast<int64>(RawValue)) : std::to_string(RawValue);
+	};
+
 	int32 NumValues = 0x0;
 	std::string MemberString;
+
+	/* Members whose value doesn't fit the (layout-fixed) underlying type - in practice only the auto-generated
+	   'Enum_MAX' sentinel - can't live inside the enum. They're emitted as constants right after it instead, so
+	   the value is preserved (e.g. SDK::EMaterialParameterType_MAX) without forcing a wider, layout-breaking enum. */
+	std::string OutOfRangeConstants;
 
 	for (const EnumCollisionInfo& Info : EnumValueIterator)
 	{
 		NumValues++;
-		MemberString += std::format("\t{:{}} = {},\n", Info.GetUniqueName(), 40, Info.GetValue());
+
+		const uint64 RawValue = Info.GetValue();
+
+		if (IsRepresentable(RawValue)) [[likely]]
+			MemberString += std::format("\t{:{}} = {},\n", Info.GetUniqueName(), 40, FormatValue(RawValue));
+		else
+			OutOfRangeConstants += std::format("inline constexpr {} {} = {};\n", OobConstantType, Info.GetUniqueName(), FormatValue(RawValue));
 	}
 
 	if (!MemberString.empty()) [[likely]]
@@ -816,6 +875,81 @@ enum class {} : {}
   , GetEnumPrefixedName(Enum)
   , GetEnumUnderlyingType(Enum)
   , MemberString);
+
+	if (!OutOfRangeConstants.empty()) [[unlikely]]
+	{
+		/* Keep the values as constants and add integer-comparison operators so 'EnumValue == Enum_MAX' compiles without a cast. */
+		StructFile << std::format("// Values of '{0}' that exceed its underlying type, kept as constants:\n{1}UE_ENUM_INT_COMPARE({0}, {2});\n\n",
+			GetEnumPrefixedName(Enum), OutOfRangeConstants, OobConstantType);
+	}
+
+	/* 'FLifetimeProperty' (used by 'GetLifetimeReplicatedProps') lives next to 'ELifetimeCondition' so it binds to the just-emitted
+	   enum - correct underlying type, correct ordering, and present in the package's structs file for direct (non-SDK.hpp) includes.
+	   'ELifetimeRepNotifyCondition' is a plain (non-reflected) enum in UE source, so it is not generated and is defined here. */
+	if (Enum.GetRawName() == "ELifetimeCondition")
+	{
+		StructFile << R"(
+enum class ELifetimeRepNotifyCondition : uint8
+{
+	REPNOTIFY_OnChanged = 0,
+	REPNOTIFY_Always = 1,
+};
+
+struct FLifetimeProperty
+{
+public:
+
+	uint16 RepIndex;
+	ELifetimeCondition Condition;
+	ELifetimeRepNotifyCondition RepNotifyCondition;
+	bool bIsPushBased;
+
+	FLifetimeProperty()
+		: RepIndex(0)
+		, Condition(ELifetimeCondition::COND_None)
+		, RepNotifyCondition(ELifetimeRepNotifyCondition::REPNOTIFY_OnChanged)
+		, bIsPushBased(false)
+	{
+	}
+
+	FLifetimeProperty(int32 InRepIndex)
+		: RepIndex(InRepIndex)
+		, Condition(ELifetimeCondition::COND_None)
+		, RepNotifyCondition(ELifetimeRepNotifyCondition::REPNOTIFY_OnChanged)
+		, bIsPushBased(false)
+	{
+		assert(InRepIndex <= 65535);
+	}
+
+	FLifetimeProperty(
+		int32 InRepIndex,
+		ELifetimeCondition InCondition,
+		ELifetimeRepNotifyCondition InRepNotifyCondition = ELifetimeRepNotifyCondition::REPNOTIFY_OnChanged,
+		bool bInIsPushBased = false
+	)
+		: RepIndex(InRepIndex)
+		, Condition(InCondition)
+		, RepNotifyCondition(InRepNotifyCondition)
+		, bIsPushBased(bInIsPushBased)
+	{
+		assert(InRepIndex <= 65535);
+	}
+
+	inline bool operator==(const FLifetimeProperty& Other) const
+	{
+		if (RepIndex == Other.RepIndex)
+		{
+			assert(Condition == Other.Condition);
+			assert(RepNotifyCondition == Other.RepNotifyCondition);
+			assert(bIsPushBased == Other.bIsPushBased);
+			return true;
+		}
+
+		return false;
+	}
+};
+)";
+	}
 }
 
 std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
@@ -838,7 +972,14 @@ std::string CppGenerator::GetStructPrefixedName(const StructWrapper& Struct)
 		return ValidName;
 
 	/* Package::FStructName */
-	return PackageManager::GetName(Struct.GetUnrealStruct().GetPackageIndex()) + "::" + ValidName;
+	const int32 PkgIdx = Struct.GetUnrealStruct().GetPackageIndex();
+	PackageInfoHandle Pkg = PackageManager::GetInfo(PkgIdx);
+	if (!Pkg.IsValidHandle()) [[unlikely]]
+	{
+		std::cerr << std::format("[CppGenerator] WARNING: struct '{}' has package index {:d} not in PackageInfos — using name without prefix\n", ValidName, PkgIdx);
+		return ValidName;
+	}
+	return Pkg.GetName() + "::" + ValidName;
 }
 
 std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
@@ -849,12 +990,20 @@ std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 		return ValidName;
 
 	/* Package::ESomeEnum */
-	return PackageManager::GetName(Enum.GetUnrealEnum().GetPackageIndex()) + "::" + ValidName;
+	const int32 PkgIdx = Enum.GetUnrealEnum().GetPackageIndex();
+	PackageInfoHandle Pkg = PackageManager::GetInfo(PkgIdx);
+	if (!Pkg.IsValidHandle()) [[unlikely]]
+	{
+		std::cerr << std::format("[CppGenerator] WARNING: enum '{}' has package index {:d} not in PackageInfos — using name without prefix\n", ValidName, PkgIdx);
+		return ValidName;
+	}
+	return Pkg.GetName() + "::" + ValidName;
 }
 
-std::string CppGenerator::GetEnumUnderlyingType(const EnumWrapper& Enum)
+/* Returns the fixed-width integer type name of 'Size' bytes, signed or unsigned. Defaults to a 1-byte type for invalid sizes. */
+static const char* GetIntegerTypeBySize(uint8 Size, bool bIsSigned)
 {
-	static constexpr std::array<const char*, 8> UnderlyingTypesBySize = {
+	static constexpr std::array<const char*, 8> UnsignedTypesBySize = {
 		"uint8",
 		"uint16",
 		"InvalidEnumSize",
@@ -865,7 +1014,25 @@ std::string CppGenerator::GetEnumUnderlyingType(const EnumWrapper& Enum)
 		"uint64"
 	};
 
-	return Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlyingTypesBySize[static_cast<size_t>(Enum.GetUnderlyingTypeSize()) - 1] : "uint8";
+	static constexpr std::array<const char*, 8> SignedTypesBySize = {
+		"int8",
+		"int16",
+		"InvalidEnumSize",
+		"int32",
+		"InvalidEnumSize",
+		"InvalidEnumSize",
+		"InvalidEnumSize",
+		"int64"
+	};
+
+	const auto& TypesBySize = bIsSigned ? SignedTypesBySize : UnsignedTypesBySize;
+
+	return (Size >= 0x1 && Size <= 0x8) ? TypesBySize[static_cast<size_t>(Size) - 1] : (bIsSigned ? "int8" : "uint8");
+}
+
+std::string CppGenerator::GetEnumUnderlyingType(const EnumWrapper& Enum)
+{
+	return GetIntegerTypeBySize(Enum.GetUnderlyingTypeSize(), Enum.IsUnderlyingTypeSigned());
 }
 
 std::string CppGenerator::GetAssertionMacroString(const std::string& PrefixedStructUniqueName)
@@ -947,7 +1114,11 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	if (Flags & EClassCastFlags::ByteProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEByteProperty>().GetEnum())
-			return GetEnumPrefixedName(Enum);
+		{
+			EnumWrapper EnumWrap(Enum);
+			if (EnumWrap.IsValid()) [[likely]]
+				return GetEnumPrefixedName(EnumWrap);
+		}
 
 		return "uint8";
 	}
@@ -1095,9 +1266,17 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	else if (Flags & EClassCastFlags::EnumProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEEnumProperty>().GetEnum())
-			return GetEnumPrefixedName(Enum);
+		{
+			EnumWrapper EnumWrap(Enum);
+			if (EnumWrap.IsValid()) [[likely]]
+				return GetEnumPrefixedName(EnumWrap);
+		}
 
-		return GetMemberTypeStringWithoutConst(Member.Cast<UEEnumProperty>().GetUnderlayingProperty(), PackageIndex);
+		/* Enum missing or unregistered - fall back to the underlaying integer type (which may itself be null) */
+		if (UEProperty UnderlayingProperty = Member.Cast<UEEnumProperty>().GetUnderlayingProperty())
+			return GetMemberTypeStringWithoutConst(UnderlayingProperty, PackageIndex);
+
+		return "uint8";
 	}
 	else if (Flags & EClassCastFlags::InterfaceProperty)
 	{
@@ -1480,7 +1659,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 /*
 * SDK generated by Dumper-7
 *
-* https://github.com/Encryqed/Dumper-7
+* https://github.com/Elytras/Dumper-7
 */
 )";
 
@@ -1632,6 +1811,10 @@ void CppGenerator::Generate()
 	// Generate UtfN.hpp
 	StreamType UnicodeLib(MainFolder / "UtfN.hpp");
 	GenerateUnicodeLib(UnicodeLib);
+
+	// Generate VTableOffsets.hpp
+	StreamType VTableOffsets(MainFolder / "VTableOffsets.hpp");
+	GenerateVTableOffsets(VTableOffsets);
 
 	StreamType DebugAssertions;
 
@@ -1989,6 +2172,49 @@ void CppGenerator::InitPredefinedMembers()
 				.Type = "class UObject*", .Name = "ClassDefaultObject", .Offset = Off::UClass::ClassDefaultObject, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			});
+	}
+
+	// Recovered UClass internals, anchored to the detected CastFlags offset. The field
+	// order/sizes are the UE4.27 shipping layout (WITH_EDITOR / WITH_EDITORONLY_DATA
+	// stripped). Self-gated: only emitted when the independently-detected
+	// ClassDefaultObject sits exactly 0x48 after CastFlags, which uniquely identifies
+	// this layout -- any other engine version / editor build fails the check and falls
+	// back to Dumper's pads (no regression). Validated against the DRG SDK by
+	// DUMPER7_ASSERTS_UClass (size 0x230, CastFlags @ +0x0, ClassDefaultObject @ +0x48).
+	// Non-POD members the SDK has no type for (TMap/FRWLock/FCriticalSection/interface &
+	// rep arrays) are emitted as exact-size byte placeholders.
+	const int32 CF = Off::UClass::CastFlags;
+	if (CF >= 0x20 && Off::UClass::ClassDefaultObject == (CF + 0x48))
+	{
+		auto AddUClassMember = [&](const char* Type, const char* Name, int32 Offset, int32 Size, int32 ArrayDim, int32 Alignment)
+		{
+			UClassPredefs.Members.push_back(PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY (recovered from engine source)",
+				.Type = Type, .Name = Name, .Offset = Offset, .Size = Size, .ArrayDim = ArrayDim, .Alignment = Alignment,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			});
+		};
+
+		AddUClassMember("void*",                       "ClassConstructor",             CF - 0x20, 0x08, 0x01, 0x8);
+		AddUClassMember("void*",                       "ClassVTableHelperCtorCaller",  CF - 0x18, 0x08, 0x01, 0x8);
+		AddUClassMember("void*",                       "ClassAddReferencedObjects",    CF - 0x10, 0x08, 0x01, 0x8);
+		AddUClassMember("uint32",                      "ClassUnique",                  CF - 0x08, 0x04, 0x01, 0x4); // bit 31 == bCooked
+		AddUClassMember("enum class EClassFlags",      "ClassFlags",                   CF - 0x04, 0x04, 0x01, 0x4);
+		AddUClassMember("class UClass*",               "ClassWithin",                  CF + 0x08, 0x08, 0x01, 0x8);
+		AddUClassMember("class UObject*",              "ClassGeneratedBy",             CF + 0x10, 0x08, 0x01, 0x8);
+		AddUClassMember("class FName",                 "ClassConfigName",              CF + 0x18, 0x08, 0x01, 0x8);
+		AddUClassMember("uint8",                       "ClassReps",                    CF + 0x20, 0x01, 0x10, 0x1); // TArray<FRepRecord>
+		AddUClassMember("class TArray<class UField*>", "NetFields",                    CF + 0x30, 0x10, 0x01, 0x8);
+		AddUClassMember("int32",                       "FirstOwnedClassRep",           CF + 0x40, 0x04, 0x01, 0x4);
+		AddUClassMember("void*",                       "SparseClassData",              CF + 0x50, 0x08, 0x01, 0x8);
+		AddUClassMember("class UScriptStruct*",        "SparseClassDataStruct",        CF + 0x58, 0x08, 0x01, 0x8);
+		AddUClassMember("uint8",                       "FuncMap",                      CF + 0x60, 0x01, 0x50, 0x1); // TMap<FName, UFunction*>
+		AddUClassMember("uint8",                       "SuperFuncMap",                 CF + 0xB0, 0x01, 0x50, 0x1); // TMap<FName, UFunction*>
+		AddUClassMember("uint8",                       "SuperFuncMapLock",             CF + 0x100, 0x01, 0x08, 0x1); // FRWLock
+		AddUClassMember("uint8",                       "Interfaces",                   CF + 0x108, 0x01, 0x10, 0x1); // TArray<FImplementedInterface>
+		AddUClassMember("class TArray<uint32>",        "ReferenceTokenStream",         CF + 0x118, 0x10, 0x01, 0x8); // FGCReferenceTokenStream
+		AddUClassMember("uint8",                       "ReferenceTokenStreamCritical", CF + 0x128, 0x01, 0x28, 0x1); // FCriticalSection
+		AddUClassMember("uint8",                       "NativeFunctionLookupTable",    CF + 0x150, 0x01, 0x10, 0x1); // TArray<FNativeFunctionLookup>
 	}
 
 	std::string PropertyTypePtr = Settings::Internal::bUseFProperty ? "class FProperty*" : "class UProperty*";
@@ -2559,8 +2785,22 @@ void CppGenerator::InitPredefinedFunctions()
 
 	PredefinedElements& UObjectPredefs = PredefinedMembers[ObjectArray::FindClassFast("Object").GetIndex()];
 
+	/* UObject is the root class (no super), so GenerateFunctions skips its auto-generated 'StaticClass()'. Provide it here instead.
+	   UObject's object name is "Object" and is unique, so STATIC_CLASS_IMPL (short-name lookup) is correct. XOR-obfuscate the name to match every other class' StaticClass. */
+	const std::string UObjectStaticClassName = Settings::CppGenerator::XORString
+		? std::format("{}(\"Object\")", Settings::CppGenerator::XORString)
+		: "\"Object\"";
+	const std::string UObjectStaticClassBody = std::format("{{\n\tSTATIC_CLASS_IMPL({})\n}}", UObjectStaticClassName);
+
 	UObjectPredefs.Functions =
 	{
+		/* static inline functions */
+		PredefinedFunction {
+			.CustomComment = "Used with 'IsA' to check if an object is of a certain type",
+			.ReturnType = "class UClass*", .NameWithParams = "StaticClass()", .Body = UObjectStaticClassBody,
+			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = true
+		},
+
 		/* static non-inline functions */
 		PredefinedFunction {
 			.CustomComment = "Finds a UObject in the global object array by full-name, optionally with ECastFlags to reduce heavy string comparison",
@@ -3629,15 +3869,22 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 		std::sort(Members.begin(), Members.end(), ComparePredefinedMembers);
 	};
 
-	std::string CustomIncludes = R"(#define VC_EXTRALEAN
+	std::string CustomIncludes = R"(#ifndef VC_EXTRALEAN
+#define VC_EXTRALEAN
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 
 #include <cassert>
 #include <cmath>
 #include <iterator>
 #include <string>
 #include <algorithm>
+#include <compare>
 #include <concepts>
 #include <functional>
 #include <type_traits>
@@ -3826,6 +4073,26 @@ void UE_Delete(T* obj)
     obj->~T();
     UnrealAllocator::Get()->Free(obj);
 }
+
+
+struct FMemory
+{
+    static void* Malloc(uint64_t Count, uint32_t Alignment = 1)   { return UnrealAllocator::Get()->Malloc(Count, Alignment); }
+    static void* TryMalloc(uint64_t Count, uint32_t Alignment = 1){ return UnrealAllocator::Get()->TryMalloc(Count, Alignment); }
+    static void* Realloc(void* Original, uint64_t Count, uint32_t Alignment = 1) { return UnrealAllocator::Get()->Realloc(Original, Count, Alignment); }
+    static void* TryRealloc(void* Original, uint64_t Count, uint32_t Alignment = 1) { return UnrealAllocator::Get()->TryRealloc(Original, Count, Alignment); }
+    static void  Free(void* Original)                              { UnrealAllocator::Get()->Free(Original); }
+    static uint64_t QuantizeSize(uint64_t Count, uint32_t Alignment = 1) { return UnrealAllocator::Get()->QuantizeSize(Count, Alignment); }
+    static bool GetAllocSize(void* Original, uint64_t& SizeOut)   { return UnrealAllocator::Get()->GetAllocationSize(Original, SizeOut); }
+
+    static void* Memcpy (void* Dest, const void* Src, size_t Count)  { return ::memcpy(Dest, Src, Count); }
+    static void* Memmove(void* Dest, const void* Src, size_t Count)  { return ::memmove(Dest, Src, Count); }
+    static void* Memset (void* Dest, uint8_t Char, size_t Count)     { return ::memset(Dest, Char, Count); }
+    static void  Memzero(void* Dest, size_t Count)                   { ::memset(Dest, 0, Count); }
+    static int   Memcmp (const void* Buf1, const void* Buf2, size_t Count) { return ::memcmp(Buf1, Buf2, Count); }
+
+    static bool IsValid() { return UnrealAllocator::IsReady(); }
+};
 
 )";
 	} /* End if (Settings::Internal::bHasGMalloc) */
@@ -6031,13 +6298,31 @@ inline constexpr EEnumClass& operator|=(EEnumClass& Left, EEnumClass Right)					
 inline bool operator&(EEnumClass Left, EEnumClass Right)																												\
 {																																										\
 	return (((std::underlying_type<EEnumClass>::type)(Left) & (std::underlying_type<EEnumClass>::type)(Right)) == (std::underlying_type<EEnumClass>::type)(Right));		\
-}																																										
+}
+)";
+
+	/* UE_ENUM_INT_COMPARE - lets an enum-class value be compared directly against an integer (e.g. the out-of-range  */
+	/* 'Enum_MAX' sentinels kept as constants). Defining operator<=> and operator== makes C++20 synthesize all six    */
+	/* comparison operators in both directions, so 'Value == Enum_MAX' / 'Value < Enum_MAX' compile without a cast.   */
+	BasicHpp <<
+		R"(
+#define UE_ENUM_INT_COMPARE(EEnumClass, IntType)																														\
+																																											\
+inline constexpr std::strong_ordering operator<=>(EEnumClass Left, IntType Right)																						\
+{																																										\
+	return static_cast<IntType>(static_cast<std::underlying_type<EEnumClass>::type>(Left)) <=> Right;																	\
+}																																										\
+																																											\
+inline constexpr bool operator==(EEnumClass Left, IntType Right)																										\
+{																																										\
+	return static_cast<IntType>(static_cast<std::underlying_type<EEnumClass>::type>(Left)) == Right;																		\
+}
 )";
 
 	/* enum class EObjectFlags */
 	BasicHpp <<
 		R"(
-enum class EObjectFlags : int32
+enum class EObjectFlags : uint32
 {
 	NoFlags							= 0x00000000,
 
@@ -6518,6 +6803,18 @@ namespace FieldCast
 
 
 	WriteFileEnd(BasicHpp, EFileType::BasicHpp);
+
+	if (Settings::Internal::bHasGMalloc)
+	{
+		BasicHpp << R"(
+namespace UC::Internal {
+	inline void* UEMalloc(uint64_t Count, uint32_t Alignment) { return SDK::FMemory::Malloc(Count, Alignment); }
+	inline void* UERealloc(void* Ptr, uint64_t Count, uint32_t Alignment) { return SDK::FMemory::Realloc(Ptr, Count, Alignment); }
+	inline void  UEFree(void* Ptr) { SDK::FMemory::Free(Ptr); }
+}
+)";
+	}
+
 	WriteFileEnd(BasicCpp, EFileType::BasicCpp);
 }
 
@@ -6529,9 +6826,21 @@ void CppGenerator::GenerateUnrealContainers(StreamType& UEContainersHeader)
 		"Container implementations with iterators. See https://github.com/Fischsalat/UnrealContainers", "#include <string>\n#include <stdexcept>\n#include <iostream>\n#include <optional>\n#include \"UtfN.hpp\"");
 
 
+	if (Settings::Internal::bHasGMalloc)
+	{
+		UEContainersHeader << R"(
+namespace UC { namespace Internal {
+	// Implemented in Basic.hpp after UnrealAllocator is defined.
+	void* UEMalloc  (uint64_t Count, uint32_t Alignment);
+	void* UERealloc (void* Ptr, uint64_t Count, uint32_t Alignment);
+	void  UEFree    (void* Ptr);
+}}
+)";
+	}
+
 	UEContainersHeader << R"(
 namespace UC
-{	
+{
 	typedef int8_t  int8;
 	typedef int16_t int16;
 	typedef int32_t int32;
@@ -6863,6 +7172,91 @@ namespace UC
             return Find(ElementToSearch).has_value();
         }
 
+        inline       ArrayElementType& Last(int32 IndexFromEnd = 0)
+        {
+            VerifyIndex(NumElements - 1 - IndexFromEnd);
+            return GetUnsafe(NumElements - 1 - IndexFromEnd);
+        }
+        inline const ArrayElementType& Last(int32 IndexFromEnd = 0) const
+        {
+            VerifyIndex(NumElements - 1 - IndexFromEnd);
+            return GetUnsafe(NumElements - 1 - IndexFromEnd);
+        }
+
+        template<typename OtherType>
+        inline int32 IndexOf(const OtherType& ElementToSearch, bool(*IsEqual)(const ArrayElementType&, const OtherType&)) const
+        {
+            for (int32 i = 0; i < NumElements; ++i)
+                if (IsEqual(Data[i], ElementToSearch)) return i;
+            return -1;
+        }
+
+        inline int32 IndexOf(const ArrayElementType& ElementToSearch) const
+            requires std::equality_comparable<ArrayElementType>
+        {
+            for (int32 i = 0; i < NumElements; ++i)
+                if (Data[i] == ElementToSearch) return i;
+            return -1;
+        }
+
+        inline bool Swap(int32 IndexA, int32 IndexB)
+        {
+            if (!IsValidIndex(IndexA) || !IsValidIndex(IndexB)) return false;
+            if (IndexA != IndexB)
+            {
+                ArrayElementType Tmp = Data[IndexA];
+                Data[IndexA] = Data[IndexB];
+                Data[IndexB] = Tmp;
+            }
+            return true;
+        }
+
+        inline bool RemoveAtSwap(int32 Index)
+        {
+            if (!IsValidIndex(Index))
+                return false;
+            if (Index != NumElements - 1)
+                Data[Index] = Data[NumElements - 1];
+            --NumElements;
+            return true;
+        }
+
+        void Reserve(int32 NewCapacity)
+        {
+            if (NewCapacity <= MaxElements) return;
+            int32 NewMax = MaxElements ? MaxElements : 4;
+            while (NewMax < NewCapacity) NewMax *= 2;
+            Data = static_cast<ArrayElementType*>(
+                Internal::UERealloc(Data, static_cast<uint64_t>(NewMax) * sizeof(ArrayElementType), static_cast<uint32_t>(ElementAlign)));
+            MaxElements = NewMax;
+        }
+
+        bool AddGrow(const ArrayElementType& Element)
+        {
+            if (NumElements >= MaxElements) Reserve(NumElements + 1);
+            if (NumElements >= MaxElements) return false;
+            new (&Data[NumElements]) ArrayElementType(Element);
+            ++NumElements;
+            return true;
+        }
+
+        void SetNum(int32 NewNum)
+        {
+            if (NewNum > MaxElements) Reserve(NewNum);
+            if (NewNum > NumElements)
+                memset(&Data[NumElements], 0, static_cast<size_t>(NewNum - NumElements) * sizeof(ArrayElementType));
+            NumElements = NewNum;
+        }
+
+        void Empty()
+        {
+            for (int32 i = 0; i < NumElements; ++i)
+                Data[i].~ArrayElementType();
+            NumElements = 0;
+            if (Data) { Internal::UEFree(Data); Data = nullptr; }
+            MaxElements = 0;
+        }
+
 	public:
 		inline int32 Num() const { return NumElements; }
 		inline int32 Max() const { return MaxElements; }
@@ -6886,7 +7280,9 @@ namespace UC
 		template<typename T> friend Iterators::TArrayIterator<T> begin(const TArray& Array);
 		template<typename T> friend Iterators::TArrayIterator<T> end  (const TArray& Array);
 	};
+)";
 
+	UEContainersHeader << R"(
 	class FString : public TArray<wchar_t>
 	{
 	public:
@@ -6937,6 +7333,31 @@ namespace UC
 	public:
 		inline bool operator==(const FString& Other) const { return Other ? NumElements == Other.NumElements && wcscmp(Data, Other.Data) == 0 : false; }
 		inline bool operator!=(const FString& Other) const { return Other ? NumElements != Other.NumElements || wcscmp(Data, Other.Data) != 0 : true; }
+
+	public:
+		inline int32 Len() const { return NumElements > 0 ? NumElements - 1 : 0; }
+		inline bool  IsEmpty() const { return Len() == 0; }
+
+		inline bool StartsWith(const wchar_t* Prefix) const
+		{
+			if (!*this || !Prefix || !*Prefix) return false;
+			return wcsncmp(Data, Prefix, wcslen(Prefix)) == 0;
+		}
+
+		inline bool EndsWith(const wchar_t* Suffix) const
+		{
+			if (!*this || !Suffix || !*Suffix) return false;
+			const size_t SuffixLen = wcslen(Suffix);
+			const int32 StrLen = Len();
+			if (static_cast<int32>(SuffixLen) > StrLen) return false;
+			return wcscmp(Data + StrLen - SuffixLen, Suffix) == 0;
+		}
+
+		inline bool Contains(const wchar_t* Substr) const
+		{
+			if (!*this || !Substr || !*Substr) return false;
+			return wcsstr(Data, Substr) != nullptr;
+		}
 	};
 
 	// Utf8String that assumes C-APIs (strlen, strcmp) behaviour works for char8_t like Ansi strings, execept it's counting/comparing bytes not characters.
@@ -9084,4 +9505,783 @@ namespace UtfN
 #endif // Warnings)";
 
 	WriteFileEnd(UnicodeLib, EFileType::UnicodeLib);
+}
+
+void CppGenerator::GenerateVTableOffsets(StreamType& VTableHeader)
+{
+	struct VTableSection { const char* ClassName; const char* const* Entries; };
+
+	/* ---- UE4.27 arrays ---- */
+	static const char* const s427_UObjectBase[] = {
+		"__vecDelDtor", "RegisterDependencies", "DeferredRegister", nullptr };
+
+	static const char* const s427_UObjectBaseUtility[] = {
+		"__vecDelDtor", "CanBeClusterRoot", "CanBeInCluster", "CreateCluster",
+		"OnClusterMarkedAsPendingKill", nullptr };
+
+	static const char* const s427_UObject[] = {
+		"__vecDelDtor", "GetDetailedInfoInternal", "PostInitProperties", "PostCDOContruct",
+		"PreSaveRoot", "PostSaveRoot", "PreSave", "IsReadyForAsyncPostLoad",
+		"PostLoad", "PostLoadSubobjects", "BeginDestroy", "IsReadyForFinishDestroy",
+		"FinishDestroy", "Serialize__FStructuredArchiveRecord", "Serialize__Ref_FArchive",
+		"ShutdownAfterError", "PostInterpChange", "PostRename", "PreDuplicate",
+		"PostDuplicate__EDuplicateMode_Type", "PostDuplicate__bool",
+		"NeedsLoadForClient", "NeedsLoadForServer", "NeedsLoadForTargetPlatform",
+		"NeedsLoadForEditorGame", "IsEditorOnly", "HasNonEditorOnlyReferences",
+		"IsPostLoadThreadSafe", "IsDestructionThreadSafe", "GetPreloadDependencies",
+		"GetPrestreamPackages", "ExportCustomProperties", "ImportCustomProperties",
+		"PostEditImport", "PostReloadConfig", "Rename", "GetDesc",
+		"GetSparseClassDataStruct", "GetWorld", "GetNativePropertyValues",
+		"GetResourceSizeEx", "GetExporterName", "GetRestoreForUObjectOverwrite",
+		"AreNativePropertiesIdenticalTo",
+		"GetAssetRegistryTags_C__Ref_TArray_UObject_FAssetRegistryTag_TSizedDefaultAllocator_32_",
+		"IsAsset", "GetPrimaryAssetId", "IsLocalizedResource", "IsSafeForRootSet",
+		"TagSubobjects", "GetLifetimeReplicatedProps",
+		"IsNameStableForNetworking", "IsFullNameStableForNetworking",
+		"IsSupportedForNetworking", "GetSubobjectsWithStableNamesForNetworking",
+		"PreNetReceive", "PostNetReceive", "PostRepNotifies", "PreDestroyFromReplication",
+		"BuildSubobjectMapping", "GetConfigOverridePlatform", "OverridePerObjectConfigSection",
+		"ProcessEvent", "GetFunctionCallspace", "CallRemoteFunction", "ProcessConsoleExec",
+		"RegenerateClass", "MarkAsEditorOnlySubobject", "CheckDefaultSubobjectsInternal",
+		"ValidateGeneratedRepEnums", "SetNetPushIdDynamic", "GetNetPushIdDynamic", nullptr };
+
+	static const char* const s427_UScriptStruct_ICppStructOps[] = {
+		"__vecDelDtor", "HasNoopConstructor", "HasZeroConstructor", "Construct",
+		"ConstructForTests", "HasDestructor", "Destruct", "HasSerializer",
+		"HasStructuredSerializer", "Serialize__FStructuredArchiveSlot__Ptr_void",
+		"Serialize__Ref_FArchive__Ptr_void", "HasPostSerialize", "PostSerialize",
+		"HasNetSerializer", "HasNetSharedSerialization", "NetSerialize",
+		"HasNetDeltaSerializer", "NetDeltaSerialize", "HasPostScriptConstruct",
+		"PostScriptConstruct", "IsPlainOldData", "HasCopy", "Copy",
+		"HasIdentical", "Identical", "HasExportTextItem", "ExportTextItem",
+		"HasImportTextItem", "ImportTextItem", "HasAddStructReferencedObjects",
+		"AddStructReferencedObjects", "HasSerializeFromMismatchedTag",
+		"HasStructuredSerializeFromMismatchedTag", "SerializeFromMismatchedTag",
+		"StructuredSerializeFromMismatchedTag", "HasGetTypeHash", "GetStructTypeHash",
+		"GetComputedPropertyFlags", "IsAbstract", nullptr };
+
+	static const char* const s427_FOutputDevice[] = {
+		"__vecDelDtor",
+		"Serialize__Ptr_C_wchar_t__ELogVerbosity_Type__Ref_C_FName__C_double",
+		"Serialize__Ptr_C_wchar_t__ELogVerbosity_Type__Ref_C_FName",
+		"Flush", "TearDown", "Dump", "IsMemoryOnly",
+		"CanBeUsedOnAnyThread", "CanBeUsedOnMultipleThreads", nullptr };
+
+	static const char* const s427_UStruct[] = {
+		"__vecDelDtor", "GetInheritanceSuper", "Link",
+		"SerializeBin_C__FStructuredArchiveSlot__Ptr_void",
+		"SerializeBin_C__Ref_FArchive__Ptr_void",
+		"SerializeTaggedProperties_C__FStructuredArchiveSlot__Ptr_uint8__Ptr_UStruct__Ptr_uint8__Ptr_C_UObject",
+		"SerializeTaggedProperties_C__Ref_FArchive__Ptr_uint8__Ptr_UStruct__Ptr_uint8__Ptr_C_UObject",
+		"InitializeStruct", "DestroyStruct", "CustomFindProperty", "SerializeExpr",
+		"GetPrefixCPP", "SetSuperStruct", "PropertyNameToDisplayName",
+		"GetAuthoredNameForField_C__Ptr_C_FField", "GetAuthoredNameForField_C__Ptr_C_UField",
+		"IsStructTrashed", "FindPropertyNameFromGuid", "FindPropertyGuidFromName",
+		"ArePropertyGuidsAvailable", nullptr };
+
+	static const char* const s427_UGameViewportClient[] = {
+		"__vecDelDtor", "SSSwapControllers", "ShowTitleSafeArea", "SetConsoleTarget",
+		"Init", "FinalizeViews", "AddViewportWidgetContent", "RemoveViewportWidgetContent",
+		"AddViewportWidgetForPlayer", "RemoveViewportWidgetForPlayer", "DetachViewportClient",
+		"Tick", "SetViewportFrame", "SetViewport", "SetDropDetail", "ConsoleCommand",
+		"GetMousePosition", "SetupInitialLocalPlayer", "UpdateActiveSplitscreenType",
+		"LayoutPlayers", "GetSubtitleRegion", "DrawTitleSafeArea", "PostRender",
+		"DrawTransition", "DrawTransitionMessage", "NotifyPlayerAdded", "NotifyPlayerRemoved",
+		"PeekTravelFailureMessages", "PeekNetworkFailureMessages",
+		"VerifyPathRenderingComponents", nullptr };
+
+	static const char* const s427_FMalloc[] = {
+		"__vecDelDtor", "Malloc", "TryMalloc", "Realloc", "TryRealloc", "Free",
+		"QuantizeSize", "GetAllocationSize", "Trim", "SetupTLSCachesOnCurrentThread",
+		"ClearAndDisableTLSCachesOnCurrentThread", "InitializeStatsMetadata",
+		"UpdateStats", "GetAllocatorStats", "DumpAllocatorStats",
+		"IsInternallyThreadSafe", "ValidateHeap", "GetDescriptiveName", nullptr };
+
+	static const char* const s427_FArchive[] = {
+		"__vecDelDtor", "operator<<__Ref_FWeakObjectPtr", "operator<<__Ref_FSoftObjectPath",
+		"operator<<__Ref_FSoftObjectPtr", "operator<<__Ref_FLazyObjectPtr",
+		"operator<<__Ptr_Ref_FField", "operator<<__Ptr_Ref_UObject",
+		"operator<<__Ref_FText", "operator<<__Ref_FName",
+		"ForceBlueprintFinalization", "Serialize", "SerializeBits",
+		"SerializeInt", "SerializeIntPacked", "Preload", "Seek",
+		"AttachBulkData", "DetachBulkData", "IsProxyOf", "Precache",
+		"FlushCache", "SetCompressionMap", "Flush", "Close",
+		"MarkScriptSerializationStart", "MarkScriptSerializationEnd",
+		"MarkSearchableName", "UsingCustomVersion", "GetCacheableArchive",
+		"PushSerializedProperty", "PopSerializedProperty",
+		"AttachExternalReadDependency", "IsUsingEventDrivenLoader",
+		"PushFileRegionType", "PopFileRegionType", nullptr };
+
+	static const char* const s427_FArchiveState[] = {
+		"__vecDelDtor", "GetInnermostState", "CountBytes", "GetArchiveName",
+		"GetLinker", "Tell", "TotalSize", "AtEnd", "GetArchetypeFromLoader",
+		"GetCustomVersions", "SetCustomVersions", "ResetCustomVersions",
+		"SetFilterEditorOnly", "UseToResolveEnumerators", "ShouldSkipProperty",
+		"SetSerializedProperty", "SetSerializedPropertyChain", "SetSerializeContext",
+		"GetSerializeContext", "Reset", "SetIsLoading", "SetIsSaving",
+		"SetIsTransacting", "SetIsTextFormat", "SetWantBinaryPropertySerialization",
+		"SetUseUnversionedPropertySerialization", "SetForceUnicode", "SetIsPersistent",
+		"SetUE4Ver", "SetLicenseeUE4Ver", "SetEngineVer",
+		"SetEngineNetVer", "SetGameNetVer", nullptr };
+
+	static const char* const s427_AGameModeBase[] = {
+		"__vecDelDtor", "InitializeHUDForPlayer_Implementation",
+		"InitStartSpot_Implementation", "SpawnDefaultPawnAtTransform_Implementation",
+		"SpawnDefaultPawnFor_Implementation", "PlayerCanRestart_Implementation",
+		"FindPlayerStart_Implementation", "ChoosePlayerStart_Implementation",
+		"CanSpectate_Implementation", "MustSpectate_Implementation",
+		"HandleStartingNewPlayer_Implementation", "ShouldReset_Implementation",
+		"GetDefaultPawnClassForController_Implementation",
+		"InitGame", "InitGameState", "GetGameSessionClass",
+		"GetNumPlayers", "GetNumSpectators", "StartPlay",
+		"HasMatchStarted", "HasMatchEnded", "SetPause", "ClearPause",
+		"AllowPausing", "IsPaused", "ResetLevel", "ReturnToMainMenuHost",
+		"CanServerTravel", "ProcessServerTravel", "GetSeamlessTravelActorList",
+		"SwapPlayerControllers", "GetPlayerControllerClassToSpawnForSeamlessTravel",
+		"HandleSeamlessTravelPlayer", "PostSeamlessTravel", "StartToLeaveMap",
+		"GameWelcomePlayer", "PreLogin", "Login", "PostLogin", "Logout",
+		"SpawnPlayerController__ENetRole__Ref_C_FVector__Ref_C_FRotator",
+		"SpawnPlayerController__ENetRole__Ref_C_FString",
+		"SpawnReplayPlayerController", "ChangeName", "RestartPlayer",
+		"RestartPlayerAtPlayerStart", "RestartPlayerAtTransform", "SetPlayerDefaults",
+		"AllowCheats", "IsHandlingReplays", "SpawnPlayerFromSimulate",
+		"ShouldStartInCinematicMode", "UpdateGameplayMuteList", "InitNewPlayer",
+		"GenericPlayerInitialization", "ReplicateStreamingStatus",
+		"ShouldSpawnAtStartSpot", "FinishRestartPlayer",
+		"ProcessClientTravel__Ref_FString__bool__bool",
+		"ProcessClientTravel__Ref_FString__FGuid__bool__bool",
+		"InitSeamlessTravelPlayer", "SpawnPlayerControllerCommon", nullptr };
+
+	static const char* const s427_AGameMode[] = {
+		"__vecDelDtor", "ReadyToEndMatch_Implementation",
+		"ReadyToStartMatch_Implementation", "IsMatchInProgress",
+		"StartMatch", "EndMatch", "RestartGame", "AbortMatch",
+		"SetMatchState", "OnMatchStateSet", "HandleMatchIsWaitingToStart",
+		"HandleMatchHasStarted", "HandleMatchHasEnded", "HandleLeavingMap",
+		"HandleMatchAborted", "GetNetworkNumber", "GetDefaultGameClassPath",
+		"GetGameModeClass", "GetTravelType", "SendPlayer", "StartNewPlayer",
+		"Say", "SetBandwidthLimit", "Broadcast", "BroadcastLocalized",
+		"AddInactivePlayer", "FindInactivePlayer", "OverridePlayerState",
+		"SetSeamlessTravelViewTarget", "MatineeCancelled",
+		"PreCommitMapChange", "PostCommitMapChange",
+		"NotifyPendingConnectionLost", "HandleDisconnect", nullptr };
+
+	static const char* const s427_AActor[] = {
+		"__vecDelDtor", "OnRep_ReplicateMovement", "TearOff",
+		"HasNetOwner", "HasLocalNetOwner", "OnRep_Owner",
+		"SetReplicateMovement", "OnRep_AttachmentReplication",
+		"IsReplicationPausedForConnection", "OnReplicationPausedChanged",
+		"ReplicateSubobjects", "OnSubobjectCreatedFromReplication",
+		"OnSubobjectDestroyFromReplication", "PreReplication",
+		"PreReplicationForReplay", "RewindForReplay", "OnRep_Instigator",
+		"EnableInput", "DisableInput", "GetVelocity",
+		"SetActorHiddenInGame", "K2_DestroyActor",
+		"AddTickPrerequisiteActor", "AddTickPrerequisiteComponent",
+		"RemoveTickPrerequisiteActor", "RemoveTickPrerequisiteComponent",
+		"BeginPlay", "EndPlay", "NotifyActorBeginOverlap", "NotifyActorEndOverlap",
+		"NotifyActorBeginCursorOver", "NotifyActorEndCursorOver",
+		"NotifyActorOnClicked", "NotifyActorOnReleased",
+		"NotifyActorOnInputTouchBegin", "NotifyActorOnInputTouchEnd",
+		"NotifyActorOnInputTouchEnter", "NotifyActorOnInputTouchLeave",
+		"NotifyHit", "SetLifeSpan", "GetLifeSpan",
+		"GatherCurrentMovement", "GetDefaultAttachComponent",
+		"ApplyWorldOffset", "IsLevelBoundsRelevant",
+		"GetNetPriority", "GetReplayPriority", "GetNetDormancy",
+		"OnActorChannelOpen", "UseShortConnectTimeout",
+		"OnSerializeNewActor", "OnNetCleanup", "TickActor",
+		"PostActorCreated", "LifeSpanExpired",
+		"PostNetReceiveRole", "PostNetInit", "OnRep_ReplicatedMovement",
+		"PostNetReceiveLocationAndRotation", "PostNetReceiveVelocity",
+		"PostNetReceivePhysicState", "SetOwner", "CheckStillInWorld",
+		"Tick", "ShouldTickIfViewportsOnly", "IsNetRelevantFor",
+		"IsReplayRelevantFor", "IsRelevancyOwnerFor",
+		"PreInitializeComponents", "PostInitializeComponents",
+		"DispatchPhysicsCollisionHit", "GetNetOwner", "GetNetOwningPlayer",
+		"GetNetConnection", "DestroyNetworkActorHandled",
+		"RegisterAllComponents", "PreRegisterAllComponents",
+		"PostRegisterAllComponents", "UnregisterAllComponents",
+		"PostUnregisterAllComponents", "ReregisterAllComponents",
+		"MarkComponentsAsPendingKill", "InvalidateLightingCacheDetailed",
+		"TeleportTo", "TeleportSucceeded", "ClearCrossLevelReferences",
+		"IsBasedOnActor", "IsAttachedTo", "RerunConstructionScripts",
+		"OnConstruction", "RegisterActorTickFunctions", "Destroyed",
+		"FellOutOfWorld", "OutsideWorldBounds",
+		"GetComponentsBoundingBox", "CalculateComponentsBoundingBoxInLocalSpace",
+		"GetComponentsBoundingCylinder", "GetSimpleCollisionCylinder",
+		"IsRootComponentCollisionRegistered", "TornOff",
+		"GetComponentsCollisionResponseToChannel", "CanBeBaseForCharacter",
+		"TakeDamage", "InternalTakeRadialDamage", "InternalTakePointDamage",
+		"BecomeViewTarget", "EndViewTarget", "CalcCamera",
+		"HasActiveCameraComponent", "HasActivePawnControlCameraComponent",
+		"GetHumanReadableName", "Reset", "GetLastRenderTime",
+		"ForceNetRelevant", "ForceNetUpdate", "PrestreamTextures",
+		"GetActorEyesViewPoint", "GetTargetLocation", "PostRenderFor",
+		"FindComponentByClass", "IsComponentRelevantForNavigation", "DisplayDebug", nullptr };
+
+	static const char* const s427_UPlayer[] = {
+		"__vecDelDtor", "SwitchController", nullptr };
+
+	static const char* const s427_UEngine[] = {
+		"__vecDelDtor", "WorldAdded", "WorldDestroyed", "IsInitialized",
+		"GetDefaultWorldFeatureLevel", "Init", "Start", "PreExit",
+		"ReleaseAudioDeviceManager", "Tick", "UpdateTimeAndHandleMaxTickRate",
+		"CorrectNegativeTimeDelta", "GetMaxTickRate", "GetMaxFPS", "SetMaxFPS",
+		"UpdateRunningAverageDeltaTime", "IsAllowedFramerateSmoothing",
+		"OnLostFocusPause", "ShouldThrottleCPUUsage", "ShouldDrawBrushWireframe",
+		"GetMapBuildCancelled", "SetMapBuildCancelled", "GetPropertyColorationColor",
+		"AllowSelectTranslucent", "OnlyLoadEditorVisibleLevelsInPIE",
+		"PreferToStreamLevelsInPIE", "GetSpriteCategoryIndex",
+		"StartFPSChart", "StopFPSChart", "ProcessToggleFreezeCommand",
+		"ProcessToggleFreezeStreamingCommand", "IsSplitScreen",
+		"IsSettingUpPlayWorld", "GetGameViewportWidget", "FocusNextPIEWorld",
+		"ResetPIEAudioSetting", "GetNextPIEViewport",
+		"RemapGamepadControllerIdForPIE", "NotifyToolsOfObjectReplacement",
+		"UseSound", "CreatePIEWorldByDuplication",
+		"Experimental_ShouldPreDuplicateMap", "InitializeAudioDeviceManager",
+		"InitializeHMDDevice", "InitializeEyeTrackingDevice", "RecordHMDAnalytics",
+		"InitializeObjectReferences", "InitializePortalServices",
+		"InitializeRunningAverageDeltaTime", "SpawnServerActors",
+		"HandleNetworkFailure", "HandleTravelFailure",
+		"HandleNetworkLagStateChanged",
+		"NetworkRemapPath__Ptr_UPendingNetGame__Ref_FString__bool",
+		"NetworkRemapPath__Ptr_UNetConnection__Ref_FString__bool",
+		"NetworkRemapPath__Ptr_UNetDriver__Ref_FString__bool",
+		"HandleOpenCommand", "HandleTravelCommand", "HandleStreamMapCommand",
+		"HandleServerTravelCommand", "HandleSayCommand",
+		"HandleDisconnectCommand", "HandleReconnectCommand",
+		"Browse", "TickWorldTravel", "LoadMap", "RedrawViewports",
+		"TriggerStreamingDataRebuild", "LoadMapRedrawViewports",
+		"CancelAllPending", "CancelPending__Ptr_UNetDriver",
+		"CancelPending__Ref_FWorldContext",
+		"CancelPending__Ptr_UWorld__Ptr_UPendingNetGame",
+		"WorldIsPIEInNewViewport", "VerifyLoadMapWorldCleanup",
+		"DestroyWorldContext", "AreEditorAnalyticsEnabled",
+		"CreateStartupAnalyticsAttributes", "IsAutosaving",
+		"ShouldDoAsyncEndOfFrameTasks", "MovePendingLevel",
+		"ShouldShutdownWorldNetDriver", "HandleBrowseToDefaultMapFailure",
+		"HandleNetworkFailure_NotifyGameInstance",
+		"HandleTravelFailure_NotifyGameInstance", nullptr };
+
+	static const char* const s427_ULocalPlayer[] = {
+		"__vecDelDtor", "GetViewPoint", "CalcSceneView",
+		"PlayerAdded", "InitOnlineSession", "PlayerRemoved",
+		"SpawnPlayActor", "SendSplitJoin", "SetControllerId",
+		"GetNickname", "GetGameLoginOptions", "GetProjectionData", nullptr };
+
+	static const char* const s427_FField[] = {
+		"__vecDelDtor", "Serialize", "PostLoad", "GetPreloadDependencies",
+		"BeginDestroy", "AddReferencedObjects", "AddCppProperty", "Bind",
+		"PostDuplicate", "GetInnerFieldByName", "GetInnerFields", nullptr };
+
+	static const char* const s427_UField[] = {
+		"__vecDelDtor", "AddCppProperty", "Bind", nullptr };
+
+	static const char* const s427_FProperty[] = {
+		"__vecDelDtor", "GetCPPMacroType", "PassCPPArgsByRef",
+		"GetCPPType", "GetCPPTypeForwardDeclaration", "LinkInternal",
+		"ConvertFromType", "Identical", "SerializeItem", "NetSerializeItem",
+		"SupportsNetSharedSerialization", "ExportTextItem", "ImportText_Internal",
+		"CopyValuesInternal", "GetValueTypeHashInternal",
+		"CopySingleValueToScriptVM", "CopyCompleteValueToScriptVM",
+		"CopySingleValueFromScriptVM", "CopyCompleteValueFromScriptVM",
+		"ClearValueInternal", "DestroyValueInternal", "InitializeValueInternal",
+		"GetID", "InstanceSubobjects", "GetMinAlignment",
+		"ContainsObjectReference", "EmitReferenceInfo", "SameType", nullptr };
+
+	static const char* const s427_FNumericProperty[] = {
+		"__vecDelDtor", "IsFloatingPoint", "IsInteger", "GetIntPropertyEnum",
+		"SetIntPropertyValue_C__Ptr_void__int64",
+		"SetIntPropertyValue_C__Ptr_void__uint64",
+		"SetFloatingPointPropertyValue", "SetNumericPropertyValueFromString",
+		"GetSignedIntPropertyValue", "GetUnsignedIntPropertyValue",
+		"GetFloatingPointPropertyValue", "GetNumericPropertyValueToString",
+		"CanHoldDoubleValueInternal", "CanHoldSignedValueInternal",
+		"CanHoldUnsignedValueInternal", nullptr };
+
+	static const char* const s427_FMulticastDelegateProperty[] = {
+		"__vecDelDtor", "GetMulticastDelegate", "SetMulticastDelegate",
+		"AddDelegate", "RemoveDelegate", "ClearDelegate",
+		"GetInvocationList", nullptr };
+
+	static const char* const s427_FObjectPropertyBase[] = {
+		"__vecDelDtor", "GetCPPTypeCustom", "LoadObjectPropertyValue",
+		"GetObjectPropertyValue", "SetObjectPropertyValue",
+		"AllowCrossLevel", "CheckValidObject", nullptr };
+
+	static const char* const s427_ITextData[] = {
+		"__vecDelDtor", "OwnsLocalizedString", "GetDisplayString",
+		"GetLocalizedString", "GetMutableLocalizedString",
+		"GetTextHistory", "GetMutableTextHistory", "PersistText",
+		"GetGlobalHistoryRevision", "GetLocalHistoryRevision", nullptr };
+
+	static const char* const s427_UDataTable[] = {
+		"__vecDelDtor", "GetNonConstRowMap", "AddRowInternal",
+		"GetRowMap", "GetRowMap_C", "AllowDuplicateRowsOnImport",
+		"EmptyTable", "RemoveRow", "AddRow", nullptr };
+
+	static const VTableSection s_4_27_Layout[] = {
+		{ "UObjectBase",                  s427_UObjectBase                  },
+		{ "UObjectBaseUtility",           s427_UObjectBaseUtility           },
+		{ "UObject",                      s427_UObject                      },
+		{ "UScriptStruct_ICppStructOps",  s427_UScriptStruct_ICppStructOps  },
+		{ "FOutputDevice",                s427_FOutputDevice                },
+		{ "UStruct",                      s427_UStruct                      },
+		{ "UGameViewportClient",          s427_UGameViewportClient          },
+		{ "FMalloc",                      s427_FMalloc                      },
+		{ "FArchive",                     s427_FArchive                     },
+		{ "FArchiveState",                s427_FArchiveState                },
+		{ "AGameModeBase",                s427_AGameModeBase                },
+		{ "AGameMode",                    s427_AGameMode                    },
+		{ "AActor",                       s427_AActor                       },
+		{ "UPlayer",                      s427_UPlayer                      },
+		{ "UEngine",                      s427_UEngine                      },
+		{ "ULocalPlayer",                 s427_ULocalPlayer                 },
+		{ "FField",                       s427_FField                       },
+		{ "UField",                       s427_UField                       },
+		{ "FProperty",                    s427_FProperty                    },
+		{ "FNumericProperty",             s427_FNumericProperty             },
+		{ "FMulticastDelegateProperty",   s427_FMulticastDelegateProperty   },
+		{ "FObjectPropertyBase",          s427_FObjectPropertyBase          },
+		{ "ITextData",                    s427_ITextData                    },
+		{ "UDataTable",                   s427_UDataTable                   },
+		{ nullptr, nullptr }
+	};
+
+	/* ---- UE5.06 arrays ---- */
+	static const char* const s506_UObjectBase[] = {
+		"__vecDelDtor", "RegisterDependencies", "DeferredRegister",
+		"GetFNameForStatID", nullptr };
+
+	static const char* const s506_UObjectBaseUtility[] = {
+		"__vecDelDtor", "CanBeClusterRoot", "CanBeInCluster", "CreateCluster",
+		"OnClusterMarkedAsPendingKill", "GetVersePath", nullptr };
+
+	static const char* const s506_UObject[] = {
+		"__vecDelDtor", "GetDetailedInfoInternal", "PostInitProperties",
+		"PostReinitProperties", "PostCDOContruct",
+		"PreSaveRoot", "PostSaveRoot", "PreSave", "CollectSaveOverrides",
+		"ResolveSubobject", "IsReadyForAsyncPostLoad",
+		"PostLoad", "PostLoadSubobjects", "BeginDestroy", "IsReadyForFinishDestroy",
+		"FinishDestroy", "Serialize__FStructuredArchiveRecord", "Serialize__Ref_FArchive",
+		"ShutdownAfterError", "PostInterpChange", "PostRename", "PreDuplicate",
+		"PostDuplicate__EDuplicateMode_Type", "PostDuplicate__bool",
+		"NeedsLoadForClient", "NeedsLoadForServer", "NeedsLoadForTargetPlatform",
+		"NeedsLoadForEditorGame", "IsEditorOnly", "HasNonEditorOnlyReferences",
+		"IsPostLoadThreadSafe", "IsDestructionThreadSafe", "GetPreloadDependencies",
+		"GetPrestreamPackages", "ExportCustomProperties", "ImportCustomProperties",
+		"PostEditImport", "PostReloadConfig", "Rename", "GetDesc", "GetWorld",
+		"GetNativePropertyValues", "GetResourceSizeEx", "GetExporterName",
+		"GetRestoreForUObjectOverwrite", "AreNativePropertiesIdenticalTo",
+		"GetAssetRegistryTags_C__Ref_TArray_UObject_FAssetRegistryTag_TSizedDefaultAllocator_32_",
+		"GetAssetRegistryTags_C__FAssetRegistryTagsContext",
+		"IsAsset", "GetPrimaryAssetId", "IsLocalizedResource", "IsSafeForRootSet",
+		"TagSubobjects", "GetLifetimeReplicatedProps",
+		"GetReplicatedCustomConditionState", "RegisterReplicationFragments",
+		"IsNameStableForNetworking", "IsFullNameStableForNetworking",
+		"IsSupportedForNetworking", "GetSubobjectsWithStableNamesForNetworking",
+		"PreNetReceive", "PostNetReceive", "PostRepNotifies", "PreDestroyFromReplication",
+		"BuildSubobjectMapping", "GetConfigOverridePlatform",
+		"OverrideConfigSection", "OverridePerObjectConfigSection",
+		"ProcessEvent", "GetFunctionCallspace", "CallRemoteFunction",
+		"ProcessConsoleExec", "RegenerateClass", "MarkAsEditorOnlySubobject",
+		"CheckDefaultSubobjectsInternal", "ValidateGeneratedRepEnums",
+		"SetNetPushIdDynamic", "GetNetPushIdDynamic", nullptr };
+
+	static const char* const s506_UScriptStruct_ICppStructOps[] = {
+		"__vecDelDtor", "GetCapabilities", "Construct", "ConstructForTests",
+		"Destruct",
+		"Serialize__FStructuredArchiveSlot__Ptr_void__Ptr_UStruct__Ptr_C_void",
+		"Serialize__Ref_FArchive__Ptr_void__Ptr_UStruct__Ptr_C_void",
+		"Serialize__FStructuredArchiveSlot__Ptr_void",
+		"Serialize__Ref_FArchive__Ptr_void",
+		"PostSerialize", "NetSerialize", "NetDeltaSerialize", "PostScriptConstruct",
+		"GetPreloadDependencies", "Copy", "Identical", "ExportTextItem",
+		"ImportTextItem", "FindInnerPropertyInstance", "AddStructReferencedObjects",
+		"SerializeFromMismatchedTag", "StructuredSerializeFromMismatchedTag",
+		"GetStructTypeHash", "InitializeIntrusiveUnsetOptionalValue",
+		"IsIntrusiveOptionalValueSet", "ClearIntrusiveOptionalValue",
+		"IsIntrusiveOptionalSafeForGC", "Visit", "ResolveVisitedPathInfo", nullptr };
+
+	static const char* const s506_FOutputDevice[] = {
+		"__vecDelDtor",
+		"Serialize__Ptr_C_wchar_t__ELogVerbosity_Type__Ref_C_FName__C_double",
+		"Serialize__Ptr_C_wchar_t__ELogVerbosity_Type__Ref_C_FName",
+		"SerializeRecord", "Flush", "TearDown", "Dump", "IsMemoryOnly",
+		"CanBeUsedOnAnyThread", "CanBeUsedOnMultipleThreads",
+		"CanBeUsedOnPanicThread", nullptr };
+
+	static const char* const s506_UStruct[] = {
+		"__vecDelDtor", "GetInheritanceSuper", "Link",
+		"SerializeBin_C__FStructuredArchiveSlot__Ptr_void",
+		"SerializeBin_C__Ref_FArchive__Ptr_void",
+		"SerializeTaggedProperties_C__FStructuredArchiveSlot__Ptr_uint8__Ptr_UStruct__Ptr_uint8__Ptr_C_UObject",
+		"SerializeTaggedProperties_C__Ref_FArchive__Ptr_uint8__Ptr_UStruct__Ptr_uint8__Ptr_C_UObject",
+		"PreloadChildren", "InitializeStruct", "DestroyStruct",
+		"CustomFindProperty", "SerializeExpr", "GetPrefixCPP", "SetSuperStruct",
+		"GetAuthoredNameForField_C__Ptr_C_FField",
+		"GetAuthoredNameForField_C__Ptr_C_UField", "IsStructTrashed",
+		"Visit_C__Ref_FPropertyVisitorContext__C_TFunctionRef_enum_EPropertyVisitorControlFlow_cdecl_FPropertyVisitorContext_const_&_",
+		"ResolveVisitedPathInfo",
+		"FindPropertyNameFromGuid", "FindPropertyGuidFromName",
+		"ArePropertyGuidsAvailable", nullptr };
+
+	static const char* const s506_UGameViewportClient[] = {
+		"__vecDelDtor", "SSSwapControllers", "ShowTitleSafeArea", "SetConsoleTarget",
+		"CreateGameViewport", "Init", "FinalizeViews", "RemapControllerInput",
+		"AddViewportWidgetContent", "RemoveViewportWidgetContent",
+		"AddViewportWidgetForPlayer", "RemoveViewportWidgetForPlayer",
+		"AddGameLayerWidget", "RemoveGameLayerWidget", "DetachViewportClient",
+		"Tick", "SetViewportFrame", "SetViewport", "SetDropDetail", "ConsoleCommand",
+		"GetMousePosition", "SetupInitialLocalPlayer", "UpdateActiveSplitscreenType",
+		"LayoutPlayers", "GetSubtitleRegion", "DrawTitleSafeArea", "PostRender",
+		"DrawTransition", "DrawTransitionMessage", "NotifyPlayerAdded",
+		"NotifyPlayerRemoved", "PeekTravelFailureMessages",
+		"PeekNetworkFailureMessages", "VerifyPathRenderingComponents", nullptr };
+
+	static const char* const s506_FMalloc[] = {
+		"__vecDelDtor", "Malloc", "TryMalloc", "Realloc", "TryRealloc", "Free",
+		"MallocZeroed", "TryMallocZeroed", "QuantizeSize", "GetAllocationSize",
+		"Trim", "SetupTLSCachesOnCurrentThread",
+		"MarkTLSCachesAsUsedOnCurrentThread", "MarkTLSCachesAsUnusedOnCurrentThread",
+		"ClearAndDisableTLSCachesOnCurrentThread", "InitializeStatsMetadata",
+		"UpdateStats", "GetAllocatorStats", "DumpAllocatorStats",
+		"IsInternallyThreadSafe", "ValidateHeap", "GetDescriptiveName",
+		"OnMallocInitialized", "OnPreFork", "OnPostFork",
+		"GetImmediatelyFreeableCachedMemorySize", "GetTotalFreeCachedMemorySize", nullptr };
+
+	static const char* const s506_FArchive[] = {
+		"__vecDelDtor", "operator<<__Ref_FWeakObjectPtr",
+		"operator<<__Ref_FSoftObjectPath", "operator<<__Ref_FSoftObjectPtr",
+		"operator<<__Ref_FObjectPtr", "operator<<__Ref_FLazyObjectPtr",
+		"operator<<__Ptr_Ref_FField", "operator<<__Ptr_Ref_UObject",
+		"operator<<__Ref_FText", "operator<<__Ref_FName",
+		"ForceBlueprintFinalization", "Serialize", "SerializeBits",
+		"SerializeInt", "SerializeIntPacked", "SerializeIntPacked64",
+		"Preload", "Seek",
+		"AttachBulkData__Ptr_UE_Serialization_FEditorBulkData",
+		"AttachBulkData__Ptr_UObject__Ptr_FBulkData",
+		"DetachBulkData__Ptr_UE_Serialization_FEditorBulkData__bool",
+		"DetachBulkData__Ptr_FBulkData__bool", "SerializeBulkData",
+		"IsProxyOf", "Precache", "FlushCache", "SetCompressionMap",
+		"Flush", "Close", "MarkScriptSerializationStart",
+		"MarkScriptSerializationEnd", "MarkSearchableName",
+		"UsingCustomVersion", "GetCacheableArchive",
+		"PushSerializedProperty", "PopSerializedProperty",
+		"AttachExternalReadDependency",
+		"PushFileRegionType", "PopFileRegionType", nullptr };
+
+	static const char* const s506_FArchiveState[] = {
+		"__vecDelDtor", "GetInnermostState", "CountBytes", "GetArchiveName",
+		"GetLinker", "Tell", "TotalSize", "AtEnd", "GetArchetypeFromLoader",
+		"EngineNetVer", "GameNetVer", "GetMigrationContext",
+		"GetCustomVersions", "SetCustomVersions", "ResetCustomVersions",
+		"SetDebugSerializationFlags", "SetFilterEditorOnly",
+		"UseToResolveEnumerators", "ShouldSkipProperty",
+		"SetSerializedProperty", "SetSerializedPropertyChain",
+		"SetSerializeContext", "GetSerializeContext", "Reset",
+		"SetIsLoading", "SetIsLoadingFromCookedPackage", "SetIsSaving",
+		"SetIsTransacting", "SetIsTextFormat",
+		"SetWantBinaryPropertySerialization",
+		"SetUseUnversionedPropertySerialization", "SetForceUnicode",
+		"SetIsPersistent", "SetUEVer", "SetLicenseeUEVer",
+		"SetEngineVer", "SetEngineNetVer", "SetGameNetVer", nullptr };
+
+	static const char* const s506_AGameModeBase[] = {
+		"__vecDelDtor", "InitializeHUDForPlayer_Implementation",
+		"InitStartSpot_Implementation", "SpawnDefaultPawnAtTransform_Implementation",
+		"SpawnDefaultPawnFor_Implementation", "PlayerCanRestart_Implementation",
+		"FindPlayerStart_Implementation", "ChoosePlayerStart_Implementation",
+		"CanSpectate_Implementation", "MustSpectate_Implementation",
+		"HandleStartingNewPlayer_Implementation", "ShouldReset_Implementation",
+		"GetDefaultPawnClassForController_Implementation",
+		"InitGame", "InitGameState", "GetGameSessionClass",
+		"GetNumPlayers", "GetNumSpectators", "StartPlay",
+		"HasMatchStarted", "HasMatchEnded", "SetPause", "ClearPause",
+		"AllowPausing", "IsPaused", "ResetLevel", "ReturnToMainMenuHost",
+		"CanServerTravel", "ProcessServerTravel", "GetSeamlessTravelActorList",
+		"SwapPlayerControllers", "GetPlayerControllerClassToSpawnForSeamlessTravel",
+		"HandleSeamlessTravelPlayer", "PostSeamlessTravel", "StartToLeaveMap",
+		"GameWelcomePlayer", "PreLogin", "PreLoginAsync", "Login",
+		"PostLogin", "OnPostLogin", "Logout",
+		"SpawnPlayerController__ENetRole__Ref_C_UE_Math_TVector_double___Ref_C_UE_Math_TRotator_double_",
+		"SpawnPlayerController__ENetRole__Ref_C_FString",
+		"SpawnReplayPlayerController", "ChangeName", "RestartPlayer",
+		"RestartPlayerAtPlayerStart", "RestartPlayerAtTransform", "SetPlayerDefaults",
+		"AllowCheats", "IsHandlingReplays", "SpawnPlayerFromSimulate",
+		"UpdatePlayerStartSpot", "ShouldStartInCinematicMode",
+		"UpdateGameplayMuteList", "InitNewPlayer", "GenericPlayerInitialization",
+		"ReplicateStreamingStatus", "ShouldSpawnAtStartSpot",
+		"FinishRestartPlayer", "FailedToRestartPlayer",
+		"ProcessClientTravel", "InitSeamlessTravelPlayer",
+		"SpawnPlayerControllerCommon", nullptr };
+
+	static const char* const s506_AGameMode[] = {
+		"__vecDelDtor", "ReadyToEndMatch_Implementation",
+		"ReadyToStartMatch_Implementation", "IsMatchInProgress",
+		"StartMatch", "EndMatch", "RestartGame", "AbortMatch",
+		"SetMatchState", "OnMatchStateSet", "HandleMatchIsWaitingToStart",
+		"HandleMatchHasStarted", "HandleMatchHasEnded", "HandleLeavingMap",
+		"HandleMatchAborted", "GetNetworkNumber", "GetTravelType",
+		"Say", "Broadcast", "BroadcastLocalized",
+		"AddInactivePlayer", "FindInactivePlayer", "OverridePlayerState",
+		"SetSeamlessTravelViewTarget", "PreCommitMapChange",
+		"PostCommitMapChange", "NotifyPendingConnectionLost",
+		"HandleDisconnect", nullptr };
+
+	static const char* const s506_AActor[] = {
+		"__vecDelDtor", "OnRep_ReplicateMovement", "TearOff",
+		"HasNetOwner", "HasLocalNetOwner", "OnRep_Owner",
+		"SetReplicateMovement", "OnRep_AttachmentReplication",
+		"IsReplicationPausedForConnection", "OnReplicationPausedChanged",
+		"ReplicateSubobjects", "OnSubobjectCreatedFromReplication",
+		"OnSubobjectDestroyFromReplication", "PreReplication",
+		"PreReplicationForReplay", "RewindForReplay", "OnRep_Instigator",
+		"EnableInput", "CreateInputComponent", "DisableInput",
+		"SupportsIncrementalPreRegisterComponents",
+		"SupportsIncrementalPreUnregisterComponents",
+		"GetActorBounds", "GetVelocity", "SetActorHiddenInGame",
+		"K2_DestroyActor", "AddTickPrerequisiteActor",
+		"AddTickPrerequisiteComponent", "RemoveTickPrerequisiteActor",
+		"RemoveTickPrerequisiteComponent", "BeginPlay", "EndPlay",
+		"NotifyActorBeginOverlap", "NotifyActorEndOverlap",
+		"NotifyActorBeginCursorOver", "NotifyActorEndCursorOver",
+		"NotifyActorOnClicked", "NotifyActorOnReleased",
+		"NotifyActorOnInputTouchBegin", "NotifyActorOnInputTouchEnd",
+		"NotifyActorOnInputTouchEnter", "NotifyActorOnInputTouchLeave",
+		"NotifyHit", "SetLifeSpan", "GetLifeSpan",
+		"IsEditorOnlyLoadedInPIE", "IsRuntimeOnly",
+		"PreDuplicateFromRoot", "PreSaveFromRoot", "PostSaveFromRoot",
+		"GatherCurrentMovement", "GetDefaultAttachComponent",
+		"ApplyWorldOffset", "IsLevelBoundsRelevant",
+		"IsHLODRelevant", "HasHLODRelevantComponents",
+		"GetHLODRelevantComponents", "GetNetPriority", "GetReplayPriority",
+		"GetNetDormancy", "OnActorChannelOpen", "UseShortConnectTimeout",
+		"OnSerializeNewActor", "OnNetCleanup", "SetActorTickEnabled",
+		"TickActor", "AsyncPhysicsTickActor", "PostActorCreated",
+		"LifeSpanExpired", "PostNetReceiveRole", "PostNetInit",
+		"OnRep_ReplicatedMovement", "PostNetReceiveLocationAndRotation",
+		"PostNetReceiveVelocity", "PostNetReceivePhysicState",
+		"SetOwner", "CheckStillInWorld", "GetPhysicsVolume",
+		"Tick", "ShouldTickIfViewportsOnly", "IsNetRelevantFor",
+		"IsReplayRelevantFor", "IsRelevancyOwnerFor",
+		"PreInitializeComponents", "PostInitializeComponents",
+		"DispatchPhysicsCollisionHit", "GetNetOwner", "GetNetOwningPlayer",
+		"GetNetOwningPlayerAnyRole", "GetNetConnection",
+		"DestroyNetworkActorHandled", "IsSelectionParentOfAttachedActors",
+		"IsSelectionChild", "GetSelectionParent", "GetRootSelectionParent",
+		"SupportsSubRootSelection", "PushSelectionToProxies",
+		"RegisterAllComponents", "PreRegisterAllComponents",
+		"PostRegisterAllComponents", "UnregisterAllComponents",
+		"PostUnregisterAllComponents", "ReregisterAllComponents",
+		"MarkComponentsAsPendingKill", "MarkComponentsAsGarbage",
+		"InvalidateLightingCacheDetailed", "TeleportTo", "TeleportSucceeded",
+		"ClearCrossLevelReferences", "IsBasedOnActor", "IsAttachedTo",
+		"OnConstruction", "BeginReplication", "EndReplication",
+		"RegisterActorTickFunctions", "Destroyed", "FellOutOfWorld",
+		"OutsideWorldBounds", "GetComponentsBoundingBox",
+		"CalculateComponentsBoundingBoxInLocalSpace",
+		"GetComponentsBoundingCylinder", "GetSimpleCollisionCylinder",
+		"IsRootComponentCollisionRegistered", "TornOff",
+		"GetComponentsCollisionResponseToChannel", "CanBeBaseForCharacter",
+		"TakeDamage", "InternalTakeRadialDamage", "InternalTakePointDamage",
+		"BecomeViewTarget", "EndViewTarget", "CalcCamera",
+		"HasActiveCameraComponent", "HasActivePawnControlCameraComponent",
+		"GetHumanReadableName", "Reset", "GetLastRenderTime",
+		"ForceNetRelevant", "ForceNetUpdate", "PrestreamTextures",
+		"GetActorEyesViewPoint", "GetTargetLocation", "PostRenderFor",
+		"FindComponentByClass", "FindComponentByInterface",
+		"AllowActorComponentToReplicate",
+		"IsComponentRelevantForNavigation", "DisplayDebug", nullptr };
+
+	static const char* const s506_UPlayer[] = {
+		"__vecDelDtor", "SwitchController", "ReceivedPlayerController", nullptr };
+
+	static const char* const s506_UEngine[] = {
+		"__vecDelDtor", "WorldAdded", "WorldDestroyed", "IsInitialized",
+		"GetDefaultWorldFeatureLevel", "Init", "Start", "PreExit",
+		"ReleaseAudioDeviceManager", "Tick", "UpdateTimeAndHandleMaxTickRate",
+		"CorrectNegativeTimeDelta", "GetMaxTickRate", "GetMaxFPS", "SetMaxFPS",
+		"UpdateRunningAverageDeltaTime", "IsAllowedFramerateSmoothing",
+		"IsRenderingSuspended", "OnLostFocusPause", "ShouldThrottleCPUUsage",
+		"IsControllerIdUsingPlatformUserId", "ShouldDrawBrushWireframe",
+		"GetMapBuildCancelled", "SetMapBuildCancelled",
+		"AllowSelectTranslucent", "OnlyLoadEditorVisibleLevelsInPIE",
+		"GetUnifiedTimeBudgetForStreaming", "HandleUnifiedStreaming",
+		"PreferToStreamLevelsInPIE", "GetSpriteCategoryIndex",
+		"GetTimeBetweenGarbageCollectionPasses_C__bool",
+		"StartFPSChart", "StopFPSChart", "ProcessToggleFreezeCommand",
+		"ProcessToggleFreezeStreamingCommand", "ShouldForceGarbageCollection",
+		"GetIncrementalGCTimePerFrame", "HasMultipleLocalPlayers",
+		"IsSettingUpPlayWorld", "GetGameViewportWidget", "FocusNextPIEWorld",
+		"ResetPIEAudioSetting", "GetNextPIEViewport",
+		"RemapGamepadControllerIdForPIE", "NotifyToolsOfObjectReplacement",
+		"UseSound", "CreatePIEWorldByDuplication", "PostCreatePIEWorld",
+		"Experimental_ShouldPreDuplicateMap", "InitializeAudioDeviceManager",
+		"InitializeHMDDevice", "InitializeEyeTrackingDevice", "RecordHMDAnalytics",
+		"InitializeObjectReferences", "InitializePortalServices",
+		"InitializeRunningAverageDeltaTime", "SpawnServerActors",
+		"HandleNetworkFailure", "HandleTravelFailure",
+		"HandleNetworkLagStateChanged",
+		"NetworkRemapPath__Ptr_UPendingNetGame__Ref_FString__bool",
+		"NetworkRemapPath__Ptr_UNetConnection__Ref_FString__bool",
+		"HandleOpenCommand", "HandleTravelCommand", "HandleStreamMapCommand",
+		"HandleServerTravelCommand", "HandleDisconnectCommand",
+		"HandleReconnectCommand", "Browse", "TickWorldTravel", "LoadMap",
+		"RedrawViewports", "TriggerStreamingDataRebuild",
+		"LoadMapRedrawViewports", "CancelAllPending",
+		"CancelPending__Ptr_UNetDriver", "CancelPending__Ref_FWorldContext",
+		"CancelPending__Ptr_UWorld__Ptr_UPendingNetGame",
+		"WorldIsPIEInNewViewport", "CheckAndHandleStaleWorldObjectReferences",
+		"DestroyWorldContext", "AreEditorAnalyticsEnabled",
+		"CreateStartupAnalyticsAttributes", "IsAutosaving",
+		"ShouldDoAsyncEndOfFrameTasks", "MovePendingLevel",
+		"ShouldShutdownWorldNetDriver", "HandleBrowseToDefaultMapFailure",
+		"HandleNetworkFailure_NotifyGameInstance",
+		"HandleTravelFailure_NotifyGameInstance", nullptr };
+
+	static const char* const s506_ULocalPlayer[] = {
+		"__vecDelDtor", "GetViewPoint", "GetSlateUser_C", "GetSlateUser",
+		"CalcSceneViewInitOptions", "CalcSceneView",
+		"PlayerAdded__Ptr_UGameViewportClient__FPlatformUserId",
+		"PlayerAdded__Ptr_UGameViewportClient__int32",
+		"InitOnlineSession", "PlayerRemoved", "SpawnPlayActor",
+		"PreBeginHandshake",
+		"SendSplitJoin__Ref_TArray_FString_TSizedDefaultAllocator_32___Ptr_UNetDriver__UE_Net_EJoinFlags",
+		"SendSplitJoin__Ref_TArray_FString_TSizedDefaultAllocator_32_",
+		"SetControllerId", "SetPlatformUserId",
+		"GetPlatformUserIndex", "GetLocalPlayerIndex",
+		"GetNickname", "GetGameLoginOptions",
+		"GetUniqueNetIdForPlatformUser", "GetPreferredUniqueNetId",
+		"GetProjectionData", "CleanupViewState", nullptr };
+
+	/* NOTE: UE5.06 FField vtable starts with GetFieldSize at slot 0, then __vecDelDtor at slot 1 */
+	static const char* const s506_FField[] = {
+		"GetFieldSize", "__vecDelDtor", "Serialize", "PostLoad",
+		"GetPreloadDependencies", "BeginDestroy", "AddReferencedObjects",
+		"AddCppProperty", "Bind", "PostDuplicate",
+		"GetInnerFieldByName", "GetInnerFields", nullptr };
+
+	static const char* const s506_UField[] = {
+		"__vecDelDtor", "AddCppProperty", "Bind", nullptr };
+
+	static const char* const s506_FProperty[] = {
+		"__vecDelDtor", "GetCPPMacroType", "GetCPPType",
+		"HasSetter", "HasGetter", "HasSetterOrGetter",
+		"CallSetter", "CallGetter",
+		"Visit_C__Ref_FPropertyVisitorContext__C_TFunctionRef_enum_EPropertyVisitorControlFlow_cdecl_FPropertyVisitorContext_const_&_",
+		"ResolveVisitedPathInfo", "LinkInternal", "ConvertFromType",
+		"Identical", "SerializeItem", "NetSerializeItem",
+		"SupportsNetSharedSerialization", "GetValueAddressAtIndex_Direct",
+		"ExportText_Internal", "ImportText_Internal", "CopyValuesInternal",
+		"GetValueTypeHashInternal", "CopySingleValueToScriptVM",
+		"CopyCompleteValueToScriptVM", "CopyCompleteValueToScriptVM_InContainer",
+		"CopyCompleteValueFromScriptVM_InContainer",
+		"CopySingleValueFromScriptVM", "CopyCompleteValueFromScriptVM",
+		"ClearValueInternal", "DestroyValueInternal",
+		"ContainsClearOnFinishDestroyInternal", "FinishDestroyInternal",
+		"InitializeValueInternal", "GetID", "InstanceSubobjects",
+		"GetMinAlignment", "ContainsObjectReference", "EmitReferenceInfo",
+		"UseBinaryOrNativeSerialization", "LoadTypeName", "SaveTypeName",
+		"CanSerializeFromTypeName", "SameType",
+		"HasIntrusiveUnsetOptionalState",
+		"InitializeIntrusiveUnsetOptionalValue",
+		"IsIntrusiveOptionalValueSet", "ClearIntrusiveOptionalValue",
+		"EmitIntrusiveOptionalReferenceInfo", nullptr };
+
+	static const char* const s506_FNumericProperty[] = {
+		"__vecDelDtor", "IsFloatingPoint", "IsInteger", "GetIntPropertyEnum",
+		"SetIntPropertyValue_C__Ptr_void__int64",
+		"SetIntPropertyValue_C__Ptr_void__uint64",
+		"SetFloatingPointPropertyValue", "SetNumericPropertyValueFromString",
+		"SetNumericPropertyValueFromString_InContainer",
+		"GetSignedIntPropertyValue", "GetSignedIntPropertyValue_InContainer",
+		"GetUnsignedIntPropertyValue", "GetUnsignedIntPropertyValue_InContainer",
+		"GetFloatingPointPropertyValue", "GetNumericPropertyValueToString",
+		"GetNumericPropertyValueToString_InContainer",
+		"CanHoldDoubleValueInternal", "CanHoldSignedValueInternal",
+		"CanHoldUnsignedValueInternal", nullptr };
+
+	static const char* const s506_FMulticastDelegateProperty[] = {
+		"__vecDelDtor", "GetMulticastDelegate", "SetMulticastDelegate",
+		"AddDelegate", "RemoveDelegate", "ClearDelegate",
+		"GetMulticastScriptDelegate", nullptr };
+
+	static const char* const s506_FObjectPropertyBase[] = {
+		"__vecDelDtor", "GetCPPTypeCustom", "LoadObjectPropertyValue",
+		"SetObjectPropertyValueUnchecked", "SetObjectPtrPropertyValueUnchecked",
+		"SetObjectPropertyValueUnchecked_InContainer",
+		"SetObjectPtrPropertyValueUnchecked_InContainer",
+		"GetObjectPropertyValue", "GetObjectPtrPropertyValue",
+		"GetObjectPropertyValue_InContainer",
+		"GetObjectPtrPropertyValue_InContainer",
+		"CheckValidObject", "AllowObjectTypeReinterpretationTo",
+		"AllowCrossLevel", nullptr };
+
+	static const char* const s506_ITextData[] = {
+		"__vecDelDtor", "GetSourceString", "GetDisplayString",
+		"GetLocalizedString", "GetGlobalHistoryRevision",
+		"GetLocalHistoryRevision", "GetTextHistory", "GetMutableTextHistory", nullptr };
+
+	static const char* const s506_UDataTable[] = {
+		"__vecDelDtor", "GetNonConstRowMap", "AddRowInternal",
+		"RemoveRowInternal", "GetRowMap", "GetRowMap_C",
+		"AllowDuplicateRowsOnImport", "EmptyTable", "RemoveRow",
+		"AddRow__FName__Ptr_C_uint8__Ptr_C_UScriptStruct",
+		"AddRow__FName__Ref_C_FTableRowBase", nullptr };
+
+	static const VTableSection s_5_06_Layout[] = {
+		{ "UObjectBase",                  s506_UObjectBase                  },
+		{ "UObjectBaseUtility",           s506_UObjectBaseUtility           },
+		{ "UObject",                      s506_UObject                      },
+		{ "UScriptStruct_ICppStructOps",  s506_UScriptStruct_ICppStructOps  },
+		{ "FOutputDevice",                s506_FOutputDevice                },
+		{ "UStruct",                      s506_UStruct                      },
+		{ "UGameViewportClient",          s506_UGameViewportClient          },
+		{ "FMalloc",                      s506_FMalloc                      },
+		{ "FArchive",                     s506_FArchive                     },
+		{ "FArchiveState",                s506_FArchiveState                },
+		{ "AGameModeBase",                s506_AGameModeBase                },
+		{ "AGameMode",                    s506_AGameMode                    },
+		{ "AActor",                       s506_AActor                       },
+		{ "UPlayer",                      s506_UPlayer                      },
+		{ "UEngine",                      s506_UEngine                      },
+		{ "ULocalPlayer",                 s506_ULocalPlayer                 },
+		{ "FField",                       s506_FField                       },
+		{ "UField",                       s506_UField                       },
+		{ "FProperty",                    s506_FProperty                    },
+		{ "FNumericProperty",             s506_FNumericProperty             },
+		{ "FMulticastDelegateProperty",   s506_FMulticastDelegateProperty   },
+		{ "FObjectPropertyBase",          s506_FObjectPropertyBase          },
+		{ "ITextData",                    s506_ITextData                    },
+		{ "UDataTable",                   s506_UDataTable                   },
+		{ nullptr, nullptr }
+	};
+
+	/* Select layout based on engine version */
+	const VTableSection* Layout = Settings::Internal::bUseLargeWorldCoordinates
+		? s_5_06_Layout
+		: s_4_27_Layout;
+
+	const char* Version = Settings::Internal::bUseLargeWorldCoordinates
+		? "UE5.06"
+		: "UE4.27";
+
+	/* Write the file */
+	VTableHeader << "// VTableOffsets.hpp -- auto-generated vtable slot indices (" << Version << ")\n";
+	VTableHeader << "// Generated by Dumper-7.  Do not edit manually.\n";
+	VTableHeader << "// UScriptStruct_ICppStructOps corresponds to UScriptStruct::ICppStructOps.\n";
+	VTableHeader << "#pragma once\n";
+	VTableHeader << "#include <cstdint>\n";
+	VTableHeader << "\n";
+	VTableHeader << "namespace VTableIndex\n{\n";
+
+	for (const VTableSection* S = Layout; S->ClassName != nullptr; ++S)
+	{
+		VTableHeader << "\n    namespace " << S->ClassName << "\n    {\n";
+		for (int32 i = 0; S->Entries[i] != nullptr; ++i)
+			VTableHeader << "        static constexpr int32_t " << S->Entries[i] << " = " << i << ";\n";
+		VTableHeader << "    } // namespace " << S->ClassName << "\n";
+	}
+
+	VTableHeader << "\n} // namespace VTableIndex\n";
 }

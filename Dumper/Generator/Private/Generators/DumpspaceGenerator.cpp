@@ -9,11 +9,23 @@ std::string DumpspaceGenerator::GetStructPrefixedName(const StructWrapper& Struc
 		return Struct.GetName();
 	}
 
-	if (!Struct.GetUnrealStruct())
+	const UEStruct UnrealStruct = Struct.GetUnrealStruct();
+
+	if (!UnrealStruct)
 		return "UObject";
 
+	/* Guard against tagged/garbage struct or class pointers reaching here (e.g. a property's PropertyClass /
+	   underlying struct on UE5.x). Resolving their name dereferences a bad FName / cast-flags field and
+	   access-violates. The registration check only reads the (small) object index, which is safe even when
+	   the deeper fields are unmapped — bail out with a generic type before touching anything else. */
+	if (!StructManager::IsRegistered(UnrealStruct)) [[unlikely]]
+	{
+		std::cerr << std::format("[DumpspaceGenerator] WARNING: struct/class pointer at 0x{:X} is not registered — using 'UObject'\n", reinterpret_cast<uintptr_t>(UnrealStruct.GetAddress()));
+		return "UObject";
+	}
+
 	if (Struct.IsFunction())
-		return Struct.GetUnrealStruct().GetOuter().GetValidName() + "_" + Struct.GetName();
+		return UnrealStruct.GetOuter().GetValidName() + "_" + Struct.GetName();
 
 	auto [ValidName, bIsUnique] = Struct.GetUniqueName();
 
@@ -21,7 +33,14 @@ std::string DumpspaceGenerator::GetStructPrefixedName(const StructWrapper& Struc
 		return ValidName;
 
 	/* Package::FStructName */
-	return PackageManager::GetName(Struct.GetUnrealStruct().GetPackageIndex()) + "::" + ValidName;
+	const int32 PkgIdx = Struct.GetUnrealStruct().GetPackageIndex();
+	PackageInfoHandle Pkg = PackageManager::GetInfo(PkgIdx);
+	if (!Pkg.IsValidHandle()) [[unlikely]]
+	{
+		std::cerr << std::format("[DumpspaceGenerator] WARNING: struct '{}' has package index {:d} not in PackageInfos — using name without prefix\n", ValidName, PkgIdx);
+		return ValidName;
+	}
+	return Pkg.GetName() + "::" + ValidName;
 }
 
 std::string DumpspaceGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
@@ -32,7 +51,14 @@ std::string DumpspaceGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 		return ValidName;
 
 	/* Package::ESomeEnum */
-	return PackageManager::GetName(Enum.GetUnrealEnum().GetPackageIndex()) + "::" + ValidName;
+	const int32 PkgIdx = Enum.GetUnrealEnum().GetPackageIndex();
+	PackageInfoHandle Pkg = PackageManager::GetInfo(PkgIdx);
+	if (!Pkg.IsValidHandle()) [[unlikely]]
+	{
+		std::cerr << std::format("[DumpspaceGenerator] WARNING: enum '{}' has package index {:d} not in PackageInfos — using name without prefix\n", ValidName, PkgIdx);
+		return ValidName;
+	}
+	return Pkg.GetName() + "::" + ValidName;
 }
 
 std::string DumpspaceGenerator::EnumSizeToType(const int32 Size)
@@ -187,9 +213,15 @@ std::string DumpspaceGenerator::GetMemberTypeStr(UEProperty Property, std::strin
 	}
 	else if (Flags & EClassCastFlags::StructProperty)
 	{
-		const StructWrapper& UnderlayingStruct = Member.Cast<UEStructProperty>().GetUnderlayingStruct();
+		const UEStruct RawUnderlayingStruct = Member.Cast<UEStructProperty>().GetUnderlayingStruct();
 
-		return GetStructPrefixedName(UnderlayingStruct);
+		// Fall through to the unknown path if the underlying struct wasn't registered by StructManager
+		// (tagged/new-variant pointers on UE5.x, etc.) — otherwise resolving its name dereferences a
+		// garbage FName and access-violates. Mirrors CppGenerator::GetMemberTypeString.
+		if (!StructManager::IsRegistered(RawUnderlayingStruct))
+			return (Class ? Class.GetCppName() : FieldClass.GetCppName()) + "_";
+
+		return GetStructPrefixedName(StructWrapper(RawUnderlayingStruct));
 	}
 	else if (Flags & EClassCastFlags::ArrayProperty)
 	{
