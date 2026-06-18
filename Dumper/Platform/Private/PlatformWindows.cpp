@@ -1,4 +1,6 @@
 
+#include <bit>
+
 #include "TmpUtils.h"
 #include "PlatformWindows.h"
 #include "Arch_x86.h"

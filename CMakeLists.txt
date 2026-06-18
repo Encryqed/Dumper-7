@@ -59,6 +59,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Dumper/Utils/Dumpspace
     ${CMAKE_SOURCE_DIR}/Dumper/Utils/Encoding
     ${CMAKE_SOURCE_DIR}/Dumper/Utils/Json
+
+    # Platform
+    ${CMAKE_SOURCE_DIR}/Dumper/Platform
+    ${CMAKE_SOURCE_DIR}/Dumper/Platform/Public
+    ${CMAKE_SOURCE_DIR}/Dumper/Platform/Private
 )
 
 # Compiler definitions
