@@ -4429,12 +4429,25 @@ UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
 
 	return nullptr;
 }
+)";
 
+	/* StringToName: native FName(const wchar_t*, EFindName::FNAME_Add) when the OffsetFinder located
+	   the ctor, otherwise the reflected UKismetStringLibrary::Conv_StringToName fallback. */
+	BasicCpp << (Settings::Internal::bHasFNameCtorWchar ? R"(
+FName BasicFilesImpleUtils::StringToName(const wchar_t* Name)
+{
+	FName Out{};
+	InSDKUtils::CallGameFunction(
+		reinterpret_cast<void(*)(FName*, const wchar_t*, unsigned int)>(InSDKUtils::GetImageBase() + Offsets::FNameCtorWchar),
+		&Out, Name, 1u /* EFindName::FNAME_Add */);
+	return Out;
+}
+)" : R"(
 FName BasicFilesImpleUtils::StringToName(const wchar_t* Name)
 {
 	return UKismetStringLibrary::Conv_StringToName(FString(Name));
 }
-)";
+)");
 
 	BasicHpp << R"(
 const FName& GetStaticName(const wchar_t* Name, FName& StaticName);
@@ -5406,8 +5419,18 @@ Settings::Internal::bUseCasePreservingName ? ", DisplayIndex(DisplayIndex)" : ""
 			.CustomComment = "Constructor from wide string",
 			.ReturnType = "explicit",
 			.NameWithParams = "FName(const wchar_t* Name)",
-			.Body = R"({ 
+			.Body = R"({
 	*this = BasicFilesImpleUtils::StringToName(Name);
+})"
+			,
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "Constructor from narrow string (widened as Latin-1; intended for ASCII names)",
+			.ReturnType = "explicit",
+			.NameWithParams = "FName(const char* Name)",
+			.Body = R"({
+	*this = BasicFilesImpleUtils::StringToName(std::wstring(Name, Name + std::char_traits<char>::length(Name)).c_str());
 })"
 			,
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -5610,8 +5633,56 @@ public:
 		},
 	};
 
+	/* FText string constructors. Native FText::FromString when the OffsetFinder located it, else a
+	   reflected 2-hop via FName -> Conv_NameToText (which normalizes/cases the text). Non-inline so
+	   FString is a complete type at the point of definition. FromString MOVES the FString, so we pass
+	   an FMemory-OWNING copy — never the non-owning literal view, whose buffer the resulting FTextData
+	   would later FMemory::Free. */
+	const std::string FTextWideCtorBody = Settings::Internal::bHasFTextCtor ?
+R"({
+	const int32 Len = static_cast<int32>(wcslen(Str)) + 1;
+	wchar_t* Buf = static_cast<wchar_t*>(FMemory::Malloc(static_cast<uint64_t>(Len) * sizeof(wchar_t)));
+	for (int32 i = 0; i < Len; ++i)
+		Buf[i] = Str[i];
+	FString Owning(Buf, Len, Len);
+	InSDKUtils::CallGameFunction(reinterpret_cast<void(*)(FText*, FString*)>(InSDKUtils::GetImageBase() + Offsets::FTextCtorFString), this, &Owning);
+})" :
+R"({
+	*this = UKismetTextLibrary::Conv_NameToText(BasicFilesImpleUtils::StringToName(Str));
+})";
+
+	const std::string FTextNarrowCtorBody = Settings::Internal::bHasFTextCtor ?
+R"({
+	int32 Len = 0;
+	while (Str[Len] != '\0')
+		++Len;
+	++Len;
+	wchar_t* Buf = static_cast<wchar_t*>(FMemory::Malloc(static_cast<uint64_t>(Len) * sizeof(wchar_t)));
+	for (int32 i = 0; i < Len; ++i)
+		Buf[i] = static_cast<wchar_t>(static_cast<unsigned char>(Str[i]));
+	FString Owning(Buf, Len, Len);
+	InSDKUtils::CallGameFunction(reinterpret_cast<void(*)(FText*, FString*)>(InSDKUtils::GetImageBase() + Offsets::FTextCtorFString), this, &Owning);
+})" :
+R"({
+	*this = UKismetTextLibrary::Conv_NameToText(FName(Str));
+})";
+
 	FText.Functions =
 	{
+		PredefinedFunction {
+			.CustomComment = "", .ReturnType = "", .NameWithParams = "FText() = default;", .Body = "",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction {
+			.CustomComment = "Construct from wide string",
+			.ReturnType = "", .NameWithParams = "FText(const wchar_t* Str)", .Body = FTextWideCtorBody,
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "Construct from narrow string (widened as Latin-1; intended for ASCII)",
+			.ReturnType = "", .NameWithParams = "FText(const char* Str)", .Body = FTextNarrowCtorBody,
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = false
+		},
 		PredefinedFunction {
 			.CustomComment = "",
 			.ReturnType = "const class FString&", .NameWithParams = "GetStringRef()", .Body =
@@ -7298,6 +7369,21 @@ namespace UC
 			Data = const_cast<wchar_t*>(Str);
 			NumElements = NullTerminatedLength;
 			MaxElements = NullTerminatedLength;
+		}
+
+		/* Owning copy from a narrow string (widened as Latin-1; intended for ASCII). Unlike the
+		   const wchar_t* view above this allocates, so free it with FMemory::Free when done. */
+		FString(const char* Str)
+		{
+			int32 Len = 0;
+			while (Str[Len] != '\0')
+				++Len;
+
+			Reserve(Len + 1);
+			for (int32 i = 0; i < Len; ++i)
+				Data[i] = static_cast<wchar_t>(static_cast<unsigned char>(Str[i]));
+			Data[Len] = L'\0';
+			NumElements = Len + 1;
 		}
 
 		FString(wchar_t* Str, int32 Num, int32 Max)

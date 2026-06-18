@@ -178,72 +178,134 @@ static uintptr_t GetKismetExecAddress(const char* const FunctionName)
 }
 
 /*
-* Joint resolver for FName::FName(const wchar_t*) and FText::FText(FString&&) / FText::FromString.
+* FName::FName(const wchar_t*, EFindName) — native string->FName ctor.
 *
-* execConv_StringToName and execConv_StringToText share their UHT prologue (P_GET_PROPERTY(FStrProperty)),
-* so any "first reasonable call" heuristic locks both onto the same shared helper. Instead we collect the
-* first N calls from each exec and pick the first index where they differ.
+* Reached from the reflected exec UFunction 'Conv_StringToName' (100% findable by name). Inside that
+* stub the ctor is invoked with EFindName::FNAME_Add (== 1) as its 3rd argument, so we anchor on the
+* 'mov r8d, 1' immediate that precedes the call — semantically invariant, unlike picking by call
+* order (the stub also calls a GC/lock helper, FFrame::Step/StepExplicitProperty and FMemory::Free,
+* and which branch runs shifts the call indices). Decoupled from the FText finder.
 */
-static void ResolveNameAndTextCtorsByDiff()
+void Off::InSDK::Name::InitFNameCtorWchar()
 {
 #ifdef PLATFORM_WINDOWS
 #if defined(_WIN64)
-	// Idempotent — both Init functions route through this.
-	static bool bAttempted = false;
-	if (bAttempted)
-		return;
-	bAttempted = true;
-
 	const uintptr_t NameExec = GetKismetExecAddress("Conv_StringToName");
-	const uintptr_t TextExec = GetKismetExecAddress("Conv_StringToText");
-	if (!NameExec || !TextExec)
+	if (!NameExec)
 	{
-		std::cerr << "FName/FText ctors: Conv_StringToName or Conv_StringToText UFunction not found, skipping.\n";
+		std::cerr << "FName ctor: Conv_StringToName UFunction not found, skipping.\n";
 		return;
 	}
 
-	constexpr int32_t kMaxCalls = 8;
-	uintptr_t NameCalls[kMaxCalls] = {};
-	uintptr_t TextCalls[kMaxCalls] = {};
-
-	for (int32_t i = 0; i < kMaxCalls; ++i)
+	// 41 B8 01 00 00 00 = mov r8d, 1 (EFindName::FNAME_Add). The compiler hoists this above the call
+	// (observed ~0x1C bytes earlier, with setnz/add/cmp/mov/cmovnz in between), so DON'T require it to
+	// be adjacent to the E8 — anchor on the immediate, then resolve the first 'call rel32' that follows.
+	void* const Hit = Platform::FindPatternInRange("41 B8 01 00 00 00", NameExec, 0x150);
+	if (!Hit)
 	{
-		NameCalls[i] = Architecture_x86_64::GetRipRelativeCalledFunction(NameExec, i + 1, nullptr);
-		TextCalls[i] = Architecture_x86_64::GetRipRelativeCalledFunction(TextExec, i + 1, nullptr);
-	}
-
-	const uint64 base = Platform::GetModuleBase();
-
-	for (int32_t i = 0; i < kMaxCalls; ++i)
-	{
-		const uintptr_t N = NameCalls[i];
-		const uintptr_t T = TextCalls[i];
-
-		if (!N || !T || N == T)
-			continue;
-		if (!Platform::IsAddressInProcessRange(N) || !Platform::IsAddressInProcessRange(T))
-			continue;
-
-		Off::InSDK::Name::FNameCtorWcharOffset = static_cast<int32>(N - base);
-		Off::InSDK::Text::FTextCtorFStringOffset = static_cast<int32>(T - base);
-		Settings::Internal::bHasFNameCtorWchar = true;
-		Settings::Internal::bHasFTextCtor = true;
-
-		std::cerr << std::format(
-			"FName/FText ctors (call-diff at index {}): FName=0x{:X}, FText=0x{:X}\n",
-			i + 1,
-			Off::InSDK::Name::FNameCtorWcharOffset,
-			Off::InSDK::Text::FTextCtorFStringOffset);
+		std::cerr << "FName ctor: EFindName immediate not found, override manually.\n";
 		return;
 	}
 
-	std::cerr << "FName/FText ctors: no diverging call found, override manually.\n";
+	const uintptr_t Ctor = Architecture_x86_64::GetRipRelativeCalledFunction(reinterpret_cast<uintptr_t>(Hit), 1, nullptr);
+	if (!Platform::IsAddressInProcessRange(Ctor))
+	{
+		std::cerr << "FName ctor: resolved call target out of range, override manually.\n";
+		return;
+	}
+
+	Off::InSDK::Name::FNameCtorWcharOffset = static_cast<int32>(Ctor - Platform::GetModuleBase());
+	Settings::Internal::bHasFNameCtorWchar = true;
+	std::cerr << std::format("FName::FName(const wchar_t*, EFindName) (EFindName anchor): 0x{:X}\n",
+		Off::InSDK::Name::FNameCtorWcharOffset);
 #endif
 #endif
 }
 
-void Off::InSDK::Name::InitFNameCtorWchar() { ResolveNameAndTextCtorsByDiff(); }
-void Off::InSDK::Text::InitFTextCtorFString() { ResolveNameAndTextCtorsByDiff(); }
+/*
+* FText-from-FString primitive (the FText(FString&&) / CultureInvariant builder) — native string->FText.
+*
+* UE5+ has no 'Conv_StringToText' UFunction to anchor on, and the Conv_*ToText helpers use FText::Format
+* (format strings), not this. So we reach it from the reflected 'Conv_NameToText' exec, whose call chain
+* is: execConv_NameToText -> Conv_NameToText -> (FName::ToString, then) the FString->FText builder
+* sub_141257000. We walk that call-subtree (FindFunctionEnd-bounded so a scan can't bleed into an
+* adjacent function) and return the first callee that both allocates an FTextHistory_Base (operator
+* new(0x38)) and flags its result CultureInvariant (or dword[reg+8], 2). See IsFTextFromStringPrimitive
+* for why we match the 0x02 flag (not the FromName-only 0x12). Decoupled from the FName finder.
+*/
+static bool IsFTextFromStringPrimitive(uintptr_t Fn)
+{
+	if (!Platform::IsAddressInProcessRange(Fn))
+		return false;
+
+	const uintptr_t End = Architecture_x86_64::FindFunctionEnd(Fn, 0x800);
+	if (End <= Fn || (End - Fn) > 0x800)
+		return false; // can't bound the body safely -> don't risk a false positive
+
+	const uintptr_t Range = End - Fn;
+
+	// The FText-from-FString primitive that Conv_NameToText reaches allocates an FTextHistory_Base
+	// (operator new(0x38) = 'mov ecx, 0x38' = B9 38 00 00 00) and flags the result CultureInvariant
+	// ('or dword[reg+8], 2' = 83 ?? 08 02). NOTE: the reflected Conv_NameToText path hits the
+	// CultureInvariant-ONLY variant (flag 0x02); the CultureInvariant|Transient variant (0x12) is only
+	// reachable via FText::FromName, which Conv_NameToText does not call. Requiring BOTH the 0x38 alloc
+	// and the flag-set keeps the (looser) 0x02 immediate from matching the GC/FFrame helpers that are
+	// also reachable from the exec stub.
+	return Platform::FindPatternInRange("83 ?? 08 02", Fn, Range) != nullptr
+		&& Platform::FindPatternInRange("B9 38 00 00 00", Fn, Range) != nullptr;
+}
+
+static uintptr_t FindFTextFromString(uintptr_t Fn, int32 Depth)
+{
+	if (!Platform::IsAddressInProcessRange(Fn))
+		return 0x0;
+
+	if (IsFTextFromStringPrimitive(Fn))
+		return Fn;
+
+	if (Depth <= 0)
+		return 0x0;
+
+	for (int32 k = 1; k <= 8; ++k)
+	{
+		const uintptr_t Child = Architecture_x86_64::GetRipRelativeCalledFunction(Fn, k, nullptr);
+		if (!Child || Child == Fn)
+			continue;
+
+		const uintptr_t Found = FindFTextFromString(Child, Depth - 1);
+		if (Found)
+			return Found;
+	}
+
+	return 0x0;
+}
+
+void Off::InSDK::Text::InitFTextCtorFString()
+{
+#ifdef PLATFORM_WINDOWS
+#if defined(_WIN64)
+	const uintptr_t Exec = GetKismetExecAddress("Conv_NameToText");
+	if (!Exec)
+	{
+		std::cerr << "FText::FromString: Conv_NameToText UFunction not found, skipping.\n";
+		return;
+	}
+
+	// exec -> Conv_NameToText -> FString->FText builder (sub_141257000) — up to 3 hops deep
+	const uintptr_t FromString = FindFTextFromString(Exec, 3);
+	if (!FromString)
+	{
+		std::cerr << "FText::FromString: culture-invariant flag-set anchor not found, override manually.\n";
+		return;
+	}
+
+	Off::InSDK::Text::FTextCtorFStringOffset = static_cast<int32>(FromString - Platform::GetModuleBase());
+	Settings::Internal::bHasFTextCtor = true;
+	std::cerr << std::format("FText::FromString (Flags|=0x12 anchor): 0x{:X}\n",
+		Off::InSDK::Text::FTextCtorFStringOffset);
+#endif
+#endif
+}
 
 /*
 * UGameEngine::Tick — anchored off UGameEngine::HandleBrowseToDefaultMapFailure.
