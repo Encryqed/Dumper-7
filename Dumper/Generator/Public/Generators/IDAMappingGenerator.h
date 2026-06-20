@@ -1,14 +1,26 @@
 #pragma once
 
+#include "Wrappers/StructWrapper.h"
+#include "Wrappers/EnumWrapper.h"
+#include "Wrappers/MemberWrappers.h"
+
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include "Unreal/ObjectArray.h"
 #include "PredefinedMembers.h"
 
+#include "IDAMappingLayouts.h"
 
 class IDAMappingGenerator
 {
+private:
+    using StreamType = std::ofstream;
+
+private:
+    static inline uint64 NameCounter = 0x0;
+
 public:
     static inline PredefinedMemberLookupMapType PredefinedMembers;
 
@@ -17,9 +29,6 @@ public:
 
     static inline fs::path MainFolder;
     static inline fs::path Subfolder;
-
-private:
-    using StreamType = std::ofstream;
 
 private:
     template<typename InStreamType, typename T>
@@ -35,18 +44,31 @@ private:
     }
 
 private:
+    static IDAMappingsLayouts::StringOffset AddNameToData(std::stringstream& NameTable, const std::string& Name);
+
     static std::string MangleFunctionName(const std::string& ClassName, const std::string& FunctionName);
+    static std::string MangleUFunctionName(const std::string& ClassName, const std::string& FunctionName);
+
+    static std::string GetIDACppType(const PropertyWrapper& Member, bool& OutIsPtr);
+    static std::string GetIDACppTypeForProperty(UEProperty Property, bool& OutIsPtr);
+
+    static std::string GetStructPrefixedName(const StructWrapper& Struct);
+    static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
 
 private:
-    static void WriteReadMe(StreamType& ReadMe);
+    static void GenerateVTableName(std::stringstream& ExecFuncData, std::stringstream& NameData, UEObject DefaultObject);
+    static void GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& NameData, UEClass Class);
 
-    static void GenerateVTableName(StreamType& IdmapFile, UEObject DefaultObject);
-    static void GenerateClassFunctions(StreamType& IdmapFile, UEClass Class);
+    static void GenerateSingleMember(const PropertyWrapper& Member, std::stringstream& StructData, std::stringstream& NameData, int32 StructSize);
+    static void GenerateSingleStruct(const StructWrapper& Struct, std::stringstream& StructData, std::stringstream& NameData);
+    static void GenerateSingleEnum(const EnumWrapper& Enum, std::stringstream& EnumData, std::stringstream& NameData);
+
+    static uint32 GeneratePredefinedTypes(std::stringstream& StructData, std::stringstream& NameData);
+    static uint32 GenerateInternalEnums(std::stringstream& EnumData, std::stringstream& NameData);
 
 public:
     static void Generate();
 
-    /* Always empty, there are no predefined members for IDAMappings */
-    static void InitPredefinedMembers() { }
-    static void InitPredefinedFunctions() { }
+    static void InitPredefinedMembers();
+    static void InitPredefinedFunctions() {}
 };

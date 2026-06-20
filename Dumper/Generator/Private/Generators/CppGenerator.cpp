@@ -1815,7 +1815,7 @@ void CppGenerator::InitPredefinedMembers()
 		Struct.Size = LastMember.Offset + LastMember.Size;
 	};
 
-	// Initialize core predefined members shared with IDAMappingV2Generator
+	// Initialize core predefined members shared with IDAMappingGenerator
 	InitCorePredefinedMembers(PredefinedMembers);
 
 	// Add CppGenerator specific members

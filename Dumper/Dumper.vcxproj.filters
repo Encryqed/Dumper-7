@@ -41,9 +41,6 @@
     <ClCompile Include="Generator\Private\Generators\MappingGenerator.cpp">
       <Filter>Generator\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="Generator\Private\Generators\IDAMappingGenerator.cpp">
-      <Filter>Generator\Private\Generators</Filter>
-    </ClCompile>
     <ClCompile Include="Utils\Dumpspace\DSGen.cpp">
       <Filter>Utils\Dumpspace</Filter>
     </ClCompile>
@@ -80,7 +77,7 @@
     <ClCompile Include="Platform\Private\PlatformWindows.cpp">
       <Filter>Platform\Private</Filter>
     </ClCompile>
-    <ClCompile Include="Generator\Private\Generators\IDAMappingV2Generator.cpp">
+    <ClCompile Include="Generator\Private\Generators\IDAMappingGenerator.cpp">
       <Filter>Generator\Private\Generators</Filter>
     </ClCompile>
     <ClCompile Include="Generator\Private\SharedPredefinedMembers.cpp" />
@@ -202,9 +199,6 @@
     <ClInclude Include="Generator\Public\Generators\MappingGenerator.h">
       <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="Generator\Public\Generators\IDAMappingGenerator.h">
-      <Filter>Generator\Public\Generators</Filter>
-    </ClInclude>
     <ClInclude Include="Generator\Public\PredefinedMembers.h">
       <Filter>Generator\Public</Filter>
     </ClInclude>
@@ -268,10 +262,10 @@
     <ClInclude Include="Platform\Public\Platform.h">
       <Filter>Platform\Public</Filter>
     </ClInclude>
-    <ClInclude Include="Generator\Public\Generators\IDAMappingV2Generator.h">
+    <ClInclude Include="Generator\Public\Generators\IDAMappingGenerator.h">
       <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="Generator\Public\Generators\IDAMappingV2Layouts.h">
+    <ClInclude Include="Generator\Public\Generators\IDAMappingLayouts.h">
       <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
     <ClInclude Include="Generator\Public\SharedPredefinedMembers.h" />
