@@ -24,18 +24,15 @@ DWORD MainThread(HMODULE Module)
 	AllocConsole();
 	FILE* Dummy;
 	freopen_s(&Dummy, "CONOUT$", "w", stderr);
+	std::cerr.clear(); // clear internal error flags on cerr after redirect
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 
-	std::cerr << "Started Generation [Dumper-7]!\n";
+	std::cerr << "Initializing [Dumper-7]\n";
 
 	Settings::Config::Load();
+	Settings::Config::DelayDumperStart();
 
-	if (Settings::Config::SleepTimeout > 0)
-	{
-		std::cerr << "Sleeping for " << Settings::Config::SleepTimeout << "ms...\n";
-		Sleep(Settings::Config::SleepTimeout);
-	}
-
+	std::cerr << "Started Generation [Dumper-7]!\n";
 	auto DumpStartTime = std::chrono::high_resolution_clock::now();
 
 	Generator::InitEngineCore();
@@ -74,12 +71,23 @@ DWORD MainThread(HMODULE Module)
 
 	std::cerr << "\n\nGenerating SDK took (" << DumpTime.count() << "ms)\n\n\n";
 
+	if (Settings::Debug::bExecuteSDKTestScript)
+	{
+		/* Executes a python script to test if the SDK compiles correctly. */
+		CppGenerator::ExecuteSDKCompilationTestScript();
+	}
+
+	std::cerr << "\n\nPress F6 to unload\n\n\n";
+
 	while (true)
 	{
 		if (GetAsyncKeyState(VK_F6) & 1)
 		{
 			fclose(stderr);
-			if (Dummy) fclose(Dummy);
+			if (Dummy) 
+			{
+				fclose(Dummy);
+			}
 			FreeConsole();
 
 			FreeLibraryAndExitThread(Module, 0);

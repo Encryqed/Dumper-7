@@ -362,6 +362,11 @@ void Off::Init()
 	Off::UEnum::Names = OffsetFinder::FindEnumNamesOffset();
 	std::cerr << std::format("Off::UEnum::Names: 0x{:X}\n", Off::UEnum::Names) << std::endl;
 
+	Off::UEnum::UnderlyingType = OffsetFinder::FindEnumUnderlayingTypeOffset();
+
+	if (Settings::Internal::bHasUnderlayingTypeInUEnum)
+		std::cerr << std::format("Off::UEnum::UnderlyingType: 0x{:X}\n", Off::UEnum::UnderlyingType) << std::endl;
+
 	Off::UFunction::FunctionFlags = OffsetFinder::FindFunctionFlagsOffset();
 	std::cerr << std::format("Off::UFunction::FunctionFlags: 0x{:X}\n", Off::UFunction::FunctionFlags);
 
@@ -438,6 +443,9 @@ void Off::Init()
 	Off::OptionalProperty::ValueProperty = Off::InSDK::Properties::PropertySize;
 
 	Off::ClassProperty::MetaClass = Off::ObjectProperty::PropertyClass + sizeof(void*); //0x8 inheritance from ObjectProperty
+
+	Off::FInstancedStruct::ScriptStruct = 0x00;
+	Off::FInstancedStruct::StructMemory = Off::FInstancedStruct::ScriptStruct + sizeof(void*);
 }
 
 void PropertySizes::Init()

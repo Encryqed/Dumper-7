@@ -191,6 +191,7 @@ namespace Off
 	namespace UEnum
 	{
 		inline int32 Names;
+		inline int32 UnderlyingType = -1;
 	}
 
 	namespace UStruct
@@ -216,6 +217,12 @@ namespace Off
 		inline int32 CastFlags;
 		inline int32 ClassDefaultObject;
 		inline int32 ImplementedInterfaces;
+	}
+
+	namespace FInstancedStruct
+	{
+		inline int32 ScriptStruct;
+		inline int32 StructMemory;
 	}
 
 	namespace Property

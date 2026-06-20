@@ -72,14 +72,35 @@ USDT (Tron (TRC20)): `TWHDoUr2H52Gb2WYdZe7z1Ct316gMg64ps`
 ## Config File
 You can optionally dynamically change settings through a `Dumper-7.ini` file, instead of modifying `Settings.h`.
 - **Per-game**: Create `Dumper-7.ini` in the same directory as the game's exe file.
-- **Global**: Create `Dumper-7.ini` under `C:\Dumper-7`
+- **Global**: Create `Dumper-7.ini` under `C:\Dumper-7`.
+- Profiles do not merge. In other words your global profile does not change the default settings.
+  
+- **SleepTimeout:**
+  - If non-zero dump will start after a delay
+  - Values under 1000 assumed to be in seconds, otherwise in milliseconds
+  - If both SleepTimeout and DumpKey are set whichever occurs first will trigger the dump
+- **DumpKey:** 
+  - If non-zero dump will start upon key press
+  - Value should be a hex or decimal integer corresponding to a [virtual keycode](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes).
+  - Hex integers should start with 0x.
+- **SDKNamespaceName:**
+  - Changes the namespace in the generated files.
+- **SDKGenerationPath:**
+  - Generate output at the specified path instead of `C:/Dumper-7`.
+  - Paths are relative to game executable unless you use an absolute path including drive letter.
+  - Use `..` to access parent directories. Do not include quotes.
 
-Example:
+
+### Example:
 ```ini
 [Settings]
-SleepTimeout=100
+SleepTimeout=30
 SDKNamespaceName=MyOwnSDKNamespace
+DumpKey=0x77
+SDKGenerationPath=./
 ```
+- These settings would generate the SDK in the same folder as the game and would start after 30 seconds or upon pressing F8.
+
 ## Issues
 
 If you have any issues using the Dumper, please create an Issue on this repository\
@@ -88,7 +109,10 @@ and explain the problem **in detail**.
 - Should your game be crashing while dumping, attach Visual Studios' debugger to the game and inject the Dumper-7.dll in debug-configuration.
 Then include screenshots of the exception causing the crash, a screenshot of the callstack, as well as the console output.
 
-- Should there be any compiler-errors in the SDK please send screenshots of them. Please note that **only build errors** are considered errors, as Intellisense often reports false positives.
-Make sure to always send screenshots of the code causing the first error, as it's likely to cause a chain-reaction of errors.
+- For compiler-errors in the SDK (first verify you followed all of the steps from [UsingTheSDK](UsingTheSDK.md) correctly):
+  1. Send screenshots of the errors in the error-window, make sure to select **`Build Only`**, not `Build + Intellisense`, as Intellisense often reports false positives.
+  2. Also send a screenshot of the first error in the **Output**-window (NOT the error-window) and one of the code location causing that exact error.
+  3. If you're able to fix the error (eg. missing padding in predefined struct, or incorrect use of macro name) please still report it in an issue with the fix included.
+  4. If you're not able to resolve the issue yourself please upload the entire generated folder (not just CppSDK) somewhere and attach the link to your issue.
 
 - Should your own dll-project crash, verify your code thoroughly to make sure the error actually lies within the generated SDK.

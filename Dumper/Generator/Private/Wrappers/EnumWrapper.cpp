@@ -38,6 +38,11 @@ uint8 EnumWrapper::GetUnderlyingTypeSize() const
     return InfoHandle.GetUnderlyingTypeSize();
 }
 
+bool EnumWrapper::IsUnderlyingTypeSigned() const
+{
+    return InfoHandle.IsUnderlayingTypeSigned();
+}
+
 int32 EnumWrapper::GetNumMembers() const
 {
     return InfoHandle.GetNumMembers();
