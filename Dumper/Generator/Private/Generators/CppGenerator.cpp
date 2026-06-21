@@ -4641,7 +4641,7 @@ public:
 		return ClassPtr;
 	}
 
-	template<typename Target, typename = std::enable_if<std::is_base_of_v<Target, ClassType>, bool>::type>
+	template<typename Target, typename = typename std::enable_if<std::is_base_of_v<Target, ClassType>, bool>::type>
 	inline operator TSubclassOf<Target>() const
 	{
 		return ClassPtr;
@@ -5497,6 +5497,14 @@ inline EEnumClassType& operator|=(EEnumClassType& Left, EEnumClassType Right)			
     using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
 																																							\
     reinterpret_cast<EnumUnderlayingType&>(Left) |= static_cast<EnumUnderlayingType>(Right);																\
+	return Left;																																			\
+}																																										\
+																																										\
+inline EEnumClassType& operator|=(EEnumClassType& Left, std::underlying_type<EEnumClassType>::type Right)													\
+{																																										\
+	using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
+																																							\
+	reinterpret_cast<EnumUnderlayingType&>(Left) |= Right;																									\
 	return Left;																																			\
 }																																										\
 																																										\
@@ -7171,7 +7179,7 @@ namespace UtfN
 					typename = decltype(std::begin(std::declval<container_type>())), // Has begin
 					typename = decltype(std::end(std::declval<container_type>())),   // Has end
 					typename iterator_deref_type = decltype(*std::end(std::declval<container_type>())), // Iterator can be dereferenced
-					typename = std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char_type::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+					typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char_type::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 				>
 				explicit UTF_CONSTEXPR utf_char_iterator_base(container_type& Container)
 					: CurrentIterator(std::begin(Container)), NextCharStartIterator(std::begin(Container)), EndIterator(std::end(Container))
@@ -7630,12 +7638,12 @@ namespace UtfN
 	template<
 		typename codepoint_iterator_type,
 		typename iterator_deref_type = decltype(*std::declval<codepoint_iterator_type>()), // Iterator can be dereferenced
-		typename = typename std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char8::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+		typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char8::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 	>
 	class utf8_iterator : public UtfImpl::Iterator::utf_char_iterator_base<utf8_iterator<codepoint_iterator_type>, codepoint_iterator_type, utf_char8>
 	{
 	private:
-		typedef typename utf8_iterator<codepoint_iterator_type> own_type;
+		typedef utf8_iterator<codepoint_iterator_type> own_type;
 
 		friend UtfImpl::Iterator::utf_char_iterator_base_child_acessor<own_type>;
 
@@ -7675,12 +7683,12 @@ namespace UtfN
 	template<
 		typename codepoint_iterator_type,
 		typename iterator_deref_type = decltype(*std::declval<codepoint_iterator_type>()), // Iterator can be dereferenced
-		typename = typename std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char16::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+		typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char16::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 	>
 	class utf16_iterator : public UtfImpl::Iterator::utf_char_iterator_base<utf16_iterator<codepoint_iterator_type>, codepoint_iterator_type, utf_char16>
 	{
 	private:
-		typedef typename utf16_iterator<codepoint_iterator_type> own_type;
+		typedef utf16_iterator<codepoint_iterator_type> own_type;
 
 		friend UtfImpl::Iterator::utf_char_iterator_base_child_acessor<own_type>;
 
@@ -7731,12 +7739,12 @@ namespace UtfN
 	template<
 		typename codepoint_iterator_type,
 		typename iterator_deref_type = decltype(*std::declval<codepoint_iterator_type>()), // Iterator can be dereferenced
-		typename = typename std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char32::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+		typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char32::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 	>
 	class utf32_iterator : public UtfImpl::Iterator::utf_char_iterator_base<utf32_iterator<codepoint_iterator_type>, codepoint_iterator_type, utf_char32>
 	{
 	private:
-		typedef typename utf32_iterator<codepoint_iterator_type> own_type;
+		typedef utf32_iterator<codepoint_iterator_type> own_type;
 
 		friend UtfImpl::Iterator::utf_char_iterator_base_child_acessor<own_type>;
 
@@ -8710,6 +8718,7 @@ def build_toolchain(
     log_file: Path,
     sdk_root: Path,
     toolset: str | None = None,
+    generator_instance: str | None = None,
 ) -> bool:
     if build_dir.exists():
         shutil.rmtree(build_dir)
@@ -8733,6 +8742,8 @@ def build_toolchain(
     ]
     if toolset:
         configure.extend(["-T", toolset])
+    if generator_instance:
+        configure.append(f"-DCMAKE_GENERATOR_INSTANCE={generator_instance}")
 
     if not run_logged(configure, log_file, source_dir):
         return False
@@ -8747,6 +8758,37 @@ def build_toolchain(
         "SDKBuildTest",
     ]
     return run_logged(build, log_file, source_dir)
+
+
+def find_clangcl_instance() -> str | None:
+    """Return a VS install path that has the ClangCL toolset, or None.
+
+    On machines with multiple VS installs (e.g. BuildTools + Community), CMake may
+    otherwise select one without the ClangCL toolset. vswhere ships with every VS install.
+    """
+    program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+    vswhere = Path(program_files_x86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    if not vswhere.is_file():
+        return None
+
+    try:
+        result = subprocess.run(
+            [
+                str(vswhere),
+                "-latest",
+                "-products", "*",
+                "-requires", "Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset",
+                "-property", "installationPath",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+
+    found = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return found[0] if found else None
 
 
 def main() -> int:
@@ -8782,6 +8824,12 @@ def main() -> int:
         log_file=logs_dir / "MSVC.log",
         sdk_root=sdk_root,
     )
+
+    # On multi-VS-install machines, pin an install that has the ClangCL toolset so CMake
+    # doesn't pick one without it.
+    clang_instance = find_clangcl_instance()
+    if clang_instance is None:
+        print("Note: no VS install with the ClangCL toolset found via vswhere; the Clang build may fail. Install the 'C++ Clang Compiler for Windows' + 'MSBuild support for LLVM (clang-cl) toolset' VS components.")
     clang_ok = build_toolchain(
         name="ClangCL",
         source_dir=test_root,
@@ -8790,6 +8838,7 @@ def main() -> int:
         log_file=logs_dir / "Clang.log",
         sdk_root=sdk_root,
         toolset="ClangCL",
+        generator_instance=clang_instance,
     )
 
     print(f"MSVC:   {'succeeded' if msvc_ok else 'failed'}")

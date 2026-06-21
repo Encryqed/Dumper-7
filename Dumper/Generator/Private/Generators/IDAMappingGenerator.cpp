@@ -883,7 +883,7 @@ void IDAMappingGenerator::Generate()
 	Header.ExecFunctionDataOffset = CurrentOffset;
 
 	// Write to file
-	std::string MappingsFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".usmap");
+	std::string MappingsFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".idmap");
 
 	FileNameHelper::MakeValidFileName(MappingsFileName);
 
