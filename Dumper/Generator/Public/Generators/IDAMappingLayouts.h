@@ -73,7 +73,8 @@ namespace IDAMappingsLayouts
 
 	enum class EIDAMappingsVersion : uint8_t
 	{
-		Initial = 1
+		Initial = 1,
+		WithExecSignatures = 2
 	};
 
 	struct IDAMappingsHeader
@@ -96,6 +97,8 @@ namespace IDAMappingsLayouts
 
 		uint32_t NumExecFunctions;
 		InternalOffset ExecFunctionDataOffset;
+
+		InternalOffset ExecFuncSignatureDataOffset;
 	};
 
 #pragma pack(pop)
