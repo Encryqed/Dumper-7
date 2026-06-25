@@ -1010,8 +1010,6 @@ void IDAMappingGenerator::Generate()
 	Header.ExecFunctionDataOffset = CurrentOffset;
 	CurrentOffset += static_cast<uint32_t>(ExecFuncDataStr.size());
 
-	Header.ExecFuncSignatureDataOffset = CurrentOffset;
-
 	// Write to file
 	std::string MappingsFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".idmap");
 

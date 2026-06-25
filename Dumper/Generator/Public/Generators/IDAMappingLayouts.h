@@ -113,10 +113,8 @@ namespace IDAMappingsLayouts
 
 		uint32_t NumExecFunctions;
 		InternalOffset ExecFunctionDataOffset;
-
-		InternalOffset ExecFuncSignatureDataOffset;
 	};
-
+	
 #pragma pack(pop)
 
 }
