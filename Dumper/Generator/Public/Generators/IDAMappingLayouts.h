@@ -54,6 +54,7 @@ namespace IDAMappingsLayouts
 	struct ExecFunc
 	{
 		StringOffset MangledName;
+		// ???
 		OffsetType OffsetRelativeToImagebase;
 	};
 

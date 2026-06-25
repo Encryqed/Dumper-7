@@ -44,6 +44,13 @@ private:
     }
 
 private:
+	static void WriteMemberToStream(std::stringstream& MemberStream, const IDAMappingsLayouts::Member& Member);
+	static void WriteNamedVar(std::stringstream& MemberStream, const IDAMappingsLayouts::NamedVariable& Variable);
+	static void WriteExecFunctionToStream(std::stringstream& ExecFuncStream, const IDAMappingsLayouts::ExecFunc& ExecFunc);
+	static void WriteEnumToStream(std::stringstream& EnumStream, const IDAMappingsLayouts::Enum& Enum);
+	static void WriteStructToStream(std::stringstream& StructStream, const IDAMappingsLayouts::Struct& Struct);
+
+private:
     static IDAMappingsLayouts::StringOffset AddNameToData(std::stringstream& NameTable, const std::string& Name);
 
     static std::string MangleFunctionName(const std::string& ClassName, const std::string& FunctionName);

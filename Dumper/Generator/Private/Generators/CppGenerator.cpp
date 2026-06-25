@@ -201,7 +201,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 	return OutMembers;
 }
 
-CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrapper& Func)
+CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrapper& Func, const bool bAddExplicitThis)
 {
 	FunctionInfo RetFuncInfo;
 
@@ -223,6 +223,28 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 	bool bIsFirstParam = true;
 
 	RetFuncInfo.UnrealFuncParams.reserve(5);
+
+	if (bAddExplicitThis)
+	{
+		ParamInfo ThisParamInfo;
+
+		ThisParamInfo.bIsConst = Func.IsConst();
+		ThisParamInfo.PropFlags = EPropertyFlags::Parm | EPropertyFlags::ReferenceParm;
+
+		if (ThisParamInfo.bIsConst)
+			ThisParamInfo.PropFlags |= EPropertyFlags::ConstParm;
+
+		ThisParamInfo.bIsOutPtr = false;
+		ThisParamInfo.bIsOutRef = false;
+		ThisParamInfo.bIsMoveParam = false;
+		ThisParamInfo.bIsRetParam = false;
+		ThisParamInfo.Type = "const " + GetStructPrefixedName(Func.AsStruct()) + "*";
+		ThisParamInfo.Name = "This";
+		RetFuncInfo.UnrealFuncParams.push_back(ThisParamInfo);
+		RetFuncInfo.FuncNameWithParams += ThisParamInfo.Type + " " + ThisParamInfo.Name;
+
+		bIsFirstParam = false;
+	}
 
 	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
 	{

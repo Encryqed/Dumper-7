@@ -8,6 +8,70 @@
 #include <sstream>
 #include <unordered_map>
 
+/* For function definition generation. */
+#include "Generators/CppGenerator.h"
+
+class pp
+{
+public:
+	static CppGenerator::FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func)
+	{
+		return CppGenerator::GenerateFunctionInfo(Func, true);
+	}
+};
+
+
+void IDAMappingGenerator::WriteMemberToStream(std::stringstream& MemberStream, const IDAMappingsLayouts::Member& Member)
+{
+	WriteToStream(MemberStream, Member.Type);
+	WriteToStream(MemberStream, Member.Name);
+
+	WriteToStream(MemberStream, Member.Offset);
+	WriteToStream(MemberStream, Member.Size);
+	WriteToStream(MemberStream, Member.ArrayDim);
+
+	WriteToStream(MemberStream, Member.bIsPointer);
+	WriteToStream(MemberStream, Member.BitFieldBitCount);
+}
+
+void IDAMappingGenerator::WriteNamedVar(std::stringstream& MemberStream, const IDAMappingsLayouts::NamedVariable& Variable)
+{
+	WriteToStream(MemberStream, Variable.VariableOffset);
+	WriteToStream(MemberStream, Variable.Type);
+	WriteToStream(MemberStream, Variable.Name);
+}
+
+void IDAMappingGenerator::WriteExecFunctionToStream(std::stringstream& ExecFuncStream, const IDAMappingsLayouts::ExecFunc& ExecFunc)
+{
+	WriteToStream(ExecFuncStream, ExecFunc.MangledName);
+	WriteToStream(ExecFuncStream, ExecFunc.OffsetRelativeToImagebase);
+}
+
+void IDAMappingGenerator::WriteEnumToStream(std::stringstream& EnumStream, const IDAMappingsLayouts::Enum& Enum)
+{
+	WriteToStream(EnumStream, Enum.Name);
+	WriteToStream(EnumStream, Enum.UnderlyingTypeSizeBytes);
+	WriteToStream(EnumStream, Enum.NumValues);
+	for (int32 i = 0; i < Enum.NumValues; ++i)
+	{
+		WriteToStream(EnumStream, Enum.Values[i].Name);
+		WriteToStream(EnumStream, Enum.Values[i].Value);
+	}
+}
+void IDAMappingGenerator::WriteStructToStream(std::stringstream& StructStream, const IDAMappingsLayouts::Struct& Struct)
+{
+	WriteToStream(StructStream, Struct.Name);
+	WriteToStream(StructStream, Struct.SuperName);
+	WriteToStream(StructStream, Struct.Size);
+	WriteToStream(StructStream, Struct.Alignment);
+	WriteToStream(StructStream, Struct.NumMembers);
+	for (int32 i = 0; i < Struct.NumMembers; ++i)
+	{
+		WriteMemberToStream(StructStream, Struct.Members[i]);
+	}
+}
+
+
 std::string IDAMappingGenerator::MangleFunctionName(const std::string& ClassName, const std::string& FunctionName)
 {
 	return "_ZN" + std::to_string(ClassName.length()) + ClassName + std::to_string(FunctionName.length()) + FunctionName + "Ev";
@@ -114,14 +178,22 @@ static std::string ConvertPredefinedTypeForIDA(std::string Type, bool& OutIsPtr)
 			Type.pop_back();
 	}
 
-	if (Type == "uint8")						return "unsigned __int8";
-	if (Type == "int8")							return "__int8";
-	if (Type == "uint16")						return "unsigned __int16";
-	if (Type == "int16")						return "__int16";
-	if (Type == "int32")						return "int";
-	if (Type == "uint32")						return "unsigned int";
-	if (Type == "int64")						return "__int64";
-	if (Type == "uint64")						return "unsigned __int64";
+	if (Type == "uint8")
+		return "unsigned __int8";
+	if (Type == "int8")	
+		return "__int8";
+	if (Type == "uint16")
+		return "unsigned __int16";
+	if (Type == "int16")
+		return "__int16";
+	if (Type == "int32")
+		return "int";
+	if (Type == "uint32")
+		return "unsigned int";
+	if (Type == "int64")
+		return "__int64";
+	if (Type == "uint64")
+		return "unsigned __int64";
 
 	// Strip "enum class " prefix
 	if (Type.starts_with("enum class "))
@@ -543,27 +615,18 @@ uint32 IDAMappingGenerator::GeneratePredefinedTypes(std::stringstream& StructDat
 
 void IDAMappingGenerator::GenerateSingleMember(const PropertyWrapper& Member, std::stringstream& StructData, std::stringstream& NameData, int32 StructSize)
 {
-	bool bIsPtr = false;
-	const IDAMappingsLayouts::StringOffset TypeName = AddNameToData(NameData, GetIDACppType(Member, bIsPtr));
-	const IDAMappingsLayouts::StringOffset Name = AddNameToData(NameData, Member.GetName());
+	IDAMappingsLayouts::Member MemberLayout;
+	MemberLayout.Type = AddNameToData(NameData, GetIDACppType(Member, MemberLayout.bIsPointer));
+	MemberLayout.Name = AddNameToData(NameData, Member.GetName());
+	MemberLayout.Offset = Member.GetOffset();
+	MemberLayout.Size = Member.GetSize();
+	MemberLayout.ArrayDim = Member.GetArrayDim();
+	MemberLayout.BitFieldBitCount = static_cast<uint8_t>(Member.IsBitField() ? Member.GetBitIndex() : 0xFF);
 
-	const uint8_t BitIndex = Member.IsBitField() ? Member.GetBitIndex() : 0xFF;
+	if (MemberLayout.Offset + MemberLayout.Size > StructSize)
+		MemberLayout.Size = (std::max)(0, StructSize - MemberLayout.Offset);
 
-	const int32 MemberOffset = static_cast<int32>(Member.GetOffset());
-	int32 MemberSize = static_cast<int32>(Member.GetSize());
-
-	if (MemberOffset + MemberSize > StructSize)
-		MemberSize = (std::max)(0, StructSize - MemberOffset);
-
-	WriteToStream(StructData, TypeName);
-	WriteToStream(StructData, Name);
-
-	WriteToStream(StructData, MemberOffset);
-	WriteToStream(StructData, MemberSize);
-	WriteToStream(StructData, static_cast<int32>(Member.GetArrayDim()));
-
-	WriteToStream(StructData, static_cast<bool>(bIsPtr));
-	WriteToStream(StructData, static_cast<uint8_t>(BitIndex));
+	WriteMemberToStream(StructData, MemberLayout);
 }
 
 void IDAMappingGenerator::GenerateSingleStruct(const StructWrapper& Struct, std::stringstream& StructData, std::stringstream& NameData)
@@ -829,18 +892,25 @@ void IDAMappingGenerator::Generate()
 	};
 
 	WriteNamedVar(static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::ObjArray::GObjects), "TUObjectArray", "GObjects");
-	WriteNamedVar(static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::NameArray::GNames), "TNameEntryArray", "GNames");
+
+	const char* TypeName = Settings::Internal::bUseNamePool ? "TNameEntryArray" : "FNamePool";
+	WriteNamedVar(static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::NameArray::GNames), TypeName, "GNames");
 
 	if (Off::InSDK::World::GWorld != 0x0)
 		WriteNamedVar(static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::World::GWorld), "UWorld*", "GWorld");
 
 	if (Off::InSDK::ProcessEvent::PEOffset != 0x0)
-		WriteNamedVar(static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::ProcessEvent::PEOffset), "void*", "UObject::ProcessEvent");
+		WriteNamedVar(static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::ProcessEvent::PEOffset),
+			"void __fastcall (*)(UObject *This, UFunction *Function, void *Params);", "UObject::ProcessEvent");
 
 	if (Off::InSDK::Name::AppendNameToString != 0x0)
 	{
 		const char* FuncName = Off::InSDK::Name::bIsUsingAppendStringOverToString ? "FName::AppendString" : "FName::ToString";
-		WriteNamedVar(static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::Name::AppendNameToString), "void*", FuncName);
+		const char* FuncType = Off::InSDK::Name::bIsUsingAppendStringOverToString
+			? "void __fastcall (*)(const FName *This, FString *OutString);"
+			: "FString* __fastcall (*)(const FName *This) const;";
+
+		WriteNamedVar(static_cast<IDAMappingsLayouts::OffsetType>(Off::InSDK::Name::AppendNameToString), FuncType, FuncName);
 	}
 
 	if (Off::InSDK::Name::GetNameEntryFromName != 0x0)
