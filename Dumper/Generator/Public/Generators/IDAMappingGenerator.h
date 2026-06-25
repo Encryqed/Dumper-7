@@ -58,13 +58,14 @@ private:
 
     static std::string GetIDACppType(const PropertyWrapper& Member, bool& OutIsPtr);
     static std::string GetIDACppTypeForProperty(UEProperty Property, bool& OutIsPtr);
+    static std::string BuildExecFuncSignature(UEFunction Func);
 
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
 
 private:
-    static void GenerateVTableName(std::stringstream& ExecFuncData, std::stringstream& NameData, UEObject DefaultObject);
-    static void GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& NameData, UEClass Class);
+    static void GenerateVTableName(std::stringstream& ExecFuncData, std::stringstream& ExecSigData, std::stringstream& NameData, UEObject DefaultObject);
+    static void GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& ExecSigData, std::stringstream& NameData, UEClass Class);
 
     static void GenerateSingleMember(const PropertyWrapper& Member, std::stringstream& StructData, std::stringstream& NameData, int32 StructSize);
     static void GenerateSingleStruct(const StructWrapper& Struct, std::stringstream& StructData, std::stringstream& NameData);

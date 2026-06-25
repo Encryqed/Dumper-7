@@ -682,7 +682,7 @@ void IDAMappingGenerator::GenerateSingleEnum(const EnumWrapper& Enum, std::strin
 	}
 }
 
-void IDAMappingGenerator::GenerateVTableName(std::stringstream& ExecFuncData, std::stringstream& NameData, UEObject DefaultObject)
+void IDAMappingGenerator::GenerateVTableName(std::stringstream& ExecFuncData, std::stringstream& ExecSigData, std::stringstream& NameData, UEObject DefaultObject)
 {
 	const UEClass Class = DefaultObject.GetClass();
 	const UEClass Super = Class.GetSuper().Cast<UEClass>();
@@ -696,9 +696,46 @@ void IDAMappingGenerator::GenerateVTableName(std::stringstream& ExecFuncData, st
 
 	WriteToStream(ExecFuncData, NameOffset);
 	WriteToStream(ExecFuncData, Offset);
+	WriteToStream(ExecSigData, static_cast<IDAMappingsLayouts::StringOffset>(-1));
 }
 
-void IDAMappingGenerator::GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& NameData, UEClass Class)
+std::string IDAMappingGenerator::BuildExecFuncSignature(UEFunction Func)
+{
+	std::string ReturnType = "void";
+	bool bReturnIsPtr = false;
+	std::string ParamsEnc;
+
+	const StructWrapper FuncAsStruct(Func);
+	const MemberManager FuncParams = FuncAsStruct.GetMembers();
+
+	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
+	{
+		if (!Param.HasPropertyFlags(EPropertyFlags::Parm))
+			continue;
+
+		bool bParamIsPtr = false;
+		const std::string ParamType = GetIDACppType(Param, bParamIsPtr);
+
+		if (Param.IsReturnParam())
+		{
+			ReturnType = ParamType;
+			bReturnIsPtr = bParamIsPtr;
+			continue;
+		}
+
+		if (Param.HasPropertyFlags(EPropertyFlags::OutParm) || Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
+			bParamIsPtr = true;
+
+		ParamsEnc += '\x1e' + ParamType + '\x1f' + Param.GetName() + '\x1f' + (bParamIsPtr ? '1' : '0') + '\x1f' + std::to_string(Param.GetArrayDim());
+	}
+
+	const bool bIsStatic = Func.HasFlags(EFunctionFlags::Static);
+	const std::string ReturnEnc = ReturnType + '\x1f' + (bReturnIsPtr ? '1' : '0') + '\x1f' + (bIsStatic ? '1' : '0');
+
+	return ReturnEnc + ParamsEnc;
+}
+
+void IDAMappingGenerator::GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& ExecSigData, std::stringstream& NameData, UEClass Class)
 {
 	static std::unordered_map<uint32, std::string> Funcs;
 
@@ -719,6 +756,9 @@ void IDAMappingGenerator::GenerateClassFunctions(std::stringstream& ExecFuncData
 
 		WriteToStream(ExecFuncData, NameOffset);
 		WriteToStream(ExecFuncData, Offset);
+
+		const IDAMappingsLayouts::StringOffset SignatureOffset = AddNameToData(NameData, BuildExecFuncSignature(Func));
+		WriteToStream(ExecSigData, SignatureOffset);
 	}
 }
 
@@ -816,6 +856,7 @@ void IDAMappingGenerator::Generate()
 	std::stringstream EnumData;
 	std::stringstream StructData;
 	std::stringstream ExecFuncData;
+	std::stringstream ExecSigData;
 	std::stringstream NamedVarData;
 
 	uint32_t NumEnums = 0;
@@ -870,11 +911,11 @@ void IDAMappingGenerator::Generate()
 	{
 		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
 		{
-			GenerateVTableName(ExecFuncData, NameData, Obj);
+			GenerateVTableName(ExecFuncData, ExecSigData, NameData, Obj);
 		}
 		else if (Obj.IsA(EClassCastFlags::Class))
 		{
-			GenerateClassFunctions(ExecFuncData, NameData, Obj.Cast<UEClass>());
+			GenerateClassFunctions(ExecFuncData, ExecSigData, NameData, Obj.Cast<UEClass>());
 		}
 	}
 
@@ -921,6 +962,7 @@ void IDAMappingGenerator::Generate()
 	const std::string EnumDataStr = EnumData.str();
 	const std::string StructDataStr = StructData.str();
 	const std::string ExecFuncDataStr = ExecFuncData.str();
+	const std::string ExecSigDataStr = ExecSigData.str();
 	const std::string NamedVarDataStr = NamedVarData.str();
 
 	const uint32_t NumExecFunctions = static_cast<uint32_t>(ExecFuncDataStr.size() / sizeof(IDAMappingsLayouts::ExecFunc));
@@ -928,7 +970,7 @@ void IDAMappingGenerator::Generate()
 	// Build header with section offsets
 	IDAMappingsLayouts::IDAMappingsHeader Header{};
 	Header.Magic = IDAMappingsLayouts::FileMagic;
-	Header.Version = IDAMappingsLayouts::EIDAMappingsVersion::Initial;
+	Header.Version = IDAMappingsLayouts::EIDAMappingsVersion::WithExecSignatures;
 	Header.Reserved = 0;
 
 	uint32_t CurrentOffset = sizeof(IDAMappingsLayouts::IDAMappingsHeader);
@@ -951,6 +993,9 @@ void IDAMappingGenerator::Generate()
 
 	Header.NumExecFunctions = NumExecFunctions;
 	Header.ExecFunctionDataOffset = CurrentOffset;
+	CurrentOffset += static_cast<uint32_t>(ExecFuncDataStr.size());
+
+	Header.ExecFuncSignatureDataOffset = CurrentOffset;
 
 	// Write to file
 	std::string MappingsFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".idmap");
@@ -968,4 +1013,5 @@ void IDAMappingGenerator::Generate()
 	IDAMappingsFile.write(StructDataStr.data(), StructDataStr.size());
 	IDAMappingsFile.write(NamedVarDataStr.data(), NamedVarDataStr.size());
 	IDAMappingsFile.write(ExecFuncDataStr.data(), ExecFuncDataStr.size());
+	IDAMappingsFile.write(ExecSigDataStr.data(), ExecSigDataStr.size());
 }
