@@ -11,7 +11,7 @@
 /* For function definition generation. */
 #include "Generators/CppGenerator.h"
 
-class pp
+class CppGeneratorAccessor
 {
 public:
 	static CppGenerator::FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func)
