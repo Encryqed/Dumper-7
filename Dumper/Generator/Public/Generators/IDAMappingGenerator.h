@@ -49,6 +49,7 @@ private:
 	static void WriteExecFunctionToStream(std::stringstream& ExecFuncStream, const IDAMappingsLayouts::ExecFunc& ExecFunc);
 	static void WriteEnumToStream(std::stringstream& EnumStream, const IDAMappingsLayouts::Enum& Enum);
 	static void WriteStructToStream(std::stringstream& StructStream, const IDAMappingsLayouts::Struct& Struct);
+	static void WriteNamedVTableToStream(std::stringstream& NamedVarStream, const IDAMappingsLayouts::NamedVTable& NamedVar);
 
 private:
     static IDAMappingsLayouts::StringOffset AddNameToData(std::stringstream& NameTable, const std::string& Name);
@@ -64,7 +65,7 @@ private:
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
 
 private:
-    static void GenerateVTableName(std::stringstream& ExecFuncData, std::stringstream& ExecSigData, std::stringstream& NameData, UEObject DefaultObject);
+    static bool GenerateVTableName(std::stringstream& VTableData, std::stringstream& NameData, UEObject DefaultObject);
     static void GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& ExecSigData, std::stringstream& NameData, UEClass Class);
 
     static void GenerateSingleMember(const PropertyWrapper& Member, std::stringstream& StructData, std::stringstream& NameData, int32 StructSize);

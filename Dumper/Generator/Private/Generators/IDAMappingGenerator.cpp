@@ -45,6 +45,8 @@ void IDAMappingGenerator::WriteExecFunctionToStream(std::stringstream& ExecFuncS
 {
 	WriteToStream(ExecFuncStream, ExecFunc.MangledName);
 	WriteToStream(ExecFuncStream, ExecFunc.OffsetRelativeToImagebase);
+	WriteToStream(ExecFuncStream, ExecFunc.CppTypeSignature);
+	WriteToStream(ExecFuncStream, ExecFunc.FallbackCppSignatureInfo);
 }
 
 void IDAMappingGenerator::WriteEnumToStream(std::stringstream& EnumStream, const IDAMappingsLayouts::Enum& Enum)
@@ -52,12 +54,8 @@ void IDAMappingGenerator::WriteEnumToStream(std::stringstream& EnumStream, const
 	WriteToStream(EnumStream, Enum.Name);
 	WriteToStream(EnumStream, Enum.UnderlyingTypeSizeBytes);
 	WriteToStream(EnumStream, Enum.NumValues);
-	for (int32 i = 0; i < Enum.NumValues; ++i)
-	{
-		WriteToStream(EnumStream, Enum.Values[i].Name);
-		WriteToStream(EnumStream, Enum.Values[i].Value);
-	}
 }
+
 void IDAMappingGenerator::WriteStructToStream(std::stringstream& StructStream, const IDAMappingsLayouts::Struct& Struct)
 {
 	WriteToStream(StructStream, Struct.Name);
@@ -65,10 +63,13 @@ void IDAMappingGenerator::WriteStructToStream(std::stringstream& StructStream, c
 	WriteToStream(StructStream, Struct.Size);
 	WriteToStream(StructStream, Struct.Alignment);
 	WriteToStream(StructStream, Struct.NumMembers);
-	for (int32 i = 0; i < Struct.NumMembers; ++i)
-	{
-		WriteMemberToStream(StructStream, Struct.Members[i]);
-	}
+}
+
+void IDAMappingGenerator::WriteNamedVTableToStream(std::stringstream& NamedVarStream, const IDAMappingsLayouts::NamedVTable& NamedVar)
+{
+	WriteToStream(NamedVarStream, NamedVar.VTableOffset);
+	WriteToStream(NamedVarStream, NamedVar.SuperVTableOffset);
+	WriteToStream(NamedVarStream, NamedVar.Name);
 }
 
 
@@ -621,7 +622,7 @@ void IDAMappingGenerator::GenerateSingleMember(const PropertyWrapper& Member, st
 	MemberLayout.Offset = Member.GetOffset();
 	MemberLayout.Size = Member.GetSize();
 	MemberLayout.ArrayDim = Member.GetArrayDim();
-	MemberLayout.BitFieldBitCount = static_cast<uint8_t>(Member.IsBitField() ? Member.GetBitIndex() : 0xFF);
+	MemberLayout.BitFieldBitCount = Member.IsBitField() ? Member.GetBitIndex() : 0xFF;
 
 	if (MemberLayout.Offset + MemberLayout.Size > StructSize)
 		MemberLayout.Size = (std::max)(0, StructSize - MemberLayout.Offset);
@@ -633,70 +634,68 @@ void IDAMappingGenerator::GenerateSingleStruct(const StructWrapper& Struct, std:
 {
 	const StructWrapper Super = Struct.GetSuper();
 
-	const IDAMappingsLayouts::StringOffset Name = AddNameToData(NameData, Struct.GetUniqueName().first);
-	const IDAMappingsLayouts::StringOffset SuperName = Super.IsValid() ? AddNameToData(NameData, Super.GetUniqueName().first) : static_cast<IDAMappingsLayouts::StringOffset>(-1);
-
-	WriteToStream(StructData, Name);
-	WriteToStream(StructData, SuperName);
-
-	WriteToStream(StructData, static_cast<int32>(Struct.GetSize()));
-	WriteToStream(StructData, static_cast<int32>(Struct.GetAlignment()));
+	IDAMappingsLayouts::Struct StructLayout;
+	StructLayout.Name = AddNameToData(NameData, Struct.GetUniqueName().first);
+	StructLayout.SuperName = Super.IsValid() ? AddNameToData(NameData, Super.GetUniqueName().first) : IDAMappingsLayouts::InvalidStringOffset;
+	StructLayout.Size = Struct.GetSize();
+	StructLayout.Alignment = Struct.GetAlignment();
 
 	const MemberManager Members = Struct.GetMembers();
 
-	int32 NumNonStaticMembers = 0;
+	StructLayout.NumMembers = 0;
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
 		if (!Member.IsStatic() && !Member.IsZeroSizedMember())
-			NumNonStaticMembers++;
+			StructLayout.NumMembers++;
 	}
 
-	WriteToStream(StructData, NumNonStaticMembers);
-
-	const int32 StructSize = static_cast<int32>(Struct.GetSize());
+	WriteStructToStream(StructData, StructLayout);
 
 	for (const PropertyWrapper& Member : Members.IterateMembers())
 	{
 		if (Member.IsStatic() || Member.IsZeroSizedMember())
 			continue;
 
-		GenerateSingleMember(Member, StructData, NameData, StructSize);
+		GenerateSingleMember(Member, StructData, NameData, StructLayout.Size);
 	}
 }
 
 void IDAMappingGenerator::GenerateSingleEnum(const EnumWrapper& Enum, std::stringstream& EnumData, std::stringstream& NameData)
 {
-	const IDAMappingsLayouts::StringOffset Name = AddNameToData(NameData, Enum.GetUniqueName().first);
+	IDAMappingsLayouts::Enum EnumLayout;
+	EnumLayout.Name = AddNameToData(NameData, Enum.GetUniqueName().first);
+	EnumLayout.UnderlyingTypeSizeBytes = Enum.GetUnderlyingTypeSize();
+	EnumLayout.NumValues = Enum.GetNumMembers();
 
-	WriteToStream(EnumData, Name);
-	WriteToStream(EnumData, static_cast<uint8_t>(Enum.GetUnderlyingTypeSize()));
-	WriteToStream(EnumData, static_cast<int32_t>(Enum.GetNumMembers()));
+	WriteEnumToStream(EnumData, EnumLayout);
 
 	for (EnumCollisionInfo Member : Enum.GetMembers())
 	{
-		const int32 MemberName = AddNameToData(NameData, Member.GetUniqueName());
+		IDAMappingsLayouts::EnumValue ValueLayout;
+		ValueLayout.Name = AddNameToData(NameData, Member.GetUniqueName());
+		ValueLayout.Value = static_cast<int64_t>(Member.GetValue());
 
-		WriteToStream(EnumData, static_cast<IDAMappingsLayouts::StringOffset>(MemberName));
-		WriteToStream(EnumData, static_cast<int64_t>(Member.GetValue()));
+		WriteToStream(EnumData, ValueLayout);
 	}
 }
 
-void IDAMappingGenerator::GenerateVTableName(std::stringstream& ExecFuncData, std::stringstream& ExecSigData, std::stringstream& NameData, UEObject DefaultObject)
+bool IDAMappingGenerator::GenerateVTableName(std::stringstream& VTableData, std::stringstream& NameData, UEObject DefaultObject)
 {
 	const UEClass Class = DefaultObject.GetClass();
 	const UEClass Super = Class.GetSuper().Cast<UEClass>();
 
 	if (Super && DefaultObject.GetVft() == Super.GetDefaultObject().GetVft())
-		return;
+		return false;
 
-	const std::string Name = Class.GetCppName() + "_VFT";
-	const IDAMappingsLayouts::StringOffset NameOffset = AddNameToData(NameData, Name);
-	const uint32 Offset = static_cast<uint32>(Platform::GetOffset(DefaultObject.GetVft()));
+	IDAMappingsLayouts::NamedVTable Variable;
+	Variable.Name = AddNameToData(NameData, Class.GetCppName() + "_VFT");
+	Variable.VTableOffset = static_cast<IDAMappingsLayouts::OffsetType>(Platform::GetOffset(DefaultObject.GetVft()));
+	Variable.SuperVTableOffset = IDAMappingsLayouts::InvalidStringOffset;
 
-	WriteToStream(ExecFuncData, NameOffset);
-	WriteToStream(ExecFuncData, Offset);
-	WriteToStream(ExecSigData, static_cast<IDAMappingsLayouts::StringOffset>(-1));
+	WriteNamedVTableToStream(VTableData, Variable);
+
+	return true;
 }
 
 std::string IDAMappingGenerator::BuildExecFuncSignature(UEFunction Func)
@@ -726,11 +725,16 @@ std::string IDAMappingGenerator::BuildExecFuncSignature(UEFunction Func)
 		if (Param.HasPropertyFlags(EPropertyFlags::OutParm) || Param.HasPropertyFlags(EPropertyFlags::ReferenceParm))
 			bParamIsPtr = true;
 
-		ParamsEnc += '\x1e' + ParamType + '\x1f' + Param.GetName() + '\x1f' + (bParamIsPtr ? '1' : '0') + '\x1f' + std::to_string(Param.GetArrayDim());
+		ParamsEnc += '\x1e' + ParamType
+				   + '\x1f' + Param.GetName()
+				   + '\x1f' + (bParamIsPtr ? '1' : '0')
+				   + '\x1f' + std::to_string(Param.GetArrayDim());
 	}
 
 	const bool bIsStatic = Func.HasFlags(EFunctionFlags::Static);
-	const std::string ReturnEnc = ReturnType + '\x1f' + (bReturnIsPtr ? '1' : '0') + '\x1f' + (bIsStatic ? '1' : '0');
+	const std::string ReturnEnc = ReturnType
+					   + '\x1f' + (bReturnIsPtr ? '1' : '0')
+					   + '\x1f' + (bIsStatic ? '1' : '0');
 
 	return ReturnEnc + ParamsEnc;
 }
@@ -752,13 +756,12 @@ void IDAMappingGenerator::GenerateClassFunctions(std::stringstream& ExecFuncData
 		if (!bInserted)
 			continue;
 
-		const IDAMappingsLayouts::StringOffset NameOffset = AddNameToData(NameData, MangledName);
+		IDAMappingsLayouts::ExecFunc ExecFunc;
+		ExecFunc.MangledName = AddNameToData(NameData, MangledName);
+		ExecFunc.OffsetRelativeToImagebase = Offset;
+		ExecFunc.FallbackCppSignatureInfo = AddNameToData(NameData, BuildExecFuncSignature(Func));
 
-		WriteToStream(ExecFuncData, NameOffset);
-		WriteToStream(ExecFuncData, Offset);
-
-		const IDAMappingsLayouts::StringOffset SignatureOffset = AddNameToData(NameData, BuildExecFuncSignature(Func));
-		WriteToStream(ExecSigData, SignatureOffset);
+		WriteExecFunctionToStream(ExecFuncData, ExecFunc);
 	}
 }
 
@@ -834,16 +837,20 @@ uint32 IDAMappingGenerator::GenerateInternalEnums(std::stringstream& EnumData, s
 
 	for (const auto& Enum : Enums)
 	{
-		IDAMappingsLayouts::StringOffset NameOffset = AddNameToData(NameData, Enum.Name);
-		WriteToStream(EnumData, NameOffset);
-		WriteToStream(EnumData, Enum.UnderlyingSize);
-		WriteToStream(EnumData, static_cast<int32_t>(Enum.Values.size()));
+		IDAMappingsLayouts::Enum EnumLayout;
+		EnumLayout.Name = AddNameToData(NameData, Enum.Name);
+		EnumLayout.UnderlyingTypeSizeBytes = Enum.UnderlyingSize;
+		EnumLayout.NumValues = static_cast<int32_t>(Enum.Values.size());
+
+		WriteEnumToStream(EnumData, EnumLayout);
 
 		for (const auto& Value : Enum.Values)
 		{
-			IDAMappingsLayouts::StringOffset ValueName = AddNameToData(NameData, Value.Name);
-			WriteToStream(EnumData, ValueName);
-			WriteToStream(EnumData, Value.Value);
+			IDAMappingsLayouts::EnumValue ValueLayout;
+			ValueLayout.Name = AddNameToData(NameData, Value.Name);
+			ValueLayout.Value = Value.Value;
+
+			WriteToStream(EnumData, ValueLayout);
 		}
 	}
 
@@ -855,12 +862,14 @@ void IDAMappingGenerator::Generate()
 	std::stringstream NameData;
 	std::stringstream EnumData;
 	std::stringstream StructData;
+	std::stringstream VTableData;
 	std::stringstream ExecFuncData;
 	std::stringstream ExecSigData;
 	std::stringstream NamedVarData;
 
 	uint32_t NumEnums = 0;
 	uint32_t NumStructs = 0;
+	uint32_t NumVTables = 0;
 
 	// Generate internal engine enums (EObjectFlags, EFunctionFlags, EClassCastFlags) before reflected enums
 	NumEnums += GenerateInternalEnums(EnumData, NameData);
@@ -911,7 +920,8 @@ void IDAMappingGenerator::Generate()
 	{
 		if (Obj.HasAnyFlags(EObjectFlags::ClassDefaultObject))
 		{
-			GenerateVTableName(ExecFuncData, ExecSigData, NameData, Obj);
+			if (GenerateVTableName(VTableData, NameData, Obj))
+				NumVTables++;
 		}
 		else if (Obj.IsA(EClassCastFlags::Class))
 		{
@@ -928,7 +938,7 @@ void IDAMappingGenerator::Generate()
 		Var.VariableOffset = VarOffset;
 		Var.Type = AddNameToData(NameData, TypeStr);
 		Var.Name = AddNameToData(NameData, NameStr);
-		WriteToStream(NamedVarData, Var);
+		IDAMappingGenerator::WriteNamedVar(NamedVarData, Var);
 		NumGlobalSymbols++;
 	};
 
@@ -964,6 +974,7 @@ void IDAMappingGenerator::Generate()
 	const std::string ExecFuncDataStr = ExecFuncData.str();
 	const std::string ExecSigDataStr = ExecSigData.str();
 	const std::string NamedVarDataStr = NamedVarData.str();
+	const std::string VTableDataStr = VTableData.str();
 
 	const uint32_t NumExecFunctions = static_cast<uint32_t>(ExecFuncDataStr.size() / sizeof(IDAMappingsLayouts::ExecFunc));
 
@@ -991,6 +1002,10 @@ void IDAMappingGenerator::Generate()
 	Header.GlobalSymbolDataOffset = CurrentOffset;
 	CurrentOffset += static_cast<uint32_t>(NamedVarDataStr.size());
 
+	Header.NumVTables = NumVTables;
+	Header.VTableDataOffset = CurrentOffset;
+	CurrentOffset += static_cast<uint32_t>(VTableDataStr.size());
+
 	Header.NumExecFunctions = NumExecFunctions;
 	Header.ExecFunctionDataOffset = CurrentOffset;
 	CurrentOffset += static_cast<uint32_t>(ExecFuncDataStr.size());
@@ -1005,7 +1020,7 @@ void IDAMappingGenerator::Generate()
 	StreamType IDAMappingsFile(MainFolder / MappingsFileName, std::ios::binary);
 
 	// Header
-	IDAMappingsFile.write(reinterpret_cast<const char*>(&Header), sizeof(Header));
+	WriteToStream(IDAMappingsFile, Header);
 
 	// Sections in order: Strings, Enums, Structs, GlobalSymbols, ExecFunctions
 	IDAMappingsFile.write(NameDataStr.data(), NameDataStr.size());
