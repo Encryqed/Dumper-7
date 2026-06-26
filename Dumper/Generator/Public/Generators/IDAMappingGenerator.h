@@ -66,7 +66,7 @@ private:
 
 private:
     static bool GenerateVTableName(std::stringstream& VTableData, std::stringstream& NameData, UEObject DefaultObject);
-    static void GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& ExecSigData, std::stringstream& NameData, UEClass Class);
+    static void GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& NameData, UEClass Class);
 
     static void GenerateSingleMember(const PropertyWrapper& Member, std::stringstream& StructData, std::stringstream& NameData, int32 StructSize);
     static void GenerateSingleStruct(const StructWrapper& Struct, std::stringstream& StructData, std::stringstream& NameData);

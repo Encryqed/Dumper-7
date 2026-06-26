@@ -14,12 +14,79 @@
 class CppGeneratorAccessor
 {
 public:
-	static CppGenerator::FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func)
+	static std::string GetStructPrefixedName(const StructWrapper& Struct)
 	{
-		return CppGenerator::GenerateFunctionInfo(Func, true);
+		return CppGenerator::GetStructPrefixedName(Struct);
+	}
+
+	static std::string GetMemberTypeString(const PropertyWrapper& Property)
+	{
+		return CppGenerator::GetMemberTypeString(Property);
 	}
 };
 
+std::string GenerateFunctionDeclarationForIDA(const FunctionWrapper& Func)
+{
+	if (Func.IsPredefined())
+		return {};
+
+	MemberManager FuncParams = Func.GetMembers();
+
+	std::string RetType = "void";
+	std::string FuncNameWithParams = Func.GetName() + "(";
+
+	const bool bIsConst = Func.IsConst();
+
+	if (bIsConst)
+		FuncNameWithParams += "const ";
+
+	FuncNameWithParams += CppGeneratorAccessor::GetStructPrefixedName(Func.AsStruct()) + "* This";
+
+	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
+	{
+		if (!Param.HasPropertyFlags(EPropertyFlags::Parm))
+			continue;
+
+		std::string Type = CppGeneratorAccessor::GetMemberTypeString(Param);
+
+		const bool bIsConst = Param.HasPropertyFlags(EPropertyFlags::ConstParm);
+
+		const bool bIsRef = Param.HasPropertyFlags(EPropertyFlags::ReferenceParm);
+		const bool bIsOut = bIsRef || Param.HasPropertyFlags(EPropertyFlags::OutParm);
+		const bool bIsRet = Param.IsReturnParam();
+
+		if (bIsConst && (!bIsOut || bIsRef || bIsRet))
+			Type = "const " + Type;
+
+		if (Param.IsReturnParam())
+		{
+			RetType = Type;
+			continue;
+		}
+
+		FuncNameWithParams += ", ";
+
+		const bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::TextProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
+
+		if (bIsOut)
+			Type += bIsRef ? '&' : '*';
+
+		//if (!bIsOut && !bIsRef && bIsMoveType)
+		//{
+		//	Type += "&";
+		//
+		//	if (!bIsConst)
+		//		Type = "const " + Type;
+		//}
+
+
+		FuncNameWithParams += Type + " " + Param.GetName();
+	}
+
+	FuncNameWithParams += ")";
+
+	return RetType + ' ' + FuncNameWithParams;
+}
 
 void IDAMappingGenerator::WriteMemberToStream(std::stringstream& MemberStream, const IDAMappingsLayouts::Member& Member)
 {
@@ -43,10 +110,11 @@ void IDAMappingGenerator::WriteNamedVar(std::stringstream& MemberStream, const I
 
 void IDAMappingGenerator::WriteExecFunctionToStream(std::stringstream& ExecFuncStream, const IDAMappingsLayouts::ExecFunc& ExecFunc)
 {
-	WriteToStream(ExecFuncStream, ExecFunc.MangledName);
-	WriteToStream(ExecFuncStream, ExecFunc.OffsetRelativeToImagebase);
-	WriteToStream(ExecFuncStream, ExecFunc.CppTypeSignature);
-	WriteToStream(ExecFuncStream, ExecFunc.FallbackCppSignatureInfo);
+	WriteToStream(ExecFuncStream, ExecFunc);
+	//WriteToStream(ExecFuncStream, ExecFunc.MangledName);
+	//WriteToStream(ExecFuncStream, ExecFunc.OffsetRelativeToImagebase);
+	//WriteToStream(ExecFuncStream, ExecFunc.CppTypeSignature);
+	//WriteToStream(ExecFuncStream, ExecFunc.FallbackCppSignatureInfo);
 }
 
 void IDAMappingGenerator::WriteEnumToStream(std::stringstream& EnumStream, const IDAMappingsLayouts::Enum& Enum)
@@ -739,14 +807,18 @@ std::string IDAMappingGenerator::BuildExecFuncSignature(UEFunction Func)
 	return ReturnEnc + ParamsEnc;
 }
 
-void IDAMappingGenerator::GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& ExecSigData, std::stringstream& NameData, UEClass Class)
+void IDAMappingGenerator::GenerateClassFunctions(std::stringstream& ExecFuncData, std::stringstream& NameData, UEClass Class)
 {
 	static std::unordered_map<uint32, std::string> Funcs;
 
-	for (const UEFunction Func : Class.GetFunctions())
+	StructWrapper WrappedClass(Class);
+	MemberManager Members = WrappedClass.GetMembers();
+	for (const FunctionWrapper WrappedFunc : Members.IterateFunctions())
 	{
-		if (!Func.HasFlags(EFunctionFlags::Native))
+		if (!WrappedFunc.HasFunctionFlag(EFunctionFlags::Native) || WrappedFunc.IsPredefined())
 			continue;
+
+		const UEFunction Func = WrappedFunc.GetUnrealFunction();
 
 		const std::string MangledName = MangleUFunctionName(Class.GetCppName(), Func.GetValidName());
 		const uint32 Offset = static_cast<uint32>(Platform::GetOffset(Func.GetExecFunction()));
@@ -760,6 +832,8 @@ void IDAMappingGenerator::GenerateClassFunctions(std::stringstream& ExecFuncData
 		ExecFunc.MangledName = AddNameToData(NameData, MangledName);
 		ExecFunc.OffsetRelativeToImagebase = Offset;
 		ExecFunc.FallbackCppSignatureInfo = AddNameToData(NameData, BuildExecFuncSignature(Func));
+
+		ExecFunc.CppTypeSignature = AddNameToData(NameData, GenerateFunctionDeclarationForIDA(WrappedFunc));
 
 		WriteExecFunctionToStream(ExecFuncData, ExecFunc);
 	}
@@ -864,7 +938,6 @@ void IDAMappingGenerator::Generate()
 	std::stringstream StructData;
 	std::stringstream VTableData;
 	std::stringstream ExecFuncData;
-	std::stringstream ExecSigData;
 	std::stringstream NamedVarData;
 
 	uint32_t NumEnums = 0;
@@ -925,7 +998,7 @@ void IDAMappingGenerator::Generate()
 		}
 		else if (Obj.IsA(EClassCastFlags::Class))
 		{
-			GenerateClassFunctions(ExecFuncData, ExecSigData, NameData, Obj.Cast<UEClass>());
+			GenerateClassFunctions(ExecFuncData, NameData, Obj.Cast<UEClass>());
 		}
 	}
 
@@ -972,7 +1045,6 @@ void IDAMappingGenerator::Generate()
 	const std::string EnumDataStr = EnumData.str();
 	const std::string StructDataStr = StructData.str();
 	const std::string ExecFuncDataStr = ExecFuncData.str();
-	const std::string ExecSigDataStr = ExecSigData.str();
 	const std::string NamedVarDataStr = NamedVarData.str();
 	const std::string VTableDataStr = VTableData.str();
 
@@ -1020,11 +1092,11 @@ void IDAMappingGenerator::Generate()
 	// Header
 	WriteToStream(IDAMappingsFile, Header);
 
-	// Sections in order: Strings, Enums, Structs, GlobalSymbols, ExecFunctions
+	// Sections in order: Strings, Enums, Structs, GlobalSymbols, VTables, ExecFunctions
 	IDAMappingsFile.write(NameDataStr.data(), NameDataStr.size());
 	IDAMappingsFile.write(EnumDataStr.data(), EnumDataStr.size());
 	IDAMappingsFile.write(StructDataStr.data(), StructDataStr.size());
 	IDAMappingsFile.write(NamedVarDataStr.data(), NamedVarDataStr.size());
+	IDAMappingsFile.write(VTableDataStr.data(), VTableDataStr.size());
 	IDAMappingsFile.write(ExecFuncDataStr.data(), ExecFuncDataStr.size());
-	IDAMappingsFile.write(ExecSigDataStr.data(), ExecSigDataStr.size());
 }

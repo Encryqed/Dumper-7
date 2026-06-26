@@ -5957,8 +5957,11 @@ void CppGenerator::GenerateUnrealContainers(StreamType& UEContainersHeader)
 
 
 	UEContainersHeader << R"(
+#ifndef IMPORT_CPP_SDK_INTO_IDA
 namespace UC
 {	
+#endif // IMPORT_CPP_SDK_INTO_IDA
+
 	typedef int8_t  int8;
 	typedef int16_t int16;
 	typedef int32_t int32;
@@ -6139,7 +6142,7 @@ namespace UC
 		{
 		public:
 			template<typename SetElementType>
-			friend class UC::TSet;
+			friend class TSet;
 
 		private:
 			SetType Value;
@@ -6317,7 +6320,7 @@ namespace UC
 	class FString : public TArray<wchar_t>
 	{
 	public:
-		friend std::ostream& operator<<(std::ostream& Stream, const UC::FString& Str) { return Stream << Str.ToString(); }
+		friend std::ostream& operator<<(std::ostream& Stream, const FString& Str) { return Stream << Str.ToString(); }
 
 	public:
 		using TArray::TArray;
@@ -6370,7 +6373,7 @@ namespace UC
 	class FUtf8String : public TArray<char8_t>
 	{
 	public:
-		friend std::ostream& operator<<(std::ostream& Stream, const UC::FUtf8String& Str) { return Stream << Str.ToString(); }
+		friend std::ostream& operator<<(std::ostream& Stream, const FUtf8String& Str) { return Stream << Str.ToString(); }
 
 	private:
 		inline const char* GetDataAsConstCharPtr() const
@@ -6429,7 +6432,7 @@ namespace UC
 	class FAnsiString : public TArray<char>
 	{
 	public:
-		friend std::ostream& operator<<(std::ostream& Stream, const UC::FAnsiString& Str) { return Stream << Str.ToString(); }
+		friend std::ostream& operator<<(std::ostream& Stream, const FAnsiString& Str) { return Stream << Str.ToString(); }
 
 	public:
 		using TArray::TArray;
@@ -6888,7 +6891,10 @@ namespace UC
 	static_assert(sizeof(TSet<int32>) == 0x3C, "TSet has a wrong size!");
 	static_assert(sizeof(TMap<int32, int32>) == 0x3C, "TMap has a wrong size!");
 #endif
+
+#ifndef IMPORT_CPP_SDK_INTO_IDA
 }
+#endif // IMPORT_CPP_SDK_INTO_IDA
 )";
 
 	WriteFileEnd(UEContainersHeader, EFileType::UnrealContainers);
