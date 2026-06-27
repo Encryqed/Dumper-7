@@ -56,6 +56,7 @@ namespace IDAMappingsLayouts
 	struct ExecFunc
 	{
 		StringOffset MangledName;
+		StringOffset UnmangledName;
 		OffsetType OffsetRelativeToImagebase;
 
 		StringOffset CppTypeSignature; // Use this one when the SDK was imported with clang

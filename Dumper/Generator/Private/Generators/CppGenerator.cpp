@@ -3421,7 +3421,9 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 	/* use namespace of UnrealContainers */
 	BasicHpp <<
 		R"(
+#ifndef IMPORT_CPP_SDK_INTO_IDA
 using namespace UC;
+#endif // IMPORT_CPP_SDK_INTO_IDA
 )";
 
 	BasicHpp << "\n#include \"../NameCollisions.inl\"\n";

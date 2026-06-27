@@ -25,7 +25,7 @@ public:
 	}
 };
 
-std::string GenerateFunctionDeclarationForIDA(const FunctionWrapper& Func)
+std::string GenerateFunctionDeclarationForIDA(const StructWrapper& OwnerClass, const FunctionWrapper& Func)
 {
 	if (Func.IsPredefined())
 		return {};
@@ -37,10 +37,19 @@ std::string GenerateFunctionDeclarationForIDA(const FunctionWrapper& Func)
 
 	const bool bIsConst = Func.IsConst();
 
-	if (bIsConst)
-		FuncNameWithParams += "const ";
+	bool bHasThisPtr = false;
 
-	FuncNameWithParams += CppGeneratorAccessor::GetStructPrefixedName(Func.AsStruct()) + "* This";
+	if (!Func.IsStatic())
+	{
+		bHasThisPtr = true;
+
+		if (bIsConst)
+			FuncNameWithParams += "const ";
+
+		FuncNameWithParams += CppGeneratorAccessor::GetStructPrefixedName(OwnerClass) + "* This";
+	}
+
+	bool bIsFirstParam = !bHasThisPtr;
 
 	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
 	{
@@ -64,21 +73,13 @@ std::string GenerateFunctionDeclarationForIDA(const FunctionWrapper& Func)
 			continue;
 		}
 
-		FuncNameWithParams += ", ";
-
-		const bool bIsMoveType = Param.IsType(EClassCastFlags::StructProperty | EClassCastFlags::ArrayProperty | EClassCastFlags::StrProperty | EClassCastFlags::TextProperty | EClassCastFlags::MapProperty | EClassCastFlags::SetProperty);
+		if (!bIsFirstParam)
+			FuncNameWithParams += ", ";
+		else
+			bIsFirstParam = false;
 
 		if (bIsOut)
 			Type += bIsRef ? '&' : '*';
-
-		//if (!bIsOut && !bIsRef && bIsMoveType)
-		//{
-		//	Type += "&";
-		//
-		//	if (!bIsConst)
-		//		Type = "const " + Type;
-		//}
-
 
 		FuncNameWithParams += Type + " " + Param.GetName();
 	}
@@ -90,31 +91,17 @@ std::string GenerateFunctionDeclarationForIDA(const FunctionWrapper& Func)
 
 void IDAMappingGenerator::WriteMemberToStream(std::stringstream& MemberStream, const IDAMappingsLayouts::Member& Member)
 {
-	WriteToStream(MemberStream, Member.Type);
-	WriteToStream(MemberStream, Member.Name);
-
-	WriteToStream(MemberStream, Member.Offset);
-	WriteToStream(MemberStream, Member.Size);
-	WriteToStream(MemberStream, Member.ArrayDim);
-
-	WriteToStream(MemberStream, Member.bIsPointer);
-	WriteToStream(MemberStream, Member.BitFieldBitCount);
+	WriteToStream(MemberStream, Member);
 }
 
 void IDAMappingGenerator::WriteNamedVar(std::stringstream& MemberStream, const IDAMappingsLayouts::NamedVariable& Variable)
 {
-	WriteToStream(MemberStream, Variable.VariableOffset);
-	WriteToStream(MemberStream, Variable.Type);
-	WriteToStream(MemberStream, Variable.Name);
+	WriteToStream(MemberStream, Variable);
 }
 
 void IDAMappingGenerator::WriteExecFunctionToStream(std::stringstream& ExecFuncStream, const IDAMappingsLayouts::ExecFunc& ExecFunc)
 {
 	WriteToStream(ExecFuncStream, ExecFunc);
-	//WriteToStream(ExecFuncStream, ExecFunc.MangledName);
-	//WriteToStream(ExecFuncStream, ExecFunc.OffsetRelativeToImagebase);
-	//WriteToStream(ExecFuncStream, ExecFunc.CppTypeSignature);
-	//WriteToStream(ExecFuncStream, ExecFunc.FallbackCppSignatureInfo);
 }
 
 void IDAMappingGenerator::WriteEnumToStream(std::stringstream& EnumStream, const IDAMappingsLayouts::Enum& Enum)
@@ -122,6 +109,7 @@ void IDAMappingGenerator::WriteEnumToStream(std::stringstream& EnumStream, const
 	WriteToStream(EnumStream, Enum.Name);
 	WriteToStream(EnumStream, Enum.UnderlyingTypeSizeBytes);
 	WriteToStream(EnumStream, Enum.NumValues);
+	// Make sure last member isn't written (done by calling func)
 }
 
 void IDAMappingGenerator::WriteStructToStream(std::stringstream& StructStream, const IDAMappingsLayouts::Struct& Struct)
@@ -131,13 +119,12 @@ void IDAMappingGenerator::WriteStructToStream(std::stringstream& StructStream, c
 	WriteToStream(StructStream, Struct.Size);
 	WriteToStream(StructStream, Struct.Alignment);
 	WriteToStream(StructStream, Struct.NumMembers);
+	// Make sure last member isn't written (done by calling func)
 }
 
 void IDAMappingGenerator::WriteNamedVTableToStream(std::stringstream& NamedVarStream, const IDAMappingsLayouts::NamedVTable& NamedVar)
 {
-	WriteToStream(NamedVarStream, NamedVar.VTableOffset);
-	WriteToStream(NamedVarStream, NamedVar.SuperVTableOffset);
-	WriteToStream(NamedVarStream, NamedVar.Name);
+	WriteToStream(NamedVarStream, NamedVar);
 }
 
 
@@ -830,10 +817,11 @@ void IDAMappingGenerator::GenerateClassFunctions(std::stringstream& ExecFuncData
 
 		IDAMappingsLayouts::ExecFunc ExecFunc;
 		ExecFunc.MangledName = AddNameToData(NameData, MangledName);
+		ExecFunc.UnmangledName = AddNameToData(NameData, GetStructPrefixedName(WrappedClass) + "::" + WrappedFunc.GetName());
 		ExecFunc.OffsetRelativeToImagebase = Offset;
 		ExecFunc.FallbackCppSignatureInfo = AddNameToData(NameData, BuildExecFuncSignature(Func));
 
-		ExecFunc.CppTypeSignature = AddNameToData(NameData, GenerateFunctionDeclarationForIDA(WrappedFunc));
+		ExecFunc.CppTypeSignature = AddNameToData(NameData, GenerateFunctionDeclarationForIDA(WrappedClass, WrappedFunc));
 
 		WriteExecFunctionToStream(ExecFuncData, ExecFunc);
 	}
