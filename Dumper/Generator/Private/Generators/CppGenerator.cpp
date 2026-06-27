@@ -424,6 +424,31 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	std::string FixedOuterName = PrefixQuotsWithBackslash(UnrealFunc.GetOuter().GetName());
 	std::string FixedFunctionName = PrefixQuotsWithBackslash(UnrealFunc.GetName());
 
+	const bool bUseDynamicLookup = Off::InSDK::Find::FindFunctionCheckedOffset > 0
+		&& Func.HasFunctionFlag(EFunctionFlags::BlueprintEvent)
+		&& !Func.IsStatic();
+
+	std::string FuncLookupBlock;
+	if (bUseDynamicLookup)
+	{
+		FuncLookupBlock = std::format(
+R"(	static class FName FnName;
+	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
+			Func.IsInInterface() ? "AsUObject()" : "this",
+			FixedFunctionName);
+	}
+	else
+	{
+		FuncLookupBlock = std::format(
+R"(	static class UFunction* Func = nullptr;
+
+	if (Func == nullptr)
+		Func = {}->GetFunction({}, {});)",
+			Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class",
+			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName) : std::format("\"{}\"", FixedOuterName),
+			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName) : std::format("\"{}\"", FixedFunctionName));
+	}
+
 	// Function implementation generation
 	std::string FunctionImplementation = std::format(R"(
 // {}
@@ -431,10 +456,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 {}
 {} {}::{}{}
 {{
-	static class UFunction* Func = nullptr;
-
-	if (Func == nullptr)
-		Func = {}->GetFunction({}, {});
+{}
 {}{}{}
 	{}ProcessEvent(Func, {});{}{}{}{}
 }}
@@ -446,9 +468,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , StructName
 , FuncInfo.FuncNameWithParams
 , bIsConstFunc ? " const" : ""
-, Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class"
-, CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName) : std::format("\"{}\"", FixedOuterName)
-, CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName) : std::format("\"{}\"", FixedFunctionName)
+, FuncLookupBlock
 , bHasParams ? ParamVarCreationString : ""
 , bHasParamsToInit ? ParamAssignments : ""
 , bIsNativeFunc ? StoreFunctionFlagsString : ""
@@ -3576,12 +3596,13 @@ using namespace UC;
 */
 namespace Offsets
 {{
-	constexpr int32 GObjects          = 0x{:08X};
-	constexpr int32 AppendString      = 0x{:08X};{}
-	constexpr int32 GNames            = 0x{:08X};
-	constexpr int32 GWorld            = 0x{:08X};
-	constexpr int32 ProcessEvent      = 0x{:08X};
-	constexpr int32 ProcessEventIdx   = 0x{:08X};
+	constexpr int32 GObjects             = 0x{:08X};
+	constexpr int32 AppendString         = 0x{:08X};{}
+	constexpr int32 GNames               = 0x{:08X};
+	constexpr int32 GWorld               = 0x{:08X};
+	constexpr int32 ProcessEvent         = 0x{:08X};
+	constexpr int32 ProcessEventIdx      = 0x{:08X};
+	constexpr int32 FindFunctionChecked  = 0x{:08X};
 }}
 )", max(Off::InSDK::ObjArray::GObjects, 0x0),
 	max(Off::InSDK::Name::AppendNameToString, 0x0),
@@ -3589,8 +3610,18 @@ namespace Offsets
 	max(Off::InSDK::NameArray::GNames, 0x0),
 	max(Off::InSDK::World::GWorld, 0x0),
 	max(Off::InSDK::ProcessEvent::PEOffset, 0x0),
-	Off::InSDK::ProcessEvent::PEIndex);
+	Off::InSDK::ProcessEvent::PEIndex,
+	max(Off::InSDK::Find::FindFunctionCheckedOffset, 0x0));
 
+
+	BasicHpp << R"(
+// Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
+class UClass;
+class UObject;
+class UFunction;
+class UScriptStruct;
+class FName;
+)";
 
 	// Start Namespace 'InSDKUtils'
 	BasicHpp <<
@@ -3614,6 +3645,28 @@ namespace InSDKUtils
 	}
 )";
 
+	if (Off::InSDK::Find::FindFunctionCheckedOffset > 0)
+	{
+		if (Settings::Internal::bUseCasePreservingName)
+		{
+			BasicHpp << R"(	inline class UFunction* FindFunctionChecked(const class UObject* Obj, const class FName& Name)
+	{
+		using FFindFunctionCheckedFn = class UFunction*(__fastcall*)(const class UObject*, const class FName*);
+		return reinterpret_cast<FFindFunctionCheckedFn>(GetImageBase() + Offsets::FindFunctionChecked)(Obj, &Name);
+	}
+)";
+		}
+		else
+		{
+			BasicHpp << R"(	inline class UFunction* FindFunctionChecked(const class UObject* Obj, const class FName& Name)
+	{
+		using FFindFunctionCheckedFn = class UFunction*(__fastcall*)(const class UObject*, uint64);
+		return reinterpret_cast<FFindFunctionCheckedFn>(GetImageBase() + Offsets::FindFunctionChecked)(Obj, *reinterpret_cast<const uint64*>(&Name));
+	}
+)";
+		}
+	}
+
 	//Customizable part of Cpp code to allow for a custom 'CallGameFunction' function
 	BasicHpp << CppSettings::CallGameFunction;
 
@@ -3623,15 +3676,6 @@ namespace InSDKUtils
 	/* Custom 'GetImageBase' function */
 	BasicCpp << std::format(R"(uintptr_t InSDKUtils::GetImageBase()
 {})", Settings::CppGenerator::GetImageBaseFuncBody);
-
-	BasicHpp << R"(
-// Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
-class UClass;
-class UObject;
-class UFunction;
-class UScriptStruct;
-class FName;
-)";
 
 	BasicHpp << R"(
 namespace BasicFilesImplUtils
