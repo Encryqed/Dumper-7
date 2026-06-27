@@ -3,6 +3,9 @@
 #include <Windows.h>
 #include <filesystem>
 #include <string>
+#include <fstream>
+#include <cstdarg>
+#include <mutex>
 
 #include "Unreal/UnrealObjects.h"
 #include "Unreal/ObjectArray.h"
@@ -202,6 +205,27 @@ void Settings::Config::Load()
 			std::cerr << "Press " << KeyName << " to begin dump." << "\n";
 		}
 	}
+
+	char GameNameBuf[256] = {};
+	GetPrivateProfileStringA("Settings", "GameName", "", GameNameBuf, sizeof(GameNameBuf), ConfigPath);
+	if (GameNameBuf[0] != '\0')
+	{
+		Settings::Generator::GameName = GameNameBuf;
+	}
+
+	char GameVersionBuf[256] = {};
+	GetPrivateProfileStringA("Settings", "GameVersion", "", GameVersionBuf, sizeof(GameVersionBuf), ConfigPath);
+	if (GameVersionBuf[0] != '\0')
+	{
+		Settings::Generator::GameVersion = GameVersionBuf;
+	}
+
+	Settings::Debug::bEnableDiagnosticLogging = GetPrivateProfileIntA("Debug", "bEnableDiagnosticLogging", 0, ConfigPath) != 0;
+	Settings::Debug::bEnableVectoredCrashHandler = GetPrivateProfileIntA("Debug", "bEnableVectoredCrashHandler", 0, ConfigPath) != 0;
+
+	char LogPathBuf[256] = {};
+	GetPrivateProfileStringA("Debug", "DiagnosticLogPath", "Dumper-7-debug.log", LogPathBuf, sizeof(LogPathBuf), ConfigPath);
+	Settings::Debug::DiagnosticLogPath = LogPathBuf;
 }
 
 void Settings::Config::DelayDumperStart()
@@ -235,6 +259,62 @@ void Settings::Config::DelayDumperStart()
 			
 		Sleep(50);
 	}
+}
+
+static std::ofstream DiagnosticLogStream;
+static std::mutex LogMutex;
+
+static std::string GetModuleDirectory()
+{
+	char path[MAX_PATH];
+	HMODULE hModule = nullptr;
+	GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)&GetModuleDirectory, &hModule);
+	if (hModule && GetModuleFileNameA(hModule, path, MAX_PATH))
+	{
+		std::string s(path);
+		size_t pos = s.find_last_of("\\/");
+		if (pos != std::string::npos)
+		{
+			return s.substr(0, pos);
+		}
+	}
+	return "";
+}
+
+void Settings::Log(const std::string& Message)
+{
+	std::lock_guard<std::mutex> Lock(LogMutex);
+
+	std::cerr << Message << std::endl;
+
+	if (Settings::Debug::bEnableDiagnosticLogging)
+	{
+		if (!DiagnosticLogStream.is_open())
+		{
+			std::filesystem::path LogPath = Settings::Debug::DiagnosticLogPath;
+			if (LogPath.is_relative())
+			{
+				LogPath = std::filesystem::path(GetModuleDirectory()) / LogPath;
+			}
+			
+			DiagnosticLogStream.open(LogPath, std::ios::out | std::ios::trunc);
+		}
+
+		if (DiagnosticLogStream.is_open())
+		{
+			DiagnosticLogStream << Message << std::endl;
+		}
+	}
+}
+
+void Settings::LogFmt(const char* Format, ...)
+{
+	char Buffer[1024];
+	va_list Args;
+	va_start(Args, Format);
+	vsnprintf(Buffer, sizeof(Buffer), Format, Args);
+	va_end(Args);
+	Log(Buffer);
 }
 
 

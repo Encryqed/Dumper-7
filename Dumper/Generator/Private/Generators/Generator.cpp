@@ -1,5 +1,6 @@
 
 #include "Generators/Generator.h"
+#include "Settings.h"
 #include "Managers/StructManager.h"
 #include "Managers/EnumManager.h"
 #include "Managers/MemberManager.h"
@@ -33,7 +34,7 @@ void Generator::InitEngineCore()
 	//FName::Init(/*AppendString, FName::EOffsetOverrideType::AppendString*/);
 	//FName::Init(/*ToString, FName::EOffsetOverrideType::ToString*/);
 	//FName::Init(/*GNames, FName::EOffsetOverrideType::GNames, true/false*/);
- 
+
 	//Off::InSDK::ProcessEvent::InitPE(/*PEIndex*/);
 
 	/* Back4Blood (requires manual GNames override) */
@@ -42,38 +43,60 @@ void Generator::InitEngineCore()
 	/* Multiversus [Unsupported, weird GObjects-struct] */
 	//InitObjectArrayDecryption([](void* ObjPtr) -> uint8* { return reinterpret_cast<uint8*>(uint64(ObjPtr) ^ 0x1B5DEAFD6B4068C); });
 
+	Settings::Log("[InitEngineCore] ObjectArray::Init()...");
 	ObjectArray::Init();
+	Settings::Log("[InitEngineCore] ObjectArray::Init() done");
 
+	Settings::Log("[InitEngineCore] FName::Init()...");
 	CALL_PLATFORM_SPECIFIC_FUNCTION(FName::Init);
+	Settings::Log("[InitEngineCore] FName::Init() done");
 
+	Settings::Log("[InitEngineCore] Off::Init()...");
 	Off::Init();
+	Settings::Log("[InitEngineCore] Off::Init() done");
+
+	Settings::Log("[InitEngineCore] PropertySizes::Init()...");
 	PropertySizes::Init();
+	Settings::Log("[InitEngineCore] PropertySizes::Init() done");
 
+	Settings::Log("[InitEngineCore] Off::InSDK::ProcessEvent::InitPE()...");
 	CALL_PLATFORM_SPECIFIC_FUNCTION(Off::InSDK::ProcessEvent::InitPE); // Must be at this position, relies on offsets initialized in Off::Init()
+	Settings::Log("[InitEngineCore] Off::InSDK::ProcessEvent::InitPE() done");
 
+	Settings::Log("[InitEngineCore] Off::InSDK::World::InitGWorld()...");
 	Off::InSDK::World::InitGWorld(); // Must be at this position, relies on offsets initialized in Off::Init()
+	Settings::Log("[InitEngineCore] Off::InSDK::World::InitGWorld() done");
 
+	Settings::Log("[InitEngineCore] Off::InSDK::Text::InitTextOffsets()...");
 	Off::InSDK::Text::InitTextOffsets(); // Must be at this position, relies on offsets initialized in Off::InitPE()
+	Settings::Log("[InitEngineCore] Off::InSDK::Text::InitTextOffsets() done");
 
+	Settings::Log("[InitEngineCore] InitSettings()...");
 	InitSettings();
+	Settings::Log("[InitEngineCore] InitSettings() done");
 }
 
 void Generator::InitInternal()
 {
-	// Initialize PackageManager with all packages, their names, structs, classes enums, functions and dependencies
+	Settings::Log("[InitInternal] PackageManager::Init()...");
 	PackageManager::Init();
+	Settings::Log("[InitInternal] PackageManager::Init() done");
 
-	// Initialize StructManager with all structs and their names
+	Settings::Log("[InitInternal] StructManager::Init()...");
 	StructManager::Init();
-	
-	// Initialize EnumManager with all enums and their names
-	EnumManager::Init();
-	
-	// Initialized all Member-Name collisions
-	MemberManager::Init();
+	Settings::Log("[InitInternal] StructManager::Init() done");
 
-	// Post-Initialize PackageManager after StructManager has been initialized. 'PostInit()' handles Cyclic-Dependencies detection
+	Settings::Log("[InitInternal] EnumManager::Init()...");
+	EnumManager::Init();
+	Settings::Log("[InitInternal] EnumManager::Init() done");
+
+	Settings::Log("[InitInternal] MemberManager::Init()...");
+	MemberManager::Init();
+	Settings::Log("[InitInternal] MemberManager::Init() done");
+
+	Settings::Log("[InitInternal] PackageManager::PostInit()...");
 	PackageManager::PostInit();
+	Settings::Log("[InitInternal] PackageManager::PostInit() done");
 }
 
 bool Generator::SetupDumperFolder()

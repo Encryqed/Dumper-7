@@ -124,6 +124,15 @@ R"(
 
 		/* Prints debug information during Mapping-Generation */
 		inline constexpr bool bShouldPrintMappingDebugData = false;
+
+		/* Enables diagnostic file logging (Dumper-7-debug.log) */
+		inline bool bEnableDiagnosticLogging = false;
+
+		/* Enables Vectored Exception Handler (VEH) to catch and log crashes prior to process exit */
+		inline bool bEnableVectoredCrashHandler = false;
+
+		/* Path to diagnostic log file, relative or absolute. If empty, logs next to the DLL. */
+		inline std::string DiagnosticLogPath = "Dumper-7-debug.log";
 	}
 
 	//* * * * * * * * * * * * * * * * * * * * *// 
@@ -179,4 +188,7 @@ R"(
 
 	extern void InitObjectPtrPropertySettings();
 	extern void InitArrayDimSizeSettings();
+
+	extern void Log(const std::string& Message);
+	extern void LogFmt(const char* Format, ...);
 }
