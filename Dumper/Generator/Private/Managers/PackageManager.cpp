@@ -298,6 +298,28 @@ void PackageManager::InitDependencies()
 				}
 			}
 
+			if (bIsClass)
+			{
+				for (const FImplementedInterface& Iface : ObjAsStruct.Cast<UEClass>().GetImplementedInterfaces())
+				{
+					if (Iface.bImplementedByK2 || !Iface.InterfaceClass)
+						continue;
+
+					const int32 IfacePackageIdx = Iface.InterfaceClass.GetPackageIndex();
+
+					if (IfacePackageIdx == StructPackageIdx)
+					{
+						ClassOrStructDependencyList.AddDependency(Obj.GetIndex(), Iface.InterfaceClass.GetIndex());
+					}
+					else
+					{
+						RequirementInfo& ReqInfo = PackageDependencyList[IfacePackageIdx];
+						ReqInfo.PackageIdx = IfacePackageIdx;
+						BooleanOrEqual(ReqInfo.bShouldIncludeClasses, true);
+					}
+				}
+			}
+
 			if (!bIsClass)
 				continue;
 			
@@ -315,6 +337,43 @@ void PackageManager::InitDependencies()
 				/* Add dependencies to ParamDependencies and add enums only to class dependencies (forwarddeclaration of enum classes defaults to int) */
 				PackageManagerUtils::SetPackageDependencies(Info.PackageDependencies.ParametersDependencies, ParamDependencies, FuncPackageIndex, true);
 				PackageManagerUtils::AddEnumPackageDependencies(Info.PackageDependencies.ClassesDependencies, ParamDependencies, FuncPackageIndex, true);
+			}
+
+			for (const FImplementedInterface& Iface : ObjAsStruct.Cast<UEClass>().GetImplementedInterfaces())
+			{
+				if (Iface.bImplementedByK2 || !Iface.InterfaceClass)
+					continue;
+
+				for (UEStruct IfaceStruct = Iface.InterfaceClass.Cast<UEStruct>(); IfaceStruct; IfaceStruct = IfaceStruct.GetSuper())
+				{
+					if (!IfaceStruct.IsA(EClassCastFlags::Class))
+						break;
+						
+					static const UEClass InterfaceBaseClass = ObjectArray::FindClassFast("Interface");
+					if (!IfaceStruct.HasType(InterfaceBaseClass))
+						break;
+
+					if (IfaceStruct.GetPackageIndex() == CurrentPackageIdx)
+						continue;
+
+					for (UEFunction Func : IfaceStruct.GetFunctions())
+					{
+						Info.Functions.push_back(Func.GetIndex());
+						BooleanOrEqual(Info.bHasParams, Func.HasMembers());
+
+						const int32 FuncPackageIndex = Func.GetPackageIndex();
+						std::unordered_set<int32> ParamDependencies = PackageManagerUtils::GetDependencies(Func, Func.GetIndex());
+						PackageManagerUtils::SetPackageDependencies(Info.PackageDependencies.ParametersDependencies, ParamDependencies, FuncPackageIndex, true);
+						PackageManagerUtils::AddEnumPackageDependencies(Info.PackageDependencies.ClassesDependencies, ParamDependencies, FuncPackageIndex, true);
+
+						if (Func.HasMembers())
+						{
+							RequirementInfo& ReqInfo = Info.PackageDependencies.ParametersDependencies[FuncPackageIndex];
+							ReqInfo.PackageIdx = FuncPackageIndex;
+							BooleanOrEqual(ReqInfo.bShouldIncludeParameters, true);
+						}
+					}
+				}
 			}
 		}
 		else if (bIsEnum)

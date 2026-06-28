@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Unreal/ObjectArray.h"
+#include "Unreal/UnrealTypes.h"
 
 #include "Managers/CollisionManager.h"
 #include "Managers/StructManager.h"
@@ -55,6 +56,11 @@ public:
     bool IsUnion() const;
     bool IsFunction() const;
     bool IsInterface() const;
+
+    bool IsVerseGeneratedClass() const;
+
+    std::vector<FImplementedInterface> GetNativeInterfaces() const;
+    bool HasNativeInterfaces() const;
 
 	bool IsExactClassUObject() const;
 

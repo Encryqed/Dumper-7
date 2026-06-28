@@ -1,5 +1,6 @@
 #include <vector>
 #include <array>
+#include <unordered_set>
 
 #include "Unreal/ObjectArray.h"
 #include "Generators/CppGenerator.h"
@@ -62,6 +63,119 @@ std::string CppGenerator::GenerateBytePadding(const int32 Offset, const int32 Pa
 std::string CppGenerator::GenerateBitPadding(uint8 UnderlayingSizeBytes, const uint8 PrevBitPropertyEndBit, const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
 	return MakeMemberString(GetTypeFromSize(UnderlayingSizeBytes), std::format("BitPad_{:X}_{:X} : {:d}", Offset, PrevBitPropertyEndBit, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, UnderlayingSizeBytes, std::move(Reason)));
+}
+
+void CppGenerator::EnsureInterfaceVftMember(UEClass InterfaceClass)
+{
+	if (!InterfaceClass)
+		return;
+
+	PredefinedElements& Predefs = PredefinedMembers[InterfaceClass.GetIndex()];
+
+	for (const PredefinedMember& Existing : Predefs.Members)
+	{
+		if (Existing.Name == "Vft")
+			return;
+	}
+
+	PredefinedMember VftMember = {
+		.Comment = "NOT AUTO-GENERATED PROPERTY",
+		.Type = "void*", .Name = "Vft",
+		.Offset = 0x0, .Size = sizeof(void*),
+		.ArrayDim = 0x1, .Alignment = alignof(void*),
+		.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+	};
+
+	Predefs.Members.push_back(std::move(VftMember));
+}
+
+CppGenerator::InterfaceMILayout CppGenerator::ComputeInterfaceMI(const StructWrapper& Struct, int32 UnalignedSuperSize)
+{
+	InterfaceMILayout Layout;
+
+	if (!Struct.IsUnrealStruct() || !Struct.IsClass() || Struct.IsInterface())
+		return Layout;
+
+	if (Struct.IsVerseGeneratedClass())
+	{
+		Layout.FallbackReason = "Verse class, PointerOffset=0 for all entries";
+		return Layout;
+	}
+
+	std::vector<FImplementedInterface> Natives = Struct.GetNativeInterfaces();
+	if (Natives.empty())
+		return Layout;
+
+	constexpr int32 InterfaceVftSize = static_cast<int32>(sizeof(void*));
+	int32 Cursor = (UnalignedSuperSize + (InterfaceVftSize - 1)) & ~(InterfaceVftSize - 1);
+
+	Layout.Entries.reserve(Natives.size());
+	for (const FImplementedInterface& Iface : Natives)
+	{
+		const int32 EngineOffset = Iface.PointerOffset;
+		const int32 PaddingNeeded = EngineOffset - Cursor;
+
+		if (PaddingNeeded < 0)
+		{
+			Layout.FallbackReason = std::format("iface '{}' at 0x{:X} precedes cursor 0x{:X}", Iface.InterfaceClass.GetName(), EngineOffset, Cursor);
+			Layout.Entries.clear();
+			return Layout;
+		}
+
+		Layout.Entries.push_back({
+			.Interface = Iface.InterfaceClass,
+			.PaddingBefore = PaddingNeeded,
+			.PaddingTag = EngineOffset
+		});
+
+		Cursor = EngineOffset + InterfaceVftSize;
+		Layout.TotalMIBytes += PaddingNeeded + InterfaceVftSize;
+	}
+
+	Layout.bIsViable = true;
+	return Layout;
+}
+
+std::string CppGenerator::GetInterfaceInheritanceString(const InterfaceMILayout& Layout)
+{
+	std::string Out;
+
+	for (const InterfaceMILayout::Entry& E : Layout.Entries)
+	{
+		if (!E.Interface)
+			continue;
+
+		if (E.PaddingBefore > 0)
+			Out += std::format(", public MIPad::Pad<0x{:X}, 0x{:X}>", E.PaddingBefore, E.PaddingTag);
+
+		Out += ", public ";
+		Out += GetStructPrefixedName(StructWrapper(E.Interface.Cast<UEStruct>()));
+	}
+
+	return Out;
+}
+
+void CppGenerator::EmitInterfaceMIStaticAsserts(const StructWrapper& Struct, const InterfaceMILayout& Layout, const std::string& UniqueName, StreamType& StructFile)
+{
+	if (!Layout.bIsViable || Layout.Entries.empty() || !Struct.IsUnrealStruct())
+		return;
+
+	StructFile << "#ifdef _MSC_VER\n";
+	StructFile << "#pragma warning(push)\n";
+	StructFile << "#pragma warning(disable: 4316)\n";
+	StructFile << "#pragma warning(disable: 5046)\n";
+
+	for (const FImplementedInterface& Iface : Struct.GetUnrealStruct().Cast<UEClass>().GetImplementedInterfaces())
+	{
+		if (Iface.bImplementedByK2 || !Iface.InterfaceClass)
+			continue;
+
+		const std::string IfacePrefixed = GetStructPrefixedName(StructWrapper(Iface.InterfaceClass.Cast<UEStruct>()));
+		StructFile << std::format("static_assert(offsetof({0}, {1}::Vft) == 0x{2:04X}, \"Wrong interface VFT offset for '{0}::{1}'\");\n", UniqueName, IfacePrefixed, Iface.PointerOffset);
+	}
+
+	StructFile << "#pragma warning(pop)\n";
+	StructFile << "#endif\n";
 }
 
 std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex)
@@ -293,7 +407,7 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 	return RetFuncInfo;
 }
 
-std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile)
+std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile, bool bForceImplementerDispatch)
 {
 	namespace CppSettings = Settings::CppGenerator;
 
@@ -337,9 +451,14 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 
 	std::string ParamStructName = Func.GetParamStructName();
 
-	// Parameter struct generation for unreal-functions
 	if (!Func.IsPredefined() && Func.GetParamStructSize() > 0x0)
-		GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile, AssertionFile, -1, ParamStructName);
+	{
+		static std::unordered_set<std::string> EmittedParamStructs;
+		const std::string DedupKey = std::format("{:X}|{}", reinterpret_cast<uintptr_t>(&ParamFile), ParamStructName);
+		
+		if (EmittedParamStructs.insert(DedupKey).second)
+			GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile, AssertionFile, -1, ParamStructName);
+	}
 
 
 	std::string ParamVarCreationString = std::format(R"(
@@ -424,6 +543,34 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	std::string FixedOuterName = PrefixQuotsWithBackslash(UnrealFunc.GetOuter().GetName());
 	std::string FixedFunctionName = PrefixQuotsWithBackslash(UnrealFunc.GetName());
 
+	const bool bDispatchAsInterface = Func.IsInInterface() && !bForceImplementerDispatch;
+
+	/* Pending #531: re-enable once Off::InSDK::Find::FindFunctionCheckedOffset is on main */
+#if 0
+	const bool bUseDynamicLookup = Off::InSDK::Find::FindFunctionCheckedOffset > 0
+		&& !Func.IsStatic() && (Func.HasFunctionFlag(EFunctionFlags::BlueprintEvent) || bForceImplementerDispatch);
+
+	std::string FuncLookupBlock;
+	if (bUseDynamicLookup)
+	{
+		FuncLookupBlock = std::format(
+R"(	static class FName FnName;
+	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
+			bDispatchAsInterface ? "AsUObject()" : "this",
+			FixedFunctionName);
+	}
+	else
+	{
+		FuncLookupBlock = std::format(
+R"(	static int32 FuncIdx = 0;
+	static uint64 FuncFName = 0;
+	static uint64 OuterFName = 0;
+	class UFunction* Func = GetStaticFunction({}, {}, {}, FuncIdx, FuncFName, OuterFName);)",
+			Func.IsStatic() ? "StaticClass()" : bDispatchAsInterface ? "AsUObject()->Class" : "Class",
+			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName) : std::format("\"{}\"", FixedOuterName),
+			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName) : std::format("\"{}\"", FixedFunctionName));
+	}
+#endif
 	// Function implementation generation
 	std::string FunctionImplementation = std::format(R"(
 // {}
@@ -452,7 +599,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , bHasParams ? ParamVarCreationString : ""
 , bHasParamsToInit ? ParamAssignments : ""
 , bIsNativeFunc ? StoreFunctionFlagsString : ""
-, Func.IsStatic() ? "GetDefaultObj()->" : Func.IsInInterface() ? "AsUObject()->" : "UObject::"
+, Func.IsStatic() ? "GetDefaultObj()->" : bDispatchAsInterface ? "AsUObject()->" : "UObject::"
 , bHasParams ? "&Parms" : "nullptr"
 , bIsNativeFunc ? RestoreFunctionFlagsString : ""
 , bHasOutRefParamsToInit ? OutRefAssignments : ""
@@ -464,7 +611,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	return InHeaderFunctionText;
 }
 
-std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile)
+std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile, bool bEmitMIInterfaceOverride)
 {
 	namespace CppSettings = Settings::CppGenerator;
 
@@ -639,6 +786,54 @@ R"({{
 		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &Interface_AsObject), StructName, FunctionFile, ParamFile, AssertionFile);
 		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &Interface_AsObject_Const), StructName, FunctionFile, ParamFile, AssertionFile);
 	}
+	else if (bEmitMIInterfaceOverride)
+	{
+		std::unordered_set<std::string> AlreadyEmitted;
+		for (const FunctionWrapper& Own : Members.IterateFunctions())
+		{
+			if (Own.GetFunctionFlags() & EFunctionFlags::Delegate)
+				continue;
+			AlreadyEmitted.insert(Own.GetName());
+		}
+		for (const PropertyWrapper& Prop : Members.IterateMembers())
+			AlreadyEmitted.insert(Prop.GetName());
+
+		bool bWroteSectionHeader = false;
+		for (const FImplementedInterface& Iface : Struct.GetNativeInterfaces())
+		{
+			for (UEStruct IfaceStruct = Iface.InterfaceClass.Cast<UEStruct>(); IfaceStruct; IfaceStruct = IfaceStruct.GetSuper())
+			{
+				StructWrapper IfaceWrapper(IfaceStruct);
+				if (!IfaceWrapper.IsInterface())
+					break;
+
+				std::shared_ptr<StructWrapper> IfacePtr = std::make_shared<StructWrapper>(IfaceWrapper);
+				MemberManager IfaceMembers = IfaceWrapper.GetMembers();
+
+				for (const FunctionWrapper& IfaceFunc : IfaceMembers.IterateFunctions())
+				{
+					if (IfaceFunc.GetFunctionFlags() & EFunctionFlags::Delegate)
+						continue;
+
+					UEFunction RawFn = IfaceFunc.GetUnrealFunction();
+					if (!RawFn)
+						continue;
+
+					FunctionWrapper Rebound(IfacePtr, RawFn);
+					if (!AlreadyEmitted.insert(Rebound.GetName()).second)
+						continue;
+
+					if (!bWroteSectionHeader)
+					{
+						InHeaderFunctionText += "\npublic:\n";
+						bWroteSectionHeader = true;
+					}
+
+					InHeaderFunctionText += GenerateSingleFunction(Rebound, StructName, FunctionFile, ParamFile, AssertionFile, true);
+				}
+			}
+		}
+	}
 
 	return InHeaderFunctionText;
 }
@@ -660,7 +855,20 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	StructWrapper Super = Struct.GetSuper();
 
-	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction() && !Struct.IsInterface();
+	const bool bIsThisInterface = Struct.IsInterface();
+
+	bool bInterfaceHasParentInterface = false;
+	if (bIsThisInterface && Super.IsValid() && Super.IsInterface())
+	{
+		static UEClass AbstractInterfaceClass = ObjectArray::FindClassFast("Interface");
+		if (Super.IsUnrealStruct() && Super.GetUnrealStruct() != AbstractInterfaceClass)
+			bInterfaceHasParentInterface = true;
+	}
+
+	if (bIsThisInterface && !bInterfaceHasParentInterface && Struct.IsUnrealStruct())
+		EnsureInterfaceVftMember(Struct.GetUnrealStruct().Cast<UEClass>());
+
+	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction() && (!bIsThisInterface || bInterfaceHasParentInterface);
 
 	/* Ignore UFunctions with a valid Super field, parameter structs are not supposed inherit from eachother. */
 	if (bHasValidSuper)
@@ -686,6 +894,18 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	const bool bIsTemplatedType = Struct.HasCustomTemplateText();
 
+	InterfaceMILayout IfaceMI;
+	if (!bIsThisInterface && bHasValidSuper)
+		IfaceMI = ComputeInterfaceMI(Struct, UnalignedSuperSize);
+
+	const std::string IfaceInheritanceStr = GetInterfaceInheritanceString(IfaceMI);
+
+	std::string FallbackComment;
+	if (!IfaceMI.bIsViable && !IfaceMI.FallbackReason.empty() && Struct.IsUnrealStruct() && !bIsThisInterface && Struct.HasNativeInterfaces())
+	{
+		FallbackComment = "// [interface MI fallback] " + IfaceMI.FallbackReason + "\n";
+	}
+
 	std::string AlignmentString = "";
 
 	if (Struct.ShouldUseExplicitAlignment())
@@ -696,19 +916,20 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	StructFile << std::format(R"(
 // {}
 // 0x{:04X} (0x{:04X} - 0x{:04X})
-{}{}{} {}{}{}{}
+{}{}{}{} {}{}{}{}
 {{
 )", Struct.GetFullName()
   , StructSizeWithoutSuper
   , StructSize
   , SuperSize
   , bHasReusedTrailingPadding ? "#pragma pack(push, 0x1)\n" : ""
+  , FallbackComment
   , bIsTemplatedType ? (Struct.GetCustomTemplateText() + "\n") : ""
   , bIsClass ? "class" : (bIsUnion ? "union" : "struct")
   , AlignmentString
   , UniqueName
   , Settings::CppGenerator::bAddFinalSpecifier && Struct.IsFinal() ? " final" : ""
-  , bHasValidSuper ? (" : public " + UniqueSuperName) : "");
+  , bHasValidSuper ? (" : public " + UniqueSuperName + IfaceInheritanceStr) : "");
 
 	MemberManager Members = Struct.GetMembers();
 
@@ -720,9 +941,13 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	if (bHasMembers || bHasFunctions)
 		StructFile << "public:\n";
 
+	const int32 MIBaseBytes = IfaceMI.bIsViable ? IfaceMI.TotalMIBytes : 0;
+
 	if (bHasMembers)
 	{
-		StructFile << GenerateMembers(Struct, Members, bIsReusingTrailingPaddingFromSuper ? UnalignedSuperSize : SuperSize, SuperLastMemberEnd, SuperAlignment, PackageIndex);
+		const int32 MemberSuperSize = (bIsReusingTrailingPaddingFromSuper ? UnalignedSuperSize : SuperSize) + MIBaseBytes;
+		const int32 MemberLastMemberEnd = SuperLastMemberEnd + MIBaseBytes;
+		StructFile << GenerateMembers(Struct, Members, MemberSuperSize, MemberLastMemberEnd, SuperAlignment, PackageIndex);
 
 		if (bHasFunctions)
 			StructFile << "\npublic:\n";
@@ -732,13 +957,15 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	{
 		StreamType& FuncParamsAssertionFile = Settings::Debug::bGenerateAssertionFile ? AssertionFile : ParamFile;
 
-		StructFile << GenerateFunctions(Struct, Members, UniqueName, FunctionFile, ParamFile, FuncParamsAssertionFile);
+		StructFile << GenerateFunctions(Struct, Members, UniqueName, FunctionFile, ParamFile, FuncParamsAssertionFile, IfaceMI.bIsViable);
 	}
 
 	StructFile << "};\n";
 
 	if (bHasReusedTrailingPadding)
 		StructFile << "#pragma pack(pop)\n";
+
+	EmitInterfaceMIStaticAsserts(Struct, IfaceMI, UniqueName, StructFile);
 
 	if constexpr (Settings::Debug::bGenerateAssertionFile)
 	{
@@ -1568,6 +1795,9 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 			if (Requirements.bShouldIncludeClasses)
 				File << std::format("#include \"{}_classes.hpp\"\n", DependencyName);
+
+			if (Requirements.bShouldIncludeParameters)
+				File << std::format("#include \"{}_parameters.hpp\"\n", DependencyName);
 		}
 
 		if (bAddNewLine)
@@ -3591,6 +3821,21 @@ namespace Offsets
 	max(Off::InSDK::ProcessEvent::PEOffset, 0x0),
 	Off::InSDK::ProcessEvent::PEIndex);
 
+
+	BasicHpp << R"(
+// Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
+class UClass;
+class UObject;
+class UFunction;
+class UScriptStruct;
+class FName;
+
+namespace MIPad
+{
+	template<unsigned long long N, unsigned long long Tag>
+	struct alignas(1) Pad { unsigned char _pad[N]; };
+}
+)";
 
 	// Start Namespace 'InSDKUtils'
 	BasicHpp <<
