@@ -440,10 +440,10 @@ R"(	static class FName FnName;
 	else
 	{
 		FuncLookupBlock = std::format(
-R"(	static class UFunction* Func = nullptr;
-
-	if (Func == nullptr)
-		Func = {}->GetFunction({}, {});)",
+R"(	static int32 FuncIdx = 0;
+	static uint64 FuncFName = 0;
+	static uint64 OuterFName = 0;
+	class UFunction* Func = GetStaticFunction({}, {}, {}, FuncIdx, FuncFName, OuterFName);)",
 			Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class",
 			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName) : std::format("\"{}\"", FixedOuterName),
 			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName) : std::format("\"{}\"", FixedFunctionName));
@@ -3694,6 +3694,10 @@ namespace BasicFilesImplUtils
 
 	UFunction* FindFunctionByFName(const FName* Name);
 
+	UFunction* FindFunctionViaClass(UClass* SearchClass, const char* OuterClassName, const char* FuncName);
+
+	uint64 GetObjectOuterFNameAsUInt64(UObject* Obj);
+
 	FName StringToName(const wchar_t* Name);
 
 	UObject* GetDefaultObjectImpl(UClass* ClassInstance);
@@ -3745,6 +3749,19 @@ UFunction* BasicFilesImplUtils::FindFunctionByFName(const FName* Name)
 	}
 
 	return nullptr;
+}
+
+UFunction* BasicFilesImplUtils::FindFunctionViaClass(UClass* SearchClass, const char* OuterClassName, const char* FuncName)
+{
+	return SearchClass->GetFunction(OuterClassName, FuncName);
+}
+
+uint64 BasicFilesImplUtils::GetObjectOuterFNameAsUInt64(UObject* Obj)
+{
+	if (!Obj || !Obj->Outer)
+		return 0;
+
+	return *reinterpret_cast<uint64*>(&Obj->Outer->Name);
 }
 
 FName BasicFilesImplUtils::StringToName(const wchar_t* Name)
@@ -3840,6 +3857,35 @@ class UClass* GetStaticBPGeneratedClass(const char* Name, int32& ClassIdx, uint6
 
 		return ClassObj;
 	}
+}
+)";
+
+	BasicHpp << R"(
+inline class UFunction* GetStaticFunction(class UClass* SearchClass, const char* OuterClassName, const char* FuncName, int32& FuncIdx, uint64& FuncFName, uint64& OuterFName)
+{
+	static auto SetFuncIndex = [](class UFunction* Fn, int32& Idx, uint64& Name, uint64& OuterName) -> class UFunction*
+	{
+		if (Fn)
+		{
+			Idx = BasicFilesImplUtils::GetObjectIndex(reinterpret_cast<class UClass*>(Fn));
+			Name = BasicFilesImplUtils::GetObjFNameAsUInt64(reinterpret_cast<class UClass*>(Fn));
+			OuterName = BasicFilesImplUtils::GetObjectOuterFNameAsUInt64(reinterpret_cast<class UObject*>(Fn));
+		}
+
+		return Fn;
+	};
+
+	if (FuncIdx == 0x0) [[unlikely]]
+		return SetFuncIndex(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncIdx, FuncFName, OuterFName);
+
+	class UFunction* FnObj = reinterpret_cast<class UFunction*>(BasicFilesImplUtils::GetObjectByIndex(FuncIdx));
+
+	if (!FnObj
+		|| BasicFilesImplUtils::GetObjFNameAsUInt64(reinterpret_cast<class UClass*>(FnObj)) != FuncFName
+		|| BasicFilesImplUtils::GetObjectOuterFNameAsUInt64(reinterpret_cast<class UObject*>(FnObj)) != OuterFName)
+		return SetFuncIndex(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncIdx, FuncFName, OuterFName);
+
+	return FnObj;
 }
 )";
 
