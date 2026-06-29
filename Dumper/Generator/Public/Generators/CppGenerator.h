@@ -93,9 +93,29 @@ private:
     static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex = -1);
     static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func);
 
+    struct InterfaceMILayout
+    {
+        struct Entry
+        {
+            UEClass Interface;
+            int32 PaddingBefore = 0;
+            int32 PaddingTag = 0;
+        };
+
+        bool bIsViable = false;
+        std::string FallbackReason;
+        std::vector<Entry> Entries;
+        int32 TotalMIBytes = 0;
+    };
+
+    static InterfaceMILayout ComputeInterfaceMI(const StructWrapper& Struct, int32 UnalignedSuperSize);
+    static void EnsureInterfaceVftMember(UEClass InterfaceClass);
+    static std::string GetInterfaceInheritanceString(const InterfaceMILayout& Layout);
+    static void EmitInterfaceMIStaticAsserts(const StructWrapper& Struct, const InterfaceMILayout& Layout, const std::string& UniqueName, StreamType& StructFile);
+
     // return: In-header function declarations and inline functions
-    static std::string GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile);
-    static std::string GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile);
+    static std::string GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile, bool bForceImplementerDispatch = false);
+    static std::string GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile, bool bEmitMIInterfaceOverride = false);
 
     static void GenerateStruct(const StructWrapper& Struct, StreamType& StructFile, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile, int32 PackageIndex = -1, const std::string& StructNameOverride = std::string());
 
