@@ -5369,15 +5369,6 @@ public:
 		.UniqueName = "TDelegate", .Size = PropertySizes::DelegateProperty, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
-	TDelegate.Properties =
-	{
-		PredefinedMember {
-			.Comment = "Validity Check",
-			.Type = "static_assert(false, \"TDelegate should be used with a function signature. Something might be wrong in the SDK-Generator.\")", .Name = "", .Offset = 0x0, .Size = 0x10, .ArrayDim = 0x0, .Alignment = 0x8,
-			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
 
 	GenerateStruct(&TDelegate, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 
@@ -5404,15 +5395,6 @@ public:
 		.UniqueName = "TMulticastInlineDelegate", .Size = PropertySizes::MulticastInlineDelegateProperty, .Alignment = alignof(TArray<int>), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 	
-	TMulticastInlineDelegate.Properties =
-	{
-		PredefinedMember {
-			.Comment = "Validity Check",
-			.Type = "static_assert(false, \"TMulticastInlineDelegate should be used with a function signature. Something might be wrong in the SDK-Generator.\")", .Name = "", .Offset = 0x0, .Size = 0x10, .ArrayDim = 0x0, .Alignment = 0x8,
-			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
 	GenerateStruct(&TMulticastInlineDelegate, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 
 	/* TMulticastInlineDelegate<Ret(Args...)> */
