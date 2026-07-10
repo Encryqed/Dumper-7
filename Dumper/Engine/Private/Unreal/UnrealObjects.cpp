@@ -616,7 +616,7 @@ std::string UEEnum::GetEnumTypeAsStr() const
 
 std::pair<uint8_t, bool> UEEnum::GetSizeSignedPair() const
 {
-	if (Settings::Internal::bHasUnderlayingTypeInUEnum)
+	if (!Settings::Internal::bHasUnderlayingTypeInUEnum)
 		return { 1, false };
 
 	const EUnderlyingType Type = *reinterpret_cast<EUnderlyingType*>(Object + Off::UEnum::UnderlyingType);
