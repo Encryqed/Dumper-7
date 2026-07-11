@@ -300,6 +300,10 @@
     <ClCompile Include="Engine\Private\OffsetFinder\Offsets.cpp" />
     <ClCompile Include="Engine\Private\Unreal\UnrealObjects.cpp" />
     <ClCompile Include="Engine\Private\Unreal\UnrealTypes.cpp" />
+    <ClCompile Include="Generator\Private\Generators\IDAMappingGenerator.cpp" />
+    <ClInclude Include="Generator\Public\SharedPredefinedMembers.h" />
+    <ClInclude Include="Generator\Public\Generators\IDAMappingLayouts.h" />
+    <ClCompile Include="Generator\Private\SharedPredefinedMembers.cpp" />
     <ClCompile Include="Platform\Private\Arch_x86.cpp" />
     <ClCompile Include="Platform\Private\PlatformWindows.cpp" />
     <ClCompile Include="Settings.cpp" />
@@ -311,7 +315,6 @@
     <ClCompile Include="Generator\Private\Wrappers\EnumWrapper.cpp" />
     <ClCompile Include="Generator\Private\Generators\Generator.cpp" />
     <ClCompile Include="Generator\Private\HashStringTable.cpp" />
-    <ClCompile Include="Generator\Private\Generators\IDAMappingGenerator.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Generator\Private\Generators\MappingGenerator.cpp" />
     <ClCompile Include="Generator\Private\Wrappers\MemberWrappers.cpp" />
@@ -323,6 +326,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Generator\Public\Generators\DumpspaceGenerator.h" />
+    <ClInclude Include="Generator\Public\Generators\IDAMappingGenerator.h" />
     <ClInclude Include="Platform\Private\Arch_x86.h" />
     <ClInclude Include="Platform\Private\PlatformWindows.h" />
     <ClInclude Include="Platform\Public\Architecture.h" />
@@ -338,7 +342,6 @@
     <ClInclude Include="Utils\Json\json.hpp" />
     <ClInclude Include="Generator\Public\Generators\Generator.h" />
     <ClInclude Include="Generator\Public\HashStringTable.h" />
-    <ClInclude Include="Generator\Public\Generators\IDAMappingGenerator.h" />
     <ClInclude Include="Generator\Public\Generators\MappingGenerator.h" />
     <ClInclude Include="Generator\Public\Wrappers\MemberWrappers.h" />
     <ClInclude Include="Generator\Public\Managers\CollisionManager.h" />

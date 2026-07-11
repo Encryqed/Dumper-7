@@ -22,7 +22,8 @@ private:
     friend class CppGeneratorTest;
     friend class Generator;
 
-private:
+public:
+    /* Used by IDAMappingGenerator */
     struct ParamInfo
     {
         bool bIsOutPtr;
@@ -36,6 +37,7 @@ private:
         std::string Name;
     };
 
+    /* Used by IDAMappingGenerator */
     struct FunctionInfo
     {
         bool bIsReturningVoid;
@@ -47,6 +49,7 @@ private:
         std::vector<ParamInfo> UnrealFuncParams; // for unreal-functions only
     };
 
+private:
     enum class EFileType
     {
         Classes,
@@ -67,6 +70,9 @@ private:
 
         DebugAssertions,
     };
+
+public:
+    friend class CppGeneratorAccessor;
 
 private:
     using StreamType = std::ofstream;
@@ -91,7 +97,7 @@ private:
     static std::string GenerateBitPadding(uint8 UnderlayingSizeBytes, const uint8 PrevBitPropertyEndBit, const int32 Offset, const int32 PadSize, std::string&& Reason);
 
     static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex = -1);
-    static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func);
+    static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func, const bool bAddExplicitThis = false);
 
     // return: In-header function declarations and inline functions
     static std::string GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile);

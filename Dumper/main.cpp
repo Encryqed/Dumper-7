@@ -12,25 +12,26 @@
 
 enum class EFortToastType : uint8
 {
-        Default                        = 0,
-        Subdued                        = 1,
-        Impactful                      = 2,
-        EFortToastType_MAX             = 3,
+	Default                        = 0,
+	Subdued                        = 1,
+	Impactful                      = 2,
+	EFortToastType_MAX             = 3,
 };
 
 DWORD MainThread(HMODULE Module)
 {
 	AllocConsole();
 	FILE* Dummy;
+	freopen_s(&Dummy, "CONIN$", "r", stdin);
 	freopen_s(&Dummy, "CONOUT$", "w", stderr);
 	std::cerr.clear(); // clear internal error flags on cerr after redirect
-	freopen_s(&Dummy, "CONIN$", "r", stdin);
+	std::cerr << std::boolalpha << std::hex;
 
 	std::cerr << "Initializing [Dumper-7]\n";
 
 	Settings::Config::Load();
 	Settings::Config::DelayDumperStart();
-	
+
 	std::cerr << "Started Generation [Dumper-7]!\n";
 	auto DumpStartTime = std::chrono::high_resolution_clock::now();
 

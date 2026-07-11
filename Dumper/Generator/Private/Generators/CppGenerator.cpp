@@ -5,6 +5,7 @@
 #include "Generators/CppGenerator.h"
 #include "Wrappers/MemberWrappers.h"
 #include "Managers/MemberManager.h"
+#include "SharedPredefinedMembers.h"
 
 #include "../Settings.h"
 
@@ -200,7 +201,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 	return OutMembers;
 }
 
-CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrapper& Func)
+CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrapper& Func, const bool bAddExplicitThis)
 {
 	FunctionInfo RetFuncInfo;
 
@@ -222,6 +223,28 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 	bool bIsFirstParam = true;
 
 	RetFuncInfo.UnrealFuncParams.reserve(5);
+
+	if (bAddExplicitThis)
+	{
+		ParamInfo ThisParamInfo;
+
+		ThisParamInfo.bIsConst = Func.IsConst();
+		ThisParamInfo.PropFlags = EPropertyFlags::Parm | EPropertyFlags::ReferenceParm;
+
+		if (ThisParamInfo.bIsConst)
+			ThisParamInfo.PropFlags |= EPropertyFlags::ConstParm;
+
+		ThisParamInfo.bIsOutPtr = false;
+		ThisParamInfo.bIsOutRef = false;
+		ThisParamInfo.bIsMoveParam = false;
+		ThisParamInfo.bIsRetParam = false;
+		ThisParamInfo.Type = "const " + GetStructPrefixedName(Func.AsStruct()) + "*";
+		ThisParamInfo.Name = "This";
+		RetFuncInfo.UnrealFuncParams.push_back(ThisParamInfo);
+		RetFuncInfo.FuncNameWithParams += ThisParamInfo.Type + " " + ThisParamInfo.Name;
+
+		bIsFirstParam = false;
+	}
 
 	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
 	{
@@ -1588,7 +1611,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 	if (!Settings::Config::SDKNamespaceName.empty())
 	{
 		File << "SDK_NAMESPACE_START\n";
-		
+
 		if (Type == EFileType::Parameters && CppSettings::ParamNamespaceName)
 			File << "SDK_PARAM_NAMESPACE_START\n";
 	}
@@ -1608,7 +1631,7 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 
 	if (!Settings::Config::SDKNamespaceName.empty())
 	{
-		File << "\n";
+			File << "\n";
 
 		if (Type == EFileType::Parameters && CppSettings::ParamNamespaceName)
 			File << "SDK_PARAM_NAMESPACE_END\n";
@@ -1814,201 +1837,42 @@ void CppGenerator::InitPredefinedMembers()
 		Struct.Size = LastMember.Offset + LastMember.Size;
 	};
 
+	// Initialize core predefined members shared with IDAMappingGenerator
+	InitCorePredefinedMembers(PredefinedMembers);
 
-	if (Off::InSDK::ULevel::Actors != -1)
-	{
-		UEClass Level = ObjectArray::FindClassFast("Level");
+	// Add CppGenerator specific members
 
-		if (Level == nullptr)
-			Level = ObjectArray::FindClassFast("level");
-
-		PredefinedElements& ULevelPredefs = PredefinedMembers[Level.GetIndex()];
-		ULevelPredefs.Members =
-		{
-			PredefinedMember {
-				.Comment = "THIS IS THE ARRAY YOU'RE LOOKING FOR! [NOT AUTO-GENERATED PROPERTY]",
-				.Type = "class TArray<class AActor*>", .Name = "Actors", .Offset = Off::InSDK::ULevel::Actors, .Size = sizeof(TArray<int>), .ArrayDim = 0x1, .Alignment = alignof(TArray<int>),
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			},
-		};
-	}
-
-	UEClass DataTable = ObjectArray::FindClassFast("DataTable");
-
-	PredefinedElements& UDataTablePredefs = PredefinedMembers[DataTable.GetIndex()];
-	UDataTablePredefs.Members =
-	{
-		PredefinedMember {
-			.Comment = "So, here's a RowMap. Good luck with it.",
-			.Type = "TMap<class FName, uint8*>", .Name = "RowMap", .Offset = Off::InSDK::UDataTable::RowMap, .Size = sizeof(TMap<int, int>), .ArrayDim = 0x1, .Alignment = alignof(TMap<int, int>),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
+	// Add GObjects static member to UObject
 	PredefinedElements& UObjectPredefs = PredefinedMembers[ObjectArray::FindClassFast("Object").GetIndex()];
-	UObjectPredefs.Members = 
-	{
-		PredefinedMember {
+	UObjectPredefs.Members.insert(UObjectPredefs.Members.begin(),
+		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
 			.Type = "inline class TUObjectArrayWrapper", .Name = "GObjects", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
 			.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "void*", .Name = "VTable", .Offset = Off::UObject::Vft, .Size = sizeof(void**), .ArrayDim = 0x1, .Alignment = alignof(void**),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "EObjectFlags", .Name = "Flags", .Offset = Off::UObject::Flags, .Size = sizeof(EObjectFlags), .ArrayDim = 0x1, .Alignment = alignof(EObjectFlags),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "Index", .Offset = Off::UObject::Index, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class UClass*", .Name = "Class", .Offset = Off::UObject::Class, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class FName", .Name = "Name", .Offset = Off::UObject::Name, .Size = Off::InSDK::Name::FNameSize, .ArrayDim = 0x1, .Alignment = alignof(int32),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class UObject*", .Name = "Outer", .Offset = Off::UObject::Outer, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
+		}
+	);
 
-	const UEClass UField = ObjectArray::FindClassFast("Field");
-	PredefinedElements& UFieldPredefs = PredefinedMembers[UField.GetIndex()];
-
-	// Starting from UE5.7 UField::Next is reflected and doesn't need to be added manually anymore
-	if (!UField.FindMember("Next", EClassCastFlags::ObjectProperty))
-	{
-		UFieldPredefs.Members.insert(UFieldPredefs.Members.begin(),
-			PredefinedMember{
-				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UField*", .Name = "Next", .Offset = Off::UField::Next, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			});
-	}
-
-	PredefinedElements& UEnumPredefs = PredefinedMembers[ObjectArray::FindClassFast("Enum").GetIndex()];
-	UEnumPredefs.Members =
-	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class TArray<class TPair<class FName, int64>>", .Name = "Names", .Offset = Off::UEnum::Names, .Size = sizeof(TArray<int>), .ArrayDim = 0x1, .Alignment = alignof(TArray<int>),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
-	UEClass UStruct = ObjectArray::FindClassFast("Struct");
-
-	if (UStruct == nullptr)
-		UStruct = ObjectArray::FindClassFast("struct");
-
-	PredefinedElements& UStructPredefs = PredefinedMembers[UStruct.GetIndex()];
-	UStructPredefs.Members =
-	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int16", .Name = "MinAlignment", .Offset = Off::UStruct::MinAlignment, .Size = sizeof(int16), .ArrayDim = 0x1, .Alignment = alignof(int16),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "Size", .Offset = Off::UStruct::Size, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
-	// Starting from UE5.7 UStruct::SuperStruct is reflected and doesn't need to be added manually anymore
-	if (!UStruct.FindMember("SuperStruct", EClassCastFlags::ObjectProperty))
-	{
-		UStructPredefs.Members.insert(UStructPredefs.Members.begin(),
-			PredefinedMember{
-				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UStruct*", .Name = "SuperStruct", .Offset = Off::UStruct::SuperStruct, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			});
-	}
-	// Starting from UE5.7 UStruct::Children is reflected and doesn't need to be added manually anymore
-	if (!UStruct.FindMember("Children", EClassCastFlags::ObjectProperty))
-	{
-		UStructPredefs.Members.insert(UStructPredefs.Members.begin(),
-			PredefinedMember{
-				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UField*", .Name = "Children", .Offset = Off::UStruct::Children, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			});
-	}
-
-	if (Settings::Internal::bUseFProperty)
-	{
-		UStructPredefs.Members.push_back({
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class FField*", .Name = "ChildProperties", .Offset = Off::UStruct::ChildProperties, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		});
-	}
-
-	if (Off::UStruct::StructBaseChain != -1)
-	{
-		UStructPredefs.Members.push_back({
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "struct FStructBaseChain", .Name = "BaseChain", .Offset = Off::UStruct::StructBaseChain, .Size = sizeof(void*) + sizeof(int32) + sizeof(uint32) /* PAD */, .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		});
-	}
-
+	// Add FNativeFuncPtr typedef to UFunction and change ExecFunction type
 	PredefinedElements& UFunctionPredefs = PredefinedMembers[ObjectArray::FindClassFast("Function").GetIndex()];
-	UFunctionPredefs.Members =
-	{
-		PredefinedMember {
+	UFunctionPredefs.Members.insert(UFunctionPredefs.Members.begin(),
+		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
 			.Type = "using FNativeFuncPtr = void (*)(void* Context, void* TheStack, void* Result)", .Name = "", .Offset = 0x0, .Size = 0x00, .ArrayDim = 0x1, .Alignment = 0x0,
 			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "uint32", .Name = "FunctionFlags", .Offset = Off::UFunction::FunctionFlags, .Size = sizeof(EFunctionFlags), .ArrayDim = 0x1, .Alignment = alignof(EFunctionFlags),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "FNativeFuncPtr", .Name = "ExecFunction", .Offset = Off::UFunction::ExecFunction, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
+		}
+	);
 
-	const UEClass UClass = ObjectArray::FindClassFast("Class");
-	PredefinedElements& UClassPredefs = PredefinedMembers[UClass.GetIndex()];
-	UClassPredefs.Members =
+	// Change ExecFunction type from "void*" to "FNativeFuncPtr"
+	for (PredefinedMember& Member : UFunctionPredefs.Members)
 	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "enum class EClassCastFlags", .Name = "CastFlags", .Offset = Off::UClass::CastFlags, .Size = sizeof(EClassCastFlags), .ArrayDim = 0x1, .Alignment = alignof(EClassCastFlags),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
-	// Starting from UE5.7 UClass::ClassDefaultObject is reflected and doesn't need to be added manually anymore
-	if (!UClass.FindMember("ClassDefaultObject", EClassCastFlags::ObjectProperty))
-	{
-		UClassPredefs.Members.insert(UClassPredefs.Members.begin(),
-			PredefinedMember{
-				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UObject*", .Name = "ClassDefaultObject", .Offset = Off::UClass::ClassDefaultObject, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			});
+		if (Member.Name == "ExecFunction")
+		{
+			Member.Type = "FNativeFuncPtr";
+			break;
+		}
 	}
+
+	// CppGenerator specific: Property/FProperty/FField subtypes
 
 	const UEStruct FInstancedStruct = ObjectArray::FindStructFast("InstancedStruct");
 	if (FInstancedStruct && FInstancedStruct.GetStructSize() >= 0x10)
@@ -2191,11 +2055,11 @@ void CppGenerator::InitPredefinedMembers()
 	};
 
 	SortMembers(UObjectPredefs.Members);
-	SortMembers(UFieldPredefs.Members);
-	SortMembers(UEnumPredefs.Members);
-	SortMembers(UStructPredefs.Members);
 	SortMembers(UFunctionPredefs.Members);
-	SortMembers(UClassPredefs.Members);
+	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Field").GetIndex()].Members);
+	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Enum").GetIndex()].Members);
+	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Struct").GetIndex()].Members);
+	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Class").GetIndex()].Members);
 
 	SortMembers(PropertyMembers);
 	SortMembers(BytePropertyMembers);
@@ -3557,7 +3421,9 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 	/* use namespace of UnrealContainers */
 	BasicHpp <<
 		R"(
+#ifndef IMPORT_CPP_SDK_INTO_IDA
 using namespace UC;
+#endif // IMPORT_CPP_SDK_INTO_IDA
 )";
 
 	BasicHpp << "\n#include \"../NameCollisions.inl\"\n";
@@ -4799,7 +4665,7 @@ public:
 		return ClassPtr;
 	}
 
-	template<typename Target, typename = std::enable_if<std::is_base_of_v<Target, ClassType>, bool>::type>
+	template<typename Target, typename = typename std::enable_if<std::is_base_of_v<Target, ClassType>, bool>::type>
 	inline operator TSubclassOf<Target>() const
 	{
 		return ClassPtr;
@@ -5503,15 +5369,6 @@ public:
 		.UniqueName = "TDelegate", .Size = PropertySizes::DelegateProperty, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
-	TDelegate.Properties =
-	{
-		PredefinedMember{
-			.Comment = "Validity Check",
-			.Type = "static_assert(false, \"TDelegate should be used with a function signature. Something might be wrong in the SDK-Generator.\")", .Name = "", .Offset = 0x0, .Size = 0x10, .ArrayDim = 0x0, .Alignment = 0x8,
-			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
 
 	GenerateStruct(&TDelegate, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 
@@ -5538,15 +5395,6 @@ public:
 		.UniqueName = "TMulticastInlineDelegate", .Size = PropertySizes::MulticastInlineDelegateProperty, .Alignment = alignof(TArray<int>), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 	
-	TMulticastInlineDelegate.Properties =
-	{
-		PredefinedMember{
-			.Comment = "Validity Check",
-			.Type = "static_assert(false, \"TMulticastInlineDelegate should be used with a function signature. Something might be wrong in the SDK-Generator.\")", .Name = "", .Offset = 0x0, .Size = 0x10, .ArrayDim = 0x0, .Alignment = 0x8,
-			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
 	GenerateStruct(&TMulticastInlineDelegate, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 
 	/* TMulticastInlineDelegate<Ret(Args...)> */
@@ -5642,28 +5490,36 @@ using T8ByteEnum = TFixedSizeEnum<EnumType, uint64>;
 	BasicHpp <<
 		R"(
 #define UE_ENUM_OPERATORS(EEnumClassType)																													\
-																																							\
+																																										\
 inline constexpr EEnumClassType operator|(EEnumClassType Left, EEnumClassType Right)															 			\
-{																																							\
+{																																										\
 	using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
 																																							\
 	return static_cast<EEnumClassType>(static_cast<EnumUnderlayingType>(Left) | static_cast<EnumUnderlayingType>(Right));									\
-}																																							\
-																																							\
+}																																										\
+																																										\
 inline EEnumClassType& operator|=(EEnumClassType& Left, EEnumClassType Right)																				\
-{																																							\
+{																																										\
     using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
 																																							\
     reinterpret_cast<EnumUnderlayingType&>(Left) |= static_cast<EnumUnderlayingType>(Right);																\
 	return Left;																																			\
-}																																							\
+}																																										\
+																																										\
+inline EEnumClassType& operator|=(EEnumClassType& Left, std::underlying_type<EEnumClassType>::type Right)													\
+{																																										\
+	using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
 																																							\
+	reinterpret_cast<EnumUnderlayingType&>(Left) |= Right;																									\
+	return Left;																																			\
+}																																										\
+																																										\
 inline bool operator&(EEnumClassType Left, EEnumClassType Right)																							\
-{																																							\
+{																																										\
 	using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
 																																							\
 	return ((static_cast<EnumUnderlayingType>(Left) & static_cast<EnumUnderlayingType>(Right)) == static_cast<EnumUnderlayingType>(Right));					\
-}
+}																																										
 )";
 
 	/* enum class EObjectFlags */
@@ -6085,8 +5941,11 @@ void CppGenerator::GenerateUnrealContainers(StreamType& UEContainersHeader)
 
 
 	UEContainersHeader << R"(
+#ifndef IMPORT_CPP_SDK_INTO_IDA
 namespace UC
 {	
+#endif // IMPORT_CPP_SDK_INTO_IDA
+
 	typedef int8_t  int8;
 	typedef int16_t int16;
 	typedef int32_t int32;
@@ -6267,7 +6126,7 @@ namespace UC
 		{
 		public:
 			template<typename SetElementType>
-			friend class UC::TSet;
+			friend class TSet;
 
 		private:
 			SetType Value;
@@ -6445,7 +6304,7 @@ namespace UC
 	class FString : public TArray<wchar_t>
 	{
 	public:
-		friend std::ostream& operator<<(std::ostream& Stream, const UC::FString& Str) { return Stream << Str.ToString(); }
+		friend std::ostream& operator<<(std::ostream& Stream, const FString& Str) { return Stream << Str.ToString(); }
 
 	public:
 		using TArray::TArray;
@@ -6498,7 +6357,7 @@ namespace UC
 	class FUtf8String : public TArray<char8_t>
 	{
 	public:
-		friend std::ostream& operator<<(std::ostream& Stream, const UC::FUtf8String& Str) { return Stream << Str.ToString(); }
+		friend std::ostream& operator<<(std::ostream& Stream, const FUtf8String& Str) { return Stream << Str.ToString(); }
 
 	private:
 		inline const char* GetDataAsConstCharPtr() const
@@ -6557,7 +6416,7 @@ namespace UC
 	class FAnsiString : public TArray<char>
 	{
 	public:
-		friend std::ostream& operator<<(std::ostream& Stream, const UC::FAnsiString& Str) { return Stream << Str.ToString(); }
+		friend std::ostream& operator<<(std::ostream& Stream, const FAnsiString& Str) { return Stream << Str.ToString(); }
 
 	public:
 		using TArray::TArray;
@@ -7016,7 +6875,10 @@ namespace UC
 	static_assert(sizeof(TSet<int32>) == 0x3C, "TSet has a wrong size!");
 	static_assert(sizeof(TMap<int32, int32>) == 0x3C, "TMap has a wrong size!");
 #endif
+
+#ifndef IMPORT_CPP_SDK_INTO_IDA
 }
+#endif // IMPORT_CPP_SDK_INTO_IDA
 )";
 
 	WriteFileEnd(UEContainersHeader, EFileType::UnrealContainers);
@@ -7329,7 +7191,7 @@ namespace UtfN
 					typename = decltype(std::begin(std::declval<container_type>())), // Has begin
 					typename = decltype(std::end(std::declval<container_type>())),   // Has end
 					typename iterator_deref_type = decltype(*std::end(std::declval<container_type>())), // Iterator can be dereferenced
-					typename = std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char_type::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+					typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char_type::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 				>
 				explicit UTF_CONSTEXPR utf_char_iterator_base(container_type& Container)
 					: CurrentIterator(std::begin(Container)), NextCharStartIterator(std::begin(Container)), EndIterator(std::end(Container))
@@ -7788,12 +7650,12 @@ namespace UtfN
 	template<
 		typename codepoint_iterator_type,
 		typename iterator_deref_type = decltype(*std::declval<codepoint_iterator_type>()), // Iterator can be dereferenced
-		typename = typename std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char8::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+		typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char8::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 	>
 	class utf8_iterator : public UtfImpl::Iterator::utf_char_iterator_base<utf8_iterator<codepoint_iterator_type>, codepoint_iterator_type, utf_char8>
 	{
 	private:
-		typedef typename utf8_iterator<codepoint_iterator_type> own_type;
+		typedef utf8_iterator<codepoint_iterator_type> own_type;
 
 		friend UtfImpl::Iterator::utf_char_iterator_base_child_acessor<own_type>;
 
@@ -7833,12 +7695,12 @@ namespace UtfN
 	template<
 		typename codepoint_iterator_type,
 		typename iterator_deref_type = decltype(*std::declval<codepoint_iterator_type>()), // Iterator can be dereferenced
-		typename = typename std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char16::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+		typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char16::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 	>
 	class utf16_iterator : public UtfImpl::Iterator::utf_char_iterator_base<utf16_iterator<codepoint_iterator_type>, codepoint_iterator_type, utf_char16>
 	{
 	private:
-		typedef typename utf16_iterator<codepoint_iterator_type> own_type;
+		typedef utf16_iterator<codepoint_iterator_type> own_type;
 
 		friend UtfImpl::Iterator::utf_char_iterator_base_child_acessor<own_type>;
 
@@ -7889,12 +7751,12 @@ namespace UtfN
 	template<
 		typename codepoint_iterator_type,
 		typename iterator_deref_type = decltype(*std::declval<codepoint_iterator_type>()), // Iterator can be dereferenced
-		typename = typename std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char32::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+		typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char32::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 	>
 	class utf32_iterator : public UtfImpl::Iterator::utf_char_iterator_base<utf32_iterator<codepoint_iterator_type>, codepoint_iterator_type, utf_char32>
 	{
 	private:
-		typedef typename utf32_iterator<codepoint_iterator_type> own_type;
+		typedef utf32_iterator<codepoint_iterator_type> own_type;
 
 		friend UtfImpl::Iterator::utf_char_iterator_base_child_acessor<own_type>;
 
@@ -8868,6 +8730,7 @@ def build_toolchain(
     log_file: Path,
     sdk_root: Path,
     toolset: str | None = None,
+    generator_instance: str | None = None,
 ) -> bool:
     if build_dir.exists():
         shutil.rmtree(build_dir)
@@ -8891,6 +8754,8 @@ def build_toolchain(
     ]
     if toolset:
         configure.extend(["-T", toolset])
+    if generator_instance:
+        configure.append(f"-DCMAKE_GENERATOR_INSTANCE={generator_instance}")
 
     if not run_logged(configure, log_file, source_dir):
         return False
@@ -8905,6 +8770,37 @@ def build_toolchain(
         "SDKBuildTest",
     ]
     return run_logged(build, log_file, source_dir)
+
+
+def find_clangcl_instance() -> str | None:
+    """Return a VS install path that has the ClangCL toolset, or None.
+
+    On machines with multiple VS installs (e.g. BuildTools + Community), CMake may
+    otherwise select one without the ClangCL toolset. vswhere ships with every VS install.
+    """
+    program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+    vswhere = Path(program_files_x86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    if not vswhere.is_file():
+        return None
+
+    try:
+        result = subprocess.run(
+            [
+                str(vswhere),
+                "-latest",
+                "-products", "*",
+                "-requires", "Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset",
+                "-property", "installationPath",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+
+    found = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return found[0] if found else None
 
 
 def main() -> int:
@@ -8940,6 +8836,12 @@ def main() -> int:
         log_file=logs_dir / "MSVC.log",
         sdk_root=sdk_root,
     )
+
+    # On multi-VS-install machines, pin an install that has the ClangCL toolset so CMake
+    # doesn't pick one without it.
+    clang_instance = find_clangcl_instance()
+    if clang_instance is None:
+        print("Note: no VS install with the ClangCL toolset found via vswhere; the Clang build may fail. Install the 'C++ Clang Compiler for Windows' + 'MSBuild support for LLVM (clang-cl) toolset' VS components.")
     clang_ok = build_toolchain(
         name="ClangCL",
         source_dir=test_root,
@@ -8948,6 +8850,7 @@ def main() -> int:
         log_file=logs_dir / "Clang.log",
         sdk_root=sdk_root,
         toolset="ClangCL",
+        generator_instance=clang_instance,
     )
 
     print(f"MSVC:   {'succeeded' if msvc_ok else 'failed'}")
