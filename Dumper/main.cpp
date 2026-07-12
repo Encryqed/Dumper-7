@@ -12,10 +12,11 @@
 
 enum class EFortToastType : uint8
 {
-	Default                        = 0,
-	Subdued                        = 1,
-	Impactful                      = 2,
-	EFortToastType_MAX             = 3,
+    Default                                  = 0,
+    Subdued                                  = 1,
+    Impactful                                = 2,
+    Lock                                     = 3,
+    EFortToastType_MAX                       = 4,
 };
 
 DWORD MainThread(HMODULE Module)
