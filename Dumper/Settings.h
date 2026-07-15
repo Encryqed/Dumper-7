@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <format>
 
 #include "Unreal/Enums.h"
 
@@ -39,10 +40,20 @@ namespace Settings
 	namespace Generator
 	{
 		/* Auto generated if no override is provided */
+		inline std::string EngineVersion = "0.0.0.0";
+		inline int32 EngineMajor = 0;
+		inline int32 EngineMinor = 0;
+		inline int32 EnginePatch = 0;
+		inline int32 EngineBuild = 0;
+
 		inline std::string GameName = "";
-		inline std::string GameVersion = "";
 
 		inline std::string SDKGenerationPath = "C:/Dumper-7";
+
+		inline std::string GetProjectName()
+		{
+			return std::format("{}-{}", EngineVersion, GameName);
+		}
 	}
 
 	namespace CppGenerator

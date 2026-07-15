@@ -403,7 +403,7 @@ void ObjectArray::DumpObjects(const fs::path& Path, bool bWithPathname)
 	std::ofstream DumpStream(Path / "GObjects-Dump.txt");
 
 	DumpStream << "Object dump by Dumper-7\n\n";
-	DumpStream << (!Settings::Generator::GameVersion.empty() && !Settings::Generator::GameName.empty() ? (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName) + "\n\n" : "");
+	DumpStream << Settings::Generator::GetProjectName() << "\n\n";
 	DumpStream << "Count: " << Num() << "\n\n\n";
 
 	for (auto Object : ObjectArray())
@@ -426,7 +426,7 @@ void ObjectArray::DumpObjectsWithProperties(const fs::path& Path, bool bWithPath
 	std::ofstream DumpStream(Path / "GObjects-Dump-WithProperties.txt");
 
 	DumpStream << "Object dump by Dumper-7\n\n";
-	DumpStream << (!Settings::Generator::GameVersion.empty() && !Settings::Generator::GameName.empty() ? (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName) + "\n\n" : "");
+	DumpStream << Settings::Generator::GetProjectName() << "\n\n";
 	DumpStream << "Count: " << Num() << "\n\n\n";
 
 	for (auto Object : ObjectArray())

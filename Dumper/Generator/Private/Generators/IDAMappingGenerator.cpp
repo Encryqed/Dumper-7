@@ -1071,7 +1071,7 @@ void IDAMappingGenerator::Generate()
 	CurrentOffset += static_cast<uint32_t>(ExecFuncDataStr.size());
 
 	// Write to file
-	std::string MappingsFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".idmap");
+	std::string MappingsFileName = (Settings::Generator::GetProjectName() + ".idmap");
 
 	FileNameHelper::MakeValidFileName(MappingsFileName);
 

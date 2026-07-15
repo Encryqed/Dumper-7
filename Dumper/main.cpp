@@ -2,6 +2,7 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
+#include <regex>
 
 #include "Generators/CppGenerator.h"
 #include "Generators/MappingGenerator.h"
@@ -26,7 +27,7 @@ DWORD MainThread(HMODULE Module)
 	freopen_s(&Dummy, "CONIN$", "r", stdin);
 	freopen_s(&Dummy, "CONOUT$", "w", stderr);
 	std::cerr.clear(); // clear internal error flags on cerr after redirect
-	std::cerr << std::boolalpha << std::hex;
+	std::cerr << std::boolalpha << std::hex; // Switch console output to HEX, and display bools as "true"/"false"
 
 	std::cerr << "Initializing [Dumper-7]\n";
 
@@ -39,26 +40,83 @@ DWORD MainThread(HMODULE Module)
 	Generator::InitEngineCore();
 	Generator::InitInternal();
 
-	if (Settings::Generator::GameName.empty() && Settings::Generator::GameVersion.empty())
+	bool NeedsEngineMetadata = Settings::Generator::EngineMajor == 0;
+	bool NeedsGameMetadata = Settings::Generator::GameName.empty();
+	if (NeedsEngineMetadata || NeedsGameMetadata) //  Following code is only possible in MainThread()
 	{
-		// Only Possible in Main()
-		FString Name;
-		FString Version;
-		UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
-		UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName");
-		UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
+		if (UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary"))
+		{
+			if (NeedsEngineMetadata)
+			{
+				if (UEFunction FnGetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion"))
+				{
+					FString EngineVersion;
+					Kismet.ProcessEvent(FnGetEngineVersion, &EngineVersion);
 
-		Kismet.ProcessEvent(GetGameName, &Name);
-		Kismet.ProcessEvent(GetEngineVersion, &Version);
+					std::string EngineVersionString = EngineVersion.ToString();
+					if (EngineVersionString.empty() == false)
+					{
+						Settings::Generator::EngineVersion = EngineVersionString;
 
-		Settings::Generator::GameName = Name.ToString();
-		Settings::Generator::GameVersion = Version.ToString();
+						static const std::regex EngineVersionRegex(R"((\d+)\.(\d+)\.(\d+)\-(\d+))");
+						std::smatch Match;
+						if (std::regex_search(EngineVersionString, Match, EngineVersionRegex))
+						{
+							Settings::Generator::EngineMajor = std::stoi(Match[1].str());
+							Settings::Generator::EngineMinor = std::stoi(Match[2].str());
+							Settings::Generator::EnginePatch = std::stoi(Match[3].str());
+							Settings::Generator::EngineBuild = std::stoi(Match[4].str());
+						}
+					}
+				}
+			}
+
+			if (NeedsGameMetadata)
+			{
+				if (UEFunction FnGetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName"))
+				{
+					FString GameName;
+					Kismet.ProcessEvent(FnGetGameName, &GameName);
+
+					std::string GameNameString = GameName.ToString();
+					if (GameNameString.empty() == false)
+					{
+						Settings::Generator::GameName = GameNameString;
+					}
+				}
+			}
+		}
+
+		if (Settings::Generator::GameName.empty()) // Fallback to executable name extraction if Kismet was unavailable, stripped, or returned an empty string
+		{
+			char Buffer[MAX_PATH];
+			if (GetModuleFileNameA(NULL, Buffer, MAX_PATH) > 0)
+			{
+				std::string ExecutablePath(Buffer);
+
+				size_t SlashPos = ExecutablePath.find_last_of("/\\");
+				size_t DotPos = ExecutablePath.find_last_of('.');
+
+				size_t SubStrStart = (SlashPos != std::string::npos) ? SlashPos + 1 : 0;
+				size_t SubStrEnd = (DotPos != std::string::npos && DotPos > SubStrStart) ? DotPos : ExecutablePath.length();
+
+				std::string ExecutableName = ExecutablePath.substr(SubStrStart, SubStrEnd - SubStrStart);
+				Settings::Generator::GameName = !ExecutableName.empty() ? ExecutableName : "Undefined";
+			}
+		}
 	}
 
-	std::cerr << "GameName: " << Settings::Generator::GameName << "\n";
-	std::cerr << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";
+	std::cerr << std::dec; // Switch console output to decimal for metadata
 
-	std::cerr << "FolderName: " << (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName) << "\n\n";
+	std::cerr << "EngineVersion: " << Settings::Generator::EngineVersion << "\n";
+	std::cerr << "EngineMajor: " << Settings::Generator::EngineMajor << "\n";
+	std::cerr << "EngineMinor: " << Settings::Generator::EngineMinor << "\n";
+	std::cerr << "EnginePatch: " << Settings::Generator::EnginePatch << "\n";
+	std::cerr << "EngineBuild: " << Settings::Generator::EngineBuild << "\n\n";
+
+	std::cerr << "GameName: " << Settings::Generator::GameName << "\n\n";
+
+	std::cerr << "FolderName: " << Settings::Generator::GetProjectName() << "\n\n";
 
 	Generator::Generate<CppGenerator>();
 	Generator::Generate<MappingGenerator>();

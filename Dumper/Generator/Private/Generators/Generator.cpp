@@ -80,7 +80,7 @@ bool Generator::SetupDumperFolder()
 {
 	try
 	{
-		std::string FolderName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName);
+		std::string FolderName = Settings::Generator::GetProjectName();
 
 		FileNameHelper::MakeValidFileName(FolderName);
 
@@ -155,8 +155,8 @@ void DumpEditorOnlyMetadata(const fs::path& DumperFolder)
 		return;
 
 	nlohmann::json MetadataJson;
+	MetadataJson["EngineVersion"] = Settings::Generator::EngineVersion;
 	MetadataJson["GameName"] = Settings::Generator::GameName;
-	MetadataJson["GameVersion"] = Settings::Generator::GameVersion;
 
 	for (UEObject Obj : ObjectArray())
 	{
