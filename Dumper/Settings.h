@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <format>
 
 #include "Unreal/Enums.h"
 
@@ -52,7 +51,7 @@ namespace Settings
 
 		inline std::string GetProjectName()
 		{
-			return std::format("{}-{}", EngineVersion, GameName);
+			return EngineVersion + "-" + GameName;
 		}
 	}
 
