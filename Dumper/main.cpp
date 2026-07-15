@@ -101,8 +101,10 @@ DWORD MainThread(HMODULE Module)
 				size_t SubStrEnd = (DotPos != std::string::npos && DotPos > SubStrStart) ? DotPos : ExecutablePath.length();
 
 				std::string ExecutableName = ExecutablePath.substr(SubStrStart, SubStrEnd - SubStrStart);
-				Settings::Generator::GameName = !ExecutableName.empty() ? ExecutableName : "Undefined";
+				Settings::Generator::GameName = ExecutableName.empty() == false ? ExecutableName : "Undefined";
 			}
+			else
+				Settings::Generator::GameName = "Undefined";
 		}
 	}
 
