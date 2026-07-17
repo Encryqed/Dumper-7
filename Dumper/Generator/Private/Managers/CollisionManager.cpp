@@ -268,12 +268,15 @@ void CollisionManager::AddReservedName(const std::string& Name)
 	ReservedNames.push_back(NewInfo);
 }
 
-void CollisionManager::AddStructToNameContainer(UEStruct Struct, bool bIsStruct)
+void CollisionManager::AddStructToNameContainer(UEStruct Struct, bool bIsStruct, bool bIsFunction)
 {
-	if (UEStruct Super = Struct.GetSuper())
+	if (!bIsFunction)
 	{
-		if (NameInfos.find(Super.GetIndex()) == NameInfos.end())
-			AddStructToNameContainer(Super, bIsStruct);
+		if (UEStruct Super = Struct.GetSuper())
+		{
+			if (NameInfos.find(Super.GetIndex()) == NameInfos.end())
+				AddStructToNameContainer(Super, bIsStruct);
+		}
 	}
 
 	NameContainer& StructNames = NameInfos[Struct.GetIndex()];

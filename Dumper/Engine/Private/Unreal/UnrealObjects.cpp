@@ -616,7 +616,7 @@ std::string UEEnum::GetEnumTypeAsStr() const
 
 std::pair<uint8_t, bool> UEEnum::GetSizeSignedPair() const
 {
-	if (Settings::Internal::bHasUnderlayingTypeInUEnum)
+	if (!Settings::Internal::bHasUnderlayingTypeInUEnum)
 		return { 1, false };
 
 	const EUnderlyingType Type = *reinterpret_cast<EUnderlyingType*>(Object + Off::UEnum::UnderlyingType);
@@ -1064,6 +1064,19 @@ int32 UEProperty::GetAlignment() const
 
 		return  GetSize() - ValueProperty.GetSize();
 	}
+	else if (TypeFlags & EClassCastFlags::Utf8StrProperty)
+	{
+		return alignof(FUtf8String); // 0x8, same as StrProperty
+	}
+	else if (TypeFlags & EClassCastFlags::AnsiStrProperty)
+	{
+		return alignof(FAnsiString); // 0x8, same as StrProperty
+	}
+	else if (TypeFlags & EClassCastFlags::VCellProperty)
+	{
+		return sizeof(void*); // pointer-sized
+	}
+
 
 	if (Settings::Internal::bUseFProperty)
 	{
@@ -1160,6 +1173,14 @@ std::string UEProperty::GetCppType() const
 	else if (TypeFlags & EClassCastFlags::StrProperty)
 	{
 		return "class FString";
+	}
+	else if (TypeFlags & EClassCastFlags::Utf8StrProperty)
+	{
+		return "FUtf8String";
+	}
+	else if (TypeFlags & EClassCastFlags::AnsiStrProperty)
+	{
+		return "FAnsiString";
 	}
 	else if (TypeFlags & EClassCastFlags::TextProperty)
 	{
