@@ -2544,6 +2544,43 @@ R"({
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
+		PredefinedFunction {
+			.CustomComment = "Gets a UFunction from this UClasses' 'Children' list",
+			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const FName& ClassName, const FName& FuncName)", .Body =
+R"({
+	for (const UStruct* Clss = this; Clss; Clss = Clss->SuperStruct)
+	{
+		if (Clss->Name != ClassName)
+			continue;
+
+		for (UField* Field = Clss->Children; Field; Field = Field->Next)
+		{
+			if (Field->HasTypeFlag(EClassCastFlags::Function) && Field->Name == FuncName)
+				return static_cast<class UFunction*>(Field);
+		}
+	}
+
+	return nullptr;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "Gets the first UFunction from the UClass inheritance hierarchy",
+			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const FName& FuncName)", .Body =
+R"({
+	for (const UStruct* Clss = this; Clss; Clss = Clss->SuperStruct)
+	{
+		for (UField* Field = Clss->Children; Field; Field = Field->Next)
+		{
+			if (Field->HasTypeFlag(EClassCastFlags::Function) && Field->Name == FuncName)
+				return static_cast<class UFunction*>(Field);
+		}
+	}
+
+	return nullptr;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
 	};
 
 
