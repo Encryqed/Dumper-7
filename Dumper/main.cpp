@@ -11,6 +11,8 @@
 
 #include "Generators/Generator.h"
 
+#pragma comment(lib, "version.lib")
+
 enum class EFortToastType : uint8
 {
     Default                                  = 0,
@@ -40,7 +42,7 @@ DWORD MainThread(HMODULE Module)
 	Generator::InitEngineCore();
 	Generator::InitInternal();
 
-	bool NeedsEngineMetadata = Settings::Generator::EngineMajor == 0;
+	bool NeedsEngineMetadata = Settings::Generator::EngineVersion.empty();
 	bool NeedsGameMetadata = Settings::Generator::GameName.empty();
 	if (NeedsEngineMetadata || NeedsGameMetadata) //  Following code is only possible in MainThread()
 	{
@@ -87,8 +89,69 @@ DWORD MainThread(HMODULE Module)
 			}
 		}
 
+		if (Settings::Generator::EngineVersion.empty()) // Fallback to executable manifest extraction if Kismet was unavailable, stripped, or returned an empty string
+		{
+			bool WasVersionFound = false;
+			std::string ProductVersion = "";
+
+			char Buffer[MAX_PATH];
+			if (GetModuleFileNameA(NULL, Buffer, MAX_PATH) > 0)
+			{
+				DWORD DummyHandle = 0;
+				DWORD InfoSize = GetFileVersionInfoSizeA(Buffer, &DummyHandle);
+				if (InfoSize > 0)
+				{
+					std::vector<BYTE> VersionData(InfoSize);
+					if (GetFileVersionInfoA(Buffer, 0, InfoSize, VersionData.data()))
+					{
+						/* Extract exact version numbers from the binary VS_FIXEDFILEINFO block */
+						VS_FIXEDFILEINFO* FileInfo = nullptr;
+						UINT FileInfoSize = 0;
+						if (VerQueryValueA(VersionData.data(), "\\", (LPVOID*)&FileInfo, &FileInfoSize) && FileInfoSize > 0)
+						{
+							Settings::Generator::EngineMajor = HIWORD(FileInfo->dwFileVersionMS);
+							Settings::Generator::EngineMinor = LOWORD(FileInfo->dwFileVersionMS);
+							Settings::Generator::EnginePatch = HIWORD(FileInfo->dwFileVersionLS);
+							Settings::Generator::EngineBuild = LOWORD(FileInfo->dwFileVersionLS);
+							WasVersionFound = true;
+						}
+
+
+						/* Extract the technical build string from StringFileInfo (ProductVersion) */
+						struct LANGANDCODEPAGE { WORD wLanguage; WORD wCodePage; } *lpTranslate;
+						UINT cbTranslate;
+
+						if (VerQueryValueA(VersionData.data(), "\\VarFileInfo\\Translation", (LPVOID*)&lpTranslate, &cbTranslate) && (cbTranslate / sizeof(struct LANGANDCODEPAGE)) > 0)
+						{
+							/* Construct the query path for the ProductVersion string */
+							char SubBlock[MAX_PATH];
+							sprintf_s(SubBlock, "\\StringFileInfo\\%04x%04x\\ProductVersion", lpTranslate[0].wLanguage, lpTranslate[0].wCodePage);
+
+							char* ProductVersionString = nullptr;
+							UINT Length = 0;
+							if (VerQueryValueA(VersionData.data(), SubBlock, (LPVOID*)&ProductVersionString, &Length) && Length > 0)
+							{
+								ProductVersion = std::string(ProductVersionString);
+							}
+						}
+					}
+				}
+			}
+
+			std::string EngineVersionString = WasVersionFound
+				? std::to_string(Settings::Generator::EngineMajor) + "." + std::to_string(Settings::Generator::EngineMinor) + "." + std::to_string(Settings::Generator::EnginePatch) + "-" + std::to_string(Settings::Generator::EngineBuild)
+				: "0.0.0-0";
+
+			if (ProductVersion.empty() == false)
+				EngineVersionString += ProductVersion;
+
+			Settings::Generator::EngineVersion = EngineVersionString;
+		}
+
 		if (Settings::Generator::GameName.empty()) // Fallback to executable name extraction if Kismet was unavailable, stripped, or returned an empty string
 		{
+			std::string ExecutableName = "";
+
 			char Buffer[MAX_PATH];
 			if (GetModuleFileNameA(NULL, Buffer, MAX_PATH) > 0)
 			{
@@ -100,11 +163,10 @@ DWORD MainThread(HMODULE Module)
 				size_t SubStrStart = (SlashPos != std::string::npos) ? SlashPos + 1 : 0;
 				size_t SubStrEnd = (DotPos != std::string::npos && DotPos > SubStrStart) ? DotPos : ExecutablePath.length();
 
-				std::string ExecutableName = ExecutablePath.substr(SubStrStart, SubStrEnd - SubStrStart);
-				Settings::Generator::GameName = ExecutableName.empty() == false ? ExecutableName : "Undefined";
+				ExecutableName = ExecutablePath.substr(SubStrStart, SubStrEnd - SubStrStart);
 			}
-			else
-				Settings::Generator::GameName = "Undefined";
+			
+			Settings::Generator::GameName = ExecutableName.empty() == false ? ExecutableName : "Undefined";
 		}
 	}
 

@@ -39,7 +39,7 @@ namespace Settings
 	namespace Generator
 	{
 		/* Auto generated if no override is provided */
-		inline std::string EngineVersion = "0.0.0.0";
+		inline std::string EngineVersion = "";
 		inline int32 EngineMajor = 0;
 		inline int32 EngineMinor = 0;
 		inline int32 EnginePatch = 0;
