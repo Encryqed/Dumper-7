@@ -1493,6 +1493,32 @@ void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
 
 	PackageManager::IterateDependencies(ForEachElementCallback);
 
+	if constexpr (!Settings::CppGenerator::bIncludeParameterStructsInIDA)
+	{
+		// Causes param structs not to be included when importing the SDK, but still keeps them in SDK.hpp.
+		SdkHpp << R"(
+#ifdef IMPORT_CPP_SDK_INTO_IDA
+	#define IMPORT_CPP_SDK_INTO_IDA_EXCLUDE_PARAMS
+#endif // IMPORT_CPP_SDK_INTO_IDA
+)";
+	}
+
+	// make available the parameter structs in IDA
+	SdkHpp << "#if defined(IMPORT_CPP_SDK_INTO_IDA) && !defined(IMPORT_CPP_SDK_INTO_IDA_EXCLUDE_PARAMS)\n";
+
+	auto ForEachElementCallbackForParams = [&SdkHpp](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
+	{
+		PackageInfoHandle CurrentPackage = PackageManager::GetInfo(NewParams.RequiredPackage);
+
+		const bool bHasParameterStructs = CurrentPackage.HasParameterStructs();
+		if (!bIsStruct && bHasParameterStructs)
+			SdkHpp << std::format("#include \"SDK/{}_parameters.hpp\"\n", CurrentPackage.GetName());
+	};
+
+	PackageManager::IterateDependencies(ForEachElementCallbackForParams);
+
+	SdkHpp << "#endif // defined(IMPORT_CPP_SDK_INTO_IDA) && !defined(IMPORT_CPP_SDK_INTO_IDA_EXCLUDE_PARAMS)\n";
+
 
 	WriteFileEnd(SdkHpp, EFileType::SdkHpp);
 }

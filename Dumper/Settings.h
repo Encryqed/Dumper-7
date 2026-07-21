@@ -85,6 +85,11 @@ R"(
 
 		/* Adds the 'final' specifier to classes with no loaded child class at SDK-generation time. */
 		constexpr bool bAddFinalSpecifier = true;
+
+		//------------------------- For CppSDK import into IDA -------------------------//
+
+		/* Whether to include parameter structs when importing the SDK into IDA. */
+		constexpr bool bIncludeParameterStructsInIDA = true;
 	}
 
 	namespace MappingGenerator
