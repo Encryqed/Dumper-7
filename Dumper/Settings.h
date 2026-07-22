@@ -43,6 +43,9 @@ namespace Settings
 		inline std::string GameVersion = "";
 
 		inline std::string SDKGenerationPath = "C:/Dumper-7";
+
+		/* Whether to use a timestamp suffix for backup folders instead of "_OLD", allowing unlimited backups */
+		inline bool bCreateUniqueBackups = false;
 	}
 
 	namespace CppGenerator
