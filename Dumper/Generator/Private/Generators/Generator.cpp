@@ -165,14 +165,12 @@ void DumpEditorOnlyMetadata(const fs::path& DumperFolder)
 
 		UEStruct Struct = Obj.Cast<UEStruct>();
 
-		auto ChildProperties = Struct.GetProperties();
-
-		if (ChildProperties.empty())
+		std::vector<UEProperty> ChildProperties = Struct.GetProperties();
+		if (ChildProperties.empty()) // Avoids allocating string for GetCppName() and prevents json from auto-creating empty objects for property-less structs
 			continue;
 
 		auto& StructMembers = MetadataJson[Struct.GetCppName()];
-
-		for (UEProperty Prop : Struct.GetProperties())
+		for (UEProperty Prop : ChildProperties)
 		{
 			auto& Entries = StructMembers[Prop.GetValidName()];
 
