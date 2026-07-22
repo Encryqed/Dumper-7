@@ -81,18 +81,20 @@ bool Generator::SetupDumperFolder()
 	try
 	{
 		std::string FolderName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName);
-
 		FileNameHelper::MakeValidFileName(FolderName);
 
 		DumperFolder = fs::path(Settings::Generator::SDKGenerationPath) / FolderName;
-
 		if (fs::exists(DumperFolder))
 		{
-			fs::path Old = DumperFolder.generic_string() + "_OLD";
+			fs::path OldFolder = DumperFolder;
 
-			fs::remove_all(Old);
+			std::time_t Now = std::time(nullptr);
+			OldFolder += ("_" + std::to_string(Now));
 
-			fs::rename(DumperFolder, Old);
+			std::cerr << "Folder already exists. Backing up to: " << OldFolder.generic_string() << "\n";
+
+			fs::remove_all(OldFolder);
+			fs::rename(DumperFolder, OldFolder);
 		}
 
 		fs::create_directories(DumperFolder);
