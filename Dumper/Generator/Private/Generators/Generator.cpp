@@ -88,8 +88,15 @@ bool Generator::SetupDumperFolder()
 		{
 			fs::path OldFolder = DumperFolder;
 
-			std::time_t Now = std::time(nullptr);
-			OldFolder += ("_" + std::to_string(Now));
+			if (Settings::Generator::bCreateUniqueBackups)
+			{
+				std::time_t Now = std::time(nullptr);
+				OldFolder += ("_" + std::to_string(Now));
+			}
+			else
+			{
+				OldFolder += "_OLD";
+			}
 
 			std::cerr << "Folder already exists. Backing up to: " << OldFolder.generic_string() << "\n";
 
