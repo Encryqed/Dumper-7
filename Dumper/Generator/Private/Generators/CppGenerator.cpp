@@ -1540,7 +1540,7 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 )";
 
 	if (Type == EFileType::SdkHpp)
-		File << std::format("\n// {}\n// {}\n", Settings::Generator::GameName, Settings::Generator::GameVersion);
+		File << std::format("\n// {}\n// {}\n", Settings::Generator::GameName, Settings::Generator::EngineVersion);
 	
 
 	File << std::format("\n// {}\n\n", Package.IsValidHandle() ? std::format("Package: {}", Package.GetName()) : CustomFileComment);
@@ -3466,7 +3466,19 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 #define SDK_PARAM_NAMESPACE_START namespace {} {{
 #define SDK_PARAM_NAMESPACE_END }}
 
-)", Settings::Config::SDKNamespaceName, CppSettings::ParamNamespaceName);
+/* 
+* Engine & Game metadata as definitions
+*/
+#define SDK_ENGINE_VERSION "{}"
+#define SDK_ENGINE_MAJOR {}
+#define SDK_ENGINE_MINOR {}
+#define SDK_ENGINE_PATCH {}
+#define SDK_ENGINE_BUILD {}
+#define SDK_GAME_NAME "{}"
+
+)", Settings::Config::SDKNamespaceName, CppSettings::ParamNamespaceName,
+	Settings::Generator::EngineVersion, Settings::Generator::EngineMajor, Settings::Generator::EngineMinor, Settings::Generator::EnginePatch, Settings::Generator::EngineBuild,
+	Settings::Generator::GameName);
 
 	const std::string CustomIncludes = std::format(R"(#define VC_EXTRALEAN
 #define WIN32_LEAN_AND_MEAN

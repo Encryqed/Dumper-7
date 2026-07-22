@@ -464,7 +464,7 @@ void MappingGenerator::Generate()
 
 	NameCounter = 0x0;
 
-	std::string MappingsFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".usmap");
+	std::string MappingsFileName = (Settings::Generator::GetProjectName() + ".usmap");
 
 	FileNameHelper::MakeValidFileName(MappingsFileName);
 
