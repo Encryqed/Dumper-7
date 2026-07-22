@@ -12,6 +12,7 @@
 #include "Json/json.hpp"
 
 #include <fstream>
+#include <regex>
 
 inline void InitSettings()
 {
@@ -20,6 +21,225 @@ inline void InitSettings()
 
 	Settings::InitObjectPtrPropertySettings();
 	Settings::InitArrayDimSizeSettings();
+}
+
+
+void Metadata::DumpEditorOnly(const fs::path& DumperFolder)
+{
+	if (Off::FField::EditorOnlyMetadata == -1)
+		return;
+
+	nlohmann::json MetadataJson;
+	MetadataJson["EngineVersion"] = Settings::Generator::EngineVersion;
+	MetadataJson["GameName"] = Settings::Generator::GameName;
+
+	for (UEObject Obj : ObjectArray())
+	{
+		if (!Obj.IsA(EClassCastFlags::Struct))
+			continue;
+
+		UEStruct Struct = Obj.Cast<UEStruct>();
+
+		auto ChildProperties = Struct.GetProperties();
+
+		if (ChildProperties.empty())
+			continue;
+
+		auto& StructMembers = MetadataJson[Struct.GetCppName()];
+
+		for (UEProperty Prop : Struct.GetProperties())
+		{
+			auto& Entries = StructMembers[Prop.GetValidName()];
+
+			for (const auto& [Key, Value] : Prop.Cast<UEFField>().GetMetaData())
+			{
+				if (Key.empty() && Value.empty())
+					continue;
+
+				Entries[Key] = Value;
+			}
+		}
+	}
+
+	std::ofstream MetadataFile(DumperFolder / "Metadata.json");
+	MetadataFile << MetadataJson.dump(4);
+}
+
+
+void Metadata::FetchEngineFallback()
+{
+	bool WasVersionFound = false;
+	std::string ProductVersion = "";
+
+	/*
+	* Invoked Lambda (IIFE) to allow early return without skipping the string generation below.
+	* See: https://en.cppreference.com/cpp/language/lambda
+	*/
+	[&]()
+		{
+			char Buffer[MAX_PATH];
+			if (GetModuleFileNameA(NULL, Buffer, MAX_PATH) == 0)
+				return;
+
+			DWORD DummyHandle = 0;
+			DWORD InfoSize = GetFileVersionInfoSizeA(Buffer, &DummyHandle);
+			if (InfoSize == 0)
+				return;
+
+			std::vector<BYTE> VersionData(InfoSize);
+			if (GetFileVersionInfoA(Buffer, 0, InfoSize, VersionData.data()) == FALSE)
+				return;
+
+			/* Extract exact version numbers from the binary VS_FIXEDFILEINFO block */
+			VS_FIXEDFILEINFO* FileInfo = nullptr;
+			UINT FileInfoSize = 0;
+			if (VerQueryValueA(VersionData.data(), "\\", (LPVOID*)&FileInfo, &FileInfoSize) && FileInfoSize > 0)
+			{
+				Settings::Generator::EngineMajor = HIWORD(FileInfo->dwFileVersionMS);
+				Settings::Generator::EngineMinor = LOWORD(FileInfo->dwFileVersionMS);
+				Settings::Generator::EnginePatch = HIWORD(FileInfo->dwFileVersionLS);
+				Settings::Generator::EngineBuild = LOWORD(FileInfo->dwFileVersionLS);
+				WasVersionFound = true;
+			}
+
+
+			/* Extract the technical build string from StringFileInfo (ProductVersion) */
+			struct LANGANDCODEPAGE { WORD wLanguage; WORD wCodePage; } *lpTranslate;
+			UINT cbTranslate;
+
+			if (VerQueryValueA(VersionData.data(), "\\VarFileInfo\\Translation", (LPVOID*)&lpTranslate, &cbTranslate) == FALSE)
+				return;
+
+			if ((cbTranslate / sizeof(LANGANDCODEPAGE)) == 0)
+				return;
+
+			/* Construct the query path for the ProductVersion string */
+			char SubBlock[MAX_PATH];
+			sprintf_s(SubBlock, "\\StringFileInfo\\%04x%04x\\ProductVersion", lpTranslate[0].wLanguage, lpTranslate[0].wCodePage);
+
+			char* ProductVersionString = nullptr;
+			UINT Length = 0;
+			if (VerQueryValueA(VersionData.data(), SubBlock, (LPVOID*)&ProductVersionString, &Length) && Length > 0)
+			{
+				ProductVersion = std::string(ProductVersionString);
+			}
+		}();
+
+	std::string EngineVersionString = WasVersionFound
+		? std::to_string(Settings::Generator::EngineMajor) + "." + std::to_string(Settings::Generator::EngineMinor) + "." + std::to_string(Settings::Generator::EnginePatch) + "-" + std::to_string(Settings::Generator::EngineBuild)
+		: "0.0.0-0";
+
+	if (ProductVersion.empty() == false)
+		EngineVersionString += ProductVersion;
+
+	Settings::Generator::EngineVersion = EngineVersionString;
+}
+
+void Metadata::FetchEngine(UEClass Kismet)
+{
+	if (Kismet == nullptr)
+	{
+		FetchEngineFallback();
+		return;
+	}
+
+	UEFunction FnGetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
+	if (FnGetEngineVersion == nullptr)
+	{
+		FetchEngineFallback();
+		return;
+	}
+
+	FString EngineVersion;
+	Kismet.ProcessEvent(FnGetEngineVersion, &EngineVersion);
+
+	std::string EngineVersionString = EngineVersion.ToString();
+	if (EngineVersionString.empty())
+	{
+		FetchEngineFallback();
+		return;
+	}
+
+	Settings::Generator::EngineVersion = EngineVersionString;
+
+	static const std::regex EngineVersionRegex(R"((\d+)\.(\d+)\.(\d+)\-(\d+))");
+	std::smatch Match;
+	if (std::regex_search(EngineVersionString, Match, EngineVersionRegex))
+	{
+		Settings::Generator::EngineMajor = std::stoi(Match[1].str());
+		Settings::Generator::EngineMinor = std::stoi(Match[2].str());
+		Settings::Generator::EnginePatch = std::stoi(Match[3].str());
+		Settings::Generator::EngineBuild = std::stoi(Match[4].str());
+	}
+}
+
+
+void Metadata::FetchGameFallback()
+{
+	std::string ExecutableName = "";
+
+	char Buffer[MAX_PATH];
+	if (GetModuleFileNameA(NULL, Buffer, MAX_PATH) > 0)
+	{
+		std::string ExecutablePath(Buffer);
+
+		size_t SlashPos = ExecutablePath.find_last_of("/\\");
+		size_t DotPos = ExecutablePath.find_last_of('.');
+
+		size_t SubStrStart = (SlashPos != std::string::npos) ? SlashPos + 1 : 0;
+		size_t SubStrEnd = (DotPos != std::string::npos && DotPos > SubStrStart) ? DotPos : ExecutablePath.length();
+
+		ExecutableName = ExecutablePath.substr(SubStrStart, SubStrEnd - SubStrStart);
+	}
+
+	Settings::Generator::GameName = ExecutableName.empty() == false ? ExecutableName : "Undefined";
+}
+
+void Metadata::FetchGame(UEClass Kismet)
+{
+	if (Kismet == nullptr)
+	{
+		FetchGameFallback();
+		return;
+	}
+
+	UEFunction FnGetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName");
+	if (FnGetGameName == nullptr)
+	{
+		FetchGameFallback();
+		return;
+	}
+
+	FString GameName;
+	Kismet.ProcessEvent(FnGetGameName, &GameName);
+
+	std::string GameNameString = GameName.ToString();
+	if (GameNameString.empty())
+	{
+		FetchGameFallback();
+		return;
+	}
+
+	Settings::Generator::GameName = GameNameString;
+}
+
+
+void Metadata::Fetch()
+{
+	/* Following code is only possible from within MainThread() */
+	bool NeedsEngineMetadata = Settings::Generator::EngineVersion.empty();
+	bool NeedsGameMetadata = Settings::Generator::GameName.empty();
+
+	if (NeedsEngineMetadata == false && NeedsGameMetadata == false)
+		return;
+
+	UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
+
+	if (NeedsEngineMetadata)
+		FetchEngine(Kismet);
+
+	if (NeedsGameMetadata)
+		FetchGame(Kismet);
 }
 
 
@@ -146,46 +366,4 @@ bool Generator::SetupFolders(std::string& FolderName, fs::path& OutFolder, std::
 	}
 
 	return true;
-}
-
-
-void DumpEditorOnlyMetadata(const fs::path& DumperFolder)
-{
-	if (Off::FField::EditorOnlyMetadata == -1)
-		return;
-
-	nlohmann::json MetadataJson;
-	MetadataJson["EngineVersion"] = Settings::Generator::EngineVersion;
-	MetadataJson["GameName"] = Settings::Generator::GameName;
-
-	for (UEObject Obj : ObjectArray())
-	{
-		if (!Obj.IsA(EClassCastFlags::Struct))
-			continue;
-
-		UEStruct Struct = Obj.Cast<UEStruct>();
-
-		auto ChildProperties = Struct.GetProperties();
-
-		if (ChildProperties.empty())
-			continue;
-
-		auto& StructMembers = MetadataJson[Struct.GetCppName()];
-
-		for (UEProperty Prop : Struct.GetProperties())
-		{
-			auto& Entries = StructMembers[Prop.GetValidName()];
-
-			for (const auto& [Key, Value] : Prop.Cast<UEFField>().GetMetaData())
-			{
-				if (Key.empty() && Value.empty())
-					continue;
-
-				Entries[Key] = Value;
-			}
-		}
-	}
-
-	std::ofstream MetadataFile(DumperFolder / "Metadata.json");
-	MetadataFile << MetadataJson.dump(4);
 }

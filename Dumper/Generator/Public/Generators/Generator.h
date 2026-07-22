@@ -7,10 +7,8 @@
 #include "Managers/MemberManager.h"
 #include "HashStringTable.h"
 
-
 namespace fs = std::filesystem;
 
-void DumpEditorOnlyMetadata(const fs::path& DumperFolder);
 
 template<typename GeneratorType>
 concept GeneratorImplementation = requires(GeneratorType t)
@@ -34,6 +32,22 @@ concept GeneratorImplementation = requires(GeneratorType t)
 
     GeneratorType::InitPredefinedMembers();
     GeneratorType::InitPredefinedFunctions();
+};
+
+class Metadata
+{
+public:
+    static void DumpEditorOnly(const fs::path& DumperFolder);
+
+private:
+    static void FetchEngineFallback();
+    static void FetchEngine(UEClass Kismet);
+
+    static void FetchGameFallback();
+    static void FetchGame(UEClass Kismet);
+
+public:
+    static void Fetch();
 };
 
 class Generator
@@ -77,7 +91,7 @@ public:
             if (!bDumepdEditorOnlyMetadata)
             {
                 bDumepdEditorOnlyMetadata = true;
-                DumpEditorOnlyMetadata(DumperFolder);
+                Metadata::DumpEditorOnly(DumperFolder);
             }
         }
 
