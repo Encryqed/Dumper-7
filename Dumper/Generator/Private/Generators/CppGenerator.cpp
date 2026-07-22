@@ -3404,7 +3404,7 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 #define SDK_PARAM_NAMESPACE_END }}
 
 /* 
-* Engine & Game Metadata as definitions
+* Engine & Game metadata as definitions
 */
 #define SDK_ENGINE_VERSION "{}"
 #define SDK_ENGINE_MAJOR {}
