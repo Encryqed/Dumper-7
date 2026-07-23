@@ -14,6 +14,8 @@
 #include <fstream>
 #include <regex>
 
+#pragma comment(lib, "version.lib")
+
 inline void InitSettings()
 {
 	Settings::InitWeakObjectPtrSettings();

@@ -2,7 +2,6 @@
 #include <iostream>
 #include <chrono>
 #include <fstream>
-#include <regex>
 
 #include "Generators/CppGenerator.h"
 #include "Generators/MappingGenerator.h"
@@ -10,8 +9,6 @@
 #include "Generators/DumpspaceGenerator.h"
 
 #include "Generators/Generator.h"
-
-#pragma comment(lib, "version.lib")
 
 enum class EFortToastType : uint8
 {
