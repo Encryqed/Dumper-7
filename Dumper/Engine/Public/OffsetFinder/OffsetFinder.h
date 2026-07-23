@@ -98,6 +98,7 @@ namespace OffsetFinder
 
 	/* FFieldClass */
 	int32_t FindFieldClassCastFlagsOffset();
+	void InitFFieldClassLayout();
 
 	/* UEnum */
 	int32_t FindEnumNamesOffset();

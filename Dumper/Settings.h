@@ -177,6 +177,9 @@ R"(
 
 		/* Whether this game uses uint8 for UEProperty::ArrayDim, instead of int32 */
 		inline bool bUseUint8ArrayDim = false;
+
+		/* UE5.8+ FFieldClass stores a descriptor pointer at +0x0 instead of an FName. Names are derived from CastFlags. */
+		inline bool bUseExtendedFFieldClassLayout = false;
 	}
 
 	extern void InitWeakObjectPtrSettings();
