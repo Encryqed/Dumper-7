@@ -71,11 +71,6 @@ const void* UEFField::GetAddress() const
 	return Field;
 }
 
-EObjectFlags UEFField::GetFlags() const
-{
-	return *reinterpret_cast<EObjectFlags*>(Field + Off::FField::Flags);
-}
-
 class UEObject UEFField::GetOwnerAsUObject() const
 {
 	if (IsOwnerUObject())
@@ -122,6 +117,49 @@ FName UEFField::GetFName() const
 UEFField UEFField::GetNext() const
 {
 	return UEFField(*reinterpret_cast<void**>(Field + Off::FField::Next));
+}
+
+std::vector<std::pair<std::string, std::string>> UEFField::GetMetaData() const
+{
+	using ValueType = std::conditional_t<sizeof(void*) == 0x8, int64, int32>;
+
+	struct alignas(0x4) Name04Byte { uint8 Pad[0x04]; };
+	struct alignas(0x4) Name08Byte { uint8 Pad[0x08]; };
+	struct alignas(0x4) Name12Byte { uint8 Pad[0x0C]; };
+	struct alignas(0x4) Name16Byte { uint8 Pad[0x10]; };
+
+	static constexpr uintptr_t PointeFlagHasTag = 0x1;
+	static constexpr uintptr_t PointerMaskNoTag = ~0x1;
+
+
+	static auto GetPairsAsStrings = []<typename NameType>(const TMap<NameType, FString> &EnumNameValuePairs)
+	{
+		std::vector<std::pair<std::string, std::string>> Result;
+
+		for (const auto& [Key, Value] : EnumNameValuePairs)
+		{
+			Result.emplace_back(FName(&Key).ToString(), Value.ToString());
+		}
+
+		return Result;
+	};
+
+	if (Off::InSDK::Name::FNameSize > 0x8)
+	{
+		auto* Map = *reinterpret_cast<TMap<Name16Byte, FString>**>(Field + Off::FField::EditorOnlyMetadata);
+
+		if (!Map)
+			return {};
+
+		return GetPairsAsStrings(*Map);
+	}
+
+	auto* Map = *reinterpret_cast<TMap<Name08Byte, FString>**>(Field + Off::FField::EditorOnlyMetadata);
+
+	if (!Map)
+		return {};
+
+	return GetPairsAsStrings(*Map);
 }
 
 template<typename UEType>
@@ -575,6 +613,20 @@ std::string UEEnum::GetEnumTypeAsStr() const
 	return "enum class " + GetEnumPrefixedName();
 }
 
+
+std::pair<uint8_t, bool> UEEnum::GetSizeSignedPair() const
+{
+	if (!Settings::Internal::bHasUnderlayingTypeInUEnum)
+		return { 1, false };
+
+	const EUnderlyingType Type = *reinterpret_cast<EUnderlyingType*>(Object + Off::UEnum::UnderlyingType);
+
+	const bool bIsSigned = Type < EUnderlyingType::uint8;
+	const uint8_t Size = 1 << (static_cast<uint8_t>(Type) % 4);
+
+	return { Size, bIsSigned };
+}
+
 UEStruct UEStruct::GetSuper() const
 {
 	return UEStruct(*reinterpret_cast<void**>(Object + Off::UStruct::SuperStruct));
@@ -1016,6 +1068,19 @@ int32 UEProperty::GetAlignment() const
 
 		return  GetSize() - ValueProperty.GetSize();
 	}
+	else if (TypeFlags & EClassCastFlags::Utf8StrProperty)
+	{
+		return alignof(FUtf8String); // 0x8, same as StrProperty
+	}
+	else if (TypeFlags & EClassCastFlags::AnsiStrProperty)
+	{
+		return alignof(FAnsiString); // 0x8, same as StrProperty
+	}
+	else if (TypeFlags & EClassCastFlags::VCellProperty)
+	{
+		return sizeof(void*); // pointer-sized
+	}
+
 
 	if (Settings::Internal::bUseFProperty)
 	{
@@ -1112,6 +1177,14 @@ std::string UEProperty::GetCppType() const
 	else if (TypeFlags & EClassCastFlags::StrProperty)
 	{
 		return "class FString";
+	}
+	else if (TypeFlags & EClassCastFlags::Utf8StrProperty)
+	{
+		return "FUtf8String";
+	}
+	else if (TypeFlags & EClassCastFlags::AnsiStrProperty)
+	{
+		return "FAnsiString";
 	}
 	else if (TypeFlags & EClassCastFlags::TextProperty)
 	{

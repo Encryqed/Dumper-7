@@ -22,6 +22,7 @@ public:
 
     std::pair<std::string, bool> GetUniqueName() const;
     uint8 GetUnderlyingTypeSize() const;
+	bool IsUnderlyingTypeSigned() const;
 
     int32 GetNumMembers() const;
 

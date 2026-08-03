@@ -41,9 +41,6 @@
     <ClCompile Include="Generator\Private\Generators\MappingGenerator.cpp">
       <Filter>Generator\Private\Generators</Filter>
     </ClCompile>
-    <ClCompile Include="Generator\Private\Generators\IDAMappingGenerator.cpp">
-      <Filter>Generator\Private\Generators</Filter>
-    </ClCompile>
     <ClCompile Include="Utils\Dumpspace\DSGen.cpp">
       <Filter>Utils\Dumpspace</Filter>
     </ClCompile>
@@ -83,6 +80,10 @@
     <ClCompile Include="Engine\Private\Unreal\Decryption.cpp">
       <Filter>Engine\Private\Unreal</Filter>
     </ClCompile>
+    <ClCompile Include="Generator\Private\Generators\IDAMappingGenerator.cpp">
+      <Filter>Generator\Private\Generators</Filter>
+    </ClCompile>
+    <ClCompile Include="Generator\Private\SharedPredefinedMembers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -201,9 +202,6 @@
     <ClInclude Include="Generator\Public\Generators\MappingGenerator.h">
       <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
-    <ClInclude Include="Generator\Public\Generators\IDAMappingGenerator.h">
-      <Filter>Generator\Public\Generators</Filter>
-    </ClInclude>
     <ClInclude Include="Generator\Public\PredefinedMembers.h">
       <Filter>Generator\Public</Filter>
     </ClInclude>
@@ -270,5 +268,12 @@
     <ClInclude Include="Engine\Public\Unreal\Decryption.h">
       <Filter>Engine\Public\Unreal</Filter>
     </ClInclude>
+    <ClInclude Include="Generator\Public\Generators\IDAMappingGenerator.h">
+      <Filter>Generator\Public\Generators</Filter>
+    </ClInclude>
+    <ClInclude Include="Generator\Public\Generators\IDAMappingLayouts.h">
+      <Filter>Generator\Public\Generators</Filter>
+    </ClInclude>
+    <ClInclude Include="Generator\Public\SharedPredefinedMembers.h" />
   </ItemGroup>
 </Project>

@@ -39,6 +39,9 @@ private:
 	/* sizeof(UnderlayingType) */
 	uint8 UnderlyingTypeSize = 0x1;
 
+	/* Whether the enum is signed or not (int8, int16, int32, int64) */
+	bool bIsSigned = false;
+
 	/* Wether an occurence of this enum was found, if not guess the type by the enums' max value */
 	bool bWasInstanceFound = false;
 
@@ -76,6 +79,7 @@ public:
 
 public:
 	uint8 GetUnderlyingTypeSize() const;
+	bool IsUnderlayingTypeSigned() const;
 	const StringEntry& GetName() const;
 
 	int32 GetNumMembers() const;

@@ -71,7 +71,7 @@ void StructManager::InitAlignmentsAndNames()
 			AllStructs.push_back(Obj.Cast<UEStruct>());
 	}
 
-	for (auto ObjAsStruct : AllStructs)
+	for (UEStruct ObjAsStruct : AllStructs)
 	{
 		// Add name to override info
 		StructInfo& NewOrExistingInfo = StructInfoOverrides[ObjAsStruct.GetIndex()];
@@ -229,8 +229,10 @@ void StructManager::InitSizesAndIsFinal()
 
 			const int32 SizeToCheck = Info.Size == INT_MAX ? S.GetStructSize() : Info.Size;
 
+			const bool bHasMembers = S.HasMembers();
+
 			// Only change lowest offset if it's lower than the already found lowest offset (by default: struct-size)
-			if (Align(SizeToCheck, Info.Alignment) > LowestOffset)
+			if (Align(SizeToCheck, Info.Alignment) > LowestOffset /*&& (bHasMembers || Info.Size != 0x1)*/)
 			{
 				if (Info.Size > LowestOffset)
 					Info.Size = LowestOffset;
@@ -238,7 +240,7 @@ void StructManager::InitSizesAndIsFinal()
 				Info.bHasReusedTrailingPadding = true;
 			}
 
-			if (S.HasMembers())
+			if (bHasMembers)
 				break;
 		}
 	}
@@ -251,7 +253,7 @@ void StructManager::Init()
 
 	bIsInitialized = true;
 
-	StructInfoOverrides.reserve(0x2000);
+	StructInfoOverrides.reserve(0x4000);
 
 	InitAlignmentsAndNames();
 	InitSizesAndIsFinal();

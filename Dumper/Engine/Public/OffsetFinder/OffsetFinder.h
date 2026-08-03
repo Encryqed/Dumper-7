@@ -10,9 +10,10 @@ namespace OffsetFinder
 {
 	constexpr int32 OffsetNotFound = -1;
 	constexpr int32 OffsetFinderMinValue = Platform::Is32Bit() ? 0x18 : 0x28;
+	constexpr int32 OffsetFinderMaxValue = 0x1A0;
 
 	template<int Alignement = 4, typename T>
-	inline int32_t FindOffset(const std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = OffsetFinderMinValue, int MaxOffset = 0x1A0)
+	inline int32_t FindOffset(const std::vector<std::pair<void*, T>>& ObjectValuePair, int MinOffset = OffsetFinderMinValue, int MaxOffset = OffsetFinderMaxValue)
 	{
 		int32_t HighestFoundOffset = MinOffset;
 		bool bFoundOffset = false;
@@ -93,9 +94,14 @@ namespace OffsetFinder
 	int32_t FindFFieldNameOffset();
 	int32_t NewFindFFieldNameOffset();
 	int32_t FindFFieldClassOffset();
+	int32_t FindFFieldEditorOnlyMetaDataOffset();
+
+	/* FFieldClass */
+	int32_t FindFieldClassCastFlagsOffset();
 
 	/* UEnum */
 	int32_t FindEnumNamesOffset();
+	int32_t FindEnumUnderlayingTypeOffset();
 
 	/* UStruct */
 	int32_t FindSuperOffset();
@@ -103,6 +109,7 @@ namespace OffsetFinder
 	int32_t FindChildPropertiesOffset();
 	int32_t FindStructSizeOffset();
 	int32_t FindMinAlignmentOffset();
+	int32_t FindStructBaseChainOffset();
 
 	/* UFunction */
 	int32_t FindFunctionFlagsOffset();

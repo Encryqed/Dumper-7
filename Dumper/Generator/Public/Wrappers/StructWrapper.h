@@ -56,6 +56,8 @@ public:
     bool IsFunction() const;
     bool IsInterface() const;
 
+	bool IsExactClassUObject() const;
+
     bool IsAClassWithType(UEClass TypeClass) const;
 
     bool IsValid() const;

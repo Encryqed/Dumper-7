@@ -10,6 +10,9 @@
 #include "Utils.h"
 
 #include "Platform.h"
+#include "Json/json.hpp"
+
+#include <fstream>
 
 inline void InitSettings()
 {
@@ -147,4 +150,44 @@ bool Generator::SetupFolders(std::string& FolderName, fs::path& OutFolder, std::
 	}
 
 	return true;
+}
+
+
+void DumpEditorOnlyMetadata(const fs::path& DumperFolder)
+{
+	if (Off::FField::EditorOnlyMetadata == -1)
+		return;
+
+	nlohmann::json MetadataJson;
+	MetadataJson["GameName"] = Settings::Generator::GameName;
+	MetadataJson["GameVersion"] = Settings::Generator::GameVersion;
+
+	for (UEObject Obj : ObjectArray())
+	{
+		if (!Obj.IsA(EClassCastFlags::Struct))
+			continue;
+
+		UEStruct Struct = Obj.Cast<UEStruct>();
+
+		std::vector<UEProperty> ChildProperties = Struct.GetProperties();
+		if (ChildProperties.empty()) // Avoids allocating string for GetCppName() and prevents json from auto-creating empty objects for property-less structs
+			continue;
+
+		auto& StructMembers = MetadataJson[Struct.GetCppName()];
+		for (UEProperty Prop : ChildProperties)
+		{
+			auto& Entries = StructMembers[Prop.GetValidName()];
+
+			for (const auto& [Key, Value] : Prop.Cast<UEFField>().GetMetaData())
+			{
+				if (Key.empty() && Value.empty())
+					continue;
+
+				Entries[Key] = Value;
+			}
+		}
+	}
+
+	std::ofstream MetadataFile(DumperFolder / "Metadata.json");
+	MetadataFile << MetadataJson.dump(4);
 }

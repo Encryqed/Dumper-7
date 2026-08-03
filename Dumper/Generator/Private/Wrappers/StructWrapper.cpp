@@ -114,6 +114,13 @@ bool StructWrapper::IsInterface() const
     return bIsUnrealStruct && Struct.IsA(EClassCastFlags::Class) && Struct.HasType(InterfaceClass);
 }
 
+bool StructWrapper::IsExactClassUObject() const
+{
+    static UEClass UObjectClass = ObjectArray::FindClassFast("Object");
+
+    return bIsUnrealStruct && Struct == UObjectClass;
+}
+
 bool StructWrapper::IsAClassWithType(UEClass TypeClass) const
 {
     return IsUnrealStruct() && IsClass() && Struct.Cast<UEClass>().IsA(TypeClass);

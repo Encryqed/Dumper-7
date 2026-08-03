@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <string>
+#include <unordered_map>
 
 #include "Generators/MappingGenerator.h"
 #include "Managers/PackageManager.h"
@@ -8,6 +9,12 @@
 
 #include "../Settings.h"
 #include "Utils.h"
+
+namespace
+{
+	std::unordered_map<std::string, int32> GNameMap;
+}
+
 
 EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 {
@@ -127,6 +134,26 @@ EMappingsTypeFlags MappingGenerator::GetMappingType(UEProperty Property)
 	{
 		return EMappingsTypeFlags::DelegateProperty;
 	}
+	else if (Flags & EClassCastFlags::Utf8StrProperty)
+	{
+		return EMappingsTypeFlags::Utf8StrProperty;
+	}
+	else if (Flags & EClassCastFlags::AnsiStrProperty)
+	{
+		return EMappingsTypeFlags::AnsiStrProperty;
+	}
+	else if (Flags & EClassCastFlags::ClassProperty)
+	{
+		return EMappingsTypeFlags::ClassProperty;
+	}
+	else if (Flags & EClassCastFlags::MulticastInlineDelegateProperty)
+	{
+		return EMappingsTypeFlags::MulticastInlineDelegateProperty;
+	}
+	else if (Flags & EClassCastFlags::SoftClassProperty)
+	{
+		return EMappingsTypeFlags::SoftClassProperty;
+	}
 	
 	return EMappingsTypeFlags::Unknown;
 }
@@ -135,16 +162,14 @@ int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::s
 {
 	if constexpr (Settings::MappingGenerator::bShouldCheckForDuplicatedNames)
 	{
-		static std::unordered_map<std::string, int32> NameMap;
-		
-		auto [It, bInserted] = NameMap.insert({ Name, NameCounter });
+		auto [It, bInserted] = GNameMap.insert({ Name, static_cast<int32>(NameCounter) });
 
 		/* The name didn't occure yet, write it to the NameTable */
 		if (bInserted)
 		{
 			WriteToStream(NameTable, static_cast<uint16>(Name.length()));
 			NameTable.write(Name.c_str(), Name.length());
-			return NameCounter++;
+			return static_cast<int32>(NameCounter++);
 		}
 
 		return It->second;
@@ -153,7 +178,7 @@ int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::s
 	WriteToStream(NameTable, static_cast<uint16>(Name.length()));
 	NameTable.write(Name.c_str(), Name.length());
 
-	return NameCounter++;
+	return static_cast<int32>(NameCounter++);
 }
 
 void MappingGenerator::GeneratePropertyType(UEProperty Property, std::stringstream& Data, std::stringstream& NameTable)
@@ -392,7 +417,9 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	/* We're on 'ExplicitEnumValues' version, we need to write 'bool' (aka int32) bHasVersioning. (NoVersioning = false) -> no [int32 UE4Version, int32 UE5Version] and no [uint32 NetCL] */
 	WriteToStream(InUsmap, static_cast<int32>(false));
 
-	const uint32 UncompressedSize = static_cast<uint32>(Data.str().length());
+	/* Create a string_view to avoid expensive heap allocation each time we need.str().data() */
+	std::string_view DataView = Data.view();
+	const uint32 UncompressedSize = static_cast<uint32>(DataView.length());
 
 	constexpr auto CompressionMethod = Settings::MappingGenerator::CompressionMethod;
 
@@ -407,11 +434,11 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	case EUsmapCompressionMethod::ZStandard:
 		CompressedSize = ZSTD_compressBound(UncompressedSize);
 		CompressedBuffer = malloc(CompressedSize);
-		CompressedSize = ZSTD_compress(CompressedBuffer, CompressedSize, Data.str().data(), UncompressedSize, ZSTD_maxCLevel());
+		CompressedSize = ZSTD_compress(CompressedBuffer, CompressedSize, DataView.data(), UncompressedSize, ZSTD_maxCLevel());
 		break;
 	default:
 		CompressedBuffer = malloc(CompressedSize);
-		memcpy(CompressedBuffer, Data.str().data(), CompressedSize);
+		memcpy(CompressedBuffer, DataView.data(), CompressedSize);
 		break;
 	}
 
@@ -435,6 +462,8 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 
 void MappingGenerator::Generate()
 {
+	GNameMap.clear();
+
 	NameCounter = 0x0;
 
 	std::string MappingsFileName = (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName + ".usmap");
@@ -450,4 +479,3 @@ void MappingGenerator::Generate()
 	/* Generate the header, and write both header and payload into the file. */
 	GenerateFileHeader(UsmapFile, FileData);
 }
-

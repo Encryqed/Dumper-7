@@ -5,25 +5,28 @@
 #include "Generators/CppGenerator.h"
 #include "Wrappers/MemberWrappers.h"
 #include "Managers/MemberManager.h"
+#include "SharedPredefinedMembers.h"
 
 #include "../Settings.h"
 
-constexpr std::string GetTypeFromSize(uint8 Size)
+constexpr std::string GetTypeFromSize(uint8 Size, bool bIsSigned = false)
 {
 	switch (Size)
 	{
 	case 1:
-		return "uint8";
+		return bIsSigned ? "int8" : "uint8";
 	case 2:
-		return "uint16";
+		return bIsSigned ? "int16" : "uint16";
 	case 4:
-		return "uint32";
+		return bIsSigned ? "int32" : "uint32";
 	case 8:
-		return "uint64";
+		return bIsSigned ? "int64" : "uint64";
 	default:
 		return "INVALID_TYPE_SIZE_FOR_BIT_PADDING";
 	}
 }
+
+// GetTypeFromSize(2); -> GetTypeFromSize(2, false)
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
 {
@@ -198,7 +201,7 @@ std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const Mem
 	return OutMembers;
 }
 
-CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrapper& Func)
+CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrapper& Func, const bool bAddExplicitThis)
 {
 	FunctionInfo RetFuncInfo;
 
@@ -220,6 +223,28 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 	bool bIsFirstParam = true;
 
 	RetFuncInfo.UnrealFuncParams.reserve(5);
+
+	if (bAddExplicitThis)
+	{
+		ParamInfo ThisParamInfo;
+
+		ThisParamInfo.bIsConst = Func.IsConst();
+		ThisParamInfo.PropFlags = EPropertyFlags::Parm | EPropertyFlags::ReferenceParm;
+
+		if (ThisParamInfo.bIsConst)
+			ThisParamInfo.PropFlags |= EPropertyFlags::ConstParm;
+
+		ThisParamInfo.bIsOutPtr = false;
+		ThisParamInfo.bIsOutRef = false;
+		ThisParamInfo.bIsMoveParam = false;
+		ThisParamInfo.bIsRetParam = false;
+		ThisParamInfo.Type = "const " + GetStructPrefixedName(Func.AsStruct()) + "*";
+		ThisParamInfo.Name = "This";
+		RetFuncInfo.UnrealFuncParams.push_back(ThisParamInfo);
+		RetFuncInfo.FuncNameWithParams += ThisParamInfo.Type + " " + ThisParamInfo.Name;
+
+		bIsFirstParam = false;
+	}
 
 	for (const PropertyWrapper& Param : FuncParams.IterateMembers())
 	{
@@ -570,7 +595,7 @@ std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const M
 	}
 
 	/* Skip predefined classes, all structs and classes which don't inherit from UObject (very rare). */
-	if (!Struct.IsUnrealStruct() || !Struct.IsClass() || !Struct.GetSuper().IsValid())
+	if (!Struct.IsUnrealStruct() || !Struct.IsClass() || !(Struct.GetSuper().IsValid() || Struct.IsExactClassUObject()))
 		return InHeaderFunctionText;
 
 	/* Special spacing for UClass specific functions 'StaticClass' and 'GetDefaultObj' */
@@ -684,6 +709,12 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	const bool bIsTemplatedType = Struct.HasCustomTemplateText();
 
+	std::string AlignmentString = "";
+
+	if (Struct.ShouldUseExplicitAlignment())
+		AlignmentString = std::format("alignas(0x{:02X}) ", Struct.GetAlignment());
+	else if (bHasReusedTrailingPadding)
+		AlignmentString = std::format("SDK_ALIGN(0x{:02X}) ", Struct.GetAlignment());
 
 	StructFile << std::format(R"(
 // {}
@@ -697,7 +728,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
   , bHasReusedTrailingPadding ? "#pragma pack(push, 0x1)\n" : ""
   , bIsTemplatedType ? (Struct.GetCustomTemplateText() + "\n") : ""
   , bIsClass ? "class" : (bIsUnion ? "union" : "struct")
-  , Struct.ShouldUseExplicitAlignment() || bHasReusedTrailingPadding ? std::format("alignas(0x{:02X}) ", Struct.GetAlignment()) : ""
+  , AlignmentString
   , UniqueName
   , Settings::CppGenerator::bAddFinalSpecifier && Struct.IsFinal() ? " final" : ""
   , bHasValidSuper ? (" : public " + UniqueSuperName) : "");
@@ -706,7 +737,7 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	const bool bHasStaticClass = (bIsClass && Struct.IsUnrealStruct());
 
-	const bool bHasMembers = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment());
+	const bool bHasMembers = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment()/*&& Struct.GetSize() != 0x1*/);
 	const bool bHasFunctions = (Members.HasFunctions() && !Struct.IsFunction()) || bHasStaticClass;
 
 	if (bHasMembers || bHasFunctions)
@@ -841,17 +872,41 @@ std::string CppGenerator::GetEnumPrefixedName(const EnumWrapper& Enum)
 std::string CppGenerator::GetEnumUnderlayingType(const EnumWrapper& Enum)
 {
 	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
+		"int8",
+		"int16",
+		"int32",
+		"int64",
 		"uint8",
 		"uint16",
-		"InvalidEnumSize",
 		"uint32",
-		"InvalidEnumSize",
-		"InvalidEnumSize",
-		"InvalidEnumSize",
-		"uint64"
+		"uint64",
 	};
 
-	return Enum.GetUnderlyingTypeSize() <= 0x8 ? UnderlayingTypesBySize[static_cast<size_t>(Enum.GetUnderlyingTypeSize()) - 1] : "uint8";
+	const uint8_t Index = std::countr_zero(Enum.GetUnderlyingTypeSize()) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
+
+	return Index <= 7 ? UnderlayingTypesBySize[Index] : "uint8";
+}
+
+std::string CppGenerator::GetEnumForcedSizeType(const EnumWrapper& Enum, const uint8_t PropertySize)
+{
+	static constexpr std::array<const char*, 8> UnderlayingTypesBySize = {
+		"T1ByteSignedEnum<{}>",
+		"T2ByteSignedEnum<{}>",
+		"T4ByteSignedEnum<{}>",
+		"T8ByteSignedEnum<{}>",
+		"T1ByteEnum<{}>",
+		"T2ByteEnum<{}>",
+		"T4ByteEnum<{}>",
+		"T8ByteEnum<{}>",
+	};
+
+	const uint8_t Index = std::countr_zero(PropertySize) + (Enum.IsUnderlyingTypeSigned() ? 0 : 4);
+
+	if (Index > 7)
+		return std::format("T1ByteEnum<{}>", GetEnumPrefixedName(Enum));
+
+	std::string Value = GetEnumPrefixedName(Enum);
+	return std::vformat(UnderlayingTypesBySize[Index], std::make_format_args(Value));
 }
 
 std::string CppGenerator::GetAssertionMacroString(const std::string& PrefixedStructUniqueName)
@@ -933,7 +988,14 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	if (Flags & EClassCastFlags::ByteProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEByteProperty>().GetEnum())
-			return GetEnumPrefixedName(Enum);
+		{
+			EnumWrapper WrappedEnum = EnumWrapper(Enum);
+
+			if (WrappedEnum.GetUnderlyingTypeSize() > sizeof(uint8))
+				return GetEnumForcedSizeType(WrappedEnum, sizeof(uint8));
+
+			return GetEnumPrefixedName(WrappedEnum);
+		}
 
 		return "uint8";
 	}
@@ -1064,7 +1126,14 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	else if (Flags & EClassCastFlags::EnumProperty)
 	{
 		if (UEEnum Enum = Member.Cast<UEEnumProperty>().GetEnum())
-			return GetEnumPrefixedName(Enum);
+		{
+			EnumWrapper WrappedEnum = EnumWrapper(Enum);
+
+			//if (WrappedEnum.GetUnderlyingTypeSize() != Member.GetSize())
+			//	return GetEnumForcedSizeType(WrappedEnum, Member.GetSize());
+
+			return GetEnumPrefixedName(WrappedEnum);
+		}
 
 		return GetMemberTypeStringWithoutConst(Member.Cast<UEEnumProperty>().GetUnderlayingProperty(), PackageIndex);
 	}
@@ -1117,7 +1186,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 	else if (Flags & EClassCastFlags::AnsiStrProperty)
 	{
-		return "FUtf8String";
+		return "FAnsiString";
 	}
 	else
 	{
@@ -1129,7 +1198,7 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 	}
 }
 
-std::string CppGenerator::GetFunctionSignature(UEFunction Func)
+std::string CppGenerator::GetFunctionSignature(StructWrapper Func)
 {
 	std::string RetType = "void";
 
@@ -1137,10 +1206,9 @@ std::string CppGenerator::GetFunctionSignature(UEFunction Func)
 
 	bool bIsFirstParam = true;
 
-	std::vector<UEProperty> Params = Func.GetProperties();
-	std::sort(Params.begin(), Params.end(), CompareUnrealProperties);
+	MemberManager Members = Func.GetMembers();
 
-	for (UEProperty Param : Params)
+	for (PropertyWrapper Param : Members.IterateMembers())
 	{
 		std::string Type = GetMemberTypeString(Param);
 
@@ -1172,7 +1240,7 @@ std::string CppGenerator::GetFunctionSignature(UEFunction Func)
 				Type = "const " + Type;
 		}
 
-		std::string ParamName = Param.GetValidName();
+		std::string ParamName = Param.GetName();
 
 		if (!bIsFirstParam)
 			OutParameters += ", ";
@@ -1235,6 +1303,11 @@ void CppGenerator::GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, Pa
 
 		ClassOrStructFile << std::format("enum class {} : {};\n", GetEnumPrefixedName(Enum), GetEnumUnderlayingType(Enum));
 	}
+}
+
+fs::path CppGenerator::GetSDKTestScriptPath()
+{
+	return MainFolder / "SDKTest.py";
 }
 
 void CppGenerator::GenerateNameCollisionsInl(StreamType& NameCollisionsFile)
@@ -1420,6 +1493,32 @@ void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
 
 	PackageManager::IterateDependencies(ForEachElementCallback);
 
+	if constexpr (!Settings::CppGenerator::bIncludeParameterStructsInIDA)
+	{
+		// Causes param structs not to be included when importing the SDK, but still keeps them in SDK.hpp.
+		SdkHpp << R"(
+#ifdef IMPORT_CPP_SDK_INTO_IDA
+	#define IMPORT_CPP_SDK_INTO_IDA_EXCLUDE_PARAMS
+#endif // IMPORT_CPP_SDK_INTO_IDA
+)";
+	}
+
+	// make available the parameter structs in IDA
+	SdkHpp << "#if defined(IMPORT_CPP_SDK_INTO_IDA) && !defined(IMPORT_CPP_SDK_INTO_IDA_EXCLUDE_PARAMS)\n";
+
+	auto ForEachElementCallbackForParams = [&SdkHpp](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
+	{
+		PackageInfoHandle CurrentPackage = PackageManager::GetInfo(NewParams.RequiredPackage);
+
+		const bool bHasParameterStructs = CurrentPackage.HasParameterStructs();
+		if (!bIsStruct && bHasParameterStructs)
+			SdkHpp << std::format("#include \"SDK/{}_parameters.hpp\"\n", CurrentPackage.GetName());
+	};
+
+	PackageManager::IterateDependencies(ForEachElementCallbackForParams);
+
+	SdkHpp << "#endif // defined(IMPORT_CPP_SDK_INTO_IDA) && !defined(IMPORT_CPP_SDK_INTO_IDA_EXCLUDE_PARAMS)\n";
+
 
 	WriteFileEnd(SdkHpp, EFileType::SdkHpp);
 }
@@ -1446,6 +1545,11 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	File << std::format("\n// {}\n\n", Package.IsValidHandle() ? std::format("Package: {}", Package.GetName()) : CustomFileComment);
 
+	/* The precompiled header needs to be the first include.*/
+	if ((Type == EFileType::Functions || Type == EFileType::BasicCpp) && Settings::CppGenerator::PrecompiledHeaderFileName)
+	{
+		File << std::format("#include <{}>\n\n", Settings::CppGenerator::PrecompiledHeaderFileName);
+	}
 
 	if (!CustomIncludes.empty())
 		File << CustomIncludes + "\n";
@@ -1532,17 +1636,15 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 	if (!Settings::Config::SDKNamespaceName.empty())
 	{
-		File << std::format("namespace {}", Settings::Config::SDKNamespaceName);
+		File << "SDK_NAMESPACE_START\n";
 
 		if (Type == EFileType::Parameters && CppSettings::ParamNamespaceName)
-			File << std::format("::{}", CppSettings::ParamNamespaceName);
-
-		File << "\n{\n";
+			File << "SDK_PARAM_NAMESPACE_START\n";
 	}
 	else if constexpr (CppSettings::ParamNamespaceName)
 	{
 		if (Type == EFileType::Parameters)
-			File << std::format("namespace {}\n{{\n", CppSettings::ParamNamespaceName);
+			File << "SDK_PARAM_NAMESPACE_START\n";
 	}
 }
 
@@ -1553,12 +1655,19 @@ void CppGenerator::WriteFileEnd(StreamType& File, EFileType Type)
 	if (Type == EFileType::SdkHpp || Type == EFileType::NameCollisionsInl || Type == EFileType::UnrealContainers || Type == EFileType::UnicodeLib)
 		return; /* No namespace or packing in SDK.hpp or NameCollisions.inl */
 
-	if (!Settings::Config::SDKNamespaceName.empty() || CppSettings::ParamNamespaceName)
+	if (!Settings::Config::SDKNamespaceName.empty())
 	{
-		if (Type != EFileType::Functions)
 			File << "\n";
 
-		File << "}\n\n";
+		if (Type == EFileType::Parameters && CppSettings::ParamNamespaceName)
+			File << "SDK_PARAM_NAMESPACE_END\n";
+		
+		File << "SDK_NAMESPACE_END\n";
+	}
+	else if constexpr (CppSettings::ParamNamespaceName)
+	{
+		if (Type == EFileType::Parameters)
+			File << "\nSDK_PARAM_NAMESPACE_START\n";
 	}
 
 	if constexpr (Platform::Is32Bit())
@@ -1726,6 +1835,12 @@ void CppGenerator::Generate()
 	{
 		WriteFileEnd(DebugAssertions, EFileType::DebugAssertions);
 	}
+
+	if constexpr (Settings::Debug::bShouldGenerateSDKCompilationTestScript)
+	{
+		StreamType TestScriptFile(GetSDKTestScriptPath());
+		GenerateSDKTestScript(TestScriptFile);
+	}
 }
 
 void CppGenerator::InitPredefinedMembers()
@@ -1748,191 +1863,62 @@ void CppGenerator::InitPredefinedMembers()
 		Struct.Size = LastMember.Offset + LastMember.Size;
 	};
 
+	// Initialize core predefined members shared with IDAMappingGenerator
+	InitCorePredefinedMembers(PredefinedMembers);
 
-	if (Off::InSDK::ULevel::Actors != -1)
-	{
-		UEClass Level = ObjectArray::FindClassFast("Level");
+	// Add CppGenerator specific members
 
-		if (Level == nullptr)
-			Level = ObjectArray::FindClassFast("level");
-
-		PredefinedElements& ULevelPredefs = PredefinedMembers[Level.GetIndex()];
-		ULevelPredefs.Members =
-		{
-			PredefinedMember {
-				.Comment = "THIS IS THE ARRAY YOU'RE LOOKING FOR! [NOT AUTO-GENERATED PROPERTY]",
-				.Type = "class TArray<class AActor*>", .Name = "Actors", .Offset = Off::InSDK::ULevel::Actors, .Size = sizeof(TArray<int>), .ArrayDim = 0x1, .Alignment = alignof(TArray<int>),
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			},
-		};
-	}
-
-	UEClass DataTable = ObjectArray::FindClassFast("DataTable");
-
-	PredefinedElements& UDataTablePredefs = PredefinedMembers[DataTable.GetIndex()];
-	UDataTablePredefs.Members =
-	{
-		PredefinedMember {
-			.Comment = "So, here's a RowMap. Good luck with it.",
-			.Type = "TMap<class FName, uint8*>", .Name = "RowMap", .Offset = Off::InSDK::UDataTable::RowMap, .Size = sizeof(TMap<int, int>), .ArrayDim = 0x1, .Alignment = alignof(TMap<int, int>),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
+	// Add GObjects static member to UObject
 	PredefinedElements& UObjectPredefs = PredefinedMembers[ObjectArray::FindClassFast("Object").GetIndex()];
-	UObjectPredefs.Members = 
-	{
-		PredefinedMember {
+	UObjectPredefs.Members.insert(UObjectPredefs.Members.begin(),
+		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
 			.Type = "inline class TUObjectArrayWrapper", .Name = "GObjects", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
 			.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "void*", .Name = "VTable", .Offset = Off::UObject::Vft, .Size = sizeof(void**), .ArrayDim = 0x1, .Alignment = alignof(void**),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "EObjectFlags", .Name = "Flags", .Offset = Off::UObject::Flags, .Size = sizeof(EObjectFlags), .ArrayDim = 0x1, .Alignment = alignof(EObjectFlags),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "Index", .Offset = Off::UObject::Index, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class UClass*", .Name = "Class", .Offset = Off::UObject::Class, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class FName", .Name = "Name", .Offset = Off::UObject::Name, .Size = Off::InSDK::Name::FNameSize, .ArrayDim = 0x1, .Alignment = alignof(int32),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class UObject*", .Name = "Outer", .Offset = Off::UObject::Outer, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
+		}
+	);
 
-	const UEClass UField = ObjectArray::FindClassFast("Field");
-	PredefinedElements& UFieldPredefs = PredefinedMembers[UField.GetIndex()];
-
-	// Starting from UE5.7 UField::Next is reflected and doesn't need to be added manually anymore
-	if (!UField.FindMember("Next", EClassCastFlags::ObjectProperty))
-	{
-		UFieldPredefs.Members.insert(UFieldPredefs.Members.begin(),
-			PredefinedMember{
-				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UField*", .Name = "Next", .Offset = Off::UField::Next, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			});
-	}
-
-	PredefinedElements& UEnumPredefs = PredefinedMembers[ObjectArray::FindClassFast("Enum").GetIndex()];
-	UEnumPredefs.Members =
-	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class TArray<class TPair<class FName, int64>>", .Name = "Names", .Offset = Off::UEnum::Names, .Size = sizeof(TArray<int>), .ArrayDim = 0x1, .Alignment = alignof(TArray<int>),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
-	UEClass UStruct = ObjectArray::FindClassFast("Struct");
-
-	if (UStruct == nullptr)
-		UStruct = ObjectArray::FindClassFast("struct");
-
-	PredefinedElements& UStructPredefs = PredefinedMembers[UStruct.GetIndex()];
-	UStructPredefs.Members =
-	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int16", .Name = "MinAlignment", .Offset = Off::UStruct::MinAlignment, .Size = sizeof(int16), .ArrayDim = 0x1, .Alignment = alignof(int16),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "int32", .Name = "Size", .Offset = Off::UStruct::Size, .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(int32),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
-	// Starting from UE5.7 UStruct::SuperStruct is reflected and doesn't need to be added manually anymore
-	if (!UStruct.FindMember("SuperStruct", EClassCastFlags::ObjectProperty))
-	{
-		UStructPredefs.Members.insert(UStructPredefs.Members.begin(),
-			PredefinedMember{
-				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UStruct*", .Name = "SuperStruct", .Offset = Off::UStruct::SuperStruct, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			});
-	}
-	// Starting from UE5.7 UStruct::Children is reflected and doesn't need to be added manually anymore
-	if (!UStruct.FindMember("Children", EClassCastFlags::ObjectProperty))
-	{
-		UStructPredefs.Members.insert(UStructPredefs.Members.begin(),
-			PredefinedMember{
-				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UField*", .Name = "Children", .Offset = Off::UStruct::Children, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			});
-	}
-
-	if (Settings::Internal::bUseFProperty)
-	{
-		UStructPredefs.Members.push_back({
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "class FField*", .Name = "ChildProperties", .Offset = Off::UStruct::ChildProperties, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		});
-	}
-
+	// Add FNativeFuncPtr typedef to UFunction and change ExecFunction type
 	PredefinedElements& UFunctionPredefs = PredefinedMembers[ObjectArray::FindClassFast("Function").GetIndex()];
-	UFunctionPredefs.Members =
-	{
-		PredefinedMember {
+	UFunctionPredefs.Members.insert(UFunctionPredefs.Members.begin(),
+		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
 			.Type = "using FNativeFuncPtr = void (*)(void* Context, void* TheStack, void* Result)", .Name = "", .Offset = 0x0, .Size = 0x00, .ArrayDim = 0x1, .Alignment = 0x0,
 			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "uint32", .Name = "FunctionFlags", .Offset = Off::UFunction::FunctionFlags, .Size = sizeof(EFunctionFlags), .ArrayDim = 0x1, .Alignment = alignof(EFunctionFlags),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "FNativeFuncPtr", .Name = "ExecFunction", .Offset = Off::UFunction::ExecFunction, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
+		}
+	);
 
-	const UEClass UClass = ObjectArray::FindClassFast("Class");
-	PredefinedElements& UClassPredefs = PredefinedMembers[UClass.GetIndex()];
-	UClassPredefs.Members =
+	// Change ExecFunction type from "void*" to "FNativeFuncPtr"
+	for (PredefinedMember& Member : UFunctionPredefs.Members)
 	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "enum class EClassCastFlags", .Name = "CastFlags", .Offset = Off::UClass::CastFlags, .Size = sizeof(EClassCastFlags), .ArrayDim = 0x1, .Alignment = alignof(EClassCastFlags),
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
+		if (Member.Name == "ExecFunction")
+		{
+			Member.Type = "FNativeFuncPtr";
+			break;
+		}
+	}
 
-	// Starting from UE5.7 UClass::ClassDefaultObject is reflected and doesn't need to be added manually anymore
-	if (!UClass.FindMember("ClassDefaultObject", EClassCastFlags::ObjectProperty))
+	// CppGenerator specific: Property/FProperty/FField subtypes
+
+	const UEStruct FInstancedStruct = ObjectArray::FindStructFast("InstancedStruct");
+	if (FInstancedStruct && FInstancedStruct.GetStructSize() >= 0x10)
 	{
-		UClassPredefs.Members.insert(UClassPredefs.Members.begin(),
-			PredefinedMember{
+		PredefinedElements& FInstancedStructPredefs = PredefinedMembers[FInstancedStruct.GetIndex()];
+		FInstancedStructPredefs.Members =
+		{
+			PredefinedMember {
 				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "class UObject*", .Name = "ClassDefaultObject", .Offset = Off::UClass::ClassDefaultObject, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+				.Type = "UScriptStruct*", .Name = "ScriptStruct", .Offset = Off::FInstancedStruct::ScriptStruct, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-			});
+			},
+			PredefinedMember {
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "uint8*", .Name = "StructMemory", .Offset = Off::FInstancedStruct::StructMemory, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			}
+		};
+
+		SortMembers(FInstancedStructPredefs.Members);
 	}
 
 	std::string PropertyTypePtr = Settings::Internal::bUseFProperty ? "class FProperty*" : "class UProperty*";
@@ -2095,11 +2081,11 @@ void CppGenerator::InitPredefinedMembers()
 	};
 
 	SortMembers(UObjectPredefs.Members);
-	SortMembers(UFieldPredefs.Members);
-	SortMembers(UEnumPredefs.Members);
-	SortMembers(UStructPredefs.Members);
 	SortMembers(UFunctionPredefs.Members);
-	SortMembers(UClassPredefs.Members);
+	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Field").GetIndex()].Members);
+	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Enum").GetIndex()].Members);
+	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Struct").GetIndex()].Members);
+	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Class").GetIndex()].Members);
 
 	SortMembers(PropertyMembers);
 	SortMembers(BytePropertyMembers);
@@ -2507,11 +2493,7 @@ R"({{
 
 	PredefinedElements& UStructPredefs = PredefinedMembers[UStructIdx];
 
-	UStructPredefs.Functions =
-	{
-		PredefinedFunction {
-			.CustomComment = "Checks if this class has a certain base",
-			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const UStruct* Base)", .Body =
+	const char* IsStructOfTypeCode =
 R"({
 	if (!Base)
 		return false;
@@ -2523,7 +2505,25 @@ R"({
 	}
 
 	return false;
-})",
+})";
+
+	if (Off::UStruct::StructBaseChain != -1)
+	{
+		IsStructOfTypeCode =
+R"({
+	if (!Base)
+		return false;
+
+	const int32 NumParentStructBasesInChainMinusOne = Base->BaseChain.NumStructBasesInChainMinusOne;
+	return NumParentStructBasesInChainMinusOne <= BaseChain.NumStructBasesInChainMinusOne && BaseChain.StructBaseChainArray[NumParentStructBasesInChainMinusOne] == &Base->BaseChain;
+})";
+	}
+
+	UStructPredefs.Functions =
+	{
+		PredefinedFunction {
+			.CustomComment = "Checks if this class has a certain base",
+			.ReturnType = "bool", .NameWithParams = "IsSubclassOf(const UStruct* Base)", .Body = IsStructOfTypeCode,
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
 		PredefinedFunction {
@@ -2562,6 +2562,43 @@ R"({
 		for (UField* Field = Clss->Children; Field; Field = Field->Next)
 		{
 			if(Field->HasTypeFlag(EClassCastFlags::Function) && Field->GetName() == FuncName)
+				return static_cast<class UFunction*>(Field);
+		}
+	}
+
+	return nullptr;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "Gets a UFunction from this UClasses' 'Children' list",
+			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const FName& ClassName, const FName& FuncName)", .Body =
+R"({
+	for (const UStruct* Clss = this; Clss; Clss = Clss->SuperStruct)
+	{
+		if (Clss->Name != ClassName)
+			continue;
+
+		for (UField* Field = Clss->Children; Field; Field = Field->Next)
+		{
+			if (Field->HasTypeFlag(EClassCastFlags::Function) && Field->Name == FuncName)
+				return static_cast<class UFunction*>(Field);
+		}
+	}
+
+	return nullptr;
+})",
+			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
+		},
+		PredefinedFunction {
+			.CustomComment = "Gets the first UFunction from the UClass inheritance hierarchy",
+			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const FName& FuncName)", .Body =
+R"({
+	for (const UStruct* Clss = this; Clss; Clss = Clss->SuperStruct)
+	{
+		for (UField* Field = Clss->Children; Field; Field = Field->Next)
+		{
+			if (Field->HasTypeFlag(EClassCastFlags::Function) && Field->Name == FuncName)
 				return static_cast<class UFunction*>(Field);
 		}
 	}
@@ -3403,13 +3440,42 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 		std::sort(Members.begin(), Members.end(), ComparePredefinedMembers);
 	};
 
-	std::string CustomIncludes = R"(#define VC_EXTRALEAN
-#define WIN32_LEAN_AND_MEAN
+	const std::string SDKMacroDefinitions = std::format(R"(
 
+/*
+* Macros for opening and closing namespaces, in order to allow to remove the SDK namespace when importing the SDK into IDA.
+*
+* In IDA under "Options>Compiler" set "SourceParser" to "clang" and add the following arguments 
+* 
+*	-std=c++20 -Wno-invalid-offsetof -Wno-c++11-narrowing -D IMPORT_CPP_SDK_INTO_IDA=1 
+* 
+* Omit the '-D IMPORT_CPP_SDK_INTO_IDA=1' if you want to keep the SDK namespace in IDA
+*/
+#ifndef IMPORT_CPP_SDK_INTO_IDA
+	#define SDK_NAMESPACE_NAME {}
+	#define SDK_NAMESPACE_START namespace SDK_NAMESPACE_NAME {{
+	#define SDK_NAMESPACE_END }}
+	#define SDK_ALIGN(x) alignas(x)
+#else
+	#define SDK_NAMESPACE_NAME
+	#define SDK_NAMESPACE_START
+	#define SDK_NAMESPACE_END
+	#define SDK_ALIGN(x)
+#endif
+
+#define SDK_PARAM_NAMESPACE_START namespace {} {{
+#define SDK_PARAM_NAMESPACE_END }}
+
+)", Settings::Config::SDKNamespaceName, CppSettings::ParamNamespaceName);
+
+	const std::string CustomIncludes = std::format(R"(#define VC_EXTRALEAN
+#define WIN32_LEAN_AND_MEAN
+{}
 #include <string>
 #include <functional>
 #include <type_traits>
-)";
+#include <format>
+)", (!Settings::Config::SDKNamespaceName.empty() ? SDKMacroDefinitions : ""));
 
 	WriteFileHead(BasicHpp, nullptr, EFileType::BasicHpp, "Basic file containing structs required by the SDK", CustomIncludes);
 	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp", "#include <Windows.h>");
@@ -3418,7 +3484,9 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 	/* use namespace of UnrealContainers */
 	BasicHpp <<
 		R"(
+#ifndef IMPORT_CPP_SDK_INTO_IDA
 using namespace UC;
+#endif // IMPORT_CPP_SDK_INTO_IDA
 )";
 
 	BasicHpp << "\n#include \"../NameCollisions.inl\"\n";
@@ -3490,12 +3558,12 @@ namespace InSDKUtils
 class UClass;
 class UObject;
 class UFunction;
-
+class UScriptStruct;
 class FName;
 )";
 
 	BasicHpp << R"(
-namespace BasicFilesImpleUtils
+namespace BasicFilesImplUtils
 {
 	// Helper functions for GetStaticClass and GetStaticBPGeneratedClass
 	UClass* FindClassByName(const std::string& Name, bool bByFullName = false);
@@ -3512,41 +3580,43 @@ namespace BasicFilesImpleUtils
 	UFunction* FindFunctionByFName(const FName* Name);
 
 	FName StringToName(const wchar_t* Name);
+
+	UObject* GetDefaultObjectImpl(UClass* ClassInstance);
 }
 )";
 
 	BasicCpp << R"(
-class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name, bool bByFullName)
+class UClass* BasicFilesImplUtils::FindClassByName(const std::string& Name, bool bByFullName)
 {
 	return bByFullName ? UObject::FindClass(Name) : UObject::FindClassFast(Name);
 }
 
-class UClass* BasicFilesImpleUtils::FindClassByFullName(const std::string& Name)
+class UClass* BasicFilesImplUtils::FindClassByFullName(const std::string& Name)
 {
 	return UObject::FindClass(Name);
 }
 
-std::string BasicFilesImpleUtils::GetObjectName(class UClass* Class)
+std::string BasicFilesImplUtils::GetObjectName(class UClass* Class)
 {
 	return Class->GetName();
 }
 
-int32 BasicFilesImpleUtils::GetObjectIndex(class UClass* Class)
+int32 BasicFilesImplUtils::GetObjectIndex(class UClass* Class)
 {
 	return Class->Index;
 }
 
-uint64 BasicFilesImpleUtils::GetObjFNameAsUInt64(class UClass* Class)
+uint64 BasicFilesImplUtils::GetObjFNameAsUInt64(class UClass* Class)
 {
 	return *reinterpret_cast<uint64*>(&Class->Name);
 }
 
-class UObject* BasicFilesImpleUtils::GetObjectByIndex(int32 Index)
+class UObject* BasicFilesImplUtils::GetObjectByIndex(int32 Index)
 {
 	return UObject::GObjects->GetByIndex(Index);
 }
 
-UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
+UFunction* BasicFilesImplUtils::FindFunctionByFName(const FName* Name)
 {
 	for (int i = 0; i < UObject::GObjects->Num(); ++i)
 	{
@@ -3562,9 +3632,17 @@ UFunction* BasicFilesImpleUtils::FindFunctionByFName(const FName* Name)
 	return nullptr;
 }
 
-FName BasicFilesImpleUtils::StringToName(const wchar_t* Name)
+FName BasicFilesImplUtils::StringToName(const wchar_t* Name)
 {
 	return UKismetStringLibrary::Conv_StringToName(FString(Name));
+}
+
+UObject* BasicFilesImplUtils::GetDefaultObjectImpl(UClass* Class)
+{
+	if (Class)
+		return Class->ClassDefaultObject;
+
+	return nullptr;
 }
 )";
 
@@ -3577,7 +3655,7 @@ const FName& GetStaticName(const wchar_t* Name, FName& StaticName)
 {
 	if (StaticName.IsNone())
 	{
-		StaticName = BasicFilesImpleUtils::StringToName(Name);
+		StaticName = BasicFilesImplUtils::StringToName(Name);
 	}
 
 	return StaticName;
@@ -3592,10 +3670,10 @@ class UClass* GetStaticClassImpl(const char* Name, class UClass*& StaticClass)
 	if (StaticClass == nullptr)
 	{
 		if constexpr (bIsFullName) {
-			StaticClass = BasicFilesImpleUtils::FindClassByFullName(Name);
+			StaticClass = BasicFilesImplUtils::FindClassByFullName(Name);
 		}
 		else /* default */ {
-			StaticClass = BasicFilesImpleUtils::FindClassByName(Name);
+			StaticClass = BasicFilesImplUtils::FindClassByName(Name);
 		}
 	}
 
@@ -3613,8 +3691,8 @@ class UClass* GetStaticBPGeneratedClass(const char* Name, int32& ClassIdx, uint6
 		{
 			if (Class)
 			{
-				Index = BasicFilesImpleUtils::GetObjectIndex(Class);
-				ClassName = BasicFilesImpleUtils::GetObjFNameAsUInt64(Class);
+				Index = BasicFilesImplUtils::GetObjectIndex(Class);
+				ClassName = BasicFilesImplUtils::GetObjFNameAsUInt64(Class);
 			}
 
 			return Class;
@@ -3624,26 +3702,26 @@ class UClass* GetStaticBPGeneratedClass(const char* Name, int32& ClassIdx, uint6
 	if constexpr (bIsFullName)
 	{
 		if (ClassIdx == 0x0) [[unlikely]]
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassNameIdx);
+			return SetClassIndex(BasicFilesImplUtils::FindClassByFullName(Name), ClassIdx, ClassNameIdx);
 
-		UClass* ClassObj = static_cast<UClass*>(BasicFilesImpleUtils::GetObjectByIndex(ClassIdx));
+		UClass* ClassObj = reinterpret_cast<UClass*>(BasicFilesImplUtils::GetObjectByIndex(ClassIdx));
 
 		/* Could use cast flags too to save some string comparisons */
-		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassNameIdx)
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByFullName(Name), ClassIdx, ClassNameIdx);
+		if (!ClassObj || BasicFilesImplUtils::GetObjFNameAsUInt64(ClassObj) != ClassNameIdx)
+			return SetClassIndex(BasicFilesImplUtils::FindClassByFullName(Name), ClassIdx, ClassNameIdx);
 
 		return ClassObj;
 	}
 	else /* Default, use just the name to find an object*/
 	{
 		if (ClassIdx == 0x0) [[unlikely]]
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassNameIdx);
+			return SetClassIndex(BasicFilesImplUtils::FindClassByName(Name), ClassIdx, ClassNameIdx);
 
-		UClass* ClassObj = static_cast<UClass*>(BasicFilesImpleUtils::GetObjectByIndex(ClassIdx));
+		UClass* ClassObj = reinterpret_cast<UClass*>(BasicFilesImplUtils::GetObjectByIndex(ClassIdx));
 
 		/* Could use cast flags too to save some string comparisons */
-		if (!ClassObj || BasicFilesImpleUtils::GetObjFNameAsUInt64(ClassObj) != ClassNameIdx)
-			return SetClassIndex(BasicFilesImpleUtils::FindClassByName(Name), ClassIdx, ClassNameIdx);
+		if (!ClassObj || BasicFilesImplUtils::GetObjFNameAsUInt64(ClassObj) != ClassNameIdx)
+			return SetClassIndex(BasicFilesImplUtils::FindClassByName(Name), ClassIdx, ClassNameIdx);
 
 		return ClassObj;
 	}
@@ -3655,14 +3733,7 @@ class UClass* GetStaticBPGeneratedClass(const char* Name, int32& ClassIdx, uint6
 template<class ClassType>
 ClassType* GetDefaultObjImpl()
 {
-	UClass* StaticClass = ClassType::StaticClass();
-
-	if (StaticClass)
-	{
-		return reinterpret_cast<ClassType*>(StaticClass->ClassDefaultObject);
-	}
-
-	return nullptr;
+	return reinterpret_cast<ClassType*>(BasicFilesImplUtils::GetDefaultObjectImpl(ClassType::StaticClass()));
 }
 )";
 
@@ -4657,7 +4728,7 @@ public:
 		return ClassPtr;
 	}
 
-	template<typename Target, typename = std::enable_if<std::is_base_of_v<Target, ClassType>, bool>::type>
+	template<typename Target, typename = typename std::enable_if<std::is_base_of_v<Target, ClassType>, bool>::type>
 	inline operator TSubclassOf<Target>() const
 	{
 		return ClassPtr;
@@ -4697,6 +4768,28 @@ public:
 };
 )";
 
+	/* struct FStructBaseChain */
+	PredefinedStruct FStructBaseChain = PredefinedStruct{
+		.UniqueName = "FStructBaseChain", .Size = sizeof(void*) + sizeof(int32), .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = false, .bIsUnion = false, .Super = nullptr
+	};
+
+	FStructBaseChain.Properties =
+	{
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "FStructBaseChain**", .Name = "StructBaseChainArray", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+		PredefinedMember {
+			.Comment = "NOT AUTO-GENERATED PROPERTY",
+			.Type = "int32", .Name = "NumStructBasesInChainMinusOne", .Offset = sizeof(void*), .Size = sizeof(int32), .ArrayDim = 0x1, .Alignment = alignof(void*),
+			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+		},
+	};
+
+	GenerateStruct(&FStructBaseChain, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
+
+
 	const int32 TextDataSize = (Off::InSDK::Text::InTextDataStringOffset + sizeof(FString));
 
 	/* class FTextData */
@@ -4713,7 +4806,8 @@ public:
 		},
 	};
 
-	BasicHpp << R"(namespace FTextImpl
+	BasicHpp << R"(
+namespace FTextImpl
 {)";
 	GenerateStruct(&FTextData, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 	BasicHpp << "}\n";
@@ -5338,15 +5432,6 @@ public:
 		.UniqueName = "TDelegate", .Size = PropertySizes::DelegateProperty, .Alignment = 0x4, .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 
-	TDelegate.Properties =
-	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "struct InvalidUseOfTDelegate", .Name = "TemplateParamIsNotAFunctionSignature", .Offset = 0x0, .Size = 0x0, .ArrayDim = 0x1, .Alignment = 0x1,
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
 
 	GenerateStruct(&TDelegate, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 
@@ -5373,15 +5458,6 @@ public:
 		.UniqueName = "TMulticastInlineDelegate", .Size = PropertySizes::MulticastInlineDelegateProperty, .Alignment = alignof(TArray<int>), .bUseExplictAlignment = false, .bIsFinal = false, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 	};
 	
-	TMulticastInlineDelegate.Properties =
-	{
-		PredefinedMember {
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "struct InvalidUseOfTMulticastInlineDelegate", .Name = "TemplateParamIsNotAFunctionSignature", .Offset = 0x0, .Size = ScriptDelegateSize, .ArrayDim = 0x1, .Alignment = 0x1,
-			.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		},
-	};
-
 	GenerateStruct(&TMulticastInlineDelegate, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 
 	/* TMulticastInlineDelegate<Ret(Args...)> */
@@ -5401,32 +5477,118 @@ public:
 
 	GenerateStruct(&TMulticastInlineDelegateSpezialiation, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 
+	BasicHpp <<
+		R"(
+template<typename EnumType, typename UnderlyingType>
+class TFixedSizeEnum
+{
+private:
+	static_assert(std::is_enum_v<EnumType>, "EnumType must be an enum!");
+	static_assert(std::is_integral_v<UnderlyingType>, "UnderlyingType must be an integral type!");
+
+public:
+	UnderlyingType EnumValue = 0;
+
+public:
+	constexpr TFixedSizeEnum() = default;
+	constexpr TFixedSizeEnum(const EnumType InEnumValue)
+		: EnumValue(static_cast<UnderlyingType>(InEnumValue))
+	{
+	}
+
+public:
+	constexpr TFixedSizeEnum(TFixedSizeEnum&&) = default;
+	constexpr TFixedSizeEnum(const TFixedSizeEnum&) = default;
+
+	constexpr TFixedSizeEnum& operator=(TFixedSizeEnum&&) = default;
+	constexpr TFixedSizeEnum& operator=(const TFixedSizeEnum&) = default;
+
+public:
+	constexpr inline bool operator==(const TFixedSizeEnum Other) const
+	{
+		return EnumValue == Other.EnumValue;
+	}
+	constexpr inline bool operator==(const EnumType Other) const
+	{
+		return EnumValue == static_cast<UnderlyingType>(Other);
+	}
+
+	constexpr std::strong_ordering operator<=>(TFixedSizeEnum Other) const
+	{
+		return EnumValue <=> Other.EnumValue;
+	}
+	constexpr std::strong_ordering operator<=>(EnumType Other) const
+	{
+		return EnumValue <=> static_cast<UnderlyingType>(Other);
+	}
+};
+
+template<typename EnumType>
+using T1ByteSignedEnum = TFixedSizeEnum<EnumType, int8>;
+
+template<typename EnumType>
+using T2ByteSignedEnum = TFixedSizeEnum<EnumType, int16>;
+
+template<typename EnumType>
+using T4ByteSignedEnum = TFixedSizeEnum<EnumType, int32>;
+
+template<typename EnumType>
+using T8ByteSignedEnum = TFixedSizeEnum<EnumType, int64>;
+
+template<typename EnumType>
+using T1ByteEnum = TFixedSizeEnum<EnumType, uint8>;
+
+template<typename EnumType>
+using T2ByteEnum = TFixedSizeEnum<EnumType, uint16>;
+
+template<typename EnumType>
+using T4ByteEnum = TFixedSizeEnum<EnumType, uint32>;
+
+template<typename EnumType>
+using T8ByteEnum = TFixedSizeEnum<EnumType, uint64>;
+
+)";
 
 	/* UE_ENUM_OPERATORS - enum flag operations */
 	BasicHpp <<
 		R"(
-#define UE_ENUM_OPERATORS(EEnumClass)																																	\
+#define UE_ENUM_OPERATORS(EEnumClassType)																													\
 																																										\
-inline constexpr EEnumClass operator|(EEnumClass Left, EEnumClass Right)																								\
+inline constexpr EEnumClassType operator|(EEnumClassType Left, EEnumClassType Right)															 			\
 {																																										\
-	return (EEnumClass)((std::underlying_type<EEnumClass>::type)(Left) | (std::underlying_type<EEnumClass>::type)(Right));												\
+	using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
+																																							\
+	return static_cast<EEnumClassType>(static_cast<EnumUnderlayingType>(Left) | static_cast<EnumUnderlayingType>(Right));									\
 }																																										\
 																																										\
-inline constexpr EEnumClass& operator|=(EEnumClass& Left, EEnumClass Right)																								\
+inline EEnumClassType& operator|=(EEnumClassType& Left, EEnumClassType Right)																				\
 {																																										\
-	return (EEnumClass&)((std::underlying_type<EEnumClass>::type&)(Left) |= (std::underlying_type<EEnumClass>::type)(Right));											\
+    using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
+																																							\
+    reinterpret_cast<EnumUnderlayingType&>(Left) |= static_cast<EnumUnderlayingType>(Right);																\
+	return Left;																																			\
 }																																										\
 																																										\
-inline bool operator&(EEnumClass Left, EEnumClass Right)																												\
+inline EEnumClassType& operator|=(EEnumClassType& Left, std::underlying_type<EEnumClassType>::type Right)													\
 {																																										\
-	return (((std::underlying_type<EEnumClass>::type)(Left) & (std::underlying_type<EEnumClass>::type)(Right)) == (std::underlying_type<EEnumClass>::type)(Right));		\
+	using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
+																																							\
+	reinterpret_cast<EnumUnderlayingType&>(Left) |= Right;																									\
+	return Left;																																			\
+}																																										\
+																																										\
+inline bool operator&(EEnumClassType Left, EEnumClassType Right)																							\
+{																																										\
+	using EnumUnderlayingType = std::underlying_type<EEnumClassType>::type;																					\
+																																							\
+	return ((static_cast<EnumUnderlayingType>(Left) & static_cast<EnumUnderlayingType>(Right)) == static_cast<EnumUnderlayingType>(Right));					\
 }																																										
 )";
 
 	/* enum class EObjectFlags */
 	BasicHpp <<
 		R"(
-enum class EObjectFlags : int32
+enum class EObjectFlags : uint32
 {
 	NoFlags							= 0x00000000,
 
@@ -5770,9 +5932,67 @@ template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8>
 using TActorBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<UnderlayingClassType, Size, Align, class AActor>;
 )";
 
-
 	WriteFileEnd(BasicHpp, EFileType::BasicHpp);
 	WriteFileEnd(BasicCpp, EFileType::BasicCpp);
+
+	/* Write the std::formatter specialisation into global namespace. */
+	BasicHpp << std::format(R"DEL(
+
+template <typename T>
+	requires std::derived_from<T, SDK_NAMESPACE_NAME ::UObject>
+struct std::formatter<T*> : std::formatter<std::string>
+{{
+	auto format(T* Object, std::format_context& Context) const
+	{{
+		const std::string ClassName = Object && Object->Class ? Object->Class->GetName() : T::StaticClass()->GetName();
+		if (Object)
+		{{
+			return std::formatter<std::string>::format(std::format("{{}}(0x{{:X}}, {{}})", ClassName, reinterpret_cast<uintptr_t>(Object), Object->GetName()), Context);
+		}}
+		else
+		{{
+			return std::formatter<std::string>::format(std::format("{{}}(nullptr)", ClassName), Context);
+		}}
+	}}
+}};
+
+template <typename T>
+	requires std::derived_from<T, SDK_NAMESPACE_NAME ::UObject>
+struct std::formatter<SDK_NAMESPACE_NAME ::TSubclassOf<T>> : std::formatter<std::string>
+{{
+	auto format(SDK_NAMESPACE_NAME ::TSubclassOf<T> Class, std::format_context& Context) const
+	{{
+		return std::formatter<std::string>::format(Class.Get() ? Class.Get()->GetName() : std::format("{{}}(nullptr)", T::StaticClass()->GetName()), Context);
+	}}
+}};
+
+template <>
+struct std::formatter<SDK_NAMESPACE_NAME ::FName> : std::formatter<std::string>
+{{
+	auto format(SDK_NAMESPACE_NAME ::FName Name, std::format_context& Context) const
+	{{
+		return std::formatter<std::string>::format(Name.ToString(), Context);
+	}}
+}};
+
+template <>
+struct std::formatter<SDK_NAMESPACE_NAME ::FString> : std::formatter<std::string>
+{{
+	auto format(SDK_NAMESPACE_NAME ::FString String, std::format_context& Context) const
+	{{
+		return std::formatter<std::string>::format(String.ToString(), Context);
+	}}
+}};
+
+template <>
+struct std::formatter<SDK_NAMESPACE_NAME ::FText> : std::formatter<std::string>
+{{
+	auto format(SDK_NAMESPACE_NAME ::FText Text, std::format_context& Context) const
+	{{
+		return std::formatter<std::string>::format(Text.ToString(), Context);
+	}}
+}};
+)DEL");
 }
 
 
@@ -5784,8 +6004,11 @@ void CppGenerator::GenerateUnrealContainers(StreamType& UEContainersHeader)
 
 
 	UEContainersHeader << R"(
+#ifndef IMPORT_CPP_SDK_INTO_IDA
 namespace UC
 {	
+#endif // IMPORT_CPP_SDK_INTO_IDA
+
 	typedef int8_t  int8;
 	typedef int16_t int16;
 	typedef int32_t int32;
@@ -5964,8 +6187,8 @@ namespace UC
 		template<typename SetType>
 		class SetElement
 		{
-		private:
-			template<typename SetDataType>
+		public:
+			template<typename SetElementType>
 			friend class TSet;
 
 		private:
@@ -6144,7 +6367,7 @@ namespace UC
 	class FString : public TArray<wchar_t>
 	{
 	public:
-		friend std::ostream& operator<<(std::ostream& Stream, const UC::FString& Str) { return Stream << Str.ToString(); }
+		friend std::ostream& operator<<(std::ostream& Stream, const FString& Str) { return Stream << Str.ToString(); }
 
 	public:
 		using TArray::TArray;
@@ -6197,7 +6420,7 @@ namespace UC
 	class FUtf8String : public TArray<char8_t>
 	{
 	public:
-		friend std::ostream& operator<<(std::ostream& Stream, const UC::FUtf8String& Str) { return Stream << Str.ToString(); }
+		friend std::ostream& operator<<(std::ostream& Stream, const FUtf8String& Str) { return Stream << Str.ToString(); }
 
 	private:
 		inline const char* GetDataAsConstCharPtr() const
@@ -6256,7 +6479,7 @@ namespace UC
 	class FAnsiString : public TArray<char>
 	{
 	public:
-		friend std::ostream& operator<<(std::ostream& Stream, const UC::FAnsiString& Str) { return Stream << Str.ToString(); }
+		friend std::ostream& operator<<(std::ostream& Stream, const FAnsiString& Str) { return Stream << Str.ToString(); }
 
 	public:
 		using TArray::TArray;
@@ -6679,7 +6902,6 @@ namespace UC
 
 		public:
 			inline TContainerIterator& operator++() { ++BitIterator; return *this; }
-			inline TContainerIterator& operator--() { --BitIterator; return *this; }
 
 			inline       auto& operator*()       { return IteratedContainer[GetIndex()]; }
 			inline const auto& operator*() const { return IteratedContainer[GetIndex()]; }
@@ -6716,7 +6938,10 @@ namespace UC
 	static_assert(sizeof(TSet<int32>) == 0x3C, "TSet has a wrong size!");
 	static_assert(sizeof(TMap<int32, int32>) == 0x3C, "TMap has a wrong size!");
 #endif
+
+#ifndef IMPORT_CPP_SDK_INTO_IDA
 }
+#endif // IMPORT_CPP_SDK_INTO_IDA
 )";
 
 	WriteFileEnd(UEContainersHeader, EFileType::UnrealContainers);
@@ -7029,7 +7254,7 @@ namespace UtfN
 					typename = decltype(std::begin(std::declval<container_type>())), // Has begin
 					typename = decltype(std::end(std::declval<container_type>())),   // Has end
 					typename iterator_deref_type = decltype(*std::end(std::declval<container_type>())), // Iterator can be dereferenced
-					typename = std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char_type::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+					typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char_type::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 				>
 				explicit UTF_CONSTEXPR utf_char_iterator_base(container_type& Container)
 					: CurrentIterator(std::begin(Container)), NextCharStartIterator(std::begin(Container)), EndIterator(std::end(Container))
@@ -7488,12 +7713,12 @@ namespace UtfN
 	template<
 		typename codepoint_iterator_type,
 		typename iterator_deref_type = decltype(*std::declval<codepoint_iterator_type>()), // Iterator can be dereferenced
-		typename = typename std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char8::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+		typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char8::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 	>
 	class utf8_iterator : public UtfImpl::Iterator::utf_char_iterator_base<utf8_iterator<codepoint_iterator_type>, codepoint_iterator_type, utf_char8>
 	{
 	private:
-		typedef typename utf8_iterator<codepoint_iterator_type> own_type;
+		typedef utf8_iterator<codepoint_iterator_type> own_type;
 
 		friend UtfImpl::Iterator::utf_char_iterator_base_child_acessor<own_type>;
 
@@ -7533,12 +7758,12 @@ namespace UtfN
 	template<
 		typename codepoint_iterator_type,
 		typename iterator_deref_type = decltype(*std::declval<codepoint_iterator_type>()), // Iterator can be dereferenced
-		typename = typename std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char16::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+		typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char16::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 	>
 	class utf16_iterator : public UtfImpl::Iterator::utf_char_iterator_base<utf16_iterator<codepoint_iterator_type>, codepoint_iterator_type, utf_char16>
 	{
 	private:
-		typedef typename utf16_iterator<codepoint_iterator_type> own_type;
+		typedef utf16_iterator<codepoint_iterator_type> own_type;
 
 		friend UtfImpl::Iterator::utf_char_iterator_base_child_acessor<own_type>;
 
@@ -7589,12 +7814,12 @@ namespace UtfN
 	template<
 		typename codepoint_iterator_type,
 		typename iterator_deref_type = decltype(*std::declval<codepoint_iterator_type>()), // Iterator can be dereferenced
-		typename = typename std::enable_if<sizeof(std::decay<iterator_deref_type>::type) == utf_char32::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
+		typename = typename std::enable_if<sizeof(typename std::decay<iterator_deref_type>::type) == utf_char32::GetCodepointSize()>::type // Return-value of derferenced iterator has the same size as one codepoint
 	>
 	class utf32_iterator : public UtfImpl::Iterator::utf_char_iterator_base<utf32_iterator<codepoint_iterator_type>, codepoint_iterator_type, utf_char32>
 	{
 	private:
-		typedef typename utf32_iterator<codepoint_iterator_type> own_type;
+		typedef utf32_iterator<codepoint_iterator_type> own_type;
 
 		friend UtfImpl::Iterator::utf_char_iterator_base_child_acessor<own_type>;
 
@@ -8338,4 +8563,452 @@ namespace UtfN
 #endif // Warnings)";
 
 	WriteFileEnd(UnicodeLib, EFileType::UnicodeLib);
+}
+
+
+void CppGenerator::GenerateSDKTestScript(StreamType& TestScript)
+{
+	/*
+	* Generates a script called SDKTest.py:
+	* 1. Creates SDKTest directory
+	* 2. Creates a SDKTest/TestMain.cpp
+	* 3. Creates a SDKTest/CMakeLists.txt
+	* 4. Compiles the SDK with MSVC
+	* 5. Compiles the SDK with Clang
+	*/
+	TestScript << R"DEL(
+#!/usr/bin/env python3
+
+import argparse
+import ctypes
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+TEST_MAIN = r'''#include <Windows.h>
+#include <iostream>
+
+#include "SDK/Engine_classes.hpp"
+
+// Basic.cpp was added to the VS project
+// Engine_functions.cpp was added to the VS project
+
+DWORD MainThread(HMODULE Module)
+{
+    /* Code to open a console window */
+    AllocConsole();
+    FILE* Dummy;
+    freopen_s(&Dummy, "CONOUT$", "w", stdout);
+    freopen_s(&Dummy, "CONIN$", "r", stdin);
+
+    /* Functions returning "static" instances */
+    SDK::UEngine* Engine = SDK::UEngine::GetEngine();
+    SDK::UWorld* World = SDK::UWorld::GetWorld();
+
+    /* Getting the PlayerController, World, OwningGameInstance, ... should all be checked not to be nullptr! */
+    SDK::APlayerController* MyController = World->OwningGameInstance->LocalPlayers[0]->PlayerController;
+
+    /* Print the full-name of an object ("ClassName PackageName.OptionalOuter.ObjectName") */
+    std::cout << Engine->ConsoleClass->GetFullName() << std::endl;
+
+    /* Manually iterating GObjects and printing the FullName of every UObject that is a Pawn (not recommended) */
+    for (int i = 0; i < SDK::UObject::GObjects->Num(); i++)
+    {
+        SDK::UObject* Obj = SDK::UObject::GObjects->GetByIndex(i);
+
+        if (!Obj)
+            continue;
+
+        if (Obj->IsDefaultObject())
+            continue;
+
+        /* Only the 'IsA' check using the cast flags is required, the other 'IsA' is redundant */
+        if (Obj->IsA(SDK::APawn::StaticClass()) || Obj->HasTypeFlag(SDK::EClassCastFlags::Pawn))
+        {
+            std::cout << Obj->GetFullName() << "\n";
+        }
+    }
+
+    /* You might need to loop all levels in UWorld::Levels */
+    SDK::ULevel* Level = World->PersistentLevel;
+    SDK::TArray<SDK::AActor*>& Actors = Level->Actors;
+
+    for (SDK::AActor* Actor : Actors)
+    {
+        /* The 2nd and 3rd checks are equal, prefer using EClassCastFlags if available for your class. */
+        if (!Actor || !Actor->IsA(SDK::EClassCastFlags::Pawn) || !Actor->IsA(SDK::APawn::StaticClass()))
+            continue;
+
+        SDK::APawn* Pawn = static_cast<SDK::APawn*>(Actor);
+        // Use Pawn here
+    }
+
+    /*
+    * Changes the keyboard-key that's used to open the UE console
+    *
+    * This is a rare case of a DefaultObjects' member-variables being changed.
+    * By default you do not want to use the DefaultObject, this is a rare exception.
+    */
+    SDK::UInputSettings::GetDefaultObj()->ConsoleKeys[0].KeyName = SDK::UKismetStringLibrary::Conv_StringToName(L"F2");
+
+    /* Creates a new UObject of class-type specified by Engine->ConsoleClass */
+    SDK::UObject* NewObject = SDK::UGameplayStatics::SpawnObject(Engine->ConsoleClass, Engine->GameViewport);
+
+    /* The Object we created is a subclass of UConsole, so this cast is **safe**. */
+    Engine->GameViewport->ViewportConsole = static_cast<SDK::UConsole*>(NewObject);
+
+    return 0;
+}
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
+{
+    switch (reason)
+    {
+    case DLL_PROCESS_ATTACH:
+        CreateThread(0, 0, (LPTHREAD_START_ROUTINE)MainThread, hModule, 0, 0);
+        break;
+    }
+
+    return TRUE;
+}
+'''
+
+
+CMAKE_LISTS = r'''cmake_minimum_required(VERSION 3.21)
+project(SDKBuildTest LANGUAGES CXX)
+
+if(NOT DEFINED SDK_ROOT)
+    message(FATAL_ERROR "SDK_ROOT must point to the generated SDK directory")
+endif()
+
+file(TO_CMAKE_PATH "${SDK_ROOT}" SDK_ROOT)
+
+foreach(SDK_SOURCE
+    "${SDK_ROOT}/SDK/Basic.cpp"
+    "${SDK_ROOT}/SDK/Engine_functions.cpp"
+    "${SDK_ROOT}/SDK/CoreUObject_functions.cpp"
+)
+    if(NOT EXISTS "${SDK_SOURCE}")
+        message(FATAL_ERROR "Required source file not found: ${SDK_SOURCE}")
+    endif()
+endforeach()
+
+add_library(SDKBuildTest SHARED
+    TestMain.cpp
+    "${SDK_ROOT}/SDK/Basic.cpp"
+    "${SDK_ROOT}/SDK/Engine_functions.cpp"
+    "${SDK_ROOT}/SDK/CoreUObject_functions.cpp"
+)
+
+target_include_directories(SDKBuildTest PRIVATE "${SDK_ROOT}")
+target_compile_features(SDKBuildTest PRIVATE cxx_std_23)
+set_target_properties(SDKBuildTest PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(SDKBuildTest PRIVATE
+        -Wno-invalid-offsetof
+        -Wno-c++11-narrowing
+    )
+endif()
+'''
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Compile a generated SDK DLL test with MSVC and ClangCL."
+    )
+    parser.add_argument(
+        "--ClearOutput",
+        "--clear-output",
+        action="store_true",
+        dest="clear_output",
+        help="Remove SDKTest after both builds succeed.",
+    )
+    parser.add_argument(
+        "--SelfDelete",
+        "--self-delete",
+        action="store_true",
+        dest="self_delete",
+        help="Delete this script after both builds succeed.",
+    )
+    return parser.parse_args()
+
+
+def wait_on_failure(message: str) -> int:
+    if os.name == "nt":
+        try:
+            ctypes.windll.kernel32.AllocConsole()
+            ctypes.windll.kernel32.SetConsoleTitleW("SDK Build Test Failed")
+            sys.stdin = open("CONIN$", "r", encoding="utf-8")
+            sys.stdout = open("CONOUT$", "w", encoding="utf-8", buffering=1)
+            sys.stderr = open("CONOUT$", "w", encoding="utf-8", buffering=1)
+        except OSError:
+            pass
+
+    print("\nSDK build test failed.", file=sys.stderr)
+    print(message, file=sys.stderr)
+    try:
+        input("\nPress Enter to close...")
+    except (EOFError, OSError):
+        pass
+    return 1
+
+
+def run_logged(command: list[str], log_file: Path, cwd: Path) -> bool:
+    printable = subprocess.list2cmdline(command)
+    print(f"Running: {printable}")
+
+    with log_file.open("a", encoding="utf-8", errors="replace") as log:
+        log.write(f"\n> {printable}\n")
+        log.flush()
+        try:
+            result = subprocess.run(
+                command,
+                cwd=cwd,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                check=False,
+            )
+        except OSError as error:
+            log.write(f"\nFailed to start command: {error}\n")
+            return False
+
+        log.write(f"\nExit code: {result.returncode}\n")
+        return result.returncode == 0
+
+
+def build_toolchain(
+    name: str,
+    source_dir: Path,
+    build_dir: Path,
+    output_dir: Path,
+    log_file: Path,
+    sdk_root: Path,
+    toolset: str | None = None,
+    generator_instance: str | None = None,
+) -> bool:
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+    build_dir.mkdir(parents=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    log_file.write_text(f"{name} build log\n", encoding="utf-8")
+
+    configure = [
+        "cmake",
+        "-S",
+        str(source_dir),
+        "-B",
+        str(build_dir),
+        "-G",
+        "Visual Studio 17 2022",
+        "-A",
+        "x64",
+        f"-DSDK_ROOT={sdk_root}",
+        f"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY={output_dir}",
+        f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={output_dir}",
+    ]
+    if toolset:
+        configure.extend(["-T", toolset])
+    if generator_instance:
+        configure.append(f"-DCMAKE_GENERATOR_INSTANCE={generator_instance}")
+
+    if not run_logged(configure, log_file, source_dir):
+        return False
+
+    build = [
+        "cmake",
+        "--build",
+        str(build_dir),
+        "--config",
+        "Release",
+        "--target",
+        "SDKBuildTest",
+    ]
+    return run_logged(build, log_file, source_dir)
+
+
+def find_clangcl_instance() -> str | None:
+    """Return a VS install path that has the ClangCL toolset, or None.
+
+    On machines with multiple VS installs (e.g. BuildTools + Community), CMake may
+    otherwise select one without the ClangCL toolset. vswhere ships with every VS install.
+    """
+    program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+    vswhere = Path(program_files_x86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    if not vswhere.is_file():
+        return None
+
+    try:
+        result = subprocess.run(
+            [
+                str(vswhere),
+                "-latest",
+                "-products", "*",
+                "-requires", "Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset",
+                "-property", "installationPath",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+
+    found = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return found[0] if found else None
+
+
+def main() -> int:
+    args = parse_args()
+    sdk_root = Path(__file__).resolve().parent
+    test_root = sdk_root / "SDKTest"
+    logs_dir = test_root / "Logs"
+    output_dir = test_root / "Output"
+
+    required_sources = [
+        sdk_root / "SDK" / "Basic.cpp",
+        sdk_root / "SDK" / "Engine_functions.cpp",
+        sdk_root / "SDK" / "CoreUObject_functions.cpp",
+    ]
+    missing = [path for path in required_sources if not path.is_file()]
+    if missing:
+        missing_list = "\n".join(f"Missing required source: {path}" for path in missing)
+        return wait_on_failure(missing_list)
+
+    if shutil.which("cmake") is None:
+        return wait_on_failure("cmake was not found on PATH.")
+
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (test_root / "TestMain.cpp").write_text(TEST_MAIN, encoding="utf-8", newline="\n")
+    (test_root / "CMakeLists.txt").write_text(CMAKE_LISTS, encoding="utf-8", newline="\n")
+
+    msvc_ok = build_toolchain(
+        name="MSVC",
+        source_dir=test_root,
+        build_dir=test_root / "Build-MSVC",
+        output_dir=output_dir / "MSVC",
+        log_file=logs_dir / "MSVC.log",
+        sdk_root=sdk_root,
+    )
+
+    # On multi-VS-install machines, pin an install that has the ClangCL toolset so CMake
+    # doesn't pick one without it.
+    clang_instance = find_clangcl_instance()
+    if clang_instance is None:
+        print("Note: no VS install with the ClangCL toolset found via vswhere; the Clang build may fail. Install the 'C++ Clang Compiler for Windows' + 'MSBuild support for LLVM (clang-cl) toolset' VS components.")
+    clang_ok = build_toolchain(
+        name="ClangCL",
+        source_dir=test_root,
+        build_dir=test_root / "Build-Clang",
+        output_dir=output_dir / "Clang",
+        log_file=logs_dir / "Clang.log",
+        sdk_root=sdk_root,
+        toolset="ClangCL",
+        generator_instance=clang_instance,
+    )
+
+    print(f"MSVC:   {'succeeded' if msvc_ok else 'failed'}")
+    print(f"Clang:  {'succeeded' if clang_ok else 'failed'}")
+
+    if not (msvc_ok and clang_ok):
+        return wait_on_failure(f"Build logs are in: {logs_dir}")
+
+    if args.clear_output:
+        shutil.rmtree(test_root)
+        print(f"Both builds succeeded; removed {test_root}")
+    else:
+        print(f"DLL output is in: {output_dir}")
+        print(f"Build logs are in: {logs_dir}")
+
+    if args.self_delete:
+        script_path = Path(__file__).resolve()
+        try:
+            script_path.unlink()
+        except OSError as error:
+            return wait_on_failure(f"Could not delete script {script_path}: {error}")
+        print(f"Both builds succeeded; deleted {script_path}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+)DEL";
+}
+
+
+bool CppGenerator::ExecuteSDKCompilationTestScript()
+{
+	if constexpr (!Settings::Debug::bExecuteSDKTestScript)
+		return false;
+
+	constexpr bool bCreateScriptTemporarilyForExecution = !Settings::Debug::bShouldGenerateSDKCompilationTestScript;
+
+	if constexpr (bCreateScriptTemporarilyForExecution)
+	{
+		StreamType TestScriptFile(GetSDKTestScriptPath());
+		CppGenerator::GenerateSDKTestScript(TestScriptFile);
+	}
+
+	std::cout << "Executing SDK compilation test script..." << std::endl;
+
+	const fs::path SDKTestScript = GetSDKTestScriptPath();
+
+	if (!fs::exists(SDKTestScript))
+	{
+		std::cerr << "SDK test script not found: " << SDKTestScript << std::endl;
+		return false;
+	}
+
+#ifndef PLATFORM_WINDOWS
+	std::cerr << "SDKTest.py can currently only be run on Windows..." << std::endl;
+	return false;
+#endif // !PLATFORM_WINDOWS
+
+	std::wstring CommandLine = std::format(L"python \"{}\" --ClearOutput{}", SDKTestScript.wstring(),
+		bCreateScriptTemporarilyForExecution ? L" --SelfDelete" : L"");
+
+	std::cerr << "Running command: " << fs::path(CommandLine).string() << std::endl;
+
+	STARTUPINFOW StartupInfo = {};
+	StartupInfo.cb = sizeof(StartupInfo);
+	PROCESS_INFORMATION ProcessInfo = {};
+
+	const bool bSuccess = CreateProcessW(
+		/* lpApplicationName	= */ nullptr,
+		/* lpCommandLine		= */ CommandLine.data(),
+		/* lpProcessAttributes	= */ nullptr,
+		/* lpThreadAttributes	= */ nullptr,
+		/* bInheritHandles		= */ FALSE,
+		/* dwCreationFlags		= */ CREATE_UNICODE_ENVIRONMENT | DETACHED_PROCESS,
+		/* lpEnvironment		= */ nullptr,
+		/* lpCurrentDirectory	= */ nullptr,
+		/* lpStartupInfo		= */ &StartupInfo,
+		/* lpProcessInfo		= */ &ProcessInfo
+	);
+
+	if (bSuccess)
+	{
+		CloseHandle(ProcessInfo.hProcess);
+		CloseHandle(ProcessInfo.hThread);
+	}
+	else
+	{
+		std::cerr << "Failed to execute SDK test script: " << GetLastError() << std::endl;
+		return false;
+	}
+
+
+
+	return true;
 }

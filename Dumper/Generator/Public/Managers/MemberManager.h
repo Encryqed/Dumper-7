@@ -239,7 +239,7 @@ public:
 		/* Initialize member-name collisions  */
 		for (auto Obj : ObjectArray())
 		{
-			if (!Obj.IsA(EClassCastFlags::Struct) || Obj.IsA(EClassCastFlags::Function))
+			if (!Obj.IsA(EClassCastFlags::Struct))
 				continue;
 
 			AddStructToNameContainer(Obj.Cast<UEStruct>());
@@ -250,7 +250,11 @@ public:
 
 	static inline void AddStructToNameContainer(UEStruct Struct)
 	{
-		MemberNames.AddStructToNameContainer(Struct, (!Struct.IsA(EClassCastFlags::Class) && !Struct.IsA(EClassCastFlags::Function)));
+		MemberNames.AddStructToNameContainer(
+			Struct,
+			(!Struct.IsA(EClassCastFlags::Class) && !Struct.IsA(EClassCastFlags::Function)),
+			Struct.IsA(EClassCastFlags::Function)
+		);
 	}
 
 	template<typename UEType>

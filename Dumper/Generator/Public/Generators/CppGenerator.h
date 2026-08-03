@@ -22,7 +22,8 @@ private:
     friend class CppGeneratorTest;
     friend class Generator;
 
-private:
+public:
+    /* Used by IDAMappingGenerator */
     struct ParamInfo
     {
         bool bIsOutPtr;
@@ -36,6 +37,7 @@ private:
         std::string Name;
     };
 
+    /* Used by IDAMappingGenerator */
     struct FunctionInfo
     {
         bool bIsReturningVoid;
@@ -47,6 +49,7 @@ private:
         std::vector<ParamInfo> UnrealFuncParams; // for unreal-functions only
     };
 
+private:
     enum class EFileType
     {
         Classes,
@@ -67,6 +70,9 @@ private:
 
         DebugAssertions,
     };
+
+public:
+    friend class CppGeneratorAccessor;
 
 private:
     using StreamType = std::ofstream;
@@ -91,7 +97,7 @@ private:
     static std::string GenerateBitPadding(uint8 UnderlayingSizeBytes, const uint8 PrevBitPropertyEndBit, const int32 Offset, const int32 PadSize, std::string&& Reason);
 
     static std::string GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex = -1);
-    static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func);
+    static FunctionInfo GenerateFunctionInfo(const FunctionWrapper& Func, const bool bAddExplicitThis = false);
 
     // return: In-header function declarations and inline functions
     static std::string GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile);
@@ -106,11 +112,12 @@ private: /* utility functions */
     static std::string GetMemberTypeString(UEProperty Member, int32 PackageIndex = -1, bool bAllowForConstPtrMembers = false);
     static std::string GetMemberTypeStringWithoutConst(UEProperty Member, int32 PackageIndex = -1, bool* bOutIsUnknownProperty = nullptr);
 
-    static std::string GetFunctionSignature(UEFunction Func);
+    static std::string GetFunctionSignature(StructWrapper Func);
 
     static std::string GetStructPrefixedName(const StructWrapper& Struct);
     static std::string GetEnumPrefixedName(const EnumWrapper& Enum);
     static std::string GetEnumUnderlayingType(const EnumWrapper& Enm);
+	static std::string GetEnumForcedSizeType(const EnumWrapper& Enm, const uint8_t PropertySize);
 
     static std::string GetAssertionMacroString(const std::string& PrefixedStructUniqueName);
 
@@ -122,9 +129,13 @@ private:
     static void GenerateEnumFwdDeclarations(StreamType& ClassOrStructFile, PackageInfoHandle Package, bool bIsClassFile);
 
 private:
+    static fs::path GetSDKTestScriptPath();
+
+private:
     static void GenerateNameCollisionsInl(StreamType& NameCollisionsFile);
     static void GeneratePropertyFixupFile(StreamType& PropertyFixup);
     static void GenerateDebugAssertions(StreamType& AssertionStream);
+	static void GenerateSDKTestScript(StreamType& TestScript);
     static void WriteFileHead(StreamType& File, PackageInfoHandle Package, EFileType Type, const std::string& CustomFileComment = "", const std::string& CustomIncludes = "");
     static void WriteFileEnd(StreamType& File, EFileType Type);
 
@@ -152,4 +163,7 @@ public:
 
     static void InitPredefinedMembers();
     static void InitPredefinedFunctions();
+
+public:
+	static bool ExecuteSDKCompilationTestScript();
 };

@@ -1,9 +1,11 @@
-name: Build and Upload Artifacts
+name: Build And Upload Artifacts
 
 on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
   pull_request:
     branches:
       - main
@@ -13,19 +15,45 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
 
-    - name: Build Dumper Project
-      run: msbuild .\Dumper\Dumper.vcxproj /p:Configuration=Release /p:Platform=x64 /p:WarningLevel=0
+      - name: Build Dumper Project
+        run: msbuild .\Dumper\Dumper.vcxproj /p:Configuration=Release /p:Platform=x64 /p:WarningLevel=0
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: Dumper-7_x64-Release
-        path: |
-          .\Dumper\x64\Release\Dumper*.dll
-          .\Dumper\x64\Release\Dumper*.pdb
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dumper-7_x64-Release
+          path: |
+            .\Dumper\x64\Release\Dumper-7.dll
+            .\Dumper\x64\Release\Dumper-7.pdb
+          if-no-files-found: error
+
+  release:
+    name: Create Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: Dumper-7_x64-Release
+          path: release-artifacts
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: |
+            release-artifacts/Dumper-7.dll
+            release-artifacts/Dumper-7.pdb
+          artifactErrorsFailBuild: true
+          generateReleaseNotes: true
