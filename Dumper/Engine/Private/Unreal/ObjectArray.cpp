@@ -5,6 +5,7 @@
 #include <filesystem>
 
 #include "Unreal/ObjectArray.h"
+#include "Unreal/Decryption.h"
 #include "OffsetFinder/Offsets.h"
 #include "Utils.h"
 
@@ -76,11 +77,10 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLay
 		uint8_t Pad[sizeof(void*) * 2];
 	};
 
-	void* Objects = *reinterpret_cast<void**>(Address + Layout.ObjectsOffset);
 	const int32 MaxElements = *reinterpret_cast<const int32*>(Address + Layout.MaxObjectsOffset);
 	const int32 NumElements = *reinterpret_cast<const int32*>(Address + Layout.NumObjectsOffset);
 
-	FUObjectItem* ObjectsButDecrypted = reinterpret_cast<FUObjectItem*>(ObjectArray::DecryptPtr(Objects));
+	FUObjectItem* ObjectsButDecrypted = reinterpret_cast<FUObjectItem*>(Decryption::ObjectArray_ObjectPtr(reinterpret_cast<const void*>(Address + Layout.ObjectsOffset)));
 
 	if (NumElements > MaxElements)
 		return false;
@@ -108,13 +108,12 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLay
 
 bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectArrayLayout& Layout)
 {
-	void* Objects = *reinterpret_cast<void**>(Address + Layout.ObjectsOffset);
 	const int32 MaxElements = *reinterpret_cast<const int32*>(Address + Layout.MaxElementsOffset);
 	const int32 NumElements = *reinterpret_cast<const int32*>(Address + Layout.NumElementsOffset);
 	const int32 MaxChunks   = *reinterpret_cast<const int32*>(Address + Layout.MaxChunksOffset);
 	const int32 NumChunks   = *reinterpret_cast<const int32*>(Address + Layout.NumChunksOffset);
 
-	void** ObjectsPtrButDecrypted = reinterpret_cast<void**>(ObjectArray::DecryptPtr(Objects));
+	void** ObjectsPtrButDecrypted = reinterpret_cast<void**>(Decryption::ObjectArray_ObjectPtr(reinterpret_cast<const void*>(Address + Layout.ObjectsOffset)));
 
 	if (NumChunks > 0x14 || NumChunks < 0x1)
 		return false;
@@ -278,12 +277,12 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 				if (Index < 0 || Index > Num())
 					return nullptr;
 
-				uint8_t* ChunkPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(ObjectsArray));
+				uint8_t* ChunkPtr = Decryption::ObjectArray_ObjectPtr(ObjectsArray);
 
 				return *reinterpret_cast<void**>(ChunkPtr + FUObjectItemOffset + (Index * FUObjectItemSize));
 			};
 
-			uint8_t* FirstItem = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
+			uint8_t* FirstItem = Decryption::ObjectArray_ObjectPtr(GObjects + Off::FUObjectArray::GetObjectsOffset());
 
 			ObjectArray::InitializeFUObjectItem(FirstItem);
 		}
@@ -309,7 +308,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 				const int32 ChunkIndex = Index / PerChunk;
 				const int32 InChunkIdx = Index % PerChunk;
 
-				uint8_t* ChunkPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(ObjectsArray));
+				uint8_t* ChunkPtr = Decryption::ObjectArray_ObjectPtr(ObjectsArray);
 
 				uint8_t* Chunk = reinterpret_cast<uint8_t**>(ChunkPtr)[ChunkIndex];
 				uint8_t* ItemPtr = Chunk + (InChunkIdx * FUObjectItemSize);
@@ -317,7 +316,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 				return *reinterpret_cast<void**>(ItemPtr + FUObjectItemOffset);
 			};
 			
-			uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
+			uint8_t* ChunksPtr = Decryption::ObjectArray_ObjectPtr(GObjects + Off::FUObjectArray::GetObjectsOffset());
 
 			ObjectArray::InitializeFUObjectItem(*reinterpret_cast<uint8_t**>(ChunksPtr));
 		}
@@ -359,7 +358,7 @@ void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& Obj
 		return *reinterpret_cast<void**>(ItemPtr + FUObjectItemOffset);
 	};
 
-	uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
+	uint8_t* ChunksPtr = Decryption::ObjectArray_ObjectPtr(GObjects + Off::FUObjectArray::GetObjectsOffset());
 
 	std::cerr << "Overwrote FFixedUObjectArray GObjects to offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << "\n" << std::endl;
 
@@ -391,7 +390,7 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, const FChun
 		return *reinterpret_cast<void**>(ItemPtr + FUObjectItemOffset);
 	};
 
-	uint8_t* ChunksPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(GObjects + Off::FUObjectArray::GetObjectsOffset()));
+	uint8_t* ChunksPtr = Decryption::ObjectArray_ObjectPtr(GObjects + Off::FUObjectArray::GetObjectsOffset());
 
 	std::cerr << "Overwrote FChunkedFixedUObjectArray GObjects to offset 0x" << std::hex << Off::InSDK::ObjArray::GObjects << "\n" << std::endl;
 

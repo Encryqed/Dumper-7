@@ -3,6 +3,7 @@
 
 #include "OffsetFinder/OffsetFinder.h"
 #include "Unreal/ObjectArray.h"
+#include "Unreal/Decryption.h"
 
 #include "Platform.h"
 
@@ -1115,7 +1116,7 @@ int32 OffsetFinder::FindInnerTypeOffset(const int32 PropertySize)
 
 	if (const UEProperty Property = ObjectArray::FindClassFast("GameViewportClient").FindMember("DebugProperties", EClassCastFlags::ArrayProperty))
 	{
-		void* AddressToCheck = *reinterpret_cast<void* const*>(reinterpret_cast<const uint8*>(Property.GetAddress()) + PropertySize);
+		void* AddressToCheck = Decryption::OffsetFinder_PropertySizePointer(reinterpret_cast<const uint8*>(Property.GetAddress()) + PropertySize);
 
 		if (Platform::IsBadReadPtr(AddressToCheck))
 			return PropertySize + sizeof(void*);
@@ -1132,7 +1133,7 @@ int32 OffsetFinder::FindSetPropertyBaseOffset(const int32 PropertySize)
 
 	if (const auto Object = ObjectArray::FindStructFast("LevelCollection").FindMember("Levels", EClassCastFlags::SetProperty))
 	{
-		const void* AddressToCheck = *reinterpret_cast<void* const*>(reinterpret_cast<const uint8*>(Object.GetAddress()) + PropertySize);
+		const void* AddressToCheck = Decryption::OffsetFinder_PropertySizePointer(reinterpret_cast<const uint8*>(Object.GetAddress()) + PropertySize);
 
 		if (Platform::IsBadReadPtr(AddressToCheck))
 			return PropertySize + sizeof(void*);
@@ -1150,7 +1151,7 @@ int32 OffsetFinder::FindMapPropertyBaseOffset(const int32 PropertySize)
 
 	if (const auto Object = ObjectArray::FindClassFast("UserDefinedEnum").FindMember("DisplayNameMap", EClassCastFlags::MapProperty))
 	{
-		const void* AddressToCheck = *reinterpret_cast<void* const*>(reinterpret_cast<const uint8*>(Object.GetAddress()) + PropertySize);
+		const void* AddressToCheck = Decryption::OffsetFinder_PropertySizePointer(reinterpret_cast<const uint8*>(Object.GetAddress()) + PropertySize);
 
 		if (Platform::IsBadReadPtr(AddressToCheck))
 			return PropertySize + sizeof(void*);

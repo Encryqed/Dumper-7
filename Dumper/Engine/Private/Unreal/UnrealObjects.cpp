@@ -1,7 +1,9 @@
 #include <format>
+#include <cstddef>
 
 #include "Unreal/UnrealObjects.h"
 #include "Unreal/ObjectArray.h"
+#include "Unreal/Decryption.h"
 #include "OffsetFinder/Offsets.h"
 
 
@@ -32,7 +34,7 @@ EClassFlags UEFFieldClass::GetClassFlags() const
 
 UEFFieldClass UEFFieldClass::GetSuper() const
 {
-	return UEFFieldClass(*reinterpret_cast<void**>(Class + Off::FFieldClass::SuperClass));
+	return UEFFieldClass(Decryption::FFieldClass_SuperClass(Class + Off::FFieldClass::SuperClass));
 }
 
 FName UEFFieldClass::GetFName() const
@@ -75,10 +77,12 @@ class UEObject UEFField::GetOwnerAsUObject() const
 {
 	if (IsOwnerUObject())
 	{
-		if (Settings::Internal::bUseMaskForFieldOwner)
-			return (void*)(*reinterpret_cast<uintptr_t*>(Field + Off::FField::Owner) & ~0x1ull);
+		uint8* Owner = Decryption::FField_Owner(Field + Off::FField::Owner);
 
-		return *reinterpret_cast<void**>(Field + Off::FField::Owner);
+		if (Settings::Internal::bUseMaskForFieldOwner)
+			return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(Owner) & ~0x1ull);
+
+		return Owner;
 	}
 
 	return nullptr;
@@ -87,7 +91,7 @@ class UEObject UEFField::GetOwnerAsUObject() const
 class UEFField UEFField::GetOwnerAsFField() const
 {
 	if (!IsOwnerUObject())
-		return *reinterpret_cast<void**>(Field + Off::FField::Owner);
+		return Decryption::FField_Owner(Field + Off::FField::Owner);
 
 	return nullptr;
 }
@@ -106,7 +110,7 @@ class UEObject UEFField::GetOwnerUObject() const
 
 UEFFieldClass UEFField::GetClass() const
 {
-	return UEFFieldClass(*reinterpret_cast<void**>(Field + Off::FField::Class));
+	return UEFFieldClass(Decryption::FField_Class(Field + Off::FField::Class));
 }
 
 FName UEFField::GetFName() const
@@ -116,7 +120,7 @@ FName UEFField::GetFName() const
 
 UEFField UEFField::GetNext() const
 {
-	return UEFField(*reinterpret_cast<void**>(Field + Off::FField::Next));
+	return UEFField(Decryption::FField_Next(Field + Off::FField::Next));
 }
 
 std::vector<std::pair<std::string, std::string>> UEFField::GetMetaData() const
@@ -146,7 +150,7 @@ std::vector<std::pair<std::string, std::string>> UEFField::GetMetaData() const
 
 	if (Off::InSDK::Name::FNameSize > 0x8)
 	{
-		auto* Map = *reinterpret_cast<TMap<Name16Byte, FString>**>(Field + Off::FField::EditorOnlyMetadata);
+		auto* Map = reinterpret_cast<TMap<Name16Byte, FString>*>(Decryption::FField_EditorOnlyMetadata(Field + Off::FField::EditorOnlyMetadata));
 
 		if (!Map)
 			return {};
@@ -154,7 +158,7 @@ std::vector<std::pair<std::string, std::string>> UEFField::GetMetaData() const
 		return GetPairsAsStrings(*Map);
 	}
 
-	auto* Map = *reinterpret_cast<TMap<Name08Byte, FString>**>(Field + Off::FField::EditorOnlyMetadata);
+	auto* Map = reinterpret_cast<TMap<Name08Byte, FString>*>(Decryption::FField_EditorOnlyMetadata(Field + Off::FField::EditorOnlyMetadata));
 
 	if (!Map)
 		return {};
@@ -172,9 +176,10 @@ bool UEFField::IsOwnerUObject() const
 {
 	if (Settings::Internal::bUseMaskForFieldOwner)
 	{
-		return *reinterpret_cast<uintptr_t*>(Field + Off::FField::Owner) & 0x1;
+		return reinterpret_cast<uintptr_t>(Decryption::FField_Owner(Field + Off::FField::Owner)) & 0x1;
 	}
 
+	/* Left undecrypted on purpose */
 	return *reinterpret_cast<bool*>(Field + Off::FField::Owner + 0x8);
 }
 
@@ -246,12 +251,12 @@ const void* UEObject::GetAddress() const
 
 void* UEObject::GetVft() const
 {
-	return *reinterpret_cast<void**>(Object);
+	return Decryption::UObject_Vft(Object);
 }
 
 EObjectFlags UEObject::GetFlags() const
 {
-	return *reinterpret_cast<EObjectFlags*>(Object + Off::UObject::Flags);
+	return static_cast<EObjectFlags>(Decryption::UObject_Flags(Object + Off::UObject::Flags));
 }
 
 int32 UEObject::GetIndex() const
@@ -261,7 +266,7 @@ int32 UEObject::GetIndex() const
 
 UEClass UEObject::GetClass() const
 {
-	return UEClass(*reinterpret_cast<void**>(Object + Off::UObject::Class));
+	return UEClass(Decryption::UObject_Class(Object + Off::UObject::Class));
 }
 
 FName UEObject::GetFName() const
@@ -271,7 +276,7 @@ FName UEObject::GetFName() const
 
 UEObject UEObject::GetOuter() const
 {
-	return UEObject(*reinterpret_cast<void**>(Object + Off::UObject::Outer));
+	return UEObject(Decryption::UObject_Outer(Object + Off::UObject::Outer));
 }
 
 int32 UEObject::GetPackageIndex() const
@@ -455,7 +460,7 @@ bool UEObject::operator!=(const UEObject& Other) const
 
 void UEObject::ProcessEvent(UEFunction Func, void* Params)
 {
-	void** VFT = *reinterpret_cast<void***>(GetAddress());
+	void** VFT = reinterpret_cast<void**>(Decryption::UObject_Vft(GetAddress()));
 
 #if defined(_WIN64)
 	void(*Prd)(void*, void*, void*) = decltype(Prd)(VFT[Off::InSDK::ProcessEvent::PEIndex]);
@@ -468,7 +473,7 @@ void UEObject::ProcessEvent(UEFunction Func, void* Params)
 
 UEField UEField::GetNext() const
 {
-	return UEField(*reinterpret_cast<void**>(Object + Off::UField::Next));
+	return UEField(Decryption::UField_Next(Object + Off::UField::Next));
 }
 
 bool UEField::IsNextValid() const
@@ -629,17 +634,17 @@ std::pair<uint8_t, bool> UEEnum::GetSizeSignedPair() const
 
 UEStruct UEStruct::GetSuper() const
 {
-	return UEStruct(*reinterpret_cast<void**>(Object + Off::UStruct::SuperStruct));
+	return UEStruct(Decryption::UStruct_SuperStruct(Object + Off::UStruct::SuperStruct));
 }
 
 UEField UEStruct::GetChild() const
 {
-	return UEField(*reinterpret_cast<void**>(Object + Off::UStruct::Children));
+	return UEField(Decryption::UStruct_Children(Object + Off::UStruct::Children));
 }
 
 UEFField UEStruct::GetChildProperties() const
 {
-	return UEFField(*reinterpret_cast<void**>(Object + Off::UStruct::ChildProperties));
+	return UEFField(Decryption::UStruct_ChildProperties(Object + Off::UStruct::ChildProperties));
 }
 
 int16 UEStruct::GetMinAlignment() const
@@ -773,7 +778,7 @@ bool UEClass::IsType(EClassCastFlags TypeFlag) const
 
 UEObject UEClass::GetDefaultObject() const
 {
-	return UEObject(*reinterpret_cast<void**>(Object + Off::UClass::ClassDefaultObject));
+	return UEObject(Decryption::UClass_ClassDefaultObject(Object + Off::UClass::ClassDefaultObject));
 }
 
 TArray<FImplementedInterface> UEClass::GetImplementedInterfaces() const
@@ -815,7 +820,7 @@ bool UEFunction::HasFlags(EFunctionFlags FuncFlags) const
 
 void* UEFunction::GetExecFunction() const
 {
-	return *reinterpret_cast<void**>(Object + Off::UFunction::ExecFunction);
+	return Decryption::UFunction_ExecFunction(Object + Off::UFunction::ExecFunction);
 }
 
 UEProperty UEFunction::GetReturnProperty() const
@@ -1271,7 +1276,7 @@ std::string UEProperty::StringifyFlags() const
 
 UEEnum UEByteProperty::GetEnum() const
 {
-	return UEEnum(*reinterpret_cast<void**>(Base + Off::ByteProperty::Enum));
+	return UEEnum(Decryption::ByteProperty_Enum(Base + Off::ByteProperty::Enum));
 }
 
 std::string UEByteProperty::GetCppType() const
@@ -1327,7 +1332,7 @@ std::string UEBoolProperty::GetCppType() const
 
 UEClass UEObjectProperty::GetPropertyClass() const
 {
-	return UEClass(*reinterpret_cast<void**>(Base + Off::ObjectProperty::PropertyClass));
+	return UEClass(Decryption::ObjectProperty_PropertyClass(Base + Off::ObjectProperty::PropertyClass));
 }
 
 std::string UEObjectProperty::GetCppType() const
@@ -1337,7 +1342,7 @@ std::string UEObjectProperty::GetCppType() const
 
 UEClass UEClassProperty::GetMetaClass() const
 {
-	return UEClass(*reinterpret_cast<void**>(Base + Off::ClassProperty::MetaClass));
+	return UEClass(Decryption::ClassProperty_MetaClass(Base + Off::ClassProperty::MetaClass));
 }
 
 std::string UEClassProperty::GetCppType() const
@@ -1372,7 +1377,7 @@ std::string UEInterfaceProperty::GetCppType() const
 
 UEStruct UEStructProperty::GetUnderlayingStruct() const
 {
-	return UEStruct(*reinterpret_cast<void**>(Base + Off::StructProperty::Struct));
+	return UEStruct(Decryption::StructProperty_Struct(Base + Off::StructProperty::Struct));
 }
 
 std::string UEStructProperty::GetCppType() const
@@ -1382,7 +1387,7 @@ std::string UEStructProperty::GetCppType() const
 
 UEProperty UEArrayProperty::GetInnerProperty() const
 {
-	return UEProperty(*reinterpret_cast<void**>(Base + Off::ArrayProperty::Inner));
+	return UEProperty(Decryption::ArrayProperty_Inner(Base + Off::ArrayProperty::Inner));
 }
 
 std::string UEArrayProperty::GetCppType() const
@@ -1392,7 +1397,7 @@ std::string UEArrayProperty::GetCppType() const
 
 UEFunction UEDelegateProperty::GetSignatureFunction() const
 {
-	return UEFunction(*reinterpret_cast<void**>(Base + Off::DelegateProperty::SignatureFunction));
+	return UEFunction(Decryption::DelegateProperty_SignatureFunction(Base + Off::DelegateProperty::SignatureFunction));
 }
 
 std::string UEDelegateProperty::GetCppType() const
@@ -1403,7 +1408,7 @@ std::string UEDelegateProperty::GetCppType() const
 UEFunction UEMulticastInlineDelegateProperty::GetSignatureFunction() const
 {
 	// Uses "Off::DelegateProperty::SignatureFunction" on purpose
-	return UEFunction(*reinterpret_cast<void**>(Base + Off::DelegateProperty::SignatureFunction));
+	return UEFunction(Decryption::DelegateProperty_SignatureFunction(Base + Off::DelegateProperty::SignatureFunction));
 }
 
 std::string UEMulticastInlineDelegateProperty::GetCppType() const
@@ -1413,12 +1418,12 @@ std::string UEMulticastInlineDelegateProperty::GetCppType() const
 
 UEProperty UEMapProperty::GetKeyProperty() const
 {
-	return UEProperty(reinterpret_cast<Off::MapProperty::UMapPropertyBase*>(Base + Off::MapProperty::Base)->KeyProperty);
+	return UEProperty(Decryption::MapProperty_KeyProperty(Base + Off::MapProperty::Base + offsetof(Off::MapProperty::UMapPropertyBase, KeyProperty)));
 }
 
 UEProperty UEMapProperty::GetValueProperty() const
 {
-	return UEProperty(reinterpret_cast<Off::MapProperty::UMapPropertyBase*>(Base + Off::MapProperty::Base)->ValueProperty);
+	return UEProperty(Decryption::MapProperty_ValueProperty(Base + Off::MapProperty::Base + offsetof(Off::MapProperty::UMapPropertyBase, ValueProperty)));
 }
 
 std::string UEMapProperty::GetCppType() const
@@ -1428,7 +1433,7 @@ std::string UEMapProperty::GetCppType() const
 
 UEProperty UESetProperty::GetElementProperty() const
 {
-	return UEProperty(*reinterpret_cast<void**>(Base + Off::SetProperty::ElementProp));
+	return UEProperty(Decryption::SetProperty_ElementProp(Base + Off::SetProperty::ElementProp));
 }
 
 std::string UESetProperty::GetCppType() const
@@ -1438,12 +1443,12 @@ std::string UESetProperty::GetCppType() const
 
 UEProperty UEEnumProperty::GetUnderlayingProperty() const
 {
-	return UEProperty(reinterpret_cast<Off::EnumProperty::UEnumPropertyBase*>(Base + Off::EnumProperty::Base)->UnderlayingProperty);
+	return UEProperty(Decryption::EnumProperty_UnderlayingProperty(Base + Off::EnumProperty::Base + offsetof(Off::EnumProperty::UEnumPropertyBase, UnderlayingProperty)));
 }
 
 UEEnum UEEnumProperty::GetEnum() const
 {
-	return UEEnum(reinterpret_cast<Off::EnumProperty::UEnumPropertyBase*>(Base + Off::EnumProperty::Base)->Enum);
+	return UEEnum(Decryption::EnumProperty_Enum(Base + Off::EnumProperty::Base + offsetof(Off::EnumProperty::UEnumPropertyBase, Enum)));
 }
 
 std::string UEEnumProperty::GetCppType() const
@@ -1456,7 +1461,7 @@ std::string UEEnumProperty::GetCppType() const
 
 UEFFieldClass UEFieldPathProperty::GetFieldClass() const
 {
-	return UEFFieldClass(*reinterpret_cast<void**>(Base + Off::FieldPathProperty::FieldClass));
+	return UEFFieldClass(Decryption::FieldPathProperty_FieldClass(Base + Off::FieldPathProperty::FieldClass));
 }
 
 std::string UEFieldPathProperty::GetCppType() const
@@ -1466,7 +1471,7 @@ std::string UEFieldPathProperty::GetCppType() const
 
 UEProperty UEOptionalProperty::GetValueProperty() const
 {
-	return UEProperty(*reinterpret_cast<void**>(Base + Off::OptionalProperty::ValueProperty));
+	return UEProperty(Decryption::OptionalProperty_ValueProperty(Base + Off::OptionalProperty::ValueProperty));
 }
 
 std::string UEOptionalProperty::GetCppType() const

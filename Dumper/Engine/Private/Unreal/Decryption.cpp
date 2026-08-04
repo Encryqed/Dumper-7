@@ -65,8 +65,8 @@ DECRYPT_FField_Next([](const void* MemberAddress) -> uint8_t* {
 	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
 })
 
-DECRYPT_FField_Flags([](const void* Address) -> int32_t {
-	return *reinterpret_cast<const int32_t*>(Address);
+DECRYPT_FField_EditorOnlyMetadata([](const void* MemberAddress) -> uint8_t* {
+	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
 })
 
 /* --- FName --- */
@@ -143,6 +143,11 @@ DECRYPT_OptionalProperty_ValueProperty([](const void* MemberAddress) -> uint8_t*
 
 /* --- OffsetFinder (property+PropertySize pointer reads) --- */
 DECRYPT_OffsetFinder_PropertySizePointer([](const void* MemberAddress) -> uint8_t* {
+	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
+})
+
+/* --- ObjectArray --- */
+DECRYPT_ObjectArray_ObjectPtr([](const void* MemberAddress) -> uint8_t* {
 	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
 })
 }

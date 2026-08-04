@@ -3,6 +3,7 @@
 
 #include "Unreal/UnrealTypes.h"
 #include "Unreal/NameArray.h"
+#include "Unreal/Decryption.h"
 
 #include "Encoding/UnicodeNames.h"
 
@@ -358,7 +359,7 @@ std::string FName::ToValidString() const
 
 int32 FName::GetCompIdx() const 
 {
-	return *reinterpret_cast<const int32*>(Address + Off::FName::CompIdx);
+	return Decryption::FName_CompIdx(Address + Off::FName::CompIdx);
 }
 
 uint32 FName::GetNumber() const
@@ -367,9 +368,9 @@ uint32 FName::GetNumber() const
 		return 0x0;
 
 	if (Settings::Internal::bUseNamePool)
-		return *reinterpret_cast<const uint32*>(Address + Off::FName::Number); // The number is uint32 on versions <= UE4.23 
+		return static_cast<uint32>(Decryption::FName_Number(Address + Off::FName::Number)); // The number is uint32 on versions <= UE4.23
 
-	return static_cast<uint32_t>(*reinterpret_cast<const int32*>(Address + Off::FName::Number));
+	return static_cast<uint32_t>(Decryption::FName_Number(Address + Off::FName::Number));
 }
 
 bool FName::operator==(FName Other) const
