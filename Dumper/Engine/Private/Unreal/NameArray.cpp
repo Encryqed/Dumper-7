@@ -501,6 +501,67 @@ bool NameArray::TryFindNamePool_Windows()
 #endif // PLATFORM_WINDOWS
 }
 
+/*
+ * Finds GFNamePool by scanning FName::AppendString's prologue for the lazy-init pattern
+ *
+ * UE 5.4.4+ inlines the NamePool init at every AppendString site, producing a 'lea r8, GFNamePool' /
+ * 'lea rcx, GFNamePool' pair within a few bytes of each other. TryFindNamePool_Windows can't see
+ * GFNamePool because modern UE has no standalone FNamePool::FNamePool constructor matching its
+ * lea+call signature.
+*/
+bool NameArray::TryFindNamePoolLazyInit_Windows()
+{
+#ifdef PLATFORM_WINDOWS
+
+	if (Off::InSDK::Name::AppendNameToString == 0x0)
+		return false;
+
+	const uintptr_t AppendStringAddress = Platform::GetModuleBase() + Off::InSDK::Name::AppendNameToString;
+
+	constexpr int32 ScanRange = 0x80;
+	constexpr int32 PairSearchWindow = 0x20;
+
+	const uint8* Begin = reinterpret_cast<const uint8*>(AppendStringAddress);
+	const uint8* End = Begin + ScanRange - PairSearchWindow;
+
+	for (const uint8* Bytes = Begin; Bytes < End; Bytes++)
+	{
+		const bool bIsLeaR8 = Bytes[0] == 0x4C && Bytes[1] == 0x8D && Bytes[2] == 0x05;
+		const bool bIsLeaRcx = Bytes[0] == 0x48 && Bytes[1] == 0x8D && Bytes[2] == 0x0D;
+
+		if (!bIsLeaR8 && !bIsLeaRcx)
+			continue;
+
+		const uintptr_t TargetA = Architecture_x86_64::Resolve32BitRelativeLea(reinterpret_cast<uintptr_t>(Bytes));
+
+		if (!Platform::IsAddressInWritableSection(TargetA))
+			continue;
+
+		for (int i = 0x7; i < PairSearchWindow; i++)
+		{
+			const uint8* PairBytes = Bytes + i;
+
+			const bool bPairIsLeaR8 = bIsLeaRcx && PairBytes[0] == 0x4C && PairBytes[1] == 0x8D && PairBytes[2] == 0x05;
+			const bool bPairIsLeaRcx = bIsLeaR8 && PairBytes[0] == 0x48 && PairBytes[1] == 0x8D && PairBytes[2] == 0x0D;
+
+			if (!bPairIsLeaR8 && !bPairIsLeaRcx)
+				continue;
+
+			const uintptr_t TargetB = Architecture_x86_64::Resolve32BitRelativeLea(reinterpret_cast<uintptr_t>(PairBytes));
+
+			if (TargetB != TargetA)
+				continue;
+
+			Off::InSDK::NameArray::GNames = Platform::GetOffset(TargetA);
+			return true;
+		}
+	}
+
+	return false;
+
+#endif // PLATFORM_WINDOWS
+}
+
 bool NameArray::TryInit(bool bIsTestOnly)
 {
 	const uintptr_t ImageBase = Platform::GetModuleBase();
@@ -516,6 +577,13 @@ bool NameArray::TryInit(bool bIsTestOnly)
 		GNamesAddress = *reinterpret_cast<uint8**>(ImageBase + Off::InSDK::NameArray::GNames);// Derefernce
 		Settings::Internal::bUseNamePool = false;
 		bFoundNameArray = true;
+	}
+	else if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNamePoolLazyInit))
+	{
+		std::cerr << std::format("Found 'FNamePool GNames' (lazy-init) at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		GNamesAddress = reinterpret_cast<uint8*>(ImageBase + Off::InSDK::NameArray::GNames);
+		Settings::Internal::bUseNamePool = true;
+		bFoundnamePool = true;
 	}
 	else if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNamePool))
 	{
@@ -620,6 +688,12 @@ bool NameArray::SetGNamesWithoutCommitting()
 	{
 		std::cerr << std::format("Found 'TNameEntryArray GNames' at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
 		Settings::Internal::bUseNamePool = false;
+		return true;
+	}
+	else if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNamePoolLazyInit))
+	{
+		std::cerr << std::format("Found 'FNamePool GNames' (lazy-init) at offset 0x{:X}\n", Off::InSDK::NameArray::GNames) << std::endl;
+		Settings::Internal::bUseNamePool = true;
 		return true;
 	}
 	else if (CALL_PLATFORM_SPECIFIC_FUNCTION(NameArray::TryFindNamePool))

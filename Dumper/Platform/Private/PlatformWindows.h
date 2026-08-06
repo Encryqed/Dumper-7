@@ -132,6 +132,8 @@ namespace PlatformWindows
 	bool IsAddressInAnyModule(const void* Address);
 	bool IsAddressInProcessRange(const uintptr_t Address);
 	bool IsAddressInProcessRange(const void* Address);
+	bool IsAddressInWritableSection(const uintptr_t Address);
+	bool IsAddressInWritableSection(const void* Address);
 	bool IsBadReadPtr(const uintptr_t Address);
 	bool IsBadReadPtr(const void* Address);
 
