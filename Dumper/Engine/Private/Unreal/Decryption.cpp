@@ -19,9 +19,18 @@ DECRYPT_UObject_Flags([](const void* Address) -> int32_t {
 	return *reinterpret_cast<const int32_t*>(Address);
 })
 
+DECRYPT_UObject_Index([](const void* Address) -> int32_t {
+	return *reinterpret_cast<const int32_t*>(Address);
+})
+
 /* --- UField --- */
 DECRYPT_UField_Next([](const void* MemberAddress) -> uint8_t* {
 	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
+})
+
+/* --- UEnum --- */
+DECRYPT_UEnum_UnderlyingType([](const void* Address) -> uint8_t {
+	return *reinterpret_cast<const uint8_t*>(Address);
 })
 
 /* --- UStruct --- */
@@ -37,9 +46,21 @@ DECRYPT_UStruct_ChildProperties([](const void* MemberAddress) -> uint8_t* {
 	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
 })
 
+DECRYPT_UStruct_Size([](const void* Address) -> int32_t {
+	return *reinterpret_cast<const int32_t*>(Address);
+})
+
+DECRYPT_UStruct_MinAlignment([](const void* Address) -> int16_t {
+	return *reinterpret_cast<const int16_t*>(Address);
+})
+
 /* --- UClass --- */
 DECRYPT_UClass_ClassDefaultObject([](const void* MemberAddress) -> uint8_t* {
 	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
+})
+
+DECRYPT_UClass_CastFlags([](const void* Address) -> uint64_t {
+	return *reinterpret_cast<const uint64_t*>(Address);
 })
 
 /* --- UFunction --- */
@@ -47,9 +68,25 @@ DECRYPT_UFunction_ExecFunction([](const void* MemberAddress) -> uint8_t* {
 	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
 })
 
+DECRYPT_UFunction_FunctionFlags([](const void* Address) -> uint32_t {
+	return *reinterpret_cast<const uint32_t*>(Address);
+})
+
 /* --- FFieldClass --- */
 DECRYPT_FFieldClass_SuperClass([](const void* MemberAddress) -> uint8_t* {
 	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
+})
+
+DECRYPT_FFieldClass_Id([](const void* Address) -> uint64_t {
+	return *reinterpret_cast<const uint64_t*>(Address);
+})
+
+DECRYPT_FFieldClass_CastFlags([](const void* Address) -> uint64_t {
+	return *reinterpret_cast<const uint64_t*>(Address);
+})
+
+DECRYPT_FFieldClass_ClassFlags([](const void* Address) -> uint32_t {
+	return *reinterpret_cast<const uint32_t*>(Address);
 })
 
 /* --- FField --- */
@@ -76,6 +113,23 @@ DECRYPT_FName_CompIdx([](const void* Address) -> int32_t {
 
 DECRYPT_FName_Number([](const void* Address) -> int32_t {
 	return *reinterpret_cast<const int32_t*>(Address);
+})
+
+/* --- FProperty --- */
+DECRYPT_Property_ArrayDim([](const void* Address) -> int32_t {
+	return *reinterpret_cast<const int32_t*>(Address);
+})
+
+DECRYPT_Property_ElementSize([](const void* Address) -> int32_t {
+	return *reinterpret_cast<const int32_t*>(Address);
+})
+
+DECRYPT_Property_Offset_Internal([](const void* Address) -> int32_t {
+	return *reinterpret_cast<const int32_t*>(Address);
+})
+
+DECRYPT_Property_PropertyFlags([](const void* Address) -> uint64_t {
+	return *reinterpret_cast<const uint64_t*>(Address);
 })
 
 /* --- FByteProperty --- */

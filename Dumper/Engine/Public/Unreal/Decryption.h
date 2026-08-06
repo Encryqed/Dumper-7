@@ -36,9 +36,22 @@ namespace Decryption
 	inline uint8_t* (*ObjectArray_ObjectPtr)(const void* MemberAddress)                 = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
 
 	// Value decryptors (encrypted -> decrypted value)
-	inline int32_t (*UObject_Flags)(const void* Address)    = [](const void* Address) -> int32_t { return *reinterpret_cast<const int32_t*>(Address); };
-	inline int32_t (*FName_CompIdx)(const void* Address)    = [](const void* Address) -> int32_t { return *reinterpret_cast<const int32_t*>(Address); };
-	inline int32_t (*FName_Number)(const void* Address)     = [](const void* Address) -> int32_t { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t  (*UObject_Flags)(const void* Address)             = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t  (*UObject_Index)(const void* Address)             = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t  (*FName_CompIdx)(const void* Address)             = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t  (*FName_Number)(const void* Address)              = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline uint64_t (*FFieldClass_Id)(const void* Address)            = [](const void* Address) -> uint64_t { return *reinterpret_cast<const uint64_t*>(Address); };
+	inline uint64_t (*FFieldClass_CastFlags)(const void* Address)     = [](const void* Address) -> uint64_t { return *reinterpret_cast<const uint64_t*>(Address); };
+	inline uint32_t (*FFieldClass_ClassFlags)(const void* Address)    = [](const void* Address) -> uint32_t { return *reinterpret_cast<const uint32_t*>(Address); };
+	inline uint8_t  (*UEnum_UnderlyingType)(const void* Address)      = [](const void* Address) -> uint8_t  { return *reinterpret_cast<const uint8_t*>(Address); };
+	inline int32_t  (*UStruct_Size)(const void* Address)              = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int16_t  (*UStruct_MinAlignment)(const void* Address)      = [](const void* Address) -> int16_t  { return *reinterpret_cast<const int16_t*>(Address); };
+	inline uint64_t (*UClass_CastFlags)(const void* Address)          = [](const void* Address) -> uint64_t { return *reinterpret_cast<const uint64_t*>(Address); };
+	inline uint32_t (*UFunction_FunctionFlags)(const void* Address)   = [](const void* Address) -> uint32_t { return *reinterpret_cast<const uint32_t*>(Address); };
+	inline int32_t  (*Property_ArrayDim)(const void* Address)         = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t  (*Property_ElementSize)(const void* Address)      = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t  (*Property_Offset_Internal)(const void* Address)  = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline uint64_t (*Property_PropertyFlags)(const void* Address)    = [](const void* Address) -> uint64_t { return *reinterpret_cast<const uint64_t*>(Address); };
 
 	void Init();
 }
@@ -89,5 +102,18 @@ namespace Decryption
 #define DECRYPT_OffsetFinder_PropertySizePointer(L)      (Decryption::OffsetFinder_PropertySizePointer = (L));
 #define DECRYPT_ObjectArray_ObjectPtr(L)                 (Decryption::ObjectArray_ObjectPtr = (L));
 #define DECRYPT_UObject_Flags(L)                         (Decryption::UObject_Flags = (L));
+#define DECRYPT_UObject_Index(L)                         (Decryption::UObject_Index = (L));
+#define DECRYPT_FFieldClass_Id(L)                        (Decryption::FFieldClass_Id = (L));
+#define DECRYPT_FFieldClass_CastFlags(L)                 (Decryption::FFieldClass_CastFlags = (L));
+#define DECRYPT_FFieldClass_ClassFlags(L)                (Decryption::FFieldClass_ClassFlags = (L));
+#define DECRYPT_UEnum_UnderlyingType(L)                  (Decryption::UEnum_UnderlyingType = (L));
+#define DECRYPT_UStruct_Size(L)                          (Decryption::UStruct_Size = (L));
+#define DECRYPT_UStruct_MinAlignment(L)                  (Decryption::UStruct_MinAlignment = (L));
+#define DECRYPT_UClass_CastFlags(L)                      (Decryption::UClass_CastFlags = (L));
+#define DECRYPT_UFunction_FunctionFlags(L)               (Decryption::UFunction_FunctionFlags = (L));
+#define DECRYPT_Property_ArrayDim(L)                     (Decryption::Property_ArrayDim = (L));
+#define DECRYPT_Property_ElementSize(L)                  (Decryption::Property_ElementSize = (L));
+#define DECRYPT_Property_Offset_Internal(L)              (Decryption::Property_Offset_Internal = (L));
+#define DECRYPT_Property_PropertyFlags(L)                (Decryption::Property_PropertyFlags = (L));
 #define DECRYPT_FName_CompIdx(L)                         (Decryption::FName_CompIdx = (L));
 #define DECRYPT_FName_Number(L)                          (Decryption::FName_Number = (L));

@@ -19,17 +19,17 @@ UEFFieldClass::operator bool() const
 
 EFieldClassID UEFFieldClass::GetId() const
 {
-	return *reinterpret_cast<EFieldClassID*>(Class + Off::FFieldClass::Id);
+	return static_cast<EFieldClassID>(Decryption::FFieldClass_Id(Class + Off::FFieldClass::Id));
 }
 
 EClassCastFlags UEFFieldClass::GetCastFlags() const
 {
-	return *reinterpret_cast<EClassCastFlags*>(Class + Off::FFieldClass::CastFlags);
+	return static_cast<EClassCastFlags>(Decryption::FFieldClass_CastFlags(Class + Off::FFieldClass::CastFlags));
 }
 
 EClassFlags UEFFieldClass::GetClassFlags() const
 {
-	return *reinterpret_cast<EClassFlags*>(Class + Off::FFieldClass::ClassFlags);
+	return static_cast<EClassFlags>(Decryption::FFieldClass_ClassFlags(Class + Off::FFieldClass::ClassFlags));
 }
 
 UEFFieldClass UEFFieldClass::GetSuper() const
@@ -261,7 +261,7 @@ EObjectFlags UEObject::GetFlags() const
 
 int32 UEObject::GetIndex() const
 {
-	return *reinterpret_cast<int32*>(Object + Off::UObject::Index);
+	return Decryption::UObject_Index(Object + Off::UObject::Index);
 }
 
 UEClass UEObject::GetClass() const
@@ -624,7 +624,7 @@ std::pair<uint8_t, bool> UEEnum::GetSizeSignedPair() const
 	if (!Settings::Internal::bHasUnderlayingTypeInUEnum)
 		return { 1, false };
 
-	const EUnderlyingType Type = *reinterpret_cast<EUnderlyingType*>(Object + Off::UEnum::UnderlyingType);
+	const EUnderlyingType Type = static_cast<EUnderlyingType>(Decryption::UEnum_UnderlyingType(Object + Off::UEnum::UnderlyingType));
 
 	const bool bIsSigned = Type < EUnderlyingType::uint8;
 	const uint8_t Size = 1 << (static_cast<uint8_t>(Type) % 4);
@@ -649,12 +649,12 @@ UEFField UEStruct::GetChildProperties() const
 
 int16 UEStruct::GetMinAlignment() const
 {
-	return *reinterpret_cast<int16*>(Object + Off::UStruct::MinAlignment);
+	return Decryption::UStruct_MinAlignment(Object + Off::UStruct::MinAlignment);
 }
 
 int32 UEStruct::GetStructSize() const
 {
-	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
+	return Decryption::UStruct_Size(Object + Off::UStruct::Size);
 }
 
 bool UEStruct::HasType(UEStruct Type) const
@@ -763,7 +763,7 @@ bool UEStruct::HasMembers() const
 
 EClassCastFlags UEClass::GetCastFlags() const
 {
-	return *reinterpret_cast<EClassCastFlags*>(Object + Off::UClass::CastFlags);
+	return static_cast<EClassCastFlags>(Decryption::UClass_CastFlags(Object + Off::UClass::CastFlags));
 }
 
 std::string UEClass::StringifyCastFlags() const
@@ -810,7 +810,7 @@ UEFunction UEClass::GetFunction(const std::string& ClassName, const std::string&
 
 EFunctionFlags UEFunction::GetFunctionFlags() const
 {
-	return *reinterpret_cast<EFunctionFlags*>(Object + Off::UFunction::FunctionFlags);
+	return static_cast<EFunctionFlags>(Decryption::UFunction_FunctionFlags(Object + Off::UFunction::FunctionFlags));
 }
 
 bool UEFunction::HasFlags(EFunctionFlags FuncFlags) const
@@ -897,24 +897,24 @@ FName UEProperty::GetFName() const
 int32 UEProperty::GetArrayDim() const
 {
 	if (Settings::Internal::bUseUint8ArrayDim)
-		return *reinterpret_cast<uint8*>(Base + Off::Property::ArrayDim);
+		return static_cast<uint8>(Decryption::Property_ArrayDim(Base + Off::Property::ArrayDim));
 
-	return *reinterpret_cast<int32*>(Base + Off::Property::ArrayDim);
+	return Decryption::Property_ArrayDim(Base + Off::Property::ArrayDim);
 }
 
 int32 UEProperty::GetSize() const
 {
-	return *reinterpret_cast<int32*>(Base + Off::Property::ElementSize);
+	return Decryption::Property_ElementSize(Base + Off::Property::ElementSize);
 }
 
 int32 UEProperty::GetOffset() const
 {
-	return *reinterpret_cast<int32*>(Base + Off::Property::Offset_Internal);
+	return Decryption::Property_Offset_Internal(Base + Off::Property::Offset_Internal);
 }
 
 EPropertyFlags UEProperty::GetPropertyFlags() const
 {
-	return *reinterpret_cast<EPropertyFlags*>(Base + Off::Property::PropertyFlags);
+	return static_cast<EPropertyFlags>(Decryption::Property_PropertyFlags(Base + Off::Property::PropertyFlags));
 }
 
 bool UEProperty::HasPropertyFlags(EPropertyFlags PropertyFlag) const
