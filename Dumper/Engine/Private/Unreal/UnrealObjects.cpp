@@ -3,7 +3,25 @@
 #include "Unreal/UnrealObjects.h"
 #include "Unreal/ObjectArray.h"
 #include "OffsetFinder/Offsets.h"
+#include "Settings.h"
+#include "Platform.h"
 
+namespace
+{
+bool IsFFieldClassDescriptorPointer(const uint8* Class)
+{
+	if (!Class) return false;
+	const uint64 Value = *reinterpret_cast<const uint64*>(Class);
+	if (Value < 0x10000 || (Value & 0x7) != 0) return false;
+	if ((Value >> 48) == 0) return false;
+	return !Platform::IsBadReadPtr(reinterpret_cast<const void*>(Value));
+}
+bool ShouldUseExtendedFFieldClassName(const uint8* Class)
+{
+	return Settings::Internal::bUseExtendedFFieldClassLayout
+		|| IsFFieldClassDescriptorPointer(Class);
+}
+} // namespace
 
 void* UEFFieldClass::GetAddress()
 {
@@ -37,6 +55,9 @@ UEFFieldClass UEFFieldClass::GetSuper() const
 
 FName UEFFieldClass::GetFName() const
 {
+	if (ShouldUseExtendedFFieldClassName(Class))
+		return FName(nullptr);
+
 	return FName(Class + Off::FFieldClass::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
@@ -47,12 +68,24 @@ bool UEFFieldClass::IsType(EClassCastFlags Flags) const
 
 std::string UEFFieldClass::GetName() const
 {
-	return Class ? GetFName().ToString() : "None";
+	if (!Class)
+		return "None";
+
+	if (ShouldUseExtendedFFieldClassName(Class))
+		return GetPrimaryFFieldClassNameFromCastFlags(GetCastFlags());
+
+	return GetFName().ToString();
 }
 
 std::string UEFFieldClass::GetValidName() const
 {
-	return Class ? GetFName().ToValidString() : "None";
+	if (!Class)
+		return "None";
+
+	if (ShouldUseExtendedFFieldClassName(Class))
+		return GetName();
+
+	return GetFName().ToValidString();
 }
 
 std::string UEFFieldClass::GetCppName() const

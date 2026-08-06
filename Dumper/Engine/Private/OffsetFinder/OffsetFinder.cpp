@@ -4,6 +4,7 @@
 #include "OffsetFinder/OffsetFinder.h"
 #include "Unreal/ObjectArray.h"
 
+#include "Settings.h"
 #include "Platform.h"
 
 /* UObject */
@@ -660,6 +661,61 @@ int32_t OffsetFinder::FindFieldClassCastFlagsOffset()
 	const int32_t Offset = FindOffset(Infos, sizeof(void*), 0x30);
 
 	return Offset != OffsetNotFound ? Offset : 0x10;
+}
+
+void OffsetFinder::InitFFieldClassLayout()
+{
+	if (!Settings::Internal::bUseFProperty)
+		return;
+
+	const UEFField GuidChild = ObjectArray::FindStructFast("Guid").GetChildProperties();
+	const UEFField ColorChild = ObjectArray::FindStructFast("Color").GetChildProperties();
+
+	auto IsLikelyProcessPointer = [](const uint64 Value) -> bool
+	{
+		if (Value < 0x10000 || (Value & 0x7) != 0)
+			return false;
+
+		if ((Value >> 48) == 0)
+			return false;
+
+		return !Platform::IsBadReadPtr(reinterpret_cast<const void*>(Value));
+	};
+
+	bool bGuidIsExtended = false;
+	bool bColorIsExtended = false;
+
+	if (GuidChild)
+	{
+		if (const void* const GuidClass = GuidChild.GetClass().GetAddress())
+			bGuidIsExtended = IsLikelyProcessPointer(*reinterpret_cast<const uint64*>(GuidClass));
+	}
+
+	if (ColorChild)
+	{
+		if (const void* const ColorClass = ColorChild.GetClass().GetAddress())
+			bColorIsExtended = IsLikelyProcessPointer(*reinterpret_cast<const uint64*>(ColorClass));
+	}
+
+	/* UE5.8+ moves CastFlags to 0x20. Either signal is enough; do not require both Guid and Color. */
+	Settings::Internal::bUseExtendedFFieldClassLayout = bGuidIsExtended
+		|| bColorIsExtended
+		|| Off::FFieldClass::CastFlags >= static_cast<int32>(0x20);
+
+	if (!GuidChild && !ColorChild && !Settings::Internal::bUseExtendedFFieldClassLayout)
+	{
+		std::cerr << std::format("\nDumper-7: bUseExtendedFFieldClassLayout = false (could not find Guid/Color properties)\n\n");
+		return;
+	}
+
+	if (Settings::Internal::bUseExtendedFFieldClassLayout)
+	{
+		/* CastFlags and SuperClass both defaulted to 0x20; on extended layouts SuperClass follows CastFlags. */
+		Off::FFieldClass::SuperClass = Off::FFieldClass::CastFlags + static_cast<int32>(sizeof(uint64));
+		std::cerr << std::format("Off::FFieldClass::SuperClass: 0x{:X}\n", Off::FFieldClass::SuperClass);
+	}
+
+	std::cerr << std::format("\nDumper-7: bUseExtendedFFieldClassLayout = {}\n\n", Settings::Internal::bUseExtendedFFieldClassLayout);
 }
 
 /* UEnum */

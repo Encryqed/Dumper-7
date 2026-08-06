@@ -143,11 +143,12 @@ namespace Off
 	{
 		// Fixed for CasePreserving FNames by OffsetFinder::FixupHardcodedOffsets();
 		// Fixed for OutlineNumber FNames by OffsetFinder::FixFNameSize();
+		// UE5.8+ extended layout: Descriptor at 0x0 (see InitFFieldClassLayout). Legacy layout: FName Name at 0x0.
 		inline int32 Name = 0x00;
 		inline int32 Id = 0x08;
-		inline int32 CastFlags = 0x10; // 0x18 on UE5.7
+		inline int32 CastFlags = 0x10; // 0x18 on UE5.7, 0x20 on UE5.8+
 		inline int32 ClassFlags = 0x18;
-		inline int32 SuperClass = 0x20;
+		inline int32 SuperClass = 0x20; // 0x28 on UE5.8+ extended layout
 	}
 
 	namespace FName

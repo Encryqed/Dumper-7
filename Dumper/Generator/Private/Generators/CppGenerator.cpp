@@ -2183,7 +2183,10 @@ void CppGenerator::InitPredefinedMembers()
 		{
 			PredefinedMember {
 				.Comment = "NOT AUTO-GENERATED PROPERTY",
-				.Type = "FName", .Name = "Name", .Offset = Off::FFieldClass::Name, .Size = Off::InSDK::Name::FNameSize, .ArrayDim = 0x1, .Alignment = alignof(int32),
+				.Type = Settings::Internal::bUseExtendedFFieldClassLayout ? "void*" : "FName",
+				.Name = Settings::Internal::bUseExtendedFFieldClassLayout ? "Descriptor" : "Name",
+				.Offset = Off::FFieldClass::Name, .Size = Settings::Internal::bUseExtendedFFieldClassLayout ? static_cast<int32>(sizeof(void*)) : Off::InSDK::Name::FNameSize,
+				.ArrayDim = 0x1, .Alignment = alignof(void*),
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			},
 			PredefinedMember {
@@ -2207,6 +2210,21 @@ void CppGenerator::InitPredefinedMembers()
 				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
 			},
 		};
+
+		if (Settings::Internal::bUseExtendedFFieldClassLayout)
+		{
+			const int32 PadOffset = Off::FFieldClass::Id + static_cast<int32>(sizeof(uint64));
+			const int32 PadSize = Off::FFieldClass::ClassFlags - PadOffset;
+
+			if (PadSize > 0)
+			{
+				FFieldClass.Properties.push_back(PredefinedMember{
+					.Comment = "NOT AUTO-GENERATED PROPERTY",
+					.Type = std::format("uint8[{}]", PadSize), .Name = "Pad", .Offset = PadOffset, .Size = PadSize, .ArrayDim = 0x1, .Alignment = 0x1,
+					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+				});
+			}
+		}
 
 
 		const int32 FFieldVariantSize = Settings::Internal::bUseMaskForFieldOwner ? 0x8 : 0x10;
