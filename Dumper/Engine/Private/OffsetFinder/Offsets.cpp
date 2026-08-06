@@ -348,10 +348,11 @@ void Off::Init()
 		Off::FFieldClass::CastFlags = OffsetFinder::FindFieldClassCastFlagsOffset();
 
 		/* UE5.7 moved ClassFlags before Id. */
-		if (Off::FFieldClass::CastFlags == (Off::FFieldClass::Id + 0x10) && Off::FFieldClass::SuperClass == (Off::FFieldClass::CastFlags + 0x08))
+		constexpr int32 FFieldClassReorderedCastFlagsOffsetFromClassFlags = static_cast<int32>(Align(sizeof(EClassFlags), alignof(EFieldClassID)) + sizeof(EFieldClassID));
+		if (Off::FFieldClass::CastFlags == (Off::FFieldClass::Id + FFieldClassReorderedCastFlagsOffsetFromClassFlags) && Off::FFieldClass::SuperClass == (Off::FFieldClass::CastFlags + sizeof(EClassCastFlags)))
 		{
 			Off::FFieldClass::ClassFlags = Off::FFieldClass::Id;
-			Off::FFieldClass::Id = Off::FFieldClass::CastFlags - 0x08;
+			Off::FFieldClass::Id = Off::FFieldClass::CastFlags - sizeof(EFieldClassID);
 		}
 
 		std::cerr << std::format("Off::FFieldClass::CastFlags: 0x{:X}\n\n", Off::FFieldClass::CastFlags);
