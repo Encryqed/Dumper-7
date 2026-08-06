@@ -166,23 +166,21 @@ void StructManager::InitSizesAndIsFinal()
 	const UEClass InterfaceClass = ObjectArray::FindClassFast("Interface");
 
 	// Reuse cached struct list from InitAlignmentsAndNames
-	for (const auto& [Index, Info] : StructInfoOverrides)
+	for (auto& [Index, Info] : StructInfoOverrides)
 	{
 		UEStruct ObjAsStruct = ObjectArray::GetByIndex<UEStruct>(Index);
 		
 		if (ObjAsStruct.HasType(InterfaceClass))
 			continue;
 
-		StructInfo& NewOrExistingInfo = StructInfoOverrides[Index];
-
 		// Initialize struct-size if it wasn't set already
-		if (NewOrExistingInfo.Size > ObjAsStruct.GetStructSize())
-			NewOrExistingInfo.Size = ObjAsStruct.GetStructSize();
+		if (Info.Size > ObjAsStruct.GetStructSize())
+			Info.Size = ObjAsStruct.GetStructSize();
 
 		UEStruct Super = ObjAsStruct.GetSuper();
 
-		if (NewOrExistingInfo.Size == 0x0 && Super != nullptr)
-			NewOrExistingInfo.Size = Super.GetStructSize();
+		if (Info.Size == 0x0 && Super != nullptr)
+			Info.Size = Super.GetStructSize();
 
 		int32 LastMemberEnd = 0x0;
 		int32 LowestOffset = INT_MAX;
@@ -201,7 +199,7 @@ void StructManager::InitSizesAndIsFinal()
 		}
 
 		/* No need to check any other structs, as finding the LastMemberEnd only involves this struct */
-		NewOrExistingInfo.LastMemberEnd = LastMemberEnd;
+		Info.LastMemberEnd = LastMemberEnd;
 
 		if (!Super || ObjAsStruct.IsA(EClassCastFlags::Function))
 			continue;
