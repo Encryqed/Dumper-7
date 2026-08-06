@@ -346,6 +346,14 @@ void Off::Init()
 			std::cerr << std::format("Off::FField::EditorOnlyMetadata: 0x{:X}\n", Off::FField::EditorOnlyMetadata);
 
 		Off::FFieldClass::CastFlags = OffsetFinder::FindFieldClassCastFlagsOffset();
+
+		/* UE5.7 moved ClassFlags before Id. */
+		if (Off::FFieldClass::CastFlags == (Off::FFieldClass::Id + 0x10) && Off::FFieldClass::SuperClass == (Off::FFieldClass::CastFlags + 0x08))
+		{
+			Off::FFieldClass::ClassFlags = Off::FFieldClass::Id;
+			Off::FFieldClass::Id = Off::FFieldClass::CastFlags - 0x08;
+		}
+
 		std::cerr << std::format("Off::FFieldClass::CastFlags: 0x{:X}\n\n", Off::FFieldClass::CastFlags);
 	}
 
