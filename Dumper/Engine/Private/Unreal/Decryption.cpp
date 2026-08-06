@@ -201,7 +201,31 @@ DECRYPT_OffsetFinder_PropertySizePointer([](const void* MemberAddress) -> uint8_
 })
 
 /* --- ObjectArray --- */
-DECRYPT_ObjectArray_ObjectPtr([](const void* MemberAddress) -> uint8_t* {
+DECRYPT_ObjectArray_ObjectsPtr([](const void* MemberAddress) -> uint8_t* {
 	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
+})
+
+DECRYPT_ObjectArray_ChunkPtr([](const void* MemberAddress) -> uint8_t* {
+	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
+})
+
+DECRYPT_ObjectArray_FUObjectItem_Object([](const void* MemberAddress) -> uint8_t* {
+	return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress));
+})
+
+DECRYPT_ObjectArray_NumElements([](const void* Address) -> int32_t {
+	return *reinterpret_cast<const int32_t*>(Address);
+})
+
+DECRYPT_ObjectArray_MaxElements([](const void* Address) -> int32_t {
+	return *reinterpret_cast<const int32_t*>(Address);
+})
+
+DECRYPT_ObjectArray_NumChunks([](const void* Address) -> int32_t {
+	return *reinterpret_cast<const int32_t*>(Address);
+})
+
+DECRYPT_ObjectArray_MaxChunks([](const void* Address) -> int32_t {
+	return *reinterpret_cast<const int32_t*>(Address);
 })
 }

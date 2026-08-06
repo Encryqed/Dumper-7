@@ -33,7 +33,9 @@ namespace Decryption
 	inline uint8_t* (*FieldPathProperty_FieldClass)(const void* MemberAddress)          = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
 	inline uint8_t* (*OptionalProperty_ValueProperty)(const void* MemberAddress)        = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
 	inline uint8_t* (*OffsetFinder_PropertySizePointer)(const void* MemberAddress)      = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
-	inline uint8_t* (*ObjectArray_ObjectPtr)(const void* MemberAddress)                 = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*ObjectArray_ObjectsPtr)(const void* MemberAddress)                = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*ObjectArray_ChunkPtr)(const void* MemberAddress)                  = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
+	inline uint8_t* (*ObjectArray_FUObjectItem_Object)(const void* MemberAddress)       = [](const void* MemberAddress) -> uint8_t* { return static_cast<uint8_t*>(*reinterpret_cast<void* const*>(MemberAddress)); };
 
 	// Value decryptors (encrypted -> decrypted value)
 	inline int32_t  (*UObject_Flags)(const void* Address)             = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
@@ -52,6 +54,10 @@ namespace Decryption
 	inline int32_t  (*Property_ElementSize)(const void* Address)      = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
 	inline int32_t  (*Property_Offset_Internal)(const void* Address)  = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
 	inline uint64_t (*Property_PropertyFlags)(const void* Address)    = [](const void* Address) -> uint64_t { return *reinterpret_cast<const uint64_t*>(Address); };
+	inline int32_t  (*ObjectArray_NumElements)(const void* Address)   = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t  (*ObjectArray_MaxElements)(const void* Address)   = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t  (*ObjectArray_NumChunks)(const void* Address)     = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
+	inline int32_t  (*ObjectArray_MaxChunks)(const void* Address)     = [](const void* Address) -> int32_t  { return *reinterpret_cast<const int32_t*>(Address); };
 
 	void Init();
 }
@@ -100,7 +106,13 @@ namespace Decryption
 #define DECRYPT_FieldPathProperty_FieldClass(L)          (Decryption::FieldPathProperty_FieldClass = (L));
 #define DECRYPT_OptionalProperty_ValueProperty(L)        (Decryption::OptionalProperty_ValueProperty = (L));
 #define DECRYPT_OffsetFinder_PropertySizePointer(L)      (Decryption::OffsetFinder_PropertySizePointer = (L));
-#define DECRYPT_ObjectArray_ObjectPtr(L)                 (Decryption::ObjectArray_ObjectPtr = (L));
+#define DECRYPT_ObjectArray_ObjectsPtr(L)                (Decryption::ObjectArray_ObjectsPtr = (L));
+#define DECRYPT_ObjectArray_ChunkPtr(L)                  (Decryption::ObjectArray_ChunkPtr = (L));
+#define DECRYPT_ObjectArray_FUObjectItem_Object(L)       (Decryption::ObjectArray_FUObjectItem_Object = (L));
+#define DECRYPT_ObjectArray_NumElements(L)               (Decryption::ObjectArray_NumElements = (L));
+#define DECRYPT_ObjectArray_MaxElements(L)               (Decryption::ObjectArray_MaxElements = (L));
+#define DECRYPT_ObjectArray_NumChunks(L)                 (Decryption::ObjectArray_NumChunks = (L));
+#define DECRYPT_ObjectArray_MaxChunks(L)                 (Decryption::ObjectArray_MaxChunks = (L));
 #define DECRYPT_UObject_Flags(L)                         (Decryption::UObject_Flags = (L));
 #define DECRYPT_UObject_Index(L)                         (Decryption::UObject_Index = (L));
 #define DECRYPT_FFieldClass_Id(L)                        (Decryption::FFieldClass_Id = (L));
