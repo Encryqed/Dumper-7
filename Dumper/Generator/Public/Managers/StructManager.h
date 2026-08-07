@@ -128,10 +128,17 @@ public:
 
 	static inline StructInfoHandle GetInfo(const UEStruct Struct)
 	{
-		if (!Struct)
-			return {};
+		static StructInfo Invalid{ .Name = static_cast<uint32>(HashStringTableIndex::InvalidIndex) };
 
-		return StructInfoOverrides.at(Struct.GetIndex());
+		if (!Struct)
+			return Invalid;
+
+		auto It = StructInfoOverrides.find(Struct.GetIndex());
+
+		if (It != StructInfoOverrides.end()) {
+			return It->second;
+		}
+		return Invalid;
 	}
 
 	static inline bool IsStructCyclicWithPackage(int32 StructIndex, int32 PackageIndex)
