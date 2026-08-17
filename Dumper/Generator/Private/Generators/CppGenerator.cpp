@@ -2715,8 +2715,8 @@ R"(	: X(X), Y(Y), Z(Z)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FVector(const FVector& other)", .Body =
-R"(	: X(other.X), Y(other.Y), Z(other.Z)
+			.ReturnType = "constexpr", .NameWithParams = "FVector(const FVector& Other)", .Body =
+R"(	: X(Other.X), Y(Other.Y), Z(Other.Z)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2797,11 +2797,11 @@ R"({
 		/* Non-const operators */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator=(const FVector& other)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator=(const FVector& Other)", .Body =
 R"({
-	X = other.X;
-	Y = other.Y;
-	Z = other.Z;
+	X = Other.X;
+	Y = Other.Y;
+	Z = Other.Z;
 
 	return *this;
 })",
@@ -2937,6 +2937,7 @@ R"({
 	UEStruct Vector2D = ObjectArray::FindObjectFast<UEStruct>("Vector2D");
 
 	PredefinedElements& FVector2DPredefs = PredefinedMembers[Vector2D.GetIndex()];
+
 	FVector2DPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
@@ -2958,8 +2959,8 @@ R"(	: X(X), Y(Y)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FVector2D(const FVector2D& other)", .Body =
-R"(	: X(other.X), Y(other.Y)
+			.ReturnType = "constexpr", .NameWithParams = "FVector2D(const FVector2D& Other)", .Body =
+R"(	: X(Other.X), Y(Other.Y)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3040,10 +3041,10 @@ R"({
 		/* Non-const operators */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D&", .NameWithParams = "operator=(const FVector2D& other)", .Body =
+			.ReturnType = "FVector2D&", .NameWithParams = "operator=(const FVector2D& Other)", .Body =
 R"({
-	X = other.X;
-	Y = other.Y;
+	X = Other.X;
+	Y = Other.Y;
 
 	return *this;
 })",
@@ -3154,7 +3155,6 @@ R"({
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 
-
 		/* Non-const functions */
 		PredefinedFunction{
 			.CustomComment = "",
@@ -3193,8 +3193,8 @@ R"(	: Pitch(Pitch), Yaw(Yaw), Roll(Roll)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FRotator(const FRotator& other)", .Body =
-R"(	: Pitch(other.Pitch), Yaw(other.Yaw), Roll(other.Roll)
+			.ReturnType = "constexpr", .NameWithParams = "FRotator(const FRotator& Other)", .Body =
+R"(	: Pitch(Other.Pitch), Yaw(Other.Yaw), Roll(Other.Roll)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3418,6 +3418,74 @@ R"({
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		},
+	};
+
+	UEStruct FBox = ObjectArray::FindObjectFast<UEStruct>("Box");
+
+	PredefinedElements& FBoxPredefs = PredefinedMembers[FBox.GetIndex()];
+
+	FBoxPredefs.Functions =
+	{
+		/* constructors */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FBox(const FVector& Min, const FVector& Max, uint8 IsValid = true)", .Body =
+R"(	: Min(Min), Max(Max), IsValid(IsValid)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = R"(FBox(FVector::UnderlayingType MinX = 0, FVector::UnderlayingType MinY = 0, FVector::UnderlayingType MinZ = 0,
+		FVector::UnderlayingType MaxX = 0, FVector::UnderlayingType MaxY = 0, FVector::UnderlayingType MaxZ = 0, uint8 IsValid = true))",
+			.Body = R"(	: FBox(FVector(MinX, MinY, MinZ), FVector(MaxX, MaxY, MaxZ), IsValid)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FBox(const FBox& Other)",
+			.Body = R"(	: FBox(Other.Min, Other.Max, Other.IsValid)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		}
+	};
+
+	UEStruct FBox2D = ObjectArray::FindObjectFast<UEStruct>("Box2D");
+
+	PredefinedElements& FBox2DPredefs = PredefinedMembers[FBox2D.GetIndex()];
+
+	FBox2DPredefs.Functions =
+	{
+		/* constructors */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FBox2D(const FVector2D& Min, const FVector2D& Max, uint8 IsValid = true)", .Body =
+R"(	: Min(Min), Max(Max), bIsValid(IsValid)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = R"(FBox2D(FVector2D::UnderlayingType MinX = 0, FVector2D::UnderlayingType MinY = 0,
+		FVector2D::UnderlayingType MaxX = 0, FVector2D::UnderlayingType MaxY = 0, uint8 IsValid = true))",
+			.Body = R"(	: FBox2D(FVector2D(MinX, MinY), FVector2D(MaxX, MaxY), IsValid)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FBox2D(const FBox2D& Other)",
+			.Body = R"(	: FBox2D(Other.Min, Other.Max, Other.bIsValid)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		}
 	};
 
 	SortFunctions(UObjectPredefs.Functions);
@@ -4923,7 +4991,6 @@ R"({
 	};
 
 	GenerateStruct(&FWeakObjectPtr, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
-
 
 	BasicHpp <<
 		R"(
