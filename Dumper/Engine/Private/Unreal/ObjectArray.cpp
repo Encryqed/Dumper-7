@@ -67,11 +67,11 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 	},
 	FChunkedFixedUObjectArrayLayout // UE5.7 variant observed in Mistfall Hunter
 	{
-		.ObjectsOffset = 0x20,
-		.MaxElementsOffset = 0x30,
-		.NumElementsOffset = 0x34,
-		.MaxChunksOffset = 0x14,
-		.NumChunksOffset = 0x18,
+		.ObjectsOffset = 0x0C,
+		.MaxElementsOffset = 0x1C,
+		.NumElementsOffset = 0x20,
+		.MaxChunksOffset = 0x00,
+		.NumChunksOffset = 0x04,
 	}
 };
 

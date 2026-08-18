@@ -662,6 +662,32 @@ int32_t OffsetFinder::FindFieldClassCastFlagsOffset()
 	return Offset != OffsetNotFound ? Offset : 0x10;
 }
 
+void OffsetFinder::FixupFieldClassOffsets()
+{
+	/*
+	* UE5.7 uses this FFieldClass layout with an 8-byte FName:
+	*
+	* struct FFieldClass
+	* {
+	*     FName Name;                    // 0x00
+	*     EClassFlags ClassFlags;        // 0x08
+	*     uint32 Padding;                // 0x0C
+	*     EFieldClassID Id;              // 0x10
+	*     EClassCastFlags CastFlags;     // 0x18
+	*     FFieldClass* SuperClass;       // 0x20
+	* };
+	*/
+	constexpr int32 CastFlagsOffsetFromClassFlags = static_cast<int32>(
+		Align(sizeof(EClassFlags), alignof(EFieldClassID)) + sizeof(EFieldClassID));
+
+	if (Off::FFieldClass::CastFlags == (Off::FFieldClass::Id + CastFlagsOffsetFromClassFlags)
+		&& Off::FFieldClass::SuperClass == (Off::FFieldClass::CastFlags + sizeof(EClassCastFlags)))
+	{
+		Off::FFieldClass::ClassFlags = Off::FFieldClass::Id;
+		Off::FFieldClass::Id = Off::FFieldClass::CastFlags - sizeof(EFieldClassID);
+	}
+}
+
 /* UEnum */
 int32_t OffsetFinder::FindEnumNamesOffset()
 {
