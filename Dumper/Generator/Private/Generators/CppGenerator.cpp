@@ -3872,9 +3872,6 @@ R"({
 
 #undef max
 		const auto& ObjectsArrayLayout = Off::FUObjectArray::ChunkedFixedLayout;
-		// Preserve 4-byte-relative pointer offsets in generated layouts.
-		const bool bRequiresPacking = (ObjectsArrayLayout.ObjectsOffset % alignof(void*)) != 0;
-		const int32 ObjectArrayAlignment = bRequiresPacking ? alignof(int32) : alignof(void*);
 		const int32 ObjectArraySize = std::max({
 			ObjectsArrayLayout.ObjectsOffset + sizeof(void*),
 			ObjectsArrayLayout.MaxElementsOffset + sizeof(void*),
@@ -3886,7 +3883,7 @@ R"({
 
 		// Start class 'TUObjectArray'
 		PredefinedStruct TUObjectArray = PredefinedStruct{
-			.UniqueName = "TUObjectArray", .Size = ObjectArraySize, .Alignment = ObjectArrayAlignment, .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
+			.UniqueName = "TUObjectArray", .Size = ObjectArraySize, .Alignment = alignof(void*), .bUseExplictAlignment = false, .bIsFinal = true, .bIsClass = true, .bIsUnion = false, .Super = nullptr
 		};
 
 		TUObjectArray.Properties =
@@ -3969,14 +3966,7 @@ R"({
 		};
 
 		SortMembers(TUObjectArray.Properties);
-
-		if (bRequiresPacking)
-			BasicHpp << std::format("#pragma pack(push, 0x{:X})\n", ObjectArrayAlignment);
-
 		GenerateStruct(&TUObjectArray, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
-
-		if (bRequiresPacking)
-			BasicHpp << "#pragma pack(pop)\n";
 	}
 	// End class 'TUObjectArray'
 
