@@ -60,8 +60,11 @@ DWORD MainThread(HMODULE Module)
 
 	std::cerr << "FolderName: " << (Settings::Generator::GameVersion + '-' + Settings::Generator::GameName) << "\n\n";
 
-	Generator::Generate<CppGenerator>();
+	// TSC2 (UE5.8) crashes the game during CppGenerator SDK generation before the
+	// usmap is written. Generate the usmap FIRST so IoStore extraction is unblocked;
+	// the heavier/optional generators run after and may crash without losing the usmap.
 	Generator::Generate<MappingGenerator>();
+	Generator::Generate<CppGenerator>();
 	Generator::Generate<IDAMappingGenerator>();
 	Generator::Generate<DumpspaceGenerator>();
 
