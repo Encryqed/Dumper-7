@@ -4884,7 +4884,8 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "class UObject*", .NameWithParams = "Get()", .Body =
 R"({
-	if (!IsValid()) return nullptr;
+	if (!IsValid())
+		return nullptr;
 
 	return UObject::GObjects->GetByIndex(ObjectIndex);
 })",
