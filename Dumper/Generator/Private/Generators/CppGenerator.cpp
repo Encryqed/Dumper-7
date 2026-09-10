@@ -3429,8 +3429,8 @@ R"({
 		/* constructors */
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FBox(const FVector& Min, const FVector& Max, uint8 IsValid = true)", .Body =
-R"(	: Min(Min), Max(Max), IsValid(IsValid)
+			.ReturnType = "constexpr", .NameWithParams = "FBox(const FVector& Min, const FVector& Max)", .Body =
+R"(	: Min(Min), Max(Max), IsValid(true)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3438,8 +3438,8 @@ R"(	: Min(Min), Max(Max), IsValid(IsValid)
 		PredefinedFunction{
 			.CustomComment = "",
 			.ReturnType = "constexpr", .NameWithParams = R"(FBox(FVector::UnderlayingType MinX = 0, FVector::UnderlayingType MinY = 0, FVector::UnderlayingType MinZ = 0,
-		FVector::UnderlayingType MaxX = 0, FVector::UnderlayingType MaxY = 0, FVector::UnderlayingType MaxZ = 0, uint8 IsValid = true))",
-			.Body = R"(	: FBox(FVector(MinX, MinY, MinZ), FVector(MaxX, MaxY, MaxZ), IsValid)
+		FVector::UnderlayingType MaxX = 0, FVector::UnderlayingType MaxY = 0, FVector::UnderlayingType MaxZ = 0))",
+			.Body = R"(	: FBox(FVector(MinX, MinY, MinZ), FVector(MaxX, MaxY, MaxZ))
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3463,8 +3463,8 @@ R"(	: Min(Min), Max(Max), IsValid(IsValid)
 		/* constructors */
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FBox2D(const FVector2D& Min, const FVector2D& Max, uint8 IsValid = true)", .Body =
-R"(	: Min(Min), Max(Max), bIsValid(IsValid)
+			.ReturnType = "constexpr", .NameWithParams = "FBox2D(const FVector2D& Min, const FVector2D& Max)", .Body =
+R"(	: Min(Min), Max(Max), bIsValid(true)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3472,8 +3472,8 @@ R"(	: Min(Min), Max(Max), bIsValid(IsValid)
 		PredefinedFunction{
 			.CustomComment = "",
 			.ReturnType = "constexpr", .NameWithParams = R"(FBox2D(FVector2D::UnderlayingType MinX = 0, FVector2D::UnderlayingType MinY = 0,
-		FVector2D::UnderlayingType MaxX = 0, FVector2D::UnderlayingType MaxY = 0, uint8 IsValid = true))",
-			.Body = R"(	: FBox2D(FVector2D(MinX, MinY), FVector2D(MaxX, MaxY), IsValid)
+		FVector2D::UnderlayingType MaxX = 0, FVector2D::UnderlayingType MaxY = 0))",
+			.Body = R"(	: FBox2D(FVector2D(MinX, MinY), FVector2D(MaxX, MaxY))
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
