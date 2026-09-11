@@ -4876,7 +4876,7 @@ R"({
 			.CustomComment = "",
 			.ReturnType = "bool", .NameWithParams = "IsValid()", .Body =
 R"({
-	return ObjectIndex > 0 || (ObjectSerialNumber > 0 && ObjectIndex >= 0);
+	return ObjectIndex > 0;
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
