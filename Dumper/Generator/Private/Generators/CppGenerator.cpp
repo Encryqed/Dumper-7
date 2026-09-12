@@ -3447,8 +3447,9 @@ R"(	: Min(Min), Max(Max), IsValid(true)
 		PredefinedFunction{
 			.CustomComment = "",
 			.ReturnType = "constexpr", .NameWithParams = "FBox(const FBox& Other)",
-			.Body = R"(	: FBox(Other.Min, Other.Max, Other.IsValid)
+			.Body = R"(	: FBox(Other.Min, Other.Max)
 {
+	IsValid = Other.IsValid;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		}
@@ -3481,8 +3482,9 @@ R"(	: Min(Min), Max(Max), bIsValid(true)
 		PredefinedFunction{
 			.CustomComment = "",
 			.ReturnType = "constexpr", .NameWithParams = "FBox2D(const FBox2D& Other)",
-			.Body = R"(	: FBox2D(Other.Min, Other.Max, Other.bIsValid)
+			.Body = R"(	: FBox2D(Other.Min, Other.Max)
 {
+	bIsValid = Other.bIsValid;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		}
