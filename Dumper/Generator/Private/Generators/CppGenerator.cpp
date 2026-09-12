@@ -1129,8 +1129,8 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		{
 			EnumWrapper WrappedEnum = EnumWrapper(Enum);
 
-			//if (WrappedEnum.GetUnderlyingTypeSize() != Member.GetSize())
-			//	return GetEnumForcedSizeType(WrappedEnum, Member.GetSize());
+			if (WrappedEnum.GetUnderlyingTypeSize() != Member.GetSize())
+				return GetEnumForcedSizeType(WrappedEnum, Member.GetSize());
 
 			return GetEnumPrefixedName(WrappedEnum);
 		}
