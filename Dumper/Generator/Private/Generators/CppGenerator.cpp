@@ -463,13 +463,18 @@ R"(	static class FName FnName;
 	else
 	{
 		FuncLookupBlock = std::format(
-R"(	static int32 FuncIdx = 0;
-	static uint64 FuncFName = 0;
-	static uint64 OuterFName = 0;
-	class UFunction* Func = GetStaticFunction({}, {}, {}, FuncIdx, FuncFName, OuterFName);)",
+R"(	static class UFunction* Func = nullptr;
+
+	if (Func == nullptr)
+		Func = {}->GetFunction({}, {});)",
 			Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class",
-			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName) : std::format("\"{}\"", FixedOuterName),
-			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName) : std::format("\"{}\"", FixedFunctionName));
+			CppSettings::XORString
+				? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName)
+				: std::format("\"{}\"", FixedOuterName),
+			CppSettings::XORString
+				? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName)
+				: std::format("\"{}\"", FixedFunctionName)
+		);
 	}
 
 	// Function implementation generation
@@ -3648,30 +3653,37 @@ namespace InSDKUtils
 	}
 )";
 
+	//Customizable part of Cpp code to allow for a custom 'CallGameFunction' function
+	BasicHpp << CppSettings::CallGameFunction;
+
+
 	if (Off::InSDK::Find::FindFunctionCheckedOffset > 0)
 	{
 		if (Settings::Internal::bUseCasePreservingName)
 		{
-			BasicHpp << R"(	inline class UFunction* FindFunctionChecked(const class UObject* Obj, const class FName& Name)
+			BasicHpp << R"(
+	inline UFunction* FindFunctionChecked(const UObject* Obj, const FName& Name)
 	{
-		using FFindFunctionCheckedFn = class UFunction*(__fastcall*)(const class UObject*, const class FName*);
-		return reinterpret_cast<FFindFunctionCheckedFn>(GetImageBase() + Offsets::FindFunctionChecked)(Obj, &Name);
+		using FFindFunctionCheckedType = UFunction*(__fastcall*)(const UObject*, const FName*);
+		auto FindFunctionCheckedAddress = reinterpret_cast<FFindFunctionCheckedType>(GetImageBase() + Offsets::FindFunctionChecked);
+
+		return CallGameFunction(FindFunctionCheckedAddress, Obj, &Name);
 	}
 )";
 		}
 		else
 		{
-			BasicHpp << R"(	inline class UFunction* FindFunctionChecked(const class UObject* Obj, const class FName& Name)
+			BasicHpp << R"(
+	inline UFunction* FindFunctionChecked(const UObject* Obj, const FName& Name)
 	{
-		using FFindFunctionCheckedFn = class UFunction*(__fastcall*)(const class UObject*, uint64);
-		return reinterpret_cast<FFindFunctionCheckedFn>(GetImageBase() + Offsets::FindFunctionChecked)(Obj, *reinterpret_cast<const uint64*>(&Name));
+		using FFindFunctionCheckedType = UFunction*(__fastcall*)(const UObject*, uint64);
+		auto FindFunctionCheckedAddress = reinterpret_cast<FFindFunctionCheckedType>(GetImageBase() + Offsets::FindFunctionChecked);
+
+		return CallGameFunction(FindFunctionCheckedAddress, Obj, *reinterpret_cast<const uint64*>(&Name));
 	}
 )";
 		}
 	}
-
-	//Customizable part of Cpp code to allow for a custom 'CallGameFunction' function
-	BasicHpp << CppSettings::CallGameFunction;
 
 	BasicHpp << "}\n\n";
 	// End Namespace 'InSDKUtils'
