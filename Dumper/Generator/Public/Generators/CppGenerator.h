@@ -117,7 +117,7 @@ private:
     static InterfaceMILayout ComputeInterfaceMI(const StructWrapper& Struct, int32 UnalignedSuperSize);
     static void EnsureInterfaceVftMember(UEClass InterfaceClass);
     static std::string GetInterfaceInheritanceString(const InterfaceMILayout& Layout);
-    static void EmitInterfaceMIStaticAsserts(const StructWrapper& Struct, const InterfaceMILayout& Layout, const std::string& UniqueName, StreamType& StructFile);
+    static void EmitInterfaceMIStaticAsserts(const StructWrapper& Struct, const InterfaceMILayout& Layout, const std::string& UniqueName, StreamType& AssertionFile, const char* NewLineString);
 
     // return: In-header function declarations and inline functions
     static std::string GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile, bool bForceImplementerDispatch = false);

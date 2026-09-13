@@ -79,9 +79,11 @@ void CppGenerator::EnsureInterfaceVftMember(UEClass InterfaceClass)
 			return;
 	}
 
+	StructWrapper WrappedInterface = InterfaceClass;
+
 	PredefinedMember VftMember = {
 		.Comment = "NOT AUTO-GENERATED PROPERTY",
-		.Type = "void*", .Name = "Vft",
+		.Type = "void*", .Name = "VTable",
 		.Offset = 0x0, .Size = sizeof(void*),
 		.ArrayDim = 0x1, .Alignment = alignof(void*),
 		.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
@@ -156,27 +158,22 @@ std::string CppGenerator::GetInterfaceInheritanceString(const InterfaceMILayout&
 	return Out;
 }
 
-void CppGenerator::EmitInterfaceMIStaticAsserts(const StructWrapper& Struct, const InterfaceMILayout& Layout, const std::string& UniqueName, StreamType& StructFile)
+void CppGenerator::EmitInterfaceMIStaticAsserts(const StructWrapper& Struct, const InterfaceMILayout& Layout, const std::string& UniqueName, StreamType& AssertionFile, const char* NewLineString)
 {
 	if (!Layout.bIsViable || Layout.Entries.empty() || !Struct.IsUnrealStruct())
 		return;
 
-	StructFile << "#ifdef _MSC_VER\n";
-	StructFile << "#pragma warning(push)\n";
-	StructFile << "#pragma warning(disable: 4316)\n";
-	StructFile << "#pragma warning(disable: 5046)\n";
-
-	for (const FImplementedInterface& Iface : Struct.GetUnrealStruct().Cast<UEClass>().GetImplementedInterfaces())
+	for (const FImplementedInterface& Interface : Struct.GetUnrealStruct().Cast<UEClass>().GetImplementedInterfaces())
 	{
-		if (Iface.bImplementedByK2 || !Iface.InterfaceClass)
+		if (Interface.bImplementedByK2 || !Interface.InterfaceClass)
 			continue;
 
-		const std::string IfacePrefixed = GetStructPrefixedName(StructWrapper(Iface.InterfaceClass.Cast<UEStruct>()));
-		StructFile << std::format("static_assert(offsetof({0}, {1}::Vft) == 0x{2:04X}, \"Wrong interface VFT offset for '{0}::{1}'\");\n", UniqueName, IfacePrefixed, Iface.PointerOffset);
-	}
+		const UEClass InterfaceNameGivingClass = Interface.InterfaceClass;
 
-	StructFile << "#pragma warning(pop)\n";
-	StructFile << "#endif\n";
+		const std::string InterfacePrefixedName = StructWrapper(InterfaceNameGivingClass).GetUniqueName().first;
+		
+		AssertionFile << std::format("static_assert(GetInterfaceOffset<{0}, {1}>() == 0x{2:04X}, \"Wrong interface VFT offset for '{0}::{1}'\");{3}", UniqueName, InterfacePrefixedName, Interface.PointerOffset, NewLineString);
+	}
 }
 
 std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex)
@@ -566,37 +563,6 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	std::string FixedOuterName = PrefixQuotsWithBackslash(UnrealFunc.GetOuter().GetName());
 	std::string FixedFunctionName = PrefixQuotsWithBackslash(UnrealFunc.GetName());
 
-	const bool bUseDynamicLookup = Off::InSDK::Find::FindFunctionCheckedOffset > 0
-		&& (Func.HasFunctionFlag(EFunctionFlags::BlueprintEvent) || bForceImplementerDispatch)
-		&& !Func.IsStatic() ;
-
-
-	std::string FuncLookupBlock;
-	if (bUseDynamicLookup)
-	{
-		FuncLookupBlock = std::format(
-R"(	static class FName FnName;
-	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
-			Func.IsInInterface() ? "AsUObject()" : "this",
-			FixedFunctionName);
-	}
-	else
-	{
-		FuncLookupBlock = std::format(
-R"(	static class UFunction* Func = nullptr;
-
-	if (Func == nullptr)
-		Func = {}->GetFunction({}, {});)",
-			Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class",
-			CppSettings::XORString
-				? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName)
-				: std::format("\"{}\"", FixedOuterName),
-			CppSettings::XORString
-				? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName)
-				: std::format("\"{}\"", FixedFunctionName)
-		);
-	}
-	
 	const bool bDispatchAsInterface = Func.IsInInterface() && !bForceImplementerDispatch;
 
 	const bool bUseDynamicLookup = Off::InSDK::Find::FindFunctionCheckedOffset > 0
@@ -629,34 +595,6 @@ R"(	static class UFunction* Func = nullptr;
 		);
 	}
 
-	const bool bDispatchAsInterface = Func.IsInInterface() && !bForceImplementerDispatch;
-
-	/* Pending #531: re-enable once Off::InSDK::Find::FindFunctionCheckedOffset is on main */
-#if 0
-	const bool bUseDynamicLookup = Off::InSDK::Find::FindFunctionCheckedOffset > 0
-		&& !Func.IsStatic() && (Func.HasFunctionFlag(EFunctionFlags::BlueprintEvent) || bForceImplementerDispatch);
-
-	std::string FuncLookupBlock;
-	if (bUseDynamicLookup)
-	{
-		FuncLookupBlock = std::format(
-R"(	static class FName FnName;
-	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
-			bDispatchAsInterface ? "AsUObject()" : "this",
-			FixedFunctionName);
-	}
-	else
-	{
-		FuncLookupBlock = std::format(
-R"(	static int32 FuncIdx = 0;
-	static uint64 FuncFName = 0;
-	static uint64 OuterFName = 0;
-	class UFunction* Func = GetStaticFunction({}, {}, {}, FuncIdx, FuncFName, OuterFName);)",
-			Func.IsStatic() ? "StaticClass()" : bDispatchAsInterface ? "AsUObject()->Class" : "Class",
-			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName) : std::format("\"{}\"", FixedOuterName),
-			CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName) : std::format("\"{}\"", FixedFunctionName));
-	}
-#endif
 	// Function implementation generation
 	std::string FunctionImplementation = std::format(R"(
 // {}
@@ -1049,7 +987,6 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	if (bHasReusedTrailingPadding)
 		StructFile << "#pragma pack(pop)\n";
 
-	EmitInterfaceMIStaticAsserts(Struct, IfaceMI, UniqueName, StructFile);
 
 	if constexpr (Settings::Debug::bGenerateAssertionFile)
 	{
@@ -1079,6 +1016,8 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 		// Size assertions
 		AssertionFile << std::format("static_assert(sizeof({}) == 0x{:06X}, \"Wrong size on {}\");{}", UniqueName, (StructSize > 0x0 ? StructSize : 0x1), UniqueName, AssertionNewLineStr);
+	
+		EmitInterfaceMIStaticAsserts(Struct, IfaceMI, UniqueName, AssertionFile, AssertionNewLineStr);
 	}
 
 
@@ -6331,6 +6270,26 @@ UE_ENUM_OPERATORS(EPropertyFlags);
 	{
 		GenerateStruct(&Predefined, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 	}
+
+
+	BasicHpp << R"(
+
+/* Workaround for clang not supporting the statement from #else. */
+template<typename Derived, typename Interface>
+consteval size_t GetInterfaceOffset()
+{
+#if defined(__clang__)
+    return __builtin_constant_p(0)
+        ? reinterpret_cast<const char*>(
+              &static_cast<const Interface*>(
+                  reinterpret_cast<const Derived*>(0x1000))->VTable)
+            - reinterpret_cast<const char*>(0x1000)
+        : 0;
+#else
+    return offsetof(Derived, Interface::VTable);
+#endif
+}
+)";
 
 
 	/* Cyclic dependencies-fixing helper classes */
