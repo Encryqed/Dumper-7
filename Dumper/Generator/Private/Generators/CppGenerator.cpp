@@ -8594,6 +8594,7 @@ void CppGenerator::GenerateSDKTestScript(StreamType& TestScript)
 
 import argparse
 import ctypes
+import json
 import os
 import shutil
 import subprocess
@@ -8805,8 +8806,9 @@ def build_toolchain(
     output_dir: Path,
     log_file: Path,
     sdk_root: Path,
+    generator: str,
+    generator_instance: str,
     toolset: str | None = None,
-    generator_instance: str | None = None,
 ) -> bool:
     if build_dir.exists():
         shutil.rmtree(build_dir)
@@ -8821,7 +8823,7 @@ def build_toolchain(
         "-B",
         str(build_dir),
         "-G",
-        "Visual Studio 17 2022",
+        generator,
         "-A",
         "x64",
         f"-DSDK_ROOT={sdk_root}",
@@ -8848,35 +8850,51 @@ def build_toolchain(
     return run_logged(build, log_file, source_dir)
 
 
-def find_clangcl_instance() -> str | None:
-    """Return a VS install path that has the ClangCL toolset, or None.
-
-    On machines with multiple VS installs (e.g. BuildTools + Community), CMake may
-    otherwise select one without the ClangCL toolset. vswhere ships with every VS install.
-    """
+def find_vs_toolchain(generators: set[str], toolset: str | None = None) -> tuple[str, str]:
+    """Select a matching CMake generator and VS instance with the required tools."""
     program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
     vswhere = Path(program_files_x86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
     if not vswhere.is_file():
-        return None
+        raise RuntimeError(f"Visual Studio discovery tool not found: {vswhere}")
 
-    try:
+    required_components = ["Microsoft.VisualStudio.Component.VC.Tools.x86.x64"]
+    if toolset == "ClangCL":
+        required_components.append("Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset")
+
+    # Query each major version separately so the generator always matches the instance.
+    # MSVC and ClangCL may use different installs when only one has the Clang tools.
+    for generator, version_range in (
+        ("Visual Studio 18 2026", "[18.0,19.0)"),
+        ("Visual Studio 17 2022", "[17.0,18.0)"),
+    ):
+        if generator not in generators:
+            continue
         result = subprocess.run(
             [
                 str(vswhere),
                 "-latest",
                 "-products", "*",
-                "-requires", "Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset",
+                "-version", version_range,
+                "-requires", *required_components,
+                "-utf8",
                 "-property", "installationPath",
             ],
             capture_output=True,
             text=True,
-            check=False,
+            encoding="utf-8",
+            check=True,
         )
-    except OSError:
-        return None
 
-    found = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    return found[0] if found else None
+        found = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        if found:
+            return generator, found[0]
+
+    raise RuntimeError(
+        f"No compatible Visual Studio 2022 or 2026 installation found for {toolset or 'MSVC'}. "
+        "Install the Desktop development with C++ tools, and for ClangCL also the "
+        "'C++ Clang Compiler for Windows' + 'MSBuild support for LLVM (clang-cl) toolset' components. "
+        "CMake must support the installed Visual Studio version (3.21+ for VS 2022; 4.2+ for VS 2026)."
+    )
 
 
 def main() -> int:
@@ -8899,6 +8917,16 @@ def main() -> int:
     if shutil.which("cmake") is None:
         return wait_on_failure("cmake was not found on PATH.")
 
+    try:
+        capabilities = subprocess.run(
+            ["cmake", "-E", "capabilities"], capture_output=True, text=True, check=True
+        )
+        generators = {entry["name"] for entry in json.loads(capabilities.stdout)["generators"]}
+        msvc_generator, msvc_instance = find_vs_toolchain(generators)
+        clang_generator, clang_instance = find_vs_toolchain(generators, "ClangCL")
+    except (OSError, subprocess.CalledProcessError, ValueError, KeyError, RuntimeError) as error:
+        return wait_on_failure(f"Could not select Visual Studio toolchains: {error}")
+
     logs_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
     (test_root / "TestMain.cpp").write_text(TEST_MAIN, encoding="utf-8", newline="\n")
@@ -8911,13 +8939,10 @@ def main() -> int:
         output_dir=output_dir / "MSVC",
         log_file=logs_dir / "MSVC.log",
         sdk_root=sdk_root,
+        generator=msvc_generator,
+        generator_instance=msvc_instance,
     )
 
-    # On multi-VS-install machines, pin an install that has the ClangCL toolset so CMake
-    # doesn't pick one without it.
-    clang_instance = find_clangcl_instance()
-    if clang_instance is None:
-        print("Note: no VS install with the ClangCL toolset found via vswhere; the Clang build may fail. Install the 'C++ Clang Compiler for Windows' + 'MSBuild support for LLVM (clang-cl) toolset' VS components.")
     clang_ok = build_toolchain(
         name="ClangCL",
         source_dir=test_root,
@@ -8925,6 +8950,7 @@ def main() -> int:
         output_dir=output_dir / "Clang",
         log_file=logs_dir / "Clang.log",
         sdk_root=sdk_root,
+        generator=clang_generator,
         toolset="ClangCL",
         generator_instance=clang_instance,
     )
