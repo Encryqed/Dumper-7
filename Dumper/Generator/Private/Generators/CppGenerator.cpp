@@ -737,13 +737,16 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	const bool bHasStaticClass = (bIsClass && Struct.IsUnrealStruct());
 
-	const bool bHasMembers = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment()/*&& Struct.GetSize() != 0x1*/);
+	const bool bIsEmptyBase = bHasValidSuper && StructSizeWithoutSuper == 0x0 && SuperSize == 0x1;
+
+	// Struct and super have members && this struct has members && the struct isn't an empty base
+	const bool bHasMembersOrPadding = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment() && !bIsEmptyBase);
 	const bool bHasFunctions = (Members.HasFunctions() && !Struct.IsFunction()) || bHasStaticClass;
 
-	if (bHasMembers || bHasFunctions)
+	if (bHasMembersOrPadding || bHasFunctions)
 		StructFile << "public:\n";
 
-	if (bHasMembers)
+	if (bHasMembersOrPadding)
 	{
 		StructFile << GenerateMembers(Struct, Members, bIsReusingTrailingPaddingFromSuper ? UnalignedSuperSize : SuperSize, SuperLastMemberEnd, SuperAlignment, PackageIndex);
 
@@ -1129,8 +1132,8 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		{
 			EnumWrapper WrappedEnum = EnumWrapper(Enum);
 
-			//if (WrappedEnum.GetUnderlyingTypeSize() != Member.GetSize())
-			//	return GetEnumForcedSizeType(WrappedEnum, Member.GetSize());
+			if (WrappedEnum.GetUnderlyingTypeSize() != Member.GetSize())
+				return GetEnumForcedSizeType(WrappedEnum, Member.GetSize());
 
 			return GetEnumPrefixedName(WrappedEnum);
 		}
@@ -5520,6 +5523,16 @@ public:
 	constexpr std::strong_ordering operator<=>(EnumType Other) const
 	{
 		return EnumValue <=> static_cast<UnderlyingType>(Other);
+	}
+
+	constexpr operator EnumType() const
+	{
+		return static_cast<EnumType>(EnumValue);
+	}
+
+	constexpr explicit operator UnderlyingType() const
+	{
+		return EnumValue;
 	}
 };
 
