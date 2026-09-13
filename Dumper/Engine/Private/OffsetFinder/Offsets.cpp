@@ -84,6 +84,63 @@ void Off::InSDK::ProcessEvent::InitPE(const int32 Index, const char* const Modul
 	std::cerr << std::format("PE-Offset: 0x{:X}\n", Off::InSDK::ProcessEvent::PEOffset);
 }
 
+void Off::InSDK::Find::InitFindFunctionChecked()
+{
+	const void* StringRefAddr = Platform::FindByStringInAllSections<false, wchar_t>(L"Failed to find function %s in %s", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
+
+	if (!StringRefAddr)
+		StringRefAddr = Platform::FindByStringInAllSections<true, wchar_t>(L"Failed to find function %s in %s", 0x0, 0x0, Settings::General::bSearchOnlyExecutableSectionsForStrings);
+
+	if (!StringRefAddr)
+	{
+		std::cerr << "\nCouldn't find 'Failed to find function %s in %s' string-ref!\n\n";
+		return;
+	}
+
+	DWORD64 ImageBase = 0;
+	PRUNTIME_FUNCTION FunctionEntry = RtlLookupFunctionEntry(reinterpret_cast<DWORD64>(StringRefAddr), &ImageBase, nullptr);
+
+	if (!FunctionEntry)
+	{
+		std::cerr << "\nCouldn't recover FindFunctionChecked entry from string-ref!\n\n";
+		return;
+	}
+
+	struct UnwindInfoHeader
+	{
+		uint8_t VersionAndFlags;
+		uint8_t SizeOfProlog;
+		uint8_t CountOfCodes;
+		uint8_t FrameRegisterAndOffset;
+	};
+
+	constexpr uint8_t UnwFlagChainInfoMask = 0x20;
+
+	for (int ChainDepth = 0; ChainDepth < 16; ++ChainDepth)
+	{
+		const uintptr_t UnwindInfoAddr = static_cast<uintptr_t>(ImageBase) + FunctionEntry->UnwindData;
+		if (Platform::IsBadReadPtr(reinterpret_cast<void*>(UnwindInfoAddr)))
+			break;
+
+		const UnwindInfoHeader* Header = reinterpret_cast<const UnwindInfoHeader*>(UnwindInfoAddr);
+		if (!(Header->VersionAndFlags & UnwFlagChainInfoMask))
+			break;
+
+		const uint32_t AlignedCodeCount = (Header->CountOfCodes + 1u) & ~1u;
+		const uintptr_t ChainedEntryAddr = UnwindInfoAddr + sizeof(UnwindInfoHeader) + AlignedCodeCount * sizeof(uint16_t);
+
+		if (Platform::IsBadReadPtr(reinterpret_cast<void*>(ChainedEntryAddr)))
+			break;
+
+		FunctionEntry = reinterpret_cast<PRUNTIME_FUNCTION>(ChainedEntryAddr);
+	}
+
+	const uintptr_t FuncStart = static_cast<uintptr_t>(ImageBase) + FunctionEntry->BeginAddress;
+
+	Off::InSDK::Find::FindFunctionCheckedOffset = Platform::GetOffset(reinterpret_cast<void*>(FuncStart));
+	std::cerr << std::format("Off::InSDK::Find::FindFunctionChecked: 0x{:X}\n\n", Off::InSDK::Find::FindFunctionCheckedOffset);
+}
+
 /* UWorld */
 void Off::InSDK::World::InitGWorld()
 {
