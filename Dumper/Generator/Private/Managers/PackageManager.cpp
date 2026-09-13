@@ -512,8 +512,8 @@ void PackageManager::HandleCycles()
 			/* Which of the two cyclic packages requires less structs from the other package. */
 			const bool bCurrentHasMoreDependencies = NumStructsRequiredByCurrent > NumStructsRequiredByPrevious;
 
-			const int32 PackageIndexWithLeastDependencies = bCurrentHasMoreDependencies && bIsStruct ? PreviousPackageIndex : CurrentPackageIndex;
-			const int32 PackageIndexToMarkCyclicWith = bCurrentHasMoreDependencies && bIsStruct ? CurrentPackageIndex : PreviousPackageIndex;
+			const int32 PackageIndexWithLeastDependencies = bCurrentHasMoreDependencies ? PreviousPackageIndex : CurrentPackageIndex;
+			const int32 PackageIndexToMarkCyclicWith = bCurrentHasMoreDependencies ? CurrentPackageIndex : PreviousPackageIndex;
 
 
 			/* Add package to HandledPackages */
@@ -527,7 +527,7 @@ void PackageManager::HandleCycles()
 
 			const DependencyManager& LoserStructsOrClasses = (PackageIndexWithLeastDependencies == PreviousPackageIndex) ? PreviousStructsOrClasses : CurrentStructsOrClasses;
 
-			PreviousStructsOrClasses.VisitAllNodesWithCallback(SetCycleCallback);
+			LoserStructsOrClasses.VisitAllNodesWithCallback(SetCycleCallback);
 		}
 		else /* Just mark structs|classes from the previous package as cyclic */
 		{
@@ -559,7 +559,14 @@ void PackageManager::HandleCycles()
 			continue;
 		}
 
-		const RequirementInfo& CurrentRequirements = CurrentPackageInfo.GetPackageDependencies().ClassesDependencies.at(Cycle.CurrentPackage);
+		auto DepIt = CurrentPackageInfo.GetPackageDependencies().ClassesDependencies.find(Cycle.PreviousPacakge);
+
+		if (DepIt == CurrentPackageInfo.GetPackageDependencies().ClassesDependencies.end())
+		{
+			continue;
+		}
+
+		const RequirementInfo& CurrentRequirements = DepIt->second;
 
 		/* Mark classes as 'do not include' when this package is cyclic but can still require _structs.hpp */
 		if (CurrentRequirements.bShouldIncludeStructs)

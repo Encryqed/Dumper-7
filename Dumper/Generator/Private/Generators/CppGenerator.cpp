@@ -447,36 +447,6 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	std::string FixedOuterName = PrefixQuotsWithBackslash(UnrealFunc.GetOuter().GetName());
 	std::string FixedFunctionName = PrefixQuotsWithBackslash(UnrealFunc.GetName());
 
-	const bool bUseDynamicLookup = Off::InSDK::Find::FindFunctionCheckedOffset > 0
-		&& Func.HasFunctionFlag(EFunctionFlags::BlueprintEvent)
-		&& !Func.IsStatic();
-
-	std::string FuncLookupBlock;
-	if (bUseDynamicLookup)
-	{
-		FuncLookupBlock = std::format(
-R"(	static class FName FnName;
-	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
-			Func.IsInInterface() ? "AsUObject()" : "this",
-			FixedFunctionName);
-	}
-	else
-	{
-		FuncLookupBlock = std::format(
-R"(	static class UFunction* Func = nullptr;
-
-	if (Func == nullptr)
-		Func = {}->GetFunction({}, {});)",
-			Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class",
-			CppSettings::XORString
-				? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName)
-				: std::format("\"{}\"", FixedOuterName),
-			CppSettings::XORString
-				? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName)
-				: std::format("\"{}\"", FixedFunctionName)
-		);
-	}
-
 	// Function implementation generation
 	std::string FunctionImplementation = std::format(R"(
 // {}
@@ -484,7 +454,10 @@ R"(	static class UFunction* Func = nullptr;
 {}
 {} {}::{}{}
 {{
-{}
+	static class UFunction* Func = nullptr;
+
+	if (Func == nullptr)
+		Func = {}->GetFunction({}, {});
 {}{}{}
 	{}ProcessEvent(Func, {});{}{}{}{}
 }}
@@ -496,7 +469,9 @@ R"(	static class UFunction* Func = nullptr;
 , StructName
 , FuncInfo.FuncNameWithParams
 , bIsConstFunc ? " const" : ""
-, FuncLookupBlock
+, Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class"
+, CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName) : std::format("\"{}\"", FixedOuterName)
+, CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName) : std::format("\"{}\"", FixedFunctionName)
 , bHasParams ? ParamVarCreationString : ""
 , bHasParamsToInit ? ParamAssignments : ""
 , bIsNativeFunc ? StoreFunctionFlagsString : ""
@@ -762,16 +737,13 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	const bool bHasStaticClass = (bIsClass && Struct.IsUnrealStruct());
 
-	const bool bIsEmptyBase = bHasValidSuper && StructSizeWithoutSuper == 0x0 && SuperSize == 0x1;
-
-	// Struct and super have members && this struct has members && the struct isn't an empty base
-	const bool bHasMembersOrPadding = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment() && !bIsEmptyBase);
+	const bool bHasMembers = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment()/*&& Struct.GetSize() != 0x1*/);
 	const bool bHasFunctions = (Members.HasFunctions() && !Struct.IsFunction()) || bHasStaticClass;
 
-	if (bHasMembersOrPadding || bHasFunctions)
+	if (bHasMembers || bHasFunctions)
 		StructFile << "public:\n";
 
-	if (bHasMembersOrPadding)
+	if (bHasMembers)
 	{
 		StructFile << GenerateMembers(Struct, Members, bIsReusingTrailingPaddingFromSuper ? UnalignedSuperSize : SuperSize, SuperLastMemberEnd, SuperAlignment, PackageIndex);
 
@@ -1520,32 +1492,6 @@ void CppGenerator::GenerateSDKHeader(StreamType& SdkHpp)
 	};
 
 	PackageManager::IterateDependencies(ForEachElementCallback);
-
-	if constexpr (!Settings::CppGenerator::bIncludeParameterStructsInIDA)
-	{
-		// Causes param structs not to be included when importing the SDK, but still keeps them in SDK.hpp.
-		SdkHpp << R"(
-#ifdef IMPORT_CPP_SDK_INTO_IDA
-	#define IMPORT_CPP_SDK_INTO_IDA_EXCLUDE_PARAMS
-#endif // IMPORT_CPP_SDK_INTO_IDA
-)";
-	}
-
-	// make available the parameter structs in IDA
-	SdkHpp << "#if defined(IMPORT_CPP_SDK_INTO_IDA) && !defined(IMPORT_CPP_SDK_INTO_IDA_EXCLUDE_PARAMS)\n";
-
-	auto ForEachElementCallbackForParams = [&SdkHpp](const PackageManagerIterationParams& OldParams, const PackageManagerIterationParams& NewParams, bool bIsStruct) -> void
-	{
-		PackageInfoHandle CurrentPackage = PackageManager::GetInfo(NewParams.RequiredPackage);
-
-		const bool bHasParameterStructs = CurrentPackage.HasParameterStructs();
-		if (!bIsStruct && bHasParameterStructs)
-			SdkHpp << std::format("#include \"SDK/{}_parameters.hpp\"\n", CurrentPackage.GetName());
-	};
-
-	PackageManager::IterateDependencies(ForEachElementCallbackForParams);
-
-	SdkHpp << "#endif // defined(IMPORT_CPP_SDK_INTO_IDA) && !defined(IMPORT_CPP_SDK_INTO_IDA_EXCLUDE_PARAMS)\n";
 
 
 	WriteFileEnd(SdkHpp, EFileType::SdkHpp);
@@ -2598,43 +2544,6 @@ R"({
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
-		PredefinedFunction {
-			.CustomComment = "Gets a UFunction from this UClasses' 'Children' list",
-			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const FName& ClassName, const FName& FuncName)", .Body =
-R"({
-	for (const UStruct* Clss = this; Clss; Clss = Clss->SuperStruct)
-	{
-		if (Clss->Name != ClassName)
-			continue;
-
-		for (UField* Field = Clss->Children; Field; Field = Field->Next)
-		{
-			if (Field->HasTypeFlag(EClassCastFlags::Function) && Field->Name == FuncName)
-				return static_cast<class UFunction*>(Field);
-		}
-	}
-
-	return nullptr;
-})",
-			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
-		},
-		PredefinedFunction {
-			.CustomComment = "Gets the first UFunction from the UClass inheritance hierarchy",
-			.ReturnType = "class UFunction*", .NameWithParams = "GetFunction(const FName& FuncName)", .Body =
-R"({
-	for (const UStruct* Clss = this; Clss; Clss = Clss->SuperStruct)
-	{
-		for (UField* Field = Clss->Children; Field; Field = Field->Next)
-		{
-			if (Field->HasTypeFlag(EClassCastFlags::Function) && Field->Name == FuncName)
-				return static_cast<class UFunction*>(Field);
-		}
-	}
-
-	return nullptr;
-})",
-			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
-		},
 	};
 
 
@@ -2743,8 +2652,8 @@ R"(	: X(X), Y(Y), Z(Z)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FVector(const FVector& Other)", .Body =
-R"(	: X(Other.X), Y(Other.Y), Z(Other.Z)
+			.ReturnType = "constexpr", .NameWithParams = "FVector(const FVector& other)", .Body =
+R"(	: X(other.X), Y(other.Y), Z(other.Z)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2825,11 +2734,11 @@ R"({
 		/* Non-const operators */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator=(const FVector& Other)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator=(const FVector& other)", .Body =
 R"({
-	X = Other.X;
-	Y = Other.Y;
-	Z = Other.Z;
+	X = other.X;
+	Y = other.Y;
+	Z = other.Z;
 
 	return *this;
 })",
@@ -2965,7 +2874,6 @@ R"({
 	UEStruct Vector2D = ObjectArray::FindObjectFast<UEStruct>("Vector2D");
 
 	PredefinedElements& FVector2DPredefs = PredefinedMembers[Vector2D.GetIndex()];
-
 	FVector2DPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
@@ -2987,8 +2895,8 @@ R"(	: X(X), Y(Y)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FVector2D(const FVector2D& Other)", .Body =
-R"(	: X(Other.X), Y(Other.Y)
+			.ReturnType = "constexpr", .NameWithParams = "FVector2D(const FVector2D& other)", .Body =
+R"(	: X(other.X), Y(other.Y)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3069,10 +2977,10 @@ R"({
 		/* Non-const operators */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D&", .NameWithParams = "operator=(const FVector2D& Other)", .Body =
+			.ReturnType = "FVector2D&", .NameWithParams = "operator=(const FVector2D& other)", .Body =
 R"({
-	X = Other.X;
-	Y = Other.Y;
+	X = other.X;
+	Y = other.Y;
 
 	return *this;
 })",
@@ -3183,6 +3091,7 @@ R"({
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 
+
 		/* Non-const functions */
 		PredefinedFunction{
 			.CustomComment = "",
@@ -3221,8 +3130,8 @@ R"(	: Pitch(Pitch), Yaw(Yaw), Roll(Roll)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FRotator(const FRotator& Other)", .Body =
-R"(	: Pitch(Other.Pitch), Yaw(Other.Yaw), Roll(Other.Roll)
+			.ReturnType = "constexpr", .NameWithParams = "FRotator(const FRotator& other)", .Body =
+R"(	: Pitch(other.Pitch), Yaw(other.Yaw), Roll(other.Roll)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3448,76 +3357,6 @@ R"({
 		},
 	};
 
-	UEStruct FBox = ObjectArray::FindObjectFast<UEStruct>("Box");
-
-	PredefinedElements& FBoxPredefs = PredefinedMembers[FBox.GetIndex()];
-
-	FBoxPredefs.Functions =
-	{
-		/* constructors */
-		PredefinedFunction{
-			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FBox(const FVector& Min, const FVector& Max)", .Body =
-R"(	: Min(Min), Max(Max), IsValid(true)
-{
-})",
-			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
-		},
-		PredefinedFunction{
-			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = R"(FBox(FVector::UnderlayingType MinX = 0, FVector::UnderlayingType MinY = 0, FVector::UnderlayingType MinZ = 0,
-		FVector::UnderlayingType MaxX = 0, FVector::UnderlayingType MaxY = 0, FVector::UnderlayingType MaxZ = 0))",
-			.Body = R"(	: FBox(FVector(MinX, MinY, MinZ), FVector(MaxX, MaxY, MaxZ))
-{
-})",
-			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
-		},
-		PredefinedFunction{
-			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FBox(const FBox& Other)",
-			.Body = R"(	: FBox(Other.Min, Other.Max)
-{
-	IsValid = Other.IsValid;
-})",
-			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
-		}
-	};
-
-	UEStruct FBox2D = ObjectArray::FindObjectFast<UEStruct>("Box2D");
-
-	PredefinedElements& FBox2DPredefs = PredefinedMembers[FBox2D.GetIndex()];
-
-	FBox2DPredefs.Functions =
-	{
-		/* constructors */
-		PredefinedFunction{
-			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FBox2D(const FVector2D& Min, const FVector2D& Max)", .Body =
-R"(	: Min(Min), Max(Max), bIsValid(true)
-{
-})",
-			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
-		},
-		PredefinedFunction{
-			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = R"(FBox2D(FVector2D::UnderlayingType MinX = 0, FVector2D::UnderlayingType MinY = 0,
-		FVector2D::UnderlayingType MaxX = 0, FVector2D::UnderlayingType MaxY = 0))",
-			.Body = R"(	: FBox2D(FVector2D(MinX, MinY), FVector2D(MaxX, MaxY))
-{
-})",
-			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
-		},
-		PredefinedFunction{
-			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FBox2D(const FBox2D& Other)",
-			.Body = R"(	: FBox2D(Other.Min, Other.Max)
-{
-	bIsValid = Other.bIsValid;
-})",
-			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
-		}
-	};
-
 	SortFunctions(UObjectPredefs.Functions);
 	SortFunctions(UClassPredefs.Functions);
 	SortFunctions(UEnginePredefs.Functions);
@@ -3603,13 +3442,12 @@ using namespace UC;
 */
 namespace Offsets
 {{
-	constexpr int32 GObjects             = 0x{:08X};
-	constexpr int32 AppendString         = 0x{:08X};{}
-	constexpr int32 GNames               = 0x{:08X};
-	constexpr int32 GWorld               = 0x{:08X};
-	constexpr int32 ProcessEvent         = 0x{:08X};
-	constexpr int32 ProcessEventIdx      = 0x{:08X};
-	constexpr int32 FindFunctionChecked  = 0x{:08X};
+	constexpr int32 GObjects          = 0x{:08X};
+	constexpr int32 AppendString      = 0x{:08X};{}
+	constexpr int32 GNames            = 0x{:08X};
+	constexpr int32 GWorld            = 0x{:08X};
+	constexpr int32 ProcessEvent      = 0x{:08X};
+	constexpr int32 ProcessEventIdx   = 0x{:08X};
 }}
 )", max(Off::InSDK::ObjArray::GObjects, 0x0),
 	max(Off::InSDK::Name::AppendNameToString, 0x0),
@@ -3617,18 +3455,7 @@ namespace Offsets
 	max(Off::InSDK::NameArray::GNames, 0x0),
 	max(Off::InSDK::World::GWorld, 0x0),
 	max(Off::InSDK::ProcessEvent::PEOffset, 0x0),
-	Off::InSDK::ProcessEvent::PEIndex,
-	max(Off::InSDK::Find::FindFunctionCheckedOffset, 0x0));
-
-
-	BasicHpp << R"(
-// Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
-class UClass;
-class UObject;
-class UFunction;
-class UScriptStruct;
-class FName;
-)";
+	Off::InSDK::ProcessEvent::PEIndex);
 
 
 	// Start Namespace 'InSDKUtils'
@@ -3656,41 +3483,21 @@ namespace InSDKUtils
 	//Customizable part of Cpp code to allow for a custom 'CallGameFunction' function
 	BasicHpp << CppSettings::CallGameFunction;
 
-
-	if (Off::InSDK::Find::FindFunctionCheckedOffset > 0)
-	{
-		if (Settings::Internal::bUseCasePreservingName)
-		{
-			BasicHpp << R"(
-	inline UFunction* FindFunctionChecked(const UObject* Obj, const FName& Name)
-	{
-		using FFindFunctionCheckedType = UFunction*(__fastcall*)(const UObject*, const FName*);
-		auto FindFunctionCheckedAddress = reinterpret_cast<FFindFunctionCheckedType>(GetImageBase() + Offsets::FindFunctionChecked);
-
-		return CallGameFunction(FindFunctionCheckedAddress, Obj, &Name);
-	}
-)";
-		}
-		else
-		{
-			BasicHpp << R"(
-	inline UFunction* FindFunctionChecked(const UObject* Obj, const FName& Name)
-	{
-		using FFindFunctionCheckedType = UFunction*(__fastcall*)(const UObject*, uint64);
-		auto FindFunctionCheckedAddress = reinterpret_cast<FFindFunctionCheckedType>(GetImageBase() + Offsets::FindFunctionChecked);
-
-		return CallGameFunction(FindFunctionCheckedAddress, Obj, *reinterpret_cast<const uint64*>(&Name));
-	}
-)";
-		}
-	}
-
 	BasicHpp << "}\n\n";
 	// End Namespace 'InSDKUtils'
 
 	/* Custom 'GetImageBase' function */
 	BasicCpp << std::format(R"(uintptr_t InSDKUtils::GetImageBase()
 {})", Settings::CppGenerator::GetImageBaseFuncBody);
+
+	BasicHpp << R"(
+// Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
+class UClass;
+class UObject;
+class UFunction;
+class UScriptStruct;
+class FName;
+)";
 
 	BasicHpp << R"(
 namespace BasicFilesImplUtils
@@ -3708,10 +3515,6 @@ namespace BasicFilesImplUtils
 	UObject* GetObjectByIndex(int32 Index);
 
 	UFunction* FindFunctionByFName(const FName* Name);
-
-	UFunction* FindFunctionViaClass(UClass* SearchClass, const char* OuterClassName, const char* FuncName);
-
-	uint64 GetObjectOuterFNameAsUInt64(UObject* Obj);
 
 	FName StringToName(const wchar_t* Name);
 
@@ -3764,19 +3567,6 @@ UFunction* BasicFilesImplUtils::FindFunctionByFName(const FName* Name)
 	}
 
 	return nullptr;
-}
-
-UFunction* BasicFilesImplUtils::FindFunctionViaClass(UClass* SearchClass, const char* OuterClassName, const char* FuncName)
-{
-	return SearchClass->GetFunction(OuterClassName, FuncName);
-}
-
-uint64 BasicFilesImplUtils::GetObjectOuterFNameAsUInt64(UObject* Obj)
-{
-	if (!Obj || !Obj->Outer)
-		return 0;
-
-	return *reinterpret_cast<uint64*>(&Obj->Outer->Name);
 }
 
 FName BasicFilesImplUtils::StringToName(const wchar_t* Name)
@@ -3872,35 +3662,6 @@ class UClass* GetStaticBPGeneratedClass(const char* Name, int32& ClassIdx, uint6
 
 		return ClassObj;
 	}
-}
-)";
-
-	BasicHpp << R"(
-inline class UFunction* GetStaticFunction(class UClass* SearchClass, const char* OuterClassName, const char* FuncName, int32& FuncIdx, uint64& FuncFName, uint64& OuterFName)
-{
-	static auto SetFuncIndex = [](class UFunction* Fn, int32& Idx, uint64& Name, uint64& OuterName) -> class UFunction*
-	{
-		if (Fn)
-		{
-			Idx = BasicFilesImplUtils::GetObjectIndex(reinterpret_cast<class UClass*>(Fn));
-			Name = BasicFilesImplUtils::GetObjFNameAsUInt64(reinterpret_cast<class UClass*>(Fn));
-			OuterName = BasicFilesImplUtils::GetObjectOuterFNameAsUInt64(reinterpret_cast<class UObject*>(Fn));
-		}
-
-		return Fn;
-	};
-
-	if (FuncIdx == 0x0) [[unlikely]]
-		return SetFuncIndex(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncIdx, FuncFName, OuterFName);
-
-	class UFunction* FnObj = reinterpret_cast<class UFunction*>(BasicFilesImplUtils::GetObjectByIndex(FuncIdx));
-
-	if (!FnObj
-		|| BasicFilesImplUtils::GetObjFNameAsUInt64(reinterpret_cast<class UClass*>(FnObj)) != FuncFName
-		|| BasicFilesImplUtils::GetObjectOuterFNameAsUInt64(reinterpret_cast<class UObject*>(FnObj)) != OuterFName)
-		return SetFuncIndex(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncIdx, FuncFName, OuterFName);
-
-	return FnObj;
 }
 )";
 
@@ -5050,19 +4811,8 @@ R"({
 	{
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "bool", .NameWithParams = "IsValid()", .Body =
-R"({
-	return ObjectIndex > 0;
-})",
-			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
-		},
-		PredefinedFunction {
-			.CustomComment = "",
 			.ReturnType = "class UObject*", .NameWithParams = "Get()", .Body =
 R"({
-	if (!IsValid())
-		return nullptr;
-
 	return UObject::GObjects->GetByIndex(ObjectIndex);
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
@@ -5110,6 +4860,7 @@ R"({
 	};
 
 	GenerateStruct(&FWeakObjectPtr, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
+
 
 	BasicHpp <<
 		R"(
@@ -5706,16 +5457,6 @@ public:
 	constexpr std::strong_ordering operator<=>(EnumType Other) const
 	{
 		return EnumValue <=> static_cast<UnderlyingType>(Other);
-	}
-
-	constexpr operator EnumType() const
-	{
-		return static_cast<EnumType>(EnumValue);
-	}
-
-	constexpr explicit operator UnderlyingType() const
-	{
-		return EnumValue;
 	}
 };
 
@@ -8777,7 +8518,6 @@ void CppGenerator::GenerateSDKTestScript(StreamType& TestScript)
 
 import argparse
 import ctypes
-import json
 import os
 import shutil
 import subprocess
@@ -8989,9 +8729,8 @@ def build_toolchain(
     output_dir: Path,
     log_file: Path,
     sdk_root: Path,
-    generator: str,
-    generator_instance: str,
     toolset: str | None = None,
+    generator_instance: str | None = None,
 ) -> bool:
     if build_dir.exists():
         shutil.rmtree(build_dir)
@@ -9006,7 +8745,7 @@ def build_toolchain(
         "-B",
         str(build_dir),
         "-G",
-        generator,
+        "Visual Studio 17 2022",
         "-A",
         "x64",
         f"-DSDK_ROOT={sdk_root}",
@@ -9033,51 +8772,35 @@ def build_toolchain(
     return run_logged(build, log_file, source_dir)
 
 
-def find_vs_toolchain(generators: set[str], toolset: str | None = None) -> tuple[str, str]:
-    """Select a matching CMake generator and VS instance with the required tools."""
+def find_clangcl_instance() -> str | None:
+    """Return a VS install path that has the ClangCL toolset, or None.
+
+    On machines with multiple VS installs (e.g. BuildTools + Community), CMake may
+    otherwise select one without the ClangCL toolset. vswhere ships with every VS install.
+    """
     program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
     vswhere = Path(program_files_x86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
     if not vswhere.is_file():
-        raise RuntimeError(f"Visual Studio discovery tool not found: {vswhere}")
+        return None
 
-    required_components = ["Microsoft.VisualStudio.Component.VC.Tools.x86.x64"]
-    if toolset == "ClangCL":
-        required_components.append("Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset")
-
-    # Query each major version separately so the generator always matches the instance.
-    # MSVC and ClangCL may use different installs when only one has the Clang tools.
-    for generator, version_range in (
-        ("Visual Studio 18 2026", "[18.0,19.0)"),
-        ("Visual Studio 17 2022", "[17.0,18.0)"),
-    ):
-        if generator not in generators:
-            continue
+    try:
         result = subprocess.run(
             [
                 str(vswhere),
                 "-latest",
                 "-products", "*",
-                "-version", version_range,
-                "-requires", *required_components,
-                "-utf8",
+                "-requires", "Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset",
                 "-property", "installationPath",
             ],
             capture_output=True,
             text=True,
-            encoding="utf-8",
-            check=True,
+            check=False,
         )
+    except OSError:
+        return None
 
-        found = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-        if found:
-            return generator, found[0]
-
-    raise RuntimeError(
-        f"No compatible Visual Studio 2022 or 2026 installation found for {toolset or 'MSVC'}. "
-        "Install the Desktop development with C++ tools, and for ClangCL also the "
-        "'C++ Clang Compiler for Windows' + 'MSBuild support for LLVM (clang-cl) toolset' components. "
-        "CMake must support the installed Visual Studio version (3.21+ for VS 2022; 4.2+ for VS 2026)."
-    )
+    found = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return found[0] if found else None
 
 
 def main() -> int:
@@ -9100,16 +8823,6 @@ def main() -> int:
     if shutil.which("cmake") is None:
         return wait_on_failure("cmake was not found on PATH.")
 
-    try:
-        capabilities = subprocess.run(
-            ["cmake", "-E", "capabilities"], capture_output=True, text=True, check=True
-        )
-        generators = {entry["name"] for entry in json.loads(capabilities.stdout)["generators"]}
-        msvc_generator, msvc_instance = find_vs_toolchain(generators)
-        clang_generator, clang_instance = find_vs_toolchain(generators, "ClangCL")
-    except (OSError, subprocess.CalledProcessError, ValueError, KeyError, RuntimeError) as error:
-        return wait_on_failure(f"Could not select Visual Studio toolchains: {error}")
-
     logs_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
     (test_root / "TestMain.cpp").write_text(TEST_MAIN, encoding="utf-8", newline="\n")
@@ -9122,10 +8835,13 @@ def main() -> int:
         output_dir=output_dir / "MSVC",
         log_file=logs_dir / "MSVC.log",
         sdk_root=sdk_root,
-        generator=msvc_generator,
-        generator_instance=msvc_instance,
     )
 
+    # On multi-VS-install machines, pin an install that has the ClangCL toolset so CMake
+    # doesn't pick one without it.
+    clang_instance = find_clangcl_instance()
+    if clang_instance is None:
+        print("Note: no VS install with the ClangCL toolset found via vswhere; the Clang build may fail. Install the 'C++ Clang Compiler for Windows' + 'MSBuild support for LLVM (clang-cl) toolset' VS components.")
     clang_ok = build_toolchain(
         name="ClangCL",
         source_dir=test_root,
@@ -9133,7 +8849,6 @@ def main() -> int:
         output_dir=output_dir / "Clang",
         log_file=logs_dir / "Clang.log",
         sdk_root=sdk_root,
-        generator=clang_generator,
         toolset="ClangCL",
         generator_instance=clang_instance,
     )
