@@ -417,7 +417,9 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	/* We're on 'ExplicitEnumValues' version, we need to write 'bool' (aka int32) bHasVersioning. (NoVersioning = false) -> no [int32 UE4Version, int32 UE5Version] and no [uint32 NetCL] */
 	WriteToStream(InUsmap, static_cast<int32>(false));
 
-	const uint32 UncompressedSize = static_cast<uint32>(Data.str().length());
+	/* Create a string_view to avoid expensive heap allocation each time we need.str().data() */
+	std::string_view DataView = Data.view();
+	const uint32 UncompressedSize = static_cast<uint32>(DataView.length());
 
 	constexpr auto CompressionMethod = Settings::MappingGenerator::CompressionMethod;
 
@@ -432,11 +434,11 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	case EUsmapCompressionMethod::ZStandard:
 		CompressedSize = ZSTD_compressBound(UncompressedSize);
 		CompressedBuffer = malloc(CompressedSize);
-		CompressedSize = ZSTD_compress(CompressedBuffer, CompressedSize, Data.str().data(), UncompressedSize, ZSTD_maxCLevel());
+		CompressedSize = ZSTD_compress(CompressedBuffer, CompressedSize, DataView.data(), UncompressedSize, ZSTD_maxCLevel());
 		break;
 	default:
 		CompressedBuffer = malloc(CompressedSize);
-		memcpy(CompressedBuffer, Data.str().data(), CompressedSize);
+		memcpy(CompressedBuffer, DataView.data(), CompressedSize);
 		break;
 	}
 
