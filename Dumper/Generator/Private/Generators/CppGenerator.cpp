@@ -560,7 +560,9 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 		return Str;
 	};
 
-	std::string FixedOuterName = PrefixQuotsWithBackslash(UnrealFunc.GetOuter().GetName());
+	UEClass OuterClass = UnrealFunc.GetOuter().Cast<UEClass>();
+
+	std::string FixedOuterName = PrefixQuotsWithBackslash(OuterClass.GetName());
 	std::string FixedFunctionName = PrefixQuotsWithBackslash(UnrealFunc.GetName());
 
 	const bool bDispatchAsInterface = Func.IsInInterface() && !bForceImplementerDispatch;
@@ -568,6 +570,9 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	const bool bUseDynamicLookup = Off::InSDK::Find::FindFunctionCheckedOffset > 0
 		&& (Func.HasFunctionFlag(EFunctionFlags::BlueprintEvent) || bForceImplementerDispatch)
 		&& !Func.IsStatic();
+
+	static UEClass BlueprintGeneratedClass_Class = ObjectArray::FindClassFast("BlueprintGeneratedClass");
+	const bool bIsUnloadableFunction = OuterClass.IsA(BlueprintGeneratedClass_Class);
 
 	std::string FuncLookupBlock;
 	if (bUseDynamicLookup)
@@ -577,6 +582,19 @@ R"(	static class FName FnName;
 	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
 			Func.IsInInterface() ? "AsUObject()" : "this",
 			FixedFunctionName);
+	}
+	else if (bIsUnloadableFunction)
+	{
+		FuncLookupBlock = std::format(
+			R"(	static ReloadableFuncInfo FuncInfo;
+	class UFunction* Func = GetStaticFunction({}, {}, {}, FuncInfo);)",
+			Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class",
+			CppSettings::XORString
+				? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName)
+				: std::format("\"{}\"", FixedOuterName),
+			CppSettings::XORString
+				? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName)
+				: std::format("\"{}\"", FixedFunctionName));
 	}
 	else
 	{
@@ -815,6 +833,7 @@ R"({{
 	
 			AlreadyEmitted.insert(Own.GetName());
 		}
+
 		for (const PropertyWrapper& Prop : Members.IterateMembers())
 			AlreadyEmitted.insert(Prop.GetName());
 	
@@ -4083,35 +4102,6 @@ class UClass* GetStaticBPGeneratedClass(const char* Name, int32& ClassIdx, uint6
 }
 )";
 
-	BasicHpp << R"(
-inline class UFunction* GetStaticFunction(class UClass* SearchClass, const char* OuterClassName, const char* FuncName, int32& FuncIdx, uint64& FuncFName, uint64& OuterFName)
-{
-	static auto SetFuncIndex = [](class UFunction* Fn, int32& Idx, uint64& Name, uint64& OuterName) -> class UFunction*
-	{
-		if (Fn)
-		{
-			Idx = BasicFilesImplUtils::GetObjectIndex(reinterpret_cast<class UClass*>(Fn));
-			Name = BasicFilesImplUtils::GetObjFNameAsUInt64(reinterpret_cast<class UClass*>(Fn));
-			OuterName = BasicFilesImplUtils::GetObjectOuterFNameAsUInt64(reinterpret_cast<class UObject*>(Fn));
-		}
-
-		return Fn;
-	};
-
-	if (FuncIdx == 0x0) [[unlikely]]
-		return SetFuncIndex(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncIdx, FuncFName, OuterFName);
-
-	class UFunction* FnObj = reinterpret_cast<class UFunction*>(BasicFilesImplUtils::GetObjectByIndex(FuncIdx));
-
-	if (!FnObj
-		|| BasicFilesImplUtils::GetObjFNameAsUInt64(reinterpret_cast<class UClass*>(FnObj)) != FuncFName
-		|| BasicFilesImplUtils::GetObjectOuterFNameAsUInt64(reinterpret_cast<class UObject*>(FnObj)) != OuterFName)
-		return SetFuncIndex(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncIdx, FuncFName, OuterFName);
-
-	return FnObj;
-}
-)";
-
 	/* Implementation of 'UObject::StaticClass()', templated to allow for a per-object local static */
 	BasicHpp << R"(
 template<class ClassType>
@@ -4152,6 +4142,41 @@ ClassType* GetDefaultObjImpl()
 { \
     static FName Name = FName(); \
     return GetStaticName(NameString, Name); \
+}
+)";
+
+	BasicHpp << R"(
+struct ReloadableFuncInfo;
+
+UFunction* GetStaticFunction(UClass* SearchClass, const char* OuterClassName, const char* FuncName, ReloadableFuncInfo& FuncInfo);
+)";
+
+	BasicCpp << R"(
+UFunction* GetStaticFunction(UClass* SearchClass, const char* OuterClassName, const char* FuncName, ReloadableFuncInfo& FuncInfo)
+{
+    static auto SetFuncInfo = [](class UFunction* Function, ReloadableFuncInfo& FuncInfoToSet) -> UFunction*
+    {
+        if (Function)
+        {
+            FuncInfoToSet.Index = Function->Index;
+            FuncInfoToSet.Name = Function->Name;
+            FuncInfoToSet.OuterName = Function->Outer ? Function->Outer->Name : FName();
+        }
+
+        return Function;
+    };
+
+    /* First initialisation. */
+    if (FuncInfo.Index == 0x0) [[unlikely]]
+        return SetFuncInfo(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncInfo);
+
+    UFunction* Function = static_cast<UFunction*>(UObject::GObjects->GetByIndex(FuncInfo.Index));
+
+    /* Reloading the function*/
+    if (!Function || Function->Name != FuncInfo.Name || !Function->Outer || Function->Outer->Name != FuncInfo.OuterName)
+        return SetFuncInfo(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncInfo);
+
+    return Function;
 }
 )";
 
@@ -6272,6 +6297,14 @@ UE_ENUM_OPERATORS(EPropertyFlags);
 		GenerateStruct(&Predefined, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 	}
 
+	BasicHpp << R"(
+struct ReloadableFuncInfo
+{
+    int32 Index = 0;
+    FName Name;
+    FName OuterName;
+};
+)";
 
 	BasicHpp << R"(
 
