@@ -346,7 +346,9 @@ void Off::Init()
 			std::cerr << std::format("Off::FField::EditorOnlyMetadata: 0x{:X}\n", Off::FField::EditorOnlyMetadata);
 
 		Off::FFieldClass::CastFlags = OffsetFinder::FindFieldClassCastFlagsOffset();
-		std::cerr << std::format("Off::FFieldClass::CastFlags: 0x{:X}\n\n", Off::FFieldClass::CastFlags);
+		std::cerr << std::format("Off::FFieldClass::CastFlags: 0x{:X}\n", Off::FFieldClass::CastFlags);
+
+		OffsetFinder::InitFFieldClassLayout();
 	}
 
 	Off::UStruct::StructBaseChain = OffsetFinder::FindStructBaseChainOffset();

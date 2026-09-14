@@ -597,3 +597,64 @@ static std::string StringifyClassCastFlags(EClassCastFlags CastFlags)
 
 	return RetFlags.size() > 2 ? RetFlags.erase(RetFlags.size() - 2) : RetFlags;
 }
+
+/* Returns the most specific cast-flag name for an FFieldClass (e.g. "IntProperty", not "Field, Property, ..."). */
+inline std::string GetPrimaryFFieldClassNameFromCastFlags(EClassCastFlags CastFlags)
+{
+	static constexpr std::pair<EClassCastFlags, const char*> PropertyTypeNames[] =
+	{
+		{ EClassCastFlags::VCellProperty, "VCellProperty" },
+		{ EClassCastFlags::AnsiStrProperty, "AnsiStrProperty" },
+		{ EClassCastFlags::Utf8StrProperty, "Utf8StrProperty" },
+		{ EClassCastFlags::VRestValueProperty, "VRestValueProperty" },
+		{ EClassCastFlags::VValueProperty, "VValueProperty" },
+		{ EClassCastFlags::VerseVMClass, "VerseVMClass" },
+		{ EClassCastFlags::OptionalProperty, "OptionalProperty" },
+		{ EClassCastFlags::LargeWorldCoordinatesRealProperty, "LargeWorldCoordinatesRealProperty" },
+		{ EClassCastFlags::MulticastSparseDelegateProperty, "MulticastSparseDelegateProperty" },
+		{ EClassCastFlags::MulticastInlineDelegateProperty, "MulticastInlineDelegateProperty" },
+		{ EClassCastFlags::SparseDelegateFunction, "SparseDelegateFunction" },
+		{ EClassCastFlags::EnumProperty, "EnumProperty" },
+		{ EClassCastFlags::SetProperty, "SetProperty" },
+		{ EClassCastFlags::MapProperty, "MapProperty" },
+		{ EClassCastFlags::FieldPathProperty, "FieldPathProperty" },
+		{ EClassCastFlags::MulticastDelegateProperty, "MulticastDelegateProperty" },
+		{ EClassCastFlags::DelegateProperty, "DelegateProperty" },
+		{ EClassCastFlags::ArrayProperty, "ArrayProperty" },
+		{ EClassCastFlags::StructProperty, "StructProperty" },
+		{ EClassCastFlags::SoftClassProperty, "SoftClassProperty" },
+		{ EClassCastFlags::DoubleProperty, "DoubleProperty" },
+		{ EClassCastFlags::Int16Property, "Int16Property" },
+		{ EClassCastFlags::TextProperty, "TextProperty" },
+		{ EClassCastFlags::SoftObjectProperty, "SoftObjectProperty" },
+		{ EClassCastFlags::LazyObjectProperty, "LazyObjectProperty" },
+		{ EClassCastFlags::WeakObjectProperty, "WeakObjectProperty" },
+		{ EClassCastFlags::ObjectProperty, "ObjectProperty" },
+		{ EClassCastFlags::BoolProperty, "BoolProperty" },
+		{ EClassCastFlags::UInt16Property, "UInt16Property" },
+		{ EClassCastFlags::UInt32Property, "UInt32Property" },
+		{ EClassCastFlags::UInt64Property, "UInt64Property" },
+		{ EClassCastFlags::ClassProperty, "ClassProperty" },
+		{ EClassCastFlags::InterfaceProperty, "InterfaceProperty" },
+		{ EClassCastFlags::FloatProperty, "FloatProperty" },
+		{ EClassCastFlags::IntProperty, "IntProperty" },
+		{ EClassCastFlags::Int64Property, "Int64Property" },
+		{ EClassCastFlags::ByteProperty, "ByteProperty" },
+		{ EClassCastFlags::Int8Property, "Int8Property" },
+		{ EClassCastFlags::NameProperty, "NameProperty" },
+		{ EClassCastFlags::StrProperty, "StrProperty" },
+		{ EClassCastFlags::ObjectPropertyBase, "ObjectPropertyBase" },
+		{ EClassCastFlags::NumericProperty, "NumericProperty" },
+		{ EClassCastFlags::Property, "Property" },
+		{ EClassCastFlags::Function, "Function" },
+		{ EClassCastFlags::Field, "Field" },
+	};
+
+	for (const auto& [Flag, Name] : PropertyTypeNames)
+	{
+		if (CastFlags & Flag)
+			return Name;
+	}
+
+	return "Field";
+}
