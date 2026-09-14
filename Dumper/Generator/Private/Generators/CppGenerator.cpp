@@ -580,7 +580,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 		FuncLookupBlock = std::format(
 R"(	static class FName FnName;
 	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
-			Func.IsInInterface() ? "AsUObject()" : "this",
+			bDispatchAsInterface ? "AsUObject()" : "this",
 			FixedFunctionName);
 	}
 	else if (bIsUnloadableFunction)
@@ -588,7 +588,7 @@ R"(	static class FName FnName;
 		FuncLookupBlock = std::format(
 			R"(	static ReloadableFuncInfo FuncInfo;
 	class UFunction* Func = GetStaticFunction({}, {}, {}, FuncInfo);)",
-			Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class",
+			Func.IsStatic() ? "StaticClass()" : bDispatchAsInterface ? "AsUObject()->Class" : "Class",
 			CppSettings::XORString
 				? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName)
 				: std::format("\"{}\"", FixedOuterName),
@@ -603,7 +603,7 @@ R"(	static class UFunction* Func = nullptr;
 
 	if (Func == nullptr)
 		Func = {}->GetFunction({}, {});)",
-			Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class",
+			Func.IsStatic() ? "StaticClass()" : bDispatchAsInterface ? "AsUObject()->Class" : "Class",
 			CppSettings::XORString
 				? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName)
 				: std::format("\"{}\"", FixedOuterName),
