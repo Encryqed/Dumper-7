@@ -812,11 +812,12 @@ R"({{
 		{
 			if (Own.GetFunctionFlags() & EFunctionFlags::Delegate)
 				continue;
+	
 			AlreadyEmitted.insert(Own.GetName());
 		}
 		for (const PropertyWrapper& Prop : Members.IterateMembers())
 			AlreadyEmitted.insert(Prop.GetName());
-
+	
 		bool bWroteSectionHeader = false;
 		for (const FImplementedInterface& Iface : Struct.GetNativeInterfaces())
 		{
@@ -825,29 +826,29 @@ R"({{
 				StructWrapper IfaceWrapper(IfaceStruct);
 				if (!IfaceWrapper.IsInterface())
 					break;
-
+	
 				std::shared_ptr<StructWrapper> IfacePtr = std::make_shared<StructWrapper>(IfaceWrapper);
 				MemberManager IfaceMembers = IfaceWrapper.GetMembers();
-
+	
 				for (const FunctionWrapper& IfaceFunc : IfaceMembers.IterateFunctions())
 				{
 					if (IfaceFunc.GetFunctionFlags() & EFunctionFlags::Delegate)
 						continue;
-
+	
 					UEFunction RawFn = IfaceFunc.GetUnrealFunction();
 					if (!RawFn)
 						continue;
-
+	
 					FunctionWrapper Rebound(IfacePtr, RawFn);
 					if (!AlreadyEmitted.insert(Rebound.GetName()).second)
 						continue;
-
+	
 					if (!bWroteSectionHeader)
 					{
 						InHeaderFunctionText += "\npublic:\n";
 						bWroteSectionHeader = true;
 					}
-
+	
 					InHeaderFunctionText += GenerateSingleFunction(Rebound, StructName, FunctionFile, ParamFile, AssertionFile, true);
 				}
 			}
