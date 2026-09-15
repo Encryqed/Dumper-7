@@ -218,6 +218,14 @@ void MemberManager::InitNameReplacements()
 		MemberNames.AddNameReplacement(BoxStruct, "max", "Max");
 	}
 
+	const UEStruct Box2DStruct = ObjectArray::FindStructFast("Box2D");
+	if (Box2DStruct)
+	{
+		// make these name-replacements
+		MemberNames.AddNameReplacement(Box2DStruct, "min", "Min");
+		MemberNames.AddNameReplacement(Box2DStruct, "max", "Max");
+	}
+
 	// TEST ONLY
 	/*
 	const UEClass ActorClass = ObjectArray::FindClassFast("Actor");
