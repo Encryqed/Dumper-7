@@ -70,8 +70,10 @@ public:
                 bDumpedGObjects = true;
                 ObjectArray::DumpObjects(DumperFolder);
 
-                if (Settings::Internal::bUseFProperty)
-                    ObjectArray::DumpObjectsWithProperties(DumperFolder);
+                // TSC2 (UE5.8): this debug-only property dump crashes the game before the
+                // usmap is written. It is not needed for MappingGenerator — skip it.
+                //if (Settings::Internal::bUseFProperty)
+                //    ObjectArray::DumpObjectsWithProperties(DumperFolder);
             }
 
             if (!bDumepdEditorOnlyMetadata)
