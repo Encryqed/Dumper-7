@@ -143,6 +143,8 @@ namespace Off
 	{
 		// Fixed for CasePreserving FNames by OffsetFinder::FixupHardcodedOffsets();
 		// Fixed for OutlineNumber FNames by OffsetFinder::FixFNameSize();
+		// Legacy FName at 0x00. On UE 5.8, binary +0 is not a usable FName; CastFlags may be 0x20.
+		// When Settings::Internal::bUseExtendedFFieldClassLayout is set, SuperClass is remapped to CastFlags+8.
 		inline int32 Name = 0x00;
 		inline int32 Id = 0x08;
 		inline int32 CastFlags = 0x10; // 0x18 on UE5.7

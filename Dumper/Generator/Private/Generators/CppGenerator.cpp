@@ -2208,6 +2208,30 @@ void CppGenerator::InitPredefinedMembers()
 			},
 		};
 
+		if (Settings::Internal::bUseExtendedFFieldClassLayout)
+		{
+			/* +0 is not a usable FName; emit an 8-byte C++ filler (Type printed as-is, ArrayDim 1). */
+			FFieldClass.Properties[0] = PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "uint8[sizeof(void*)]", .Name = std::format("Pad_{:X}", Off::FFieldClass::Name),
+				.Offset = Off::FFieldClass::Name, .Size = static_cast<int32>(sizeof(void*)), .ArrayDim = 0x1, .Alignment = 0x1,
+				.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			};
+
+			const int32 PadOffset = Off::FFieldClass::Id + static_cast<int32>(sizeof(uint64));
+			const int32 PadSize = Off::FFieldClass::ClassFlags - PadOffset;
+
+			if (PadSize > 0)
+			{
+				FFieldClass.Properties.push_back(PredefinedMember{
+					.Comment = "NOT AUTO-GENERATED PROPERTY",
+					.Type = std::format("uint8[{}]", PadSize), .Name = std::format("Pad_{:X}", PadOffset),
+					.Offset = PadOffset, .Size = PadSize, .ArrayDim = 0x1, .Alignment = 0x1,
+					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+				});
+			}
+		}
+
 
 		const int32 FFieldVariantSize = Settings::Internal::bUseMaskForFieldOwner ? 0x8 : 0x10;
 		const int32 IdentifierOffset = Settings::Internal::bUseMaskForFieldOwner ? 0x0 : 0x8;

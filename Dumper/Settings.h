@@ -157,6 +157,9 @@ R"(
 		/* Whether this games' engine version uses FProperty rather than UProperty */
 		inline bool bUseFProperty = false;
 
+		/* UE 5.8 FFieldClass: binary +0 is not a usable FName. SuperClass remapped; GetName does not wrap Class+0 (FName(nullptr) -> "None"). */
+		inline bool bUseExtendedFFieldClassLayout = false;
+
 		/* Whether this game's engine version uses FNamePool rather than TNameEntryArray */
 		inline bool bUseNamePool = false;
 
