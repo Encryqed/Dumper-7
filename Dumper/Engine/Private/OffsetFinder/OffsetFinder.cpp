@@ -662,6 +662,18 @@ int32_t OffsetFinder::FindFieldClassCastFlagsOffset()
 	return Offset != OffsetNotFound ? Offset : 0x10;
 }
 
+void OffsetFinder::InitFFieldClassLayout()
+{
+	if (!Settings::Internal::bUseFProperty)
+		return;
+
+	if (Off::FFieldClass::CastFlags >= 0x20)
+	{
+		Settings::Internal::bUseExtendedFFieldClassLayout = true;
+		Off::FFieldClass::SuperClass = Off::FFieldClass::CastFlags + static_cast<int32>(sizeof(uint64));
+	}
+}
+
 /* UEnum */
 int32_t OffsetFinder::FindEnumNamesOffset()
 {

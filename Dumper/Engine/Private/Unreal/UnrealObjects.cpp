@@ -37,6 +37,9 @@ UEFFieldClass UEFFieldClass::GetSuper() const
 
 FName UEFFieldClass::GetFName() const
 {
+	if (Settings::Internal::bUseExtendedFFieldClassLayout)
+		return FName(nullptr);
+
 	return FName(Class + Off::FFieldClass::Name); //Not the real FName, but a wrapper which holds the address of a FName
 }
 
