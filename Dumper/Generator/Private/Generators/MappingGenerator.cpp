@@ -1,4 +1,5 @@
 
+#include <chrono>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -17,7 +18,6 @@ namespace
 
 	std::vector<uint64> GFlagDict;
 	std::unordered_map<uint64, uint32> GFlagIndexOf;
-	bool GUseU8FlagIndex = true;
 	bool GAnyMappingProperty = false;
 }
 
@@ -187,10 +187,22 @@ int32 MappingGenerator::AddNameToData(std::stringstream& NameTable, const std::s
 	return static_cast<int32>(NameCounter++);
 }
 
+void MappingGenerator::WriteOwnerPackageName(const UEObject& Object, std::stringstream& Data, std::stringstream& NameTable)
+{
+	const UEObject Package = Object.GetOutermost();
+	if (!Package)
+	{
+		WriteToStream(Data, static_cast<int32>(-1));
+		return;
+	}
+
+	WriteToStream(Data, AddNameToData(NameTable, Package.GetName()));
+}
+
 bool MappingGenerator::ShouldExcludeEditorOnlyProperties()
 {
-	/* PropertyFlags dumps must include editor-only properties */
-	if constexpr (WrittenVersion >= EUsmapVersion::PropertyFlags)
+	/* ExtendedPropertyMetadata dumps must include editor-only properties */
+	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedPropertyMetadata)
 		return false;
 
 	return Settings::MappingGenerator::bExcludeEditorOnlyProperties;
@@ -254,8 +266,6 @@ void MappingGenerator::CollectAllPropertyFlags()
 		GFlagDict.push_back(0);
 		GFlagIndexOf[0] = 0;
 	}
-
-	GUseU8FlagIndex = GFlagDict.size() <= 255;
 }
 
 void MappingGenerator::WriteFlagDictionary(std::stringstream& OutData)
@@ -263,6 +273,15 @@ void MappingGenerator::WriteFlagDictionary(std::stringstream& OutData)
 	WriteToStream(OutData, static_cast<uint32>(GFlagDict.size()));
 	for (const uint64 Flags : GFlagDict)
 		WriteToStream(OutData, Flags);
+}
+
+void MappingGenerator::WriteUsmapMetadata(StreamType& InUsmap)
+{
+	WriteUEFString(InUsmap, MetadataToolName);
+	WriteUEFString(InUsmap, MetadataToolVersion);
+
+	const int64 CreatedAtUnix = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	WriteToStream(InUsmap, CreatedAtUnix);
 }
 
 void MappingGenerator::GeneratePropertyType(UEProperty Property, std::stringstream& Data, std::stringstream& NameTable)
@@ -330,23 +349,23 @@ void MappingGenerator::GeneratePropertyInfo(const PropertyWrapper& Property, std
 	}
 
 	WriteToStream(Data, static_cast<uint16>(Index));
-	WriteToStream(Data, static_cast<uint8>(Property.GetArrayDim()));
+
+	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedPropertyMetadata)
+		WriteToStream(Data, static_cast<uint16>(Property.GetArrayDim()));
+	else
+		WriteToStream(Data, static_cast<uint8>(Property.GetArrayDim()));
 
 	const int32 MemberNameIdx = AddNameToData(NameTable, Property.GetUnrealProperty().GetName());
 	WriteToStream(Data, MemberNameIdx);
 
 	GeneratePropertyType(Property.GetUnrealProperty(), Data, NameTable);
 
-	if constexpr (WrittenVersion >= EUsmapVersion::PropertyFlags)
+	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedPropertyMetadata)
 	{
 		const uint64 Flags = static_cast<uint64>(Property.GetPropertyFlags());
 		const auto It = GFlagIndexOf.find(Flags);
-		const uint32 FlagIndex = (It != GFlagIndexOf.end()) ? It->second : 0;
-
-		if (GUseU8FlagIndex)
-			WriteToStream(Data, static_cast<uint8>(FlagIndex));
-		else
-			WriteToStream(Data, static_cast<uint16>(FlagIndex));
+		const uint16 FlagIndex = static_cast<uint16>((It != GFlagIndexOf.end()) ? It->second : 0);
+		WriteToStream(Data, FlagIndex);
 	}
 
 	Index += Property.GetArrayDim();
@@ -359,6 +378,14 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 
 	const int32 StructNameIndex = AddNameToData(NameTable, Struct.GetRawName());
 	WriteToStream(Data, StructNameIndex);
+
+	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedPropertyMetadata)
+	{
+		if (Struct.IsUnrealStruct())
+			WriteOwnerPackageName(Struct.GetUnrealStruct(), Data, NameTable);
+		else
+			WriteToStream(Data, static_cast<int32>(-1));
+	}
 
 	StructWrapper Super = Struct.GetSuper();
 
@@ -409,6 +436,9 @@ void MappingGenerator::GenerateEnum(const EnumWrapper& Enum, std::stringstream& 
 	const int32 EnumNameIndex = AddNameToData(NameTable, Enum.GetRawName());
 	WriteToStream(Data, EnumNameIndex);
 
+	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedPropertyMetadata)
+		WriteOwnerPackageName(Enum.GetUnrealEnum(), Data, NameTable);
+
 	WriteToStream(Data, static_cast<uint16>(Enum.GetNumMembers()));
 
 	for (EnumCollisionInfo Member : Enum.GetMembers())
@@ -445,7 +475,7 @@ std::stringstream MappingGenerator::GenerateFileData()
 		}
 	}
 	
-	if constexpr (WrittenVersion >= EUsmapVersion::PropertyFlags)
+	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedPropertyMetadata)
 		CollectAllPropertyFlags();
 
 	/* Handle all structs and classes in one go. From the mapping-files point of view classes are the exact same as structs. */
@@ -494,7 +524,7 @@ std::stringstream MappingGenerator::GenerateFileData()
 	if constexpr (Settings::Debug::bShouldPrintMappingDebugData)
 		std::cerr << std::format("MappingGeneration: NumEnums = 0x{0:X} (Dec: {0})\n", static_cast<uint32>(NumEnums));
 
-	if constexpr (WrittenVersion >= EUsmapVersion::PropertyFlags)
+	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedPropertyMetadata)
 	{
 		WriteFlagDictionary(ReturnBuffer);
 
@@ -518,8 +548,11 @@ void MappingGenerator::GenerateFileHeader(StreamType& InUsmap, const std::string
 	/* Write 2bytes unsigned */
 	WriteToStream(InUsmap, UsmapFileMagic);
 
-	/* Version: PropertyFlags. CUE4Parse treats unknown versions as a hard error. */
+	/* Version: ExtendedPropertyMetadata */
 	WriteToStream(InUsmap, WrittenVersion);
+
+	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedPropertyMetadata)
+		WriteUsmapMetadata(InUsmap);
 
 	/* PackageVersioning+: always write bHasVersioning. This dumper has no versioning support, so write 0. */
 	if constexpr (WrittenVersion >= EUsmapVersion::PackageVersioning)
@@ -573,7 +606,6 @@ void MappingGenerator::Generate()
 	GNameMap.clear();
 	GFlagDict.clear();
 	GFlagIndexOf.clear();
-	GUseU8FlagIndex = true;
 	GAnyMappingProperty = false;
 
 	NameCounter = 0x0;
