@@ -38,7 +38,7 @@ namespace Settings
 
 	namespace Generator
 	{
-		/* Auto generated if no override is provided */
+		/* Per-field: nonempty compile-time (or in-process) assignment of that field is kept; empty fields are filled from Kismet. Not Dumper-7.ini. */
 		inline std::string GameName = "";
 		inline std::string GameVersion = "";
 
