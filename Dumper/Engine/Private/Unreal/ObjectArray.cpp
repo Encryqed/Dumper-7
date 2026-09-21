@@ -3,6 +3,7 @@
 #include <fstream>
 #include <format>
 #include <filesystem>
+#include <limits>
 
 #include "Unreal/ObjectArray.h"
 #include "OffsetFinder/Offsets.h"
@@ -67,20 +68,71 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 	}
 };
 
-bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLayout& Layout)
+namespace
 {
-	/* It is assumed that the FUObjectItem layout is constant amongst all games using FFixedUObjectArray for ObjObjects. */
-	struct FUObjectItem
+	struct FFixedFUObjectItem
 	{
 		void* Object;
-		uint8_t Pad[sizeof(void*) * 2];
+		int32 Flags;
+		int32 ClusterRootIndex;
+		int32 SerialNumber;
 	};
 
+	bool IsUnreadable(const void* Address, size_t Size)
+	{
+		if (!Address || Size == 0)
+			return true;
+
+		const uintptr_t Start = reinterpret_cast<uintptr_t>(Address);
+		if ((Size - 1) > (std::numeric_limits<uintptr_t>::max() - Start))
+			return true;
+
+		// Current callers use spans smaller than one page, so start and end cover at most two pages.
+		const uintptr_t End = Start + Size - 1;
+		return Platform::IsBadReadPtr(Start) || Platform::IsBadReadPtr(End);
+	}
+
+	bool HasValidFixedObjectSamples(const FFixedFUObjectItem* Items)
+	{
+		constexpr int32 SampleLimit = 16;
+		constexpr int32 RequiredMatches = 2;
+		constexpr size_t InternalIndexOffset = sizeof(void*) + sizeof(int32);
+		int32 NumMatches = 0;
+
+		if (IsUnreadable(Items, SampleLimit * sizeof(FFixedFUObjectItem)))
+			return false;
+
+		// Index 0 is not a useful discriminator because zeroed memory also has an index of 0.
+		for (int32 Index = 1; Index < SampleLimit; ++Index)
+		{
+			void* Object = Items[Index].Object;
+			if (!Object)
+				continue;
+
+			if (IsUnreadable(Object, InternalIndexOffset + sizeof(int32)))
+				continue;
+
+			const uintptr_t ObjectAddress = reinterpret_cast<uintptr_t>(Object);
+			const int32* InternalIndex = reinterpret_cast<const int32*>(ObjectAddress + InternalIndexOffset);
+
+			if (*InternalIndex != Index)
+				continue;
+
+			if (++NumMatches >= RequiredMatches)
+				return true;
+		}
+
+		return false;
+	}
+}
+
+bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLayout& Layout)
+{
 	void* Objects = *reinterpret_cast<void**>(Address + Layout.ObjectsOffset);
 	const int32 MaxElements = *reinterpret_cast<const int32*>(Address + Layout.MaxObjectsOffset);
 	const int32 NumElements = *reinterpret_cast<const int32*>(Address + Layout.NumObjectsOffset);
 
-	FUObjectItem* ObjectsButDecrypted = reinterpret_cast<FUObjectItem*>(ObjectArray::DecryptPtr(Objects));
+	const FFixedFUObjectItem* ObjectsButDecrypted = reinterpret_cast<const FFixedFUObjectItem*>(ObjectArray::DecryptPtr(Objects));
 
 	if (NumElements > MaxElements)
 		return false;
@@ -91,19 +143,7 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FFixedUObjectArrayLay
 	if (NumElements < 0x1000)
 		return false;
 
-	if (Platform::IsBadReadPtr(ObjectsButDecrypted))
-		return false;
-
-	if (Platform::IsBadReadPtr(ObjectsButDecrypted[5].Object))
-		return false;
-
-	const uintptr_t FifthObject = reinterpret_cast<uintptr_t>(ObjectsButDecrypted[0x5].Object);
-	const int32 IndexOfFithobject = *reinterpret_cast<int32_t*>(FifthObject + sizeof(void*) + sizeof(int32)); // FifthObject -> InternalIndex
-
-	if (IndexOfFithobject != 0x5)
-		return false;
-
-	return true;
+	return HasValidFixedObjectSamples(ObjectsButDecrypted);
 }
 
 bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectArrayLayout& Layout)
@@ -150,6 +190,9 @@ bool IsAddressValidGObjects(const uintptr_t Address, const FChunkedFixedUObjectA
 		return false;
 
 	if (!ObjectsPtrButDecrypted || Platform::IsBadReadPtr(ObjectsPtrButDecrypted))
+		return false;
+
+	if (Platform::IsBadReadPtr(ObjectsPtrButDecrypted + (NumChunks - 1)))
 		return false;
 
 	for (int i = 0; i < NumChunks; i++)
@@ -408,6 +451,8 @@ void ObjectArray::DumpObjects(const fs::path& Path, bool bWithPathname)
 
 	for (auto Object : ObjectArray())
 	{
+		if (!Object) continue;
+
 		if (!bWithPathname)
 		{
 			DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
@@ -431,6 +476,8 @@ void ObjectArray::DumpObjectsWithProperties(const fs::path& Path, bool bWithPath
 
 	for (auto Object : ObjectArray())
 	{
+		if (!Object) continue;
+
 		if (!bWithPathname)
 		{
 			DumpStream << std::format("[{:08X}] {{{}}} {}\n", Object.GetIndex(), Object.GetAddress(), Object.GetFullName());
