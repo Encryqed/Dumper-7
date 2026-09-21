@@ -1869,33 +1869,42 @@ void CppGenerator::InitPredefinedMembers()
 	// Add CppGenerator specific members
 
 	// Add GObjects static member to UObject
-	PredefinedElements& UObjectPredefs = PredefinedMembers[ObjectArray::FindClassFast("Object").GetIndex()];
-	UObjectPredefs.Members.insert(UObjectPredefs.Members.begin(),
-		PredefinedMember{
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "inline class TUObjectArrayWrapper", .Name = "GObjects", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
-			.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
-		}
-	);
+	if (UEClass Object = ObjectArray::FindClassFast("Object"))
+	{
+		PredefinedElements& UObjectPredefs = PredefinedMembers[Object.GetIndex()];
+		UObjectPredefs.Members.insert(UObjectPredefs.Members.begin(),
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "inline class TUObjectArrayWrapper", .Name = "GObjects", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+				.bIsStatic = true, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+			}
+		);
+		SortMembers(UObjectPredefs.Members);
+	}
 
 	// Add FNativeFuncPtr typedef to UFunction and change ExecFunction type
-	PredefinedElements& UFunctionPredefs = PredefinedMembers[ObjectArray::FindClassFast("Function").GetIndex()];
-	UFunctionPredefs.Members.insert(UFunctionPredefs.Members.begin(),
-		PredefinedMember{
-			.Comment = "NOT AUTO-GENERATED PROPERTY",
-			.Type = "using FNativeFuncPtr = void (*)(void* Context, void* TheStack, void* Result)", .Name = "", .Offset = 0x0, .Size = 0x00, .ArrayDim = 0x1, .Alignment = 0x0,
-			.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
-		}
-	);
-
-	// Change ExecFunction type from "void*" to "FNativeFuncPtr"
-	for (PredefinedMember& Member : UFunctionPredefs.Members)
+	if (UEClass Function = ObjectArray::FindClassFast("Function"))
 	{
-		if (Member.Name == "ExecFunction")
+		PredefinedElements& UFunctionPredefs = PredefinedMembers[Function.GetIndex()];
+		UFunctionPredefs.Members.insert(UFunctionPredefs.Members.begin(),
+			PredefinedMember{
+				.Comment = "NOT AUTO-GENERATED PROPERTY",
+				.Type = "using FNativeFuncPtr = void (*)(void* Context, void* TheStack, void* Result)", .Name = "", .Offset = 0x0, .Size = 0x00, .ArrayDim = 0x1, .Alignment = 0x0,
+				.bIsStatic = true, .bIsZeroSizeMember = true, .bIsBitField = false, .BitIndex = 0xFF
+			}
+		);
+
+		// Change ExecFunction type from "void*" to "FNativeFuncPtr"
+		for (PredefinedMember& Member : UFunctionPredefs.Members)
 		{
-			Member.Type = "FNativeFuncPtr";
-			break;
+			if (Member.Name == "ExecFunction")
+			{
+				Member.Type = "FNativeFuncPtr";
+				break;
+			}
 		}
+
+		SortMembers(UFunctionPredefs.Members);
 	}
 
 	// CppGenerator specific: Property/FProperty/FField subtypes
@@ -2080,12 +2089,14 @@ void CppGenerator::InitPredefinedMembers()
 		},
 	};
 
-	SortMembers(UObjectPredefs.Members);
-	SortMembers(UFunctionPredefs.Members);
-	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Field").GetIndex()].Members);
-	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Enum").GetIndex()].Members);
-	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Struct").GetIndex()].Members);
-	SortMembers(PredefinedMembers[ObjectArray::FindClassFast("Class").GetIndex()].Members);
+	if (UEClass Field = ObjectArray::FindClassFast("Field"))
+		SortMembers(PredefinedMembers[Field.GetIndex()].Members);
+	if (UEClass Enum = ObjectArray::FindClassFast("Enum"))
+		SortMembers(PredefinedMembers[Enum.GetIndex()].Members);
+	if (UEClass Struct = ObjectArray::FindClassFast("Struct"))
+		SortMembers(PredefinedMembers[Struct.GetIndex()].Members);
+	if (UEClass Class = ObjectArray::FindClassFast("Class"))
+		SortMembers(PredefinedMembers[Class.GetIndex()].Members);
 
 	SortMembers(PropertyMembers);
 	SortMembers(BytePropertyMembers);
@@ -2317,9 +2328,11 @@ void CppGenerator::InitPredefinedFunctions()
 		std::sort(Functions.begin(), Functions.end(), ComparePredefinedFunctions);
 	};
 
-	PredefinedElements& UObjectPredefs = PredefinedMembers[ObjectArray::FindClassFast("Object").GetIndex()];
+	if (UEClass Object = ObjectArray::FindClassFast("Object"))
+	{
+		PredefinedElements& UObjectPredefs = PredefinedMembers[Object.GetIndex()];
 
-	UObjectPredefs.Functions =
+		UObjectPredefs.Functions =
 	{
 		/* static non-inline functions */
 		PredefinedFunction {
@@ -2485,13 +2498,19 @@ R"({{
 }})", Platform::Is32Bit() ? "__thiscall" : ""),
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
-	};
+		};
+
+		SortFunctions(UObjectPredefs.Functions);
+	}
 
 	UEClass Struct = ObjectArray::FindClassFast("Struct");
 
-	const int32 UStructIdx = Struct ? Struct.GetIndex() : ObjectArray::FindClassFast("struct").GetIndex(); // misspelled on some UE versions.
+	if (Struct == nullptr)
+		Struct = ObjectArray::FindClassFast("struct"); // misspelled on some UE versions.
 
-	PredefinedElements& UStructPredefs = PredefinedMembers[UStructIdx];
+	if (Struct)
+	{
+		PredefinedElements& UStructPredefs = PredefinedMembers[Struct.GetIndex()];
 
 	const char* IsStructOfTypeCode =
 R"({
@@ -2543,9 +2562,12 @@ R"({
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
-	};
+		};
+	}
 
-	PredefinedElements& UClassPredefs = PredefinedMembers[ObjectArray::FindClassFast("Class").GetIndex()];
+	if (UEClass Class = ObjectArray::FindClassFast("Class"))
+	{
+		PredefinedElements& UClassPredefs = PredefinedMembers[Class.GetIndex()];
 
 	UClassPredefs.Functions =
 	{
@@ -2607,10 +2629,15 @@ R"({
 })",
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = false
 		},
-	};
+		};
+
+		SortFunctions(UClassPredefs.Functions);
+	}
 
 
-	PredefinedElements& UEnginePredefs = PredefinedMembers[ObjectArray::FindClassFast("Engine").GetIndex()];
+	if (UEClass Engine = ObjectArray::FindClassFast("Engine"))
+	{
+		PredefinedElements& UEnginePredefs = PredefinedMembers[Engine.GetIndex()];
 
 	UEnginePredefs.Functions =
 	{
@@ -2643,10 +2670,15 @@ R"({
 })",
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = false
 		},
-	};
+		};
+
+		SortFunctions(UEnginePredefs.Functions);
+	}
 
 
-	PredefinedElements& UGameEnginePredefs = PredefinedMembers[ObjectArray::FindClassFast("GameEngine").GetIndex()];
+	if (UEClass GameEngine = ObjectArray::FindClassFast("GameEngine"))
+	{
+		PredefinedElements& UGameEnginePredefs = PredefinedMembers[GameEngine.GetIndex()];
 
 	UGameEnginePredefs.Functions =
 	{
@@ -2659,10 +2691,15 @@ R"({
 })",
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = false
 		},
-	};
+		};
+
+		SortFunctions(UGameEnginePredefs.Functions);
+	}
 
 
-	PredefinedElements& UWorldPredefs = PredefinedMembers[ObjectArray::FindClassFast("World").GetIndex()];
+	if (UEClass World = ObjectArray::FindClassFast("World"))
+	{
+		PredefinedElements& UWorldPredefs = PredefinedMembers[World.GetIndex()];
 
 	constexpr const char* GetWorldThroughGWorldCode = R"(
 	if constexpr (Offsets::GWorld != 0)
@@ -2688,11 +2725,14 @@ std::format(R"({{{}
 }})", !Settings::CppGenerator::bForceNoGWorldInSDK ?  GetWorldThroughGWorldCode : ""),
 			.bIsStatic = true, .bIsConst = false, .bIsBodyInline = false
 		},
-	};
+		};
 
-	UEStruct Vector = ObjectArray::FindObjectFast<UEStruct>("Vector");
+		SortFunctions(UWorldPredefs.Functions);
+	}
 
-	PredefinedElements& FVectorPredefs = PredefinedMembers[Vector.GetIndex()];
+	if (UEStruct Vector = ObjectArray::FindObjectFast<UEStruct>("Vector"))
+	{
+		PredefinedElements& FVectorPredefs = PredefinedMembers[Vector.GetIndex()];
 
 	FVectorPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
@@ -2932,11 +2972,14 @@ R"({
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		},
-	};
+		};
 
-	UEStruct Vector2D = ObjectArray::FindObjectFast<UEStruct>("Vector2D");
+		SortFunctions(FVectorPredefs.Functions);
+	}
 
-	PredefinedElements& FVector2DPredefs = PredefinedMembers[Vector2D.GetIndex()];
+	if (UEStruct Vector2D = ObjectArray::FindObjectFast<UEStruct>("Vector2D"))
+	{
+		PredefinedElements& FVector2DPredefs = PredefinedMembers[Vector2D.GetIndex()];
 	FVector2DPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
@@ -3166,11 +3209,14 @@ R"({
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		},
-	};
+		};
 
-	UEStruct Rotator = ObjectArray::FindObjectFast<UEStruct>("Rotator");
+		SortFunctions(FVector2DPredefs.Functions);
+	}
 
-	PredefinedElements& FRotatorPredefs = PredefinedMembers[Rotator.GetIndex()];
+	if (UEStruct Rotator = ObjectArray::FindObjectFast<UEStruct>("Rotator"))
+	{
+		PredefinedElements& FRotatorPredefs = PredefinedMembers[Rotator.GetIndex()];
 
 	FRotatorPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
@@ -3418,16 +3464,10 @@ R"({
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		},
-	};
+		};
 
-	SortFunctions(UObjectPredefs.Functions);
-	SortFunctions(UClassPredefs.Functions);
-	SortFunctions(UEnginePredefs.Functions);
-	SortFunctions(UGameEnginePredefs.Functions);
-	SortFunctions(UWorldPredefs.Functions);
-	SortFunctions(FVectorPredefs.Functions);
-	SortFunctions(FVector2DPredefs.Functions);
-	SortFunctions(FRotatorPredefs.Functions);
+		SortFunctions(FRotatorPredefs.Functions);
+	}
 }
 
 
