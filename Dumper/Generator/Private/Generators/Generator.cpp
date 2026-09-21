@@ -76,6 +76,35 @@ void Generator::InitInternal()
 	PackageManager::PostInit();
 }
 
+void FetchGameNameAndVersion()
+{
+	/* Kismet only; a one-sided Settings.h override no longer blocks the other field. */
+	if (!Settings::Generator::GameName.empty() && !Settings::Generator::GameVersion.empty())
+		return;
+
+	UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
+
+	if (Settings::Generator::GameVersion.empty() && Kismet)
+	{
+		if (UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion"))
+		{
+			FString Version;
+			Kismet.ProcessEvent(GetEngineVersion, &Version);
+			Settings::Generator::GameVersion = Version.ToString();
+		}
+	}
+
+	if (Settings::Generator::GameName.empty() && Kismet)
+	{
+		if (UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName"))
+		{
+			FString Name;
+			Kismet.ProcessEvent(GetGameName, &Name);
+			Settings::Generator::GameName = Name.ToString();
+		}
+	}
+}
+
 bool Generator::SetupDumperFolder()
 {
 	try

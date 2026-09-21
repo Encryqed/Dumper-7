@@ -39,21 +39,7 @@ DWORD MainThread(HMODULE Module)
 	Generator::InitEngineCore();
 	Generator::InitInternal();
 
-	if (Settings::Generator::GameName.empty() && Settings::Generator::GameVersion.empty())
-	{
-		// Only Possible in Main()
-		FString Name;
-		FString Version;
-		UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
-		UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName");
-		UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
-
-		Kismet.ProcessEvent(GetGameName, &Name);
-		Kismet.ProcessEvent(GetEngineVersion, &Version);
-
-		Settings::Generator::GameName = Name.ToString();
-		Settings::Generator::GameVersion = Version.ToString();
-	}
+	FetchGameNameAndVersion();
 
 	std::cerr << "GameName: " << Settings::Generator::GameName << "\n";
 	std::cerr << "GameVersion: " << Settings::Generator::GameVersion << "\n\n";

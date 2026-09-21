@@ -11,6 +11,7 @@
 namespace fs = std::filesystem;
 
 void DumpEditorOnlyMetadata(const fs::path& DumperFolder);
+void FetchGameNameAndVersion();
 
 template<typename GeneratorType>
 concept GeneratorImplementation = requires(GeneratorType t)
