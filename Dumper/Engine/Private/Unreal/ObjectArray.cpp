@@ -451,7 +451,7 @@ void ObjectArray::DumpObjects(const fs::path& Path, bool bWithPathname)
 
 	for (auto Object : ObjectArray())
 	{
-		if (!Object) continue; // race-only / not the proven default 0xC site
+		if (!Object) continue;
 
 		if (!bWithPathname)
 		{
@@ -476,7 +476,7 @@ void ObjectArray::DumpObjectsWithProperties(const fs::path& Path, bool bWithPath
 
 	for (auto Object : ObjectArray())
 	{
-		if (!Object) continue; // race-only / not the proven default 0xC site
+		if (!Object) continue;
 
 		if (!bWithPathname)
 		{
