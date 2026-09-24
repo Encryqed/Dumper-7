@@ -260,6 +260,10 @@ int32_t OffsetFinder::FindUObjectOuterOffset()
 
 void OffsetFinder::FixupHardcodedOffsets()
 {
+	Off::FFieldClass::Name += 0x08;
+	Off::FFieldClass::Id += 0x08;
+	Off::FFieldClass::ClassFlags += 0x08;
+	Off::FFieldClass::SuperClass += 0x08;
 	if (Settings::Internal::bUseCasePreservingName)
 	{
 		Off::FField::Flags += 0x8;
@@ -268,6 +272,7 @@ void OffsetFinder::FixupHardcodedOffsets()
 		Off::FFieldClass::CastFlags += 0x08;
 		Off::FFieldClass::ClassFlags += 0x08;
 		Off::FFieldClass::SuperClass += 0x08;
+		Off::FFieldClass::Name += 0x08;
 	}
 
 	if (Settings::Internal::bUseFProperty)
