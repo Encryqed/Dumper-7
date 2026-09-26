@@ -12,9 +12,9 @@
 * USMAP-Header:
 * 
 * uint16 magic;
-* uint8 version;                                           // Latest = ExtendedPropertyMetadata (6)
-* if (version >= ExtendedPropertyMetadata)
-*     FUsmapMetadata                                       // Tool, ToolVersion, CreatedAtUnix
+* uint8 version;                                           // Latest = ExtendedMetadata (6)
+* if (version >= ExtendedMetadata)
+*     FUsmapMetadata                                       // Tool, ToolVersion, CreatedAtUnix, Source
 * if (version >= PackageVersioning)
 *     int32 bHasVersioning;                                // this dumper always writes 0
 *     if (bHasVersioning)
@@ -26,9 +26,10 @@
 * uint32 DecompressedSize;
 * 
 * FUsmapMetadata:
-*     FString Tool;
-*     FString ToolVersion;
+*     FUtf8String Tool;                                    // int32 byte-length, no NUL
+*     FUtf8String ToolVersion;
 *     int64 CreatedAtUnix;
+*     uint8 Source;                                        // EUsmapSource
 * 
 * 
 * USMAP-Data:
@@ -38,32 +39,34 @@
 *     [uint8|uint16] NameLength;
 *     uint8 StringData[NameLength];
 * 
+* if (version >= ExtendedMetadata)
+*     uint32 FlagDictCount;
+*     uint64 FlagDict[FlagDictCount];                      // unique EPropertyFlags, first-seen order
+* 
 * uint32 EnumCount;
 * for (int i = 0; i < EnumCount; i++)
-*     int32 EnumNameIdx;
-*     if (version >= ExtendedPropertyMetadata)
+*     if (version >= ExtendedMetadata)
 *         int32 PackageNameIdx;                            // owner package, -1 if none
+*     int32 EnumNameIdx;
 *     [uint8|uint16] NumNamesInEnum;              // u8 if version < LargeEnums, else u16
 *     for (int j = 0; j < NumNamesInEnum; j++)
 *         if (version >= ExplicitEnumValues)
 *             uint64 EnumMemberValue;
 *         int32 EnumMemberNameIdx;
 * 
-* if (version >= ExtendedPropertyMetadata)
-*     uint32 FlagDictCount;
-*     uint64 FlagDict[FlagDictCount];                      // unique EPropertyFlags, first-seen order
-* 
 * uint32 StructCount;
 * for (int i = 0; i < StructCount; i++)
-*     int32 StructNameIdx;                                 // <-- START ParseStruct
-*     if (version >= ExtendedPropertyMetadata)
+*     if (version >= ExtendedMetadata)
 *         int32 PackageNameIdx;                            // owner package, -1 if none
+*     int32 StructNameIdx;                                 // <-- START ParseStruct
 *     int32 SuperTypeNameIdx;
-*     uint16 PropertyCount;
-*     uint16 SerializablePropertyCount;
+*     if (version >= ExtendedMetadata)
+*         uint32 ClassOrStructFlags;                       // EClassFlags for classes, EStructFlags for structs
+*     [uint16|uint32] PropertyCount;                       // int24 count; top byte is the Class/Struct flag (1 = struct, 0 = class) if ExtendedMetadata
+*     [uint16|uint32] SerializablePropertyCount;
 *     for (int j = 0; j < SerializablePropertyCount; j++)
 *         uint16 Index;                                    // <-- START ParsePropertyInfo
-*         [uint8|uint16] ArrayDim;                         // u8 if version < ExtendedPropertyMetadata, else u16
+*         [uint8|uint16] ArrayDim;                         // u8 if version < ExtendedMetadata, else u16
 *         int32 PropertyNameIdx;
 *         uint8 MappingsTypeEnum;                         // <-- START ParsePropertyType      [[ByteProperty needs to be written as EnumProperty if it has an underlaying Enum]]
 *         if (MappingsTypeEnum == EnumProperty || (MappingsTypeEnum == ByteProperty && UnderlayingEnum != null))
@@ -76,7 +79,7 @@
 *         else if (MappingsTypeEnum == MapProperty)
 *             CALL ParsePropertyType;
 *             CALL ParsePropertyType;                       // <-- END ParsePropertyType
-*         if (version >= ExtendedPropertyMetadata)
+*         if (version >= ExtendedMetadata)
 *             uint16 FlagIndex;
 */
 
@@ -106,11 +109,22 @@ private:
         /* Adds support for engine versioning information */
         EngineVersioning,
 
-        /* Adds FUsmapMetadata, owner package names, EPropertyFlags dictionary, u16 ArrayDim, and FlagIndex */
-        ExtendedPropertyMetadata,
+        /* Property Flags, PackageOwnerName, Usmap Metadata, Class/Struct flags, extends ArrayDim to ushort/uint16
+            and PropertyCount to int (actual count is int24 and 1 byte flag for Class/Struct flag) */
+        ExtendedMetadata,
 
         LatestPlusOne,
         Latest = LatestPlusOne - 1,
+    };
+
+    /* How the mappings were obtained, written into FUsmapMetadata. */
+    enum class EUsmapSource : uint8
+    {
+        Runtime,
+        MemoryDump,
+        StaticAnalysis,
+        Jmap,
+        Custom
     };
 
 private:
@@ -119,6 +133,9 @@ private:
 
     static constexpr const char* MetadataToolName = "Dumper-7";
     static constexpr const char* MetadataToolVersion = "";
+
+    /* Dumper-7 reads the live process of a running game. */
+    static constexpr EUsmapSource MetadataSource = EUsmapSource::Runtime;
 
 private:
     static inline uint64 NameCounter = 0x0;
@@ -146,18 +163,12 @@ private:
     }
 
     template<typename InStreamType>
-    static void WriteUEFString(InStreamType& InStream, const std::string& Value)
+    static void WriteFUtf8String(InStreamType& InStream, const std::string& Value)
     {
-        if (Value.empty())
-        {
-            WriteToStream(InStream, static_cast<int32>(0));
-            return;
-        }
+        WriteToStream(InStream, static_cast<int32>(Value.size()));
 
-        /* UE FString save: positive length includes the trailing NUL. */
-        const int32 SaveNum = static_cast<int32>(Value.size() + 1);
-        WriteToStream(InStream, SaveNum);
-        InStream.write(Value.c_str(), SaveNum);
+        if (!Value.empty())
+            InStream.write(Value.c_str(), static_cast<std::streamsize>(Value.size()));
     }
 
 private:

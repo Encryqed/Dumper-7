@@ -308,6 +308,31 @@ void Off::Init()
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
 	std::cerr << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
 
+	/* 'UClass::ClassFlags' is declared immediately before 'UClass::ClassCastFlags' ('CastFlags'). */
+	if (Off::UClass::CastFlags != OffsetFinder::OffsetNotFound)
+		Off::UClass::ClassFlags = Off::UClass::CastFlags - static_cast<int32>(sizeof(EClassFlags));
+
+	std::cerr << std::format("Off::UClass::ClassFlags: 0x{:X}\n", Off::UClass::ClassFlags);
+
+	/* 'UScriptStruct::StructFlags' is the first member after the UStruct base, so it starts at 'sizeof(UStruct)'. */
+	UEStruct StructType = ObjectArray::FindStructFast("Struct");
+	if (!StructType)
+		StructType = ObjectArray::FindStructFast("struct");
+
+	if (StructType)
+	{
+		Off::UStruct::StructFlags = StructType.GetStructSize();
+	}
+	else
+	{
+		/* 'UScriptStruct' adds 'StructFlags' (4 bytes + 4 bytes padding) and a single pointer after 'UStruct'. */
+		const UEClass ScriptStructClass = ObjectArray::FindClassFast("ScriptStruct");
+		if (ScriptStructClass)
+			Off::UStruct::StructFlags = ScriptStructClass.GetStructSize() - (0x8 + static_cast<int32>(sizeof(void*)));
+	}
+
+	std::cerr << std::format("Off::UStruct::StructFlags: 0x{:X}\n", Off::UStruct::StructFlags);
+
 	// Castflags become available for use
 
 	if (Settings::Internal::bUseFProperty)

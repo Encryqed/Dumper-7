@@ -100,7 +100,7 @@ R"(
 		/* Whether the MappingGenerator should check if a name was written to the nametable before. Exists to reduce mapping size. */
 		constexpr bool bShouldCheckForDuplicatedNames = true;
 
-		/* Whether EditorOnly should be excluded from the mapping file. Ignored at usmap ExtendedPropertyMetadata (Latest) */
+		/* Whether EditorOnly should be excluded from the mapping file. Ignored at usmap ExtendedMetadata (Latest) */
 		constexpr bool bExcludeEditorOnlyProperties = true;
 
 		/* Which compression method to use when generating the file. */
