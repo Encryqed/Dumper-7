@@ -260,14 +260,24 @@ int32_t OffsetFinder::FindUObjectOuterOffset()
 
 void OffsetFinder::FixupHardcodedOffsets()
 {
+	const int32_t DetectedNameOffset = FindFieldClassNameOffset();
+
+	if (DetectedNameOffset != OffsetNotFound && DetectedNameOffset != Off::FFieldClass::Name)
+	{
+		const int32_t Delta = DetectedNameOffset - Off::FFieldClass::Name;
+
+		std::cerr << std::format("Applying fix to hardcoded FFieldClass offsets (+0x{:X}) \n", Delta) << std::endl;
+
+		Off::FFieldClass::Name += Delta;
+		Off::FFieldClass::Id += Delta;
+		Off::FFieldClass::ClassFlags += Delta;
+		Off::FFieldClass::SuperClass += Delta;
+	}
+
 	if (Settings::Internal::bUseCasePreservingName)
 	{
 		Off::FField::Flags += 0x8;
-
-		Off::FFieldClass::Id += 0x08;
 		Off::FFieldClass::CastFlags += 0x08;
-		Off::FFieldClass::ClassFlags += 0x08;
-		Off::FFieldClass::SuperClass += 0x08;
 	}
 
 	if (Settings::Internal::bUseFProperty)
@@ -660,6 +670,43 @@ int32_t OffsetFinder::FindFieldClassCastFlagsOffset()
 	const int32_t Offset = FindOffset(Infos, sizeof(void*), 0x30);
 
 	return Offset != OffsetNotFound ? Offset : 0x10;
+}
+
+int32_t OffsetFinder::FindFieldClassNameOffset()
+{
+	const UEFField GuidChild = ObjectArray::FindStructFast("Guid").GetChildProperties();
+	const UEFField ColourChild = ObjectArray::FindStructFast("Color").GetChildProperties();
+
+	const uint8* GuidClass = static_cast<const uint8*>(GuidChild.GetClass().GetAddress());
+	const uint8* ColourClass = static_cast<const uint8*>(ColourChild.GetClass().GetAddress());
+
+	auto LooksLikeValidPointer = [](const uint8* Address) -> bool
+		{
+			void* PossiblePtr = *reinterpret_cast<void* const*>(Address);
+			return !Platform::IsBadReadPtr(PossiblePtr);
+		};
+
+	// Guid's members are int32 -> IntProperty; Color's members are uint8 -> ByteProperty.
+	// Unlike CastFlags bit patterns, these class-name strings are stable across every UE version.
+	for (int32_t CandidateOffset = 0x0; CandidateOffset <= 0x10; CandidateOffset += 0x8)
+	{
+		const uint8* GuidNameAddr = GuidClass + CandidateOffset;
+		const uint8* ColourNameAddr = ColourClass + CandidateOffset;
+
+		// A real FName's raw 8 bytes essentially never form a valid, dereferenceable pointer.
+		// If they do, this candidate is some other pointer member (e.g. a vtable), not FName -
+		// skip it without calling ToString(), which would try to resolve it and crash.
+		if (LooksLikeValidPointer(GuidNameAddr) || LooksLikeValidPointer(ColourNameAddr))
+			continue;
+
+		if (FName(GuidNameAddr).ToString() == "IntProperty"
+			&& FName(ColourNameAddr).ToString() == "ByteProperty")
+		{
+			return CandidateOffset;
+		}
+	}
+
+	return OffsetNotFound;
 }
 
 /* UEnum */
