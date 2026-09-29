@@ -16,11 +16,17 @@
 * if (version >= ExtendedMetadata)
 *     FUsmapMetadata                                       // Tool, ToolVersion, CreatedAtUnix, Source
 * if (version >= PackageVersioning)
-*     int32 bHasVersioning;                                // this dumper always writes 0
+*     int32 bHasVersioning;                                // 1 if the engine version could be resolved, else 0
 *     if (bHasVersioning)
 *         if (version >= EngineVersioning)
-*             FEngineVersion EngineVersion;
-*         [FileVersionUE4/UE5 + CustomVersions + NetCL]     // not written
+*             FEngineVersion EngineVersion;                // ushort Major, ushort Minor, ushort Patch, uint32 Changelist, FString Branch
+*         int32 FileVersionUE4;                            // 'GPackageFileUEVersion.FileVersionUE4'
+*         int32 FileVersionUE5;                            // 'GPackageFileUEVersion.FileVersionUE5'
+*         uint32 NumCustomVersions;                        // 'FCurrentCustomVersions::GetAll()' (FCustomVersionContainer, Optimized format)
+*         for (int i = 0; i < NumCustomVersions; i++)
+*             FGuid Key;                                   // uint32 A, B, C, D
+*             int32 Version;
+*         uint32 NetCL;                                    // 'FNetworkVersion::GetNetworkCompatibleChangelist()'
 * uint8 CompressionMethod;
 * uint32 CompressedSize;
 * uint32 DecompressedSize;
@@ -118,12 +124,12 @@ private:
     };
 
     /* How the mappings were obtained, written into FUsmapMetadata. */
-    enum class EUsmapSource : uint8
+    enum class EUsmapSource : uint32
     {
         Runtime,
         MemoryDump,
         StaticAnalysis,
-        Jmap,
+        Conversion,
         Custom
     };
 
