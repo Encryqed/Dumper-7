@@ -20,6 +20,7 @@ struct RequirementInfo
 	int32 PackageIdx;
 	bool bShouldIncludeStructs;
 	bool bShouldIncludeClasses;
+	bool bShouldIncludeParameters;
 };
 
 struct VisitedNodeInformation

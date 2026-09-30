@@ -114,7 +114,7 @@ R"(
 		inline constexpr bool bShouldGenerateSDKCompilationTestScript = false;
 
 		/* Whether to execute the SDK compilation test script after generation. */
-		inline constexpr bool bExecuteSDKTestScript = false;
+		inline constexpr bool bExecuteSDKTestScript = true;
 
 		/* Generates a dedicated file defining macros for static asserts (Make sure InlineAssertions are off) */
 		inline constexpr bool bGenerateAssertionFile = true;

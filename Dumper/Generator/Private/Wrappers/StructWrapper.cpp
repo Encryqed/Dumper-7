@@ -114,6 +114,40 @@ bool StructWrapper::IsInterface() const
     return bIsUnrealStruct && Struct.IsA(EClassCastFlags::Class) && Struct.HasType(InterfaceClass);
 }
 
+bool StructWrapper::IsVerseGeneratedClass() const
+{
+    if (!bIsUnrealStruct || !Struct.IsA(EClassCastFlags::Class))
+        return false;
+
+    return static_cast<uint64>(Struct.Cast<UEClass>().GetCastFlags() & EClassCastFlags::VerseVMClass) != 0;
+}
+
+std::vector<FImplementedInterface> StructWrapper::GetNativeInterfaces() const
+{
+    std::vector<FImplementedInterface> Out;
+
+    if (!bIsUnrealStruct || !Struct.IsA(EClassCastFlags::Class))
+        return Out;
+
+    if (IsVerseGeneratedClass())
+        return Out;
+
+    for (const FImplementedInterface& Iface : Struct.Cast<UEClass>().GetImplementedInterfaces())
+    {
+        if (Iface.bImplementedByK2 || !Iface.InterfaceClass)
+            continue;
+
+        Out.push_back(Iface);
+    }
+
+    return Out;
+}
+
+bool StructWrapper::HasNativeInterfaces() const
+{
+    return !GetNativeInterfaces().empty();
+}
+
 bool StructWrapper::IsExactClassUObject() const
 {
     static UEClass UObjectClass = ObjectArray::FindClassFast("Object");

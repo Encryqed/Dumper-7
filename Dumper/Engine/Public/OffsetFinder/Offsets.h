@@ -102,6 +102,13 @@ namespace Off
 		{
 			inline int32 RowMap;
 		}
+
+		namespace Find
+		{
+			inline int32 FindFunctionCheckedOffset = -1;
+
+			void InitFindFunctionChecked();
+		}
 	}
 
 	namespace FUObjectArray

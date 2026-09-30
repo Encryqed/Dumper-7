@@ -1,5 +1,6 @@
 #include <vector>
 #include <array>
+#include <unordered_set>
 
 #include "Unreal/ObjectArray.h"
 #include "Generators/CppGenerator.h"
@@ -63,6 +64,116 @@ std::string CppGenerator::GenerateBytePadding(const int32 Offset, const int32 Pa
 std::string CppGenerator::GenerateBitPadding(uint8 UnderlayingSizeBytes, const uint8 PrevBitPropertyEndBit, const int32 Offset, const int32 PadSize, std::string&& Reason)
 {
 	return MakeMemberString(GetTypeFromSize(UnderlayingSizeBytes), std::format("BitPad_{:X}_{:X} : {:d}", Offset, PrevBitPropertyEndBit, PadSize), std::format("0x{:04X}(0x{:04X})({})", Offset, UnderlayingSizeBytes, std::move(Reason)));
+}
+
+void CppGenerator::EnsureInterfaceVftMember(UEClass InterfaceClass)
+{
+	if (!InterfaceClass)
+		return;
+
+	PredefinedElements& Predefs = PredefinedMembers[InterfaceClass.GetIndex()];
+
+	for (const PredefinedMember& Existing : Predefs.Members)
+	{
+		if (Existing.Name == "Vft")
+			return;
+	}
+
+	StructWrapper WrappedInterface = InterfaceClass;
+
+	PredefinedMember VftMember = {
+		.Comment = "NOT AUTO-GENERATED PROPERTY",
+		.Type = "void*", .Name = "VTable",
+		.Offset = 0x0, .Size = sizeof(void*),
+		.ArrayDim = 0x1, .Alignment = alignof(void*),
+		.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+	};
+
+	Predefs.Members.push_back(std::move(VftMember));
+}
+
+CppGenerator::InterfaceMILayout CppGenerator::ComputeInterfaceMI(const StructWrapper& Struct, int32 UnalignedSuperSize)
+{
+	InterfaceMILayout Layout;
+
+	if (!Struct.IsUnrealStruct() || !Struct.IsClass() || Struct.IsInterface())
+		return Layout;
+
+	if (Struct.IsVerseGeneratedClass())
+	{
+		Layout.FallbackReason = "Verse class, PointerOffset=0 for all entries";
+		return Layout;
+	}
+
+	std::vector<FImplementedInterface> Natives = Struct.GetNativeInterfaces();
+	if (Natives.empty())
+		return Layout;
+
+	constexpr int32 InterfaceVftSize = static_cast<int32>(sizeof(void*));
+	int32 Cursor = (UnalignedSuperSize + (InterfaceVftSize - 1)) & ~(InterfaceVftSize - 1);
+
+	Layout.Entries.reserve(Natives.size());
+	for (const FImplementedInterface& Iface : Natives)
+	{
+		const int32 EngineOffset = Iface.PointerOffset;
+		const int32 PaddingNeeded = EngineOffset - Cursor;
+
+		if (PaddingNeeded < 0)
+		{
+			Layout.FallbackReason = std::format("iface '{}' at 0x{:X} precedes cursor 0x{:X}", Iface.InterfaceClass.GetName(), EngineOffset, Cursor);
+			Layout.Entries.clear();
+			return Layout;
+		}
+
+		Layout.Entries.push_back({
+			.Interface = Iface.InterfaceClass,
+			.PaddingBefore = PaddingNeeded,
+			.PaddingTag = EngineOffset
+		});
+
+		Cursor = EngineOffset + InterfaceVftSize;
+		Layout.TotalMIBytes += PaddingNeeded + InterfaceVftSize;
+	}
+
+	Layout.bIsViable = true;
+	return Layout;
+}
+
+std::string CppGenerator::GetInterfaceInheritanceString(const InterfaceMILayout& Layout)
+{
+	std::string Out;
+
+	for (const InterfaceMILayout::Entry& E : Layout.Entries)
+	{
+		if (!E.Interface)
+			continue;
+
+		if (E.PaddingBefore > 0)
+			Out += std::format(", public MIPad::Pad<0x{:X}, 0x{:X}>", E.PaddingBefore, E.PaddingTag);
+
+		Out += ", public ";
+		Out += GetStructPrefixedName(StructWrapper(E.Interface.Cast<UEStruct>()));
+	}
+
+	return Out;
+}
+
+void CppGenerator::EmitInterfaceMIStaticAsserts(const StructWrapper& Struct, const InterfaceMILayout& Layout, const std::string& UniqueName, StreamType& AssertionFile, const char* NewLineString)
+{
+	if (!Layout.bIsViable || Layout.Entries.empty() || !Struct.IsUnrealStruct())
+		return;
+
+	for (const FImplementedInterface& Interface : Struct.GetUnrealStruct().Cast<UEClass>().GetImplementedInterfaces())
+	{
+		if (Interface.bImplementedByK2 || !Interface.InterfaceClass)
+			continue;
+
+		const UEClass InterfaceNameGivingClass = Interface.InterfaceClass;
+
+		const std::string InterfacePrefixedName = StructWrapper(InterfaceNameGivingClass).GetUniqueName().first;
+		
+		AssertionFile << std::format("static_assert(GetInterfaceOffset<{0}, {1}>() == 0x{2:04X}, \"Wrong interface VFT offset for '{0}::{1}'\");{3}", UniqueName, InterfacePrefixedName, Interface.PointerOffset, NewLineString);
+	}
 }
 
 std::string CppGenerator::GenerateMembers(const StructWrapper& Struct, const MemberManager& Members, int32 SuperSize, int32 SuperLastMemberEnd, int32 SuperAlign, int32 PackageIndex)
@@ -316,7 +427,7 @@ CppGenerator::FunctionInfo CppGenerator::GenerateFunctionInfo(const FunctionWrap
 	return RetFuncInfo;
 }
 
-std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile)
+std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile, bool bForceImplementerDispatch)
 {
 	namespace CppSettings = Settings::CppGenerator;
 
@@ -360,9 +471,14 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 
 	std::string ParamStructName = Func.GetParamStructName();
 
-	// Parameter struct generation for unreal-functions
 	if (!Func.IsPredefined() && Func.GetParamStructSize() > 0x0)
-		GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile, AssertionFile, -1, ParamStructName);
+	{
+		static std::unordered_set<std::string> EmittedParamStructs;
+		const std::string DedupKey = std::format("{:X}|{}", reinterpret_cast<uintptr_t>(&ParamFile), ParamStructName);
+		
+		if (EmittedParamStructs.insert(DedupKey).second)
+			GenerateStruct(Func.AsStruct(), ParamFile, FunctionFile, ParamFile, AssertionFile, -1, ParamStructName);
+	}
 
 
 	std::string ParamVarCreationString = std::format(R"(
@@ -444,8 +560,58 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 		return Str;
 	};
 
-	std::string FixedOuterName = PrefixQuotsWithBackslash(UnrealFunc.GetOuter().GetName());
+	UEClass OuterClass = UnrealFunc.GetOuter().Cast<UEClass>();
+
+	std::string FixedOuterName = PrefixQuotsWithBackslash(OuterClass.GetName());
 	std::string FixedFunctionName = PrefixQuotsWithBackslash(UnrealFunc.GetName());
+
+	const bool bDispatchAsInterface = Func.IsInInterface() && !bForceImplementerDispatch;
+
+	const bool bUseDynamicLookup = Off::InSDK::Find::FindFunctionCheckedOffset > 0
+		&& (Func.HasFunctionFlag(EFunctionFlags::BlueprintEvent) || bForceImplementerDispatch)
+		&& !Func.IsStatic();
+
+	static UEClass BlueprintGeneratedClass_Class = ObjectArray::FindClassFast("BlueprintGeneratedClass");
+	const bool bIsUnloadableFunction = OuterClass.IsA(BlueprintGeneratedClass_Class);
+
+	std::string FuncLookupBlock;
+	if (bUseDynamicLookup)
+	{
+		FuncLookupBlock = std::format(
+R"(	static class FName FnName;
+	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
+			bDispatchAsInterface ? "AsUObject()" : "this",
+			FixedFunctionName);
+	}
+	else if (bIsUnloadableFunction)
+	{
+		FuncLookupBlock = std::format(
+			R"(	static ReloadableFuncInfo FuncInfo;
+	class UFunction* Func = GetStaticFunction({}, {}, {}, FuncInfo);)",
+			Func.IsStatic() ? "StaticClass()" : bDispatchAsInterface ? "AsUObject()->Class" : "Class",
+			CppSettings::XORString
+				? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName)
+				: std::format("\"{}\"", FixedOuterName),
+			CppSettings::XORString
+				? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName)
+				: std::format("\"{}\"", FixedFunctionName));
+	}
+	else
+	{
+		FuncLookupBlock = std::format(
+R"(	static class UFunction* Func = nullptr;
+
+	if (Func == nullptr)
+		Func = {}->GetFunction({}, {});)",
+			Func.IsStatic() ? "StaticClass()" : bDispatchAsInterface ? "AsUObject()->Class" : "Class",
+			CppSettings::XORString
+				? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName)
+				: std::format("\"{}\"", FixedOuterName),
+			CppSettings::XORString
+				? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName)
+				: std::format("\"{}\"", FixedFunctionName)
+		);
+	}
 
 	// Function implementation generation
 	std::string FunctionImplementation = std::format(R"(
@@ -454,10 +620,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 {}
 {} {}::{}{}
 {{
-	static class UFunction* Func = nullptr;
-
-	if (Func == nullptr)
-		Func = {}->GetFunction({}, {});
+{}
 {}{}{}
 	{}ProcessEvent(Func, {});{}{}{}{}
 }}
@@ -469,13 +632,11 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 , StructName
 , FuncInfo.FuncNameWithParams
 , bIsConstFunc ? " const" : ""
-, Func.IsStatic() ? "StaticClass()" : Func.IsInInterface() ? "AsUObject()->Class" : "Class"
-, CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedOuterName) : std::format("\"{}\"", FixedOuterName)
-, CppSettings::XORString ? std::format("{}(\"{}\")", CppSettings::XORString, FixedFunctionName) : std::format("\"{}\"", FixedFunctionName)
+, FuncLookupBlock
 , bHasParams ? ParamVarCreationString : ""
 , bHasParamsToInit ? ParamAssignments : ""
 , bIsNativeFunc ? StoreFunctionFlagsString : ""
-, Func.IsStatic() ? "GetDefaultObj()->" : Func.IsInInterface() ? "AsUObject()->" : "UObject::"
+, Func.IsStatic() ? "GetDefaultObj()->" : bDispatchAsInterface ? "AsUObject()->" : "UObject::"
 , bHasParams ? "&Parms" : "nullptr"
 , bIsNativeFunc ? RestoreFunctionFlagsString : ""
 , bHasOutRefParamsToInit ? OutRefAssignments : ""
@@ -487,7 +648,7 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	return InHeaderFunctionText;
 }
 
-std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile)
+std::string CppGenerator::GenerateFunctions(const StructWrapper& Struct, const MemberManager& Members, const std::string& StructName, StreamType& FunctionFile, StreamType& ParamFile, StreamType& AssertionFile, bool bEmitMIInterfaceOverride)
 {
 	namespace CppSettings = Settings::CppGenerator;
 
@@ -662,6 +823,56 @@ R"({{
 		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &Interface_AsObject), StructName, FunctionFile, ParamFile, AssertionFile);
 		InHeaderFunctionText += GenerateSingleFunction(FunctionWrapper(CurrentStructPtr, &Interface_AsObject_Const), StructName, FunctionFile, ParamFile, AssertionFile);
 	}
+	else if (bEmitMIInterfaceOverride)
+	{
+		std::unordered_set<std::string> AlreadyEmitted;
+		for (const FunctionWrapper& Own : Members.IterateFunctions())
+		{
+			if (Own.GetFunctionFlags() & EFunctionFlags::Delegate)
+				continue;
+	
+			AlreadyEmitted.insert(Own.GetName());
+		}
+
+		for (const PropertyWrapper& Prop : Members.IterateMembers())
+			AlreadyEmitted.insert(Prop.GetName());
+	
+		bool bWroteSectionHeader = false;
+		for (const FImplementedInterface& Iface : Struct.GetNativeInterfaces())
+		{
+			for (UEStruct IfaceStruct = Iface.InterfaceClass.Cast<UEStruct>(); IfaceStruct; IfaceStruct = IfaceStruct.GetSuper())
+			{
+				StructWrapper IfaceWrapper(IfaceStruct);
+				if (!IfaceWrapper.IsInterface())
+					break;
+	
+				std::shared_ptr<StructWrapper> IfacePtr = std::make_shared<StructWrapper>(IfaceWrapper);
+				MemberManager IfaceMembers = IfaceWrapper.GetMembers();
+	
+				for (const FunctionWrapper& IfaceFunc : IfaceMembers.IterateFunctions())
+				{
+					if (IfaceFunc.GetFunctionFlags() & EFunctionFlags::Delegate)
+						continue;
+	
+					UEFunction RawFn = IfaceFunc.GetUnrealFunction();
+					if (!RawFn)
+						continue;
+	
+					FunctionWrapper Rebound(IfacePtr, RawFn);
+					if (!AlreadyEmitted.insert(Rebound.GetName()).second)
+						continue;
+	
+					if (!bWroteSectionHeader)
+					{
+						InHeaderFunctionText += "\npublic:\n";
+						bWroteSectionHeader = true;
+					}
+	
+					InHeaderFunctionText += GenerateSingleFunction(Rebound, StructName, FunctionFile, ParamFile, AssertionFile, true);
+				}
+			}
+		}
+	}
 
 	return InHeaderFunctionText;
 }
@@ -683,7 +894,20 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	StructWrapper Super = Struct.GetSuper();
 
-	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction() && !Struct.IsInterface();
+	const bool bIsThisInterface = Struct.IsInterface();
+
+	bool bInterfaceHasParentInterface = false;
+	if (bIsThisInterface && Super.IsValid() && Super.IsInterface())
+	{
+		static UEClass AbstractInterfaceClass = ObjectArray::FindClassFast("Interface");
+		if (Super.IsUnrealStruct() && Super.GetUnrealStruct() != AbstractInterfaceClass)
+			bInterfaceHasParentInterface = true;
+	}
+
+	if (bIsThisInterface && !bInterfaceHasParentInterface && Struct.IsUnrealStruct())
+		EnsureInterfaceVftMember(Struct.GetUnrealStruct().Cast<UEClass>());
+
+	const bool bHasValidSuper = Super.IsValid() && !Struct.IsFunction() && (!bIsThisInterface || bInterfaceHasParentInterface);
 
 	/* Ignore UFunctions with a valid Super field, parameter structs are not supposed inherit from eachother. */
 	if (bHasValidSuper)
@@ -709,6 +933,18 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 	const bool bIsTemplatedType = Struct.HasCustomTemplateText();
 
+	InterfaceMILayout IfaceMI;
+	if (!bIsThisInterface && bHasValidSuper)
+		IfaceMI = ComputeInterfaceMI(Struct, UnalignedSuperSize);
+
+	const std::string IfaceInheritanceStr = GetInterfaceInheritanceString(IfaceMI);
+
+	std::string FallbackComment;
+	if (!IfaceMI.bIsViable && !IfaceMI.FallbackReason.empty() && Struct.IsUnrealStruct() && !bIsThisInterface && Struct.HasNativeInterfaces())
+	{
+		FallbackComment = "// [interface MI fallback] " + IfaceMI.FallbackReason + "\n";
+	}
+
 	std::string AlignmentString = "";
 
 	if (Struct.ShouldUseExplicitAlignment())
@@ -719,33 +955,41 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	StructFile << std::format(R"(
 // {}
 // 0x{:04X} (0x{:04X} - 0x{:04X})
-{}{}{} {}{}{}{}
+{}{}{}{} {}{}{}{}
 {{
 )", Struct.GetFullName()
   , StructSizeWithoutSuper
   , StructSize
   , SuperSize
   , bHasReusedTrailingPadding ? "#pragma pack(push, 0x1)\n" : ""
+  , FallbackComment
   , bIsTemplatedType ? (Struct.GetCustomTemplateText() + "\n") : ""
   , bIsClass ? "class" : (bIsUnion ? "union" : "struct")
   , AlignmentString
   , UniqueName
   , Settings::CppGenerator::bAddFinalSpecifier && Struct.IsFinal() ? " final" : ""
-  , bHasValidSuper ? (" : public " + UniqueSuperName) : "");
+  , bHasValidSuper ? (" : public " + UniqueSuperName + IfaceInheritanceStr) : "");
 
 	MemberManager Members = Struct.GetMembers();
 
 	const bool bHasStaticClass = (bIsClass && Struct.IsUnrealStruct());
 
-	const bool bHasMembers = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment()/*&& Struct.GetSize() != 0x1*/);
+	const bool bIsEmptyBase = bHasValidSuper && StructSizeWithoutSuper == 0x0 && SuperSize == 0x1;
+
+	// Struct and super have members && this struct has members && the struct isn't an empty base
+	const bool bHasMembersOrPadding = Members.HasMembers() || (StructSizeWithoutSuper >= Struct.GetAlignment() && !bIsEmptyBase);
 	const bool bHasFunctions = (Members.HasFunctions() && !Struct.IsFunction()) || bHasStaticClass;
 
-	if (bHasMembers || bHasFunctions)
+	if (bHasMembersOrPadding || bHasFunctions)
 		StructFile << "public:\n";
 
-	if (bHasMembers)
+	const int32 MIBaseBytes = IfaceMI.bIsViable ? IfaceMI.TotalMIBytes : 0;
+
+	if (bHasMembersOrPadding)
 	{
-		StructFile << GenerateMembers(Struct, Members, bIsReusingTrailingPaddingFromSuper ? UnalignedSuperSize : SuperSize, SuperLastMemberEnd, SuperAlignment, PackageIndex);
+		const int32 MemberSuperSize = (bIsReusingTrailingPaddingFromSuper ? UnalignedSuperSize : SuperSize) + MIBaseBytes;
+		const int32 MemberLastMemberEnd = SuperLastMemberEnd + MIBaseBytes;
+		StructFile << GenerateMembers(Struct, Members, MemberSuperSize, MemberLastMemberEnd, SuperAlignment, PackageIndex);
 
 		if (bHasFunctions)
 			StructFile << "\npublic:\n";
@@ -755,13 +999,14 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 	{
 		StreamType& FuncParamsAssertionFile = Settings::Debug::bGenerateAssertionFile ? AssertionFile : ParamFile;
 
-		StructFile << GenerateFunctions(Struct, Members, UniqueName, FunctionFile, ParamFile, FuncParamsAssertionFile);
+		StructFile << GenerateFunctions(Struct, Members, UniqueName, FunctionFile, ParamFile, FuncParamsAssertionFile, IfaceMI.bIsViable);
 	}
 
 	StructFile << "};\n";
 
 	if (bHasReusedTrailingPadding)
 		StructFile << "#pragma pack(pop)\n";
+
 
 	if constexpr (Settings::Debug::bGenerateAssertionFile)
 	{
@@ -791,6 +1036,8 @@ void CppGenerator::GenerateStruct(const StructWrapper& Struct, StreamType& Struc
 
 		// Size assertions
 		AssertionFile << std::format("static_assert(sizeof({}) == 0x{:06X}, \"Wrong size on {}\");{}", UniqueName, (StructSize > 0x0 ? StructSize : 0x1), UniqueName, AssertionNewLineStr);
+	
+		EmitInterfaceMIStaticAsserts(Struct, IfaceMI, UniqueName, AssertionFile, AssertionNewLineStr);
 	}
 
 
@@ -1129,8 +1376,8 @@ std::string CppGenerator::GetMemberTypeStringWithoutConst(UEProperty Member, int
 		{
 			EnumWrapper WrappedEnum = EnumWrapper(Enum);
 
-			//if (WrappedEnum.GetUnderlyingTypeSize() != Member.GetSize())
-			//	return GetEnumForcedSizeType(WrappedEnum, Member.GetSize());
+			if (WrappedEnum.GetUnderlyingTypeSize() != Member.GetSize())
+				return GetEnumForcedSizeType(WrappedEnum, Member.GetSize());
 
 			return GetEnumPrefixedName(WrappedEnum);
 		}
@@ -1617,6 +1864,9 @@ void CppGenerator::WriteFileHead(StreamType& File, PackageInfoHandle Package, EF
 
 			if (Requirements.bShouldIncludeClasses)
 				File << std::format("#include \"{}_classes.hpp\"\n", DependencyName);
+
+			if (Requirements.bShouldIncludeParameters)
+				File << std::format("#include \"{}_parameters.hpp\"\n", DependencyName);
 		}
 
 		if (bAddNewLine)
@@ -2715,8 +2965,8 @@ R"(	: X(X), Y(Y), Z(Z)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FVector(const FVector& other)", .Body =
-R"(	: X(other.X), Y(other.Y), Z(other.Z)
+			.ReturnType = "constexpr", .NameWithParams = "FVector(const FVector& Other)", .Body =
+R"(	: X(Other.X), Y(Other.Y), Z(Other.Z)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -2797,11 +3047,11 @@ R"({
 		/* Non-const operators */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector&", .NameWithParams = "operator=(const FVector& other)", .Body =
+			.ReturnType = "FVector&", .NameWithParams = "operator=(const FVector& Other)", .Body =
 R"({
-	X = other.X;
-	Y = other.Y;
-	Z = other.Z;
+	X = Other.X;
+	Y = Other.Y;
+	Z = Other.Z;
 
 	return *this;
 })",
@@ -2937,6 +3187,7 @@ R"({
 	UEStruct Vector2D = ObjectArray::FindObjectFast<UEStruct>("Vector2D");
 
 	PredefinedElements& FVector2DPredefs = PredefinedMembers[Vector2D.GetIndex()];
+
 	FVector2DPredefs.Members.push_back(PredefinedMember{
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
@@ -2958,8 +3209,8 @@ R"(	: X(X), Y(Y)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FVector2D(const FVector2D& other)", .Body =
-R"(	: X(other.X), Y(other.Y)
+			.ReturnType = "constexpr", .NameWithParams = "FVector2D(const FVector2D& Other)", .Body =
+R"(	: X(Other.X), Y(Other.Y)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3040,10 +3291,10 @@ R"({
 		/* Non-const operators */
 		PredefinedFunction {
 			.CustomComment = "",
-			.ReturnType = "FVector2D&", .NameWithParams = "operator=(const FVector2D& other)", .Body =
+			.ReturnType = "FVector2D&", .NameWithParams = "operator=(const FVector2D& Other)", .Body =
 R"({
-	X = other.X;
-	Y = other.Y;
+	X = Other.X;
+	Y = Other.Y;
 
 	return *this;
 })",
@@ -3154,7 +3405,6 @@ R"({
 			.bIsStatic = false, .bIsConst = true, .bIsBodyInline = true
 		},
 
-
 		/* Non-const functions */
 		PredefinedFunction{
 			.CustomComment = "",
@@ -3193,8 +3443,8 @@ R"(	: Pitch(Pitch), Yaw(Yaw), Roll(Roll)
 		},
 		PredefinedFunction{
 			.CustomComment = "",
-			.ReturnType = "constexpr", .NameWithParams = "FRotator(const FRotator& other)", .Body =
-R"(	: Pitch(other.Pitch), Yaw(other.Yaw), Roll(other.Roll)
+			.ReturnType = "constexpr", .NameWithParams = "FRotator(const FRotator& Other)", .Body =
+R"(	: Pitch(Other.Pitch), Yaw(Other.Yaw), Roll(Other.Roll)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3420,6 +3670,76 @@ R"({
 		},
 	};
 
+	UEStruct FBox = ObjectArray::FindObjectFast<UEStruct>("Box");
+
+	PredefinedElements& FBoxPredefs = PredefinedMembers[FBox.GetIndex()];
+
+	FBoxPredefs.Functions =
+	{
+		/* constructors */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FBox(const FVector& Min, const FVector& Max)", .Body =
+R"(	: Min(Min), Max(Max), IsValid(true)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = R"(FBox(FVector::UnderlayingType MinX = 0, FVector::UnderlayingType MinY = 0, FVector::UnderlayingType MinZ = 0,
+		FVector::UnderlayingType MaxX = 0, FVector::UnderlayingType MaxY = 0, FVector::UnderlayingType MaxZ = 0))",
+			.Body = R"(	: FBox(FVector(MinX, MinY, MinZ), FVector(MaxX, MaxY, MaxZ))
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FBox(const FBox& Other)",
+			.Body = R"(	: FBox(Other.Min, Other.Max)
+{
+	IsValid = Other.IsValid;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		}
+	};
+
+	UEStruct FBox2D = ObjectArray::FindObjectFast<UEStruct>("Box2D");
+
+	PredefinedElements& FBox2DPredefs = PredefinedMembers[FBox2D.GetIndex()];
+
+	FBox2DPredefs.Functions =
+	{
+		/* constructors */
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FBox2D(const FVector2D& Min, const FVector2D& Max)", .Body =
+R"(	: Min(Min), Max(Max), bIsValid(true)
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = R"(FBox2D(FVector2D::UnderlayingType MinX = 0, FVector2D::UnderlayingType MinY = 0,
+		FVector2D::UnderlayingType MaxX = 0, FVector2D::UnderlayingType MaxY = 0))",
+			.Body = R"(	: FBox2D(FVector2D(MinX, MinY), FVector2D(MaxX, MaxY))
+{
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		},
+		PredefinedFunction{
+			.CustomComment = "",
+			.ReturnType = "constexpr", .NameWithParams = "FBox2D(const FBox2D& Other)",
+			.Body = R"(	: FBox2D(Other.Min, Other.Max)
+{
+	bIsValid = Other.bIsValid;
+})",
+			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
+		}
+	};
+
 	SortFunctions(UObjectPredefs.Functions);
 	SortFunctions(UClassPredefs.Functions);
 	SortFunctions(UEnginePredefs.Functions);
@@ -3505,12 +3825,13 @@ using namespace UC;
 */
 namespace Offsets
 {{
-	constexpr int32 GObjects          = 0x{:08X};
-	constexpr int32 AppendString      = 0x{:08X};{}
-	constexpr int32 GNames            = 0x{:08X};
-	constexpr int32 GWorld            = 0x{:08X};
-	constexpr int32 ProcessEvent      = 0x{:08X};
-	constexpr int32 ProcessEventIdx   = 0x{:08X};
+	constexpr int32 GObjects             = 0x{:08X};
+	constexpr int32 AppendString         = 0x{:08X};{}
+	constexpr int32 GNames               = 0x{:08X};
+	constexpr int32 GWorld               = 0x{:08X};
+	constexpr int32 ProcessEvent         = 0x{:08X};
+	constexpr int32 ProcessEventIdx      = 0x{:08X};
+	constexpr int32 FindFunctionChecked  = 0x{:08X};
 }}
 )", max(Off::InSDK::ObjArray::GObjects, 0x0),
 	max(Off::InSDK::Name::AppendNameToString, 0x0),
@@ -3518,8 +3839,24 @@ namespace Offsets
 	max(Off::InSDK::NameArray::GNames, 0x0),
 	max(Off::InSDK::World::GWorld, 0x0),
 	max(Off::InSDK::ProcessEvent::PEOffset, 0x0),
-	Off::InSDK::ProcessEvent::PEIndex);
+	Off::InSDK::ProcessEvent::PEIndex,
+	max(Off::InSDK::Find::FindFunctionCheckedOffset, 0x0));
 
+
+	BasicHpp << R"(
+// Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
+class UClass;
+class UObject;
+class UFunction;
+class UScriptStruct;
+class FName;
+
+namespace MIPad
+{
+	template<unsigned long long N, unsigned long long Tag>
+	struct alignas(1) Pad { unsigned char _pad[N]; };
+}
+)";
 
 	// Start Namespace 'InSDKUtils'
 	BasicHpp <<
@@ -3546,21 +3883,41 @@ namespace InSDKUtils
 	//Customizable part of Cpp code to allow for a custom 'CallGameFunction' function
 	BasicHpp << CppSettings::CallGameFunction;
 
+
+	if (Off::InSDK::Find::FindFunctionCheckedOffset > 0)
+	{
+		if (Settings::Internal::bUseCasePreservingName)
+		{
+			BasicHpp << R"(
+	inline UFunction* FindFunctionChecked(const UObject* Obj, const FName& Name)
+	{
+		using FFindFunctionCheckedType = UFunction*(__fastcall*)(const UObject*, const FName*);
+		auto FindFunctionCheckedAddress = reinterpret_cast<FFindFunctionCheckedType>(GetImageBase() + Offsets::FindFunctionChecked);
+
+		return CallGameFunction(FindFunctionCheckedAddress, Obj, &Name);
+	}
+)";
+		}
+		else
+		{
+			BasicHpp << R"(
+	inline UFunction* FindFunctionChecked(const UObject* Obj, const FName& Name)
+	{
+		using FFindFunctionCheckedType = UFunction*(__fastcall*)(const UObject*, uint64);
+		auto FindFunctionCheckedAddress = reinterpret_cast<FFindFunctionCheckedType>(GetImageBase() + Offsets::FindFunctionChecked);
+
+		return CallGameFunction(FindFunctionCheckedAddress, Obj, *reinterpret_cast<const uint64*>(&Name));
+	}
+)";
+		}
+	}
+
 	BasicHpp << "}\n\n";
 	// End Namespace 'InSDKUtils'
 
 	/* Custom 'GetImageBase' function */
 	BasicCpp << std::format(R"(uintptr_t InSDKUtils::GetImageBase()
 {})", Settings::CppGenerator::GetImageBaseFuncBody);
-
-	BasicHpp << R"(
-// Forward declarations because in-line forward declarations make the compiler think 'GetStaticClass()' is a class template
-class UClass;
-class UObject;
-class UFunction;
-class UScriptStruct;
-class FName;
-)";
 
 	BasicHpp << R"(
 namespace BasicFilesImplUtils
@@ -3578,6 +3935,10 @@ namespace BasicFilesImplUtils
 	UObject* GetObjectByIndex(int32 Index);
 
 	UFunction* FindFunctionByFName(const FName* Name);
+
+	UFunction* FindFunctionViaClass(UClass* SearchClass, const char* OuterClassName, const char* FuncName);
+
+	uint64 GetObjectOuterFNameAsUInt64(UObject* Obj);
 
 	FName StringToName(const wchar_t* Name);
 
@@ -3630,6 +3991,19 @@ UFunction* BasicFilesImplUtils::FindFunctionByFName(const FName* Name)
 	}
 
 	return nullptr;
+}
+
+UFunction* BasicFilesImplUtils::FindFunctionViaClass(UClass* SearchClass, const char* OuterClassName, const char* FuncName)
+{
+	return SearchClass->GetFunction(OuterClassName, FuncName);
+}
+
+uint64 BasicFilesImplUtils::GetObjectOuterFNameAsUInt64(UObject* Obj)
+{
+	if (!Obj || !Obj->Outer)
+		return 0;
+
+	return *reinterpret_cast<uint64*>(&Obj->Outer->Name);
 }
 
 FName BasicFilesImplUtils::StringToName(const wchar_t* Name)
@@ -3768,6 +4142,41 @@ ClassType* GetDefaultObjImpl()
 { \
     static FName Name = FName(); \
     return GetStaticName(NameString, Name); \
+}
+)";
+
+	BasicHpp << R"(
+struct ReloadableFuncInfo;
+
+UFunction* GetStaticFunction(UClass* SearchClass, const char* OuterClassName, const char* FuncName, ReloadableFuncInfo& FuncInfo);
+)";
+
+	BasicCpp << R"(
+UFunction* GetStaticFunction(UClass* SearchClass, const char* OuterClassName, const char* FuncName, ReloadableFuncInfo& FuncInfo)
+{
+    static auto SetFuncInfo = [](class UFunction* Function, ReloadableFuncInfo& FuncInfoToSet) -> UFunction*
+    {
+        if (Function)
+        {
+            FuncInfoToSet.Index = Function->Index;
+            FuncInfoToSet.Name = Function->Name;
+            FuncInfoToSet.OuterName = Function->Outer ? Function->Outer->Name : FName();
+        }
+
+        return Function;
+    };
+
+    /* First initialisation. */
+    if (FuncInfo.Index == 0x0) [[unlikely]]
+        return SetFuncInfo(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncInfo);
+
+    UFunction* Function = static_cast<UFunction*>(UObject::GObjects->GetByIndex(FuncInfo.Index));
+
+    /* Reloading the function*/
+    if (!Function || Function->Name != FuncInfo.Name || !Function->Outer || Function->Outer->Name != FuncInfo.OuterName)
+        return SetFuncInfo(BasicFilesImplUtils::FindFunctionViaClass(SearchClass, OuterClassName, FuncName), FuncInfo);
+
+    return Function;
 }
 )";
 
@@ -4935,7 +5344,6 @@ R"({
 
 	GenerateStruct(&FWeakObjectPtr, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 
-
 	BasicHpp <<
 		R"(
 template<typename UEType>
@@ -5532,6 +5940,16 @@ public:
 	{
 		return EnumValue <=> static_cast<UnderlyingType>(Other);
 	}
+
+	constexpr operator EnumType() const
+	{
+		return static_cast<EnumType>(EnumValue);
+	}
+
+	constexpr explicit operator UnderlyingType() const
+	{
+		return EnumValue;
+	}
 };
 
 template<typename EnumType>
@@ -5878,6 +6296,34 @@ UE_ENUM_OPERATORS(EPropertyFlags);
 	{
 		GenerateStruct(&Predefined, BasicHpp, BasicCpp, BasicHpp, AssertionsFile);
 	}
+
+	BasicHpp << R"(
+struct ReloadableFuncInfo
+{
+    int32 Index = 0;
+    FName Name;
+    FName OuterName;
+};
+)";
+
+	BasicHpp << R"(
+
+/* Workaround for clang not supporting the statement from #else. */
+template<typename Derived, typename Interface>
+consteval size_t GetInterfaceOffset()
+{
+#if defined(__clang__)
+    return __builtin_constant_p(0)
+        ? reinterpret_cast<const char*>(
+              &static_cast<const Interface*>(
+                  reinterpret_cast<const Derived*>(0x1000))->VTable)
+            - reinterpret_cast<const char*>(0x1000)
+        : 0;
+#else
+    return offsetof(Derived, Interface::VTable);
+#endif
+}
+)";
 
 
 	/* Cyclic dependencies-fixing helper classes */
@@ -8591,6 +9037,7 @@ void CppGenerator::GenerateSDKTestScript(StreamType& TestScript)
 
 import argparse
 import ctypes
+import json
 import os
 import shutil
 import subprocess
@@ -8802,8 +9249,9 @@ def build_toolchain(
     output_dir: Path,
     log_file: Path,
     sdk_root: Path,
+    generator: str,
+    generator_instance: str,
     toolset: str | None = None,
-    generator_instance: str | None = None,
 ) -> bool:
     if build_dir.exists():
         shutil.rmtree(build_dir)
@@ -8818,7 +9266,7 @@ def build_toolchain(
         "-B",
         str(build_dir),
         "-G",
-        "Visual Studio 17 2022",
+        generator,
         "-A",
         "x64",
         f"-DSDK_ROOT={sdk_root}",
@@ -8845,35 +9293,51 @@ def build_toolchain(
     return run_logged(build, log_file, source_dir)
 
 
-def find_clangcl_instance() -> str | None:
-    """Return a VS install path that has the ClangCL toolset, or None.
-
-    On machines with multiple VS installs (e.g. BuildTools + Community), CMake may
-    otherwise select one without the ClangCL toolset. vswhere ships with every VS install.
-    """
+def find_vs_toolchain(generators: set[str], toolset: str | None = None) -> tuple[str, str]:
+    """Select a matching CMake generator and VS instance with the required tools."""
     program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
     vswhere = Path(program_files_x86) / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
     if not vswhere.is_file():
-        return None
+        raise RuntimeError(f"Visual Studio discovery tool not found: {vswhere}")
 
-    try:
+    required_components = ["Microsoft.VisualStudio.Component.VC.Tools.x86.x64"]
+    if toolset == "ClangCL":
+        required_components.append("Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset")
+
+    # Query each major version separately so the generator always matches the instance.
+    # MSVC and ClangCL may use different installs when only one has the Clang tools.
+    for generator, version_range in (
+        ("Visual Studio 18 2026", "[18.0,19.0)"),
+        ("Visual Studio 17 2022", "[17.0,18.0)"),
+    ):
+        if generator not in generators:
+            continue
         result = subprocess.run(
             [
                 str(vswhere),
                 "-latest",
                 "-products", "*",
-                "-requires", "Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset",
+                "-version", version_range,
+                "-requires", *required_components,
+                "-utf8",
                 "-property", "installationPath",
             ],
             capture_output=True,
             text=True,
-            check=False,
+            encoding="utf-8",
+            check=True,
         )
-    except OSError:
-        return None
 
-    found = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    return found[0] if found else None
+        found = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        if found:
+            return generator, found[0]
+
+    raise RuntimeError(
+        f"No compatible Visual Studio 2022 or 2026 installation found for {toolset or 'MSVC'}. "
+        "Install the Desktop development with C++ tools, and for ClangCL also the "
+        "'C++ Clang Compiler for Windows' + 'MSBuild support for LLVM (clang-cl) toolset' components. "
+        "CMake must support the installed Visual Studio version (3.21+ for VS 2022; 4.2+ for VS 2026)."
+    )
 
 
 def main() -> int:
@@ -8896,6 +9360,16 @@ def main() -> int:
     if shutil.which("cmake") is None:
         return wait_on_failure("cmake was not found on PATH.")
 
+    try:
+        capabilities = subprocess.run(
+            ["cmake", "-E", "capabilities"], capture_output=True, text=True, check=True
+        )
+        generators = {entry["name"] for entry in json.loads(capabilities.stdout)["generators"]}
+        msvc_generator, msvc_instance = find_vs_toolchain(generators)
+        clang_generator, clang_instance = find_vs_toolchain(generators, "ClangCL")
+    except (OSError, subprocess.CalledProcessError, ValueError, KeyError, RuntimeError) as error:
+        return wait_on_failure(f"Could not select Visual Studio toolchains: {error}")
+
     logs_dir.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
     (test_root / "TestMain.cpp").write_text(TEST_MAIN, encoding="utf-8", newline="\n")
@@ -8908,13 +9382,10 @@ def main() -> int:
         output_dir=output_dir / "MSVC",
         log_file=logs_dir / "MSVC.log",
         sdk_root=sdk_root,
+        generator=msvc_generator,
+        generator_instance=msvc_instance,
     )
 
-    # On multi-VS-install machines, pin an install that has the ClangCL toolset so CMake
-    # doesn't pick one without it.
-    clang_instance = find_clangcl_instance()
-    if clang_instance is None:
-        print("Note: no VS install with the ClangCL toolset found via vswhere; the Clang build may fail. Install the 'C++ Clang Compiler for Windows' + 'MSBuild support for LLVM (clang-cl) toolset' VS components.")
     clang_ok = build_toolchain(
         name="ClangCL",
         source_dir=test_root,
@@ -8922,6 +9393,7 @@ def main() -> int:
         output_dir=output_dir / "Clang",
         log_file=logs_dir / "Clang.log",
         sdk_root=sdk_root,
+        generator=clang_generator,
         toolset="ClangCL",
         generator_instance=clang_instance,
     )
@@ -9017,8 +9489,6 @@ bool CppGenerator::ExecuteSDKCompilationTestScript()
 		std::cerr << "Failed to execute SDK test script: " << GetLastError() << std::endl;
 		return false;
 	}
-
-
 
 	return true;
 }

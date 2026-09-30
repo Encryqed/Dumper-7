@@ -297,7 +297,9 @@ namespace
 				return { NULL, 0x0 };
 
 			SearchStartAddress = StartAddress;
-			SearchRange = static_cast<ptrdiff_t>(SectionEndAddress - StartAddress);
+
+			const ptrdiff_t RemainingInSection = static_cast<ptrdiff_t>(SectionEndAddress - StartAddress);
+			SearchRange = (Range > 0x0 && Range < RemainingInSection) ? Range : RemainingInSection;
 		}
 
 		return { SearchStartAddress, SearchRange };
@@ -419,7 +421,7 @@ SectionInfo PlatformWindows::GetSectionInfo(const std::string& SectionName, cons
 		{
 			return reinterpret_cast<const char*>(Section->Name) == SectionName;
 		});
-	
+
 	return WinSectionInfoToSectionInfo(WinSectionInfo);
 }
 
@@ -502,6 +504,14 @@ bool PlatformWindows::IsAddressInProcessRange(const uintptr_t Address)
 bool PlatformWindows::IsAddressInProcessRange(const void* Address)
 {
 	return IsAddressInProcessRange(reinterpret_cast<uintptr_t>(Address));
+}
+bool PlatformWindows::IsAddressInWritableSection(const uintptr_t Address)
+{
+	return IsInAnySection(Address, IMAGE_SCN_MEM_WRITE);
+}
+bool PlatformWindows::IsAddressInWritableSection(const void* Address)
+{
+	return IsAddressInWritableSection(reinterpret_cast<uintptr_t>(Address));
 }
 bool PlatformWindows::IsBadReadPtr(const uintptr_t Address)
 {
