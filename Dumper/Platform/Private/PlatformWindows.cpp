@@ -209,6 +209,32 @@ namespace
 		return Align(ValueToAlign, Alignment);
 	}
 
+	/* Shared by 'IsBadReadPtr' and the readable-range queries below. */
+	constexpr DWORD ReadableProtectionMask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
+	constexpr DWORD UnreadableProtectionMask = (PAGE_GUARD | PAGE_NOACCESS);
+
+	inline bool IsRegionReadable(const DWORD Protection)
+	{
+		return (Protection & ReadableProtectionMask) != 0 && (Protection & UnreadableProtectionMask) == 0;
+	}
+
+	/*
+	* Resolves the memory region covering 'Address'. VirtualQuery reports a region of uniform protection, so callers
+	* can advance to its end instead of probing page by page.
+	*/
+	inline bool QueryMemoryRegion(const uintptr_t Address, uintptr_t& RegionEnd, DWORD& Protection)
+	{
+		MEMORY_BASIC_INFORMATION Mbi;
+
+		if (!VirtualQuery(reinterpret_cast<const void*>(Address), &Mbi, sizeof(Mbi)))
+			return false;
+
+		RegionEnd = reinterpret_cast<uintptr_t>(Mbi.BaseAddress) + static_cast<uintptr_t>(Mbi.RegionSize);
+		Protection = Mbi.Protect;
+
+		return RegionEnd > Address;
+	}
+
 	inline const PIMAGE_THUNK_DATA GetImportAddress(const uintptr_t ModuleBase, const char* ModuleToImportFrom, const char* SearchFunctionName)
 	{
 		/* Get the module importing the function */
@@ -423,6 +449,79 @@ SectionInfo PlatformWindows::GetSectionInfo(const std::string& SectionName, cons
 	return WinSectionInfoToSectionInfo(WinSectionInfo);
 }
 
+SectionRange PlatformWindows::GetSectionRange(const std::string& SectionName, const char* const ModuleName)
+{
+	const WindowsSectionInfo WinSectionInfo = SectionInfoToWinSectionInfo(GetSectionInfo(SectionName, ModuleName));
+
+	if (!WinSectionInfo.IsValid())
+		return {};
+
+	return { WinSectionInfo.Imagebase + WinSectionInfo.SectionHeader->VirtualAddress, WinSectionInfo.SectionHeader->Misc.VirtualSize };
+}
+
+bool PlatformWindows::IsSpanReadable(const uintptr_t Start, const uint64_t Size)
+{
+	if (Start == 0x0 || Size == 0x0)
+		return false;
+
+	/* The span is readable only when a single range covers it in full; a split means a page in between is not. */
+	const std::vector<std::pair<uintptr_t, int64_t>> Ranges = GetReadableRanges(Start, static_cast<int64_t>(Size));
+
+	return Ranges.size() == 0x1 && Ranges[0x0].first == Start && static_cast<uint64_t>(Ranges[0x0].second) >= Size;
+}
+
+std::vector<std::pair<uintptr_t, int64_t>> PlatformWindows::GetReadableRanges(const uintptr_t Start, const int64_t Size)
+{
+	std::vector<std::pair<uintptr_t, int64_t>> Ranges;
+
+	if (Size <= 0x0)
+		return Ranges;
+
+	const uintptr_t End = Start + static_cast<uintptr_t>(Size);
+
+	uintptr_t CurrentRangeStart = NULL;
+	uintptr_t CurrentRangeEnd = NULL;
+
+	auto CloseCurrentRange = [&Ranges, &CurrentRangeStart, &CurrentRangeEnd]() -> void
+	{
+		if (CurrentRangeStart != CurrentRangeEnd)
+			Ranges.emplace_back(CurrentRangeStart, static_cast<int64_t>(CurrentRangeEnd - CurrentRangeStart));
+
+		CurrentRangeStart = NULL;
+		CurrentRangeEnd = NULL;
+	};
+
+	for (uintptr_t Address = Start; Address < End;)
+	{
+		uintptr_t RegionEnd = Address;
+		DWORD Protection = 0x0;
+
+		if (!QueryMemoryRegion(Address, RegionEnd, Protection))
+			break;
+
+		if (IsRegionReadable(Protection))
+		{
+			const uintptr_t RangeStart = (Address > Start) ? Address : Start;
+			const uintptr_t RangeEnd = (RegionEnd < End) ? RegionEnd : End;
+
+			if (CurrentRangeStart == CurrentRangeEnd)
+				CurrentRangeStart = RangeStart;
+
+			CurrentRangeEnd = RangeEnd;
+		}
+		else
+		{
+			CloseCurrentRange();
+		}
+
+		Address = RegionEnd;
+	}
+
+	CloseCurrentRange();
+
+	return Ranges;
+}
+
 void* PlatformWindows::IterateSectionWithCallback(const SectionInfo& Info, const std::function<bool(void* Address)>& Callback, uint32_t Granularity, uint32_t OffsetFromEnd)
 {
 	const WindowsSectionInfo WinSectionInfo = SectionInfoToWinSectionInfo(Info);
@@ -518,12 +617,7 @@ bool PlatformWindows::IsBadReadPtr(const void* Address)
 	MEMORY_BASIC_INFORMATION Mbi;
 
 	if (VirtualQuery(Address, &Mbi, sizeof(Mbi)))
-	{
-		constexpr DWORD AccessibleMask = (PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY);
-		constexpr DWORD InaccessibleMask = (PAGE_GUARD | PAGE_NOACCESS);
-
-		return !(Mbi.Protect & AccessibleMask) || (Mbi.Protect & InaccessibleMask);
-	}
+		return !IsRegionReadable(Mbi.Protect);
 
 	return true;
 }
@@ -534,6 +628,7 @@ const void* PlatformWindows::GetAddressOfImportedFunction(const char* SearchModu
 
 	return GetImportAddress(SearchModule, ModuleToImportFrom, SearchFunctionName);
 }
+
 const void* PlatformWindows::GetAddressOfImportedFunctionFromAnyModule(const char* ModuleToImportFrom, const char* SearchFunctionName)
 {
 	const PEB* Peb = GetPEB();

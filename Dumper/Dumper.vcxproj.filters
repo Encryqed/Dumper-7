@@ -38,6 +38,9 @@
     <ClCompile Include="Generator\Private\Managers\PackageManager.cpp">
       <Filter>Generator\Private\Managers</Filter>
     </ClCompile>
+    <ClCompile Include="Generator\Private\Generators\EngineVersioning.cpp">
+      <Filter>Generator\Private\Generators</Filter>
+    </ClCompile>
     <ClCompile Include="Generator\Private\Generators\MappingGenerator.cpp">
       <Filter>Generator\Private\Generators</Filter>
     </ClCompile>
@@ -195,6 +198,9 @@
     </ClInclude>
     <ClInclude Include="Settings.h">
       <Filter>Generator</Filter>
+    </ClInclude>
+    <ClInclude Include="Generator\Public\Generators\EngineVersioning.h">
+      <Filter>Generator\Public\Generators</Filter>
     </ClInclude>
     <ClInclude Include="Generator\Public\Generators\MappingGenerator.h">
       <Filter>Generator\Public\Generators</Filter>

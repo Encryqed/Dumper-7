@@ -35,6 +35,7 @@ Interface:
 		- uintptr_t GetOffset(void* Address, const char* const ModuleName = Settings::General::DefaultModuleName)
 		-
 		- SectionInfo GetSectionInfo(const std::string& SectionName)
+		- SectionRange GetSectionRange(const std::string& SectionName)
 		- void IterateSectionWithCallback(const SectionInfo& Info, std::function<bool(void* Address)> Callback, uint32_t Granularity = 0x4, uint32_t OffsetFromEnd = 0x0);
 		-
 		- bool IsAddressInAnyModule(const uintptr_t Address)
@@ -43,6 +44,8 @@ Interface:
 		- bool IsAddressInProcessRange(const void* Address)
 		- bool IsBadReadPtr(const uintptr_t Address)
 		- bool IsBadReadPtr(const void* Address)
+		- bool IsSpanReadable(const uintptr_t Start, const uint64_t Size)
+		- std::vector<std::pair<uintptr_t, int64_t>> GetReadableRanges(const uintptr_t Start, const int64_t Size)
 		-
 		- void* GetAddressOfImportedFunction(const char* SearchModuleName, const char* ModuleToImportFrom, const char* SearchFunctionName)
 		- void* GetAddressOfImportedFunctionFromAnyModule(const char* ModuleToImportFrom, const char* SearchFunctionName)
@@ -72,6 +75,21 @@ public:
 		}
 
 		return false;
+	}
+};
+
+/*
+* Bounds of a section, resolved from its 'SectionInfo' so byte-level scans do not have to walk the PE headers
+* themselves to find out where a section starts and how much of it there is.
+*/
+struct SectionRange
+{
+	uintptr_t Start = 0x0;
+	uint64_t Size = 0x0;
+
+	inline bool IsValid() const
+	{
+		return Start != 0x0 && Size != 0x0;
 	}
 };
 
@@ -125,6 +143,7 @@ namespace PlatformWindows
 	uintptr_t GetOffset(const void* Address, const char* const ModuleName = Settings::General::DefaultModuleName);
 	
 	SectionInfo GetSectionInfo(const std::string& SectionName, const char* const ModuleName = Settings::General::DefaultModuleName);
+	SectionRange GetSectionRange(const std::string& SectionName, const char* const ModuleName = Settings::General::DefaultModuleName);
 	void* IterateSectionWithCallback(const SectionInfo& Info, const std::function<bool(void* Address)>& Callback, uint32_t Granularity = 0x4, uint32_t OffsetFromEnd = 0x0);
 	void* IterateAllSectionsWithCallback(const std::function<bool(void* Address)>& Callback, uint32_t Granularity = 0x4, uint32_t OffsetFromEnd = 0x0, const char* const ModuleName = Settings::General::DefaultModuleName);
 
@@ -134,6 +153,12 @@ namespace PlatformWindows
 	bool IsAddressInProcessRange(const void* Address);
 	bool IsBadReadPtr(const uintptr_t Address);
 	bool IsBadReadPtr(const void* Address);
+
+	/* Whether every byte of [Start, Start + Size) is readable. */
+	bool IsSpanReadable(const uintptr_t Start, const uint64_t Size);
+
+	/* Readable spans of [Start, Start + Size); a section can be fragmented by pages that are not readable. */
+	std::vector<std::pair<uintptr_t, int64_t>> GetReadableRanges(const uintptr_t Start, const int64_t Size);
 
 	const void* GetAddressOfImportedFunction(const char* SearchModuleName, const char* ModuleToImportFrom, const char* SearchFunctionName);
 	const void* GetAddressOfImportedFunctionFromAnyModule(const char* ModuleToImportFrom, const char* SearchFunctionName);

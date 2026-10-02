@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <string>
 
 #include "Unreal/ObjectArray.h"
 #include "Wrappers/MemberWrappers.h"
@@ -11,16 +12,30 @@
 * USMAP-Header:
 * 
 * uint16 magic;
-* uint8 version;
-* if (version >= Packaging)
-*     int32 bHasVersionInfo;
-*     if (bHasVersionInfo)
-*         int32 FileVersionUE4;
-*         int32 FileVersionUE5;
-*         uint32 NetCL;
-* uint8 CompressionMethode;
+* uint8 version;                                           // Latest = ExtendedMetadata (6)
+* if (version >= ExtendedMetadata)
+*     FUsmapMetadata                                       // Tool, ToolVersion, CreatedAtUnix, Source
+* if (version >= PackageVersioning)
+*     int32 bHasVersioning;                                // 1 if the engine version could be resolved, else 0
+*     if (bHasVersioning)
+*         if (version >= EngineVersioning)
+*             FEngineVersion EngineVersion;                // ushort Major, ushort Minor, ushort Patch, uint32 Changelist, FString Branch
+*         int32 FileVersionUE4;                            // 'GPackageFileUEVersion.FileVersionUE4'
+*         int32 FileVersionUE5;                            // 'GPackageFileUEVersion.FileVersionUE5'
+*         uint32 NumCustomVersions;                        // 'FCurrentCustomVersions::GetAll()' (FCustomVersionContainer, Optimized format)
+*         for (int i = 0; i < NumCustomVersions; i++)
+*             FGuid Key;                                   // uint32 A, B, C, D
+*             int32 Version;
+*         uint32 NetCL;                                    // 'FNetworkVersion::GetNetworkCompatibleChangelist()'
+* uint8 CompressionMethod;
 * uint32 CompressedSize;
 * uint32 DecompressedSize;
+* 
+* FUsmapMetadata:
+*     FUtf8String Tool;                                    // int32 byte-length, no NUL
+*     FUtf8String ToolVersion;
+*     int64 CreatedAtUnix;
+*     uint8 Source;                                        // EUsmapSource
 * 
 * 
 * USMAP-Data:
@@ -30,22 +45,34 @@
 *     [uint8|uint16] NameLength;
 *     uint8 StringData[NameLength];
 * 
+* if (version >= ExtendedMetadata)
+*     uint32 FlagDictCount;
+*     uint64 FlagDict[FlagDictCount];                      // unique EPropertyFlags, first-seen order
+* 
 * uint32 EnumCount;
 * for (int i = 0; i < EnumCount; i++)
+*     if (version >= ExtendedMetadata)
+*         int32 PackageNameIdx;                            // owner package, -1 if none
 *     int32 EnumNameIdx;
-*     uint8 NumNamesInEnum;
+*     [uint8|uint16] NumNamesInEnum;              // u8 if version < LargeEnums, else u16
 *     for (int j = 0; j < NumNamesInEnum; j++)
+*         if (version >= ExplicitEnumValues)
+*             uint64 EnumMemberValue;
 *         int32 EnumMemberNameIdx;
 * 
 * uint32 StructCount;
 * for (int i = 0; i < StructCount; i++)
+*     if (version >= ExtendedMetadata)
+*         int32 PackageNameIdx;                            // owner package, -1 if none
 *     int32 StructNameIdx;                                 // <-- START ParseStruct
 *     int32 SuperTypeNameIdx;
-*     uint16 PropertyCount;
-*     uint16 SerializablePropertyCount;
+*     if (version >= ExtendedMetadata)
+*         uint32 ClassOrStructFlags;                       // EClassFlags for classes, EStructFlags for structs
+*     [uint16|uint32] PropertyCount;                       // int24 count; top byte is the Class/Struct flag (1 = struct, 0 = class) if ExtendedMetadata
+*     [uint16|uint32] SerializablePropertyCount;
 *     for (int j = 0; j < SerializablePropertyCount; j++)
 *         uint16 Index;                                    // <-- START ParsePropertyInfo
-*         uint8 ArrayDim;
+*         [uint8|uint16] ArrayDim;                         // u8 if version < ExtendedMetadata, else u16
 *         int32 PropertyNameIdx;
 *         uint8 MappingsTypeEnum;                         // <-- START ParsePropertyType      [[ByteProperty needs to be written as EnumProperty if it has an underlaying Enum]]
 *         if (MappingsTypeEnum == EnumProperty || (MappingsTypeEnum == ByteProperty && UnderlayingEnum != null))
@@ -57,7 +84,9 @@
 *             CALL ParsePropertyType;
 *         else if (MappingsTypeEnum == MapProperty)
 *             CALL ParsePropertyType;
-*             CALL ParsePropertyType;                       // <-- END ParsePropertyType, END ParsePropertyInfo, END ParseStruct
+*             CALL ParsePropertyType;                       // <-- END ParsePropertyType
+*         if (version >= ExtendedMetadata)
+*             uint16 FlagIndex;
 */
 
 class MappingGenerator
@@ -83,12 +112,36 @@ private:
         /* Adds support for explicit enum values */
         ExplicitEnumValues,
 
-        Latest,
+        /* Adds support for engine versioning information */
+        EngineVersioning,
+
+        /* Property Flags, PackageOwnerName, Usmap Metadata, Class/Struct flags, extends ArrayDim to ushort/uint16
+            and PropertyCount to int (actual count is int24 and 1 byte flag for Class/Struct flag) */
+        ExtendedMetadata,
+
         LatestPlusOne,
+        Latest = LatestPlusOne - 1,
+    };
+
+    /* How the mappings were obtained, written into FUsmapMetadata. */
+    enum class EUsmapSource : uint32
+    {
+        Runtime,
+        MemoryDump,
+        StaticAnalysis,
+        Conversion,
+        Custom
     };
 
 private:
     static constexpr uint16 UsmapFileMagic = 0x30C4;
+    static constexpr EUsmapVersion WrittenVersion = EUsmapVersion::Latest;
+
+    static constexpr const char* MetadataToolName = "Dumper-7";
+    static constexpr const char* MetadataToolVersion = "7.0.1";
+
+    /* Dumper-7 reads the live process of a running game. */
+    static constexpr EUsmapSource MetadataSource = EUsmapSource::Runtime;
 
 private:
     static inline uint64 NameCounter = 0x0;
@@ -115,12 +168,30 @@ private:
         InStream << Data.rdbuf();
     }
 
+    template<typename InStreamType>
+    static void WriteFUtf8String(InStreamType& InStream, const std::string& Value)
+    {
+        WriteToStream(InStream, static_cast<int32>(Value.size()));
+
+        if (!Value.empty())
+            InStream.write(Value.c_str(), static_cast<std::streamsize>(Value.size()));
+    }
+
 private:
     /* Utility Functions */
     static EMappingsTypeFlags GetMappingType(UEProperty Property);
     static int32 AddNameToData(std::stringstream& NameTable, const std::string& Name);
+    static void WriteOwnerPackageName(const UEObject& Object, std::stringstream& Data, std::stringstream& NameTable);
 
 private:
+    static bool ShouldExcludeEditorOnlyProperties();
+    static bool ShouldWriteMappingProperty(const PropertyWrapper& Property);
+
+    static void CollectPropertyFlags(const StructWrapper& Struct);
+    static void CollectAllPropertyFlags();
+    static void WriteFlagDictionary(std::stringstream& OutData);
+    static void WriteUsmapMetadata(StreamType& InUsmap);
+
     static void GeneratePropertyType(UEProperty Property, std::stringstream& Data, std::stringstream& NameTable);
     static void GeneratePropertyInfo(const PropertyWrapper& Property, std::stringstream& Data, std::stringstream& NameTable, int32& Index);
 

@@ -192,12 +192,12 @@ void Settings::Config::Load()
 	// DumpKey takes VK Scancodes as integers
 	DumpKey = GetPrivateProfileIntA ( "Settings", "DumpKey", 0, ConfigPath);
 
-	if (DumpKey != 0) 
+	if (DumpKey != 0)
 	{
 		// Map the virtual key and print the actual name
 		char KeyName[256] = {};
 		LONG lParamValue = MapVirtualKeyA(DumpKey, MAPVK_VK_TO_VSC) << 16;
-		if (GetKeyNameTextA(lParamValue, KeyName, sizeof(KeyName)) != 0) 
+		if (GetKeyNameTextA(lParamValue, KeyName, sizeof(KeyName)) != 0)
 		{
 			std::cerr << "Press " << KeyName << " to begin dump." << "\n";
 		}
