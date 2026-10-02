@@ -74,6 +74,11 @@ namespace
     constexpr uint8 PackageFileTagBytes[0x4] = {0xC1, 0x83, 0x2A, 0x9E};
     constexpr int32 MinPackageFileVersion = 342;
     constexpr int32 MaxPackageFileVersion = 600;
+
+    /* 'EUnrealEngineObjectUE5Version' starts at 1000, so the UE5 field lives in its own range. */
+    constexpr int32 MinPackageFileVersionUE5 = 1000;
+    constexpr int32 MaxPackageFileVersionUE5 = 2000;
+
     constexpr uintptr_t PackageFileTagScanWindow = 0x800;
 
     /* 'call rel32' plus the distance searched backwards from the log reference to reach it. */
@@ -82,118 +87,15 @@ namespace
     constexpr uintptr_t NetworkChangelistBackwardScanRange = 0x40;
 
     /*
-    * Reads a 'TArray' by dereferencing a pointer that was found by scanning, so the entire span has to be proven
-    * readable before it is touched. Every page is checked rather than just the two ends: a candidate can start
-    * inside a valid allocation and run off the end of it, and an incorrect stride only makes that more likely.
-    */
-    bool IsSpanReadable(const uintptr_t Start, const uint64 Size)
-    {
-        constexpr uintptr_t PageSize = 0x1000;
-
-        if (Start == 0x0 || Size == 0x0)
-            return false;
-
-        const uintptr_t End = Start + Size;
-
-        if (End < Start)
-            return false;
-
-        for (uintptr_t Page = Start & ~(PageSize - 0x1); Page < End; Page += PageSize)
-        {
-            if (Platform::IsBadReadPtr(Page))
-                return false;
-        }
-
-        return true;
-    }
-
-    /*
-    * A section can contain pages that a protector left unreadable, so every byte-level scan has to walk the readable
-    * spans only; touching the section as one flat block would fault on the first unreadable page.
-    */
-    template<typename CallbackType>
-    void ForEachReadableRange(const uintptr_t Start, const uint64 Size, CallbackType&& Callback)
-    {
-        constexpr uintptr_t PageSize = 0x1000;
-
-        if (Start == 0x0 || Size == 0x0)
-            return;
-
-        const uintptr_t End = Start + Size;
-
-        if (End < Start)
-            return;
-
-        uintptr_t RangeStart = Start;
-
-        for (uintptr_t Page = Start; Page < End; Page += PageSize)
-        {
-            if (!Platform::IsBadReadPtr(Page))
-                continue;
-
-            if (Page > RangeStart)
-                Callback(RangeStart, Page - RangeStart);
-
-            RangeStart = Page + PageSize;
-        }
-
-        if (End > RangeStart)
-            Callback(RangeStart, End - RangeStart);
-    }
-
-    /* A stripped view of the main module's '.text', which the byte-level scans walk directly. */
-    struct FTextSection
-    {
-        const uint8* Begin = nullptr;
-        uint64 Size = 0x0;
-
-        [[nodiscard]] bool IsValid() const { return Begin != nullptr && Size > 0x0; }
-    };
-
-    FTextSection GetTextSection()
-    {
-        const uintptr_t ModuleBase = Platform::GetModuleBase();
-
-        if (ModuleBase == 0x0)
-            return {};
-
-        const auto* DosHeader = reinterpret_cast<const IMAGE_DOS_HEADER*>(ModuleBase);
-
-        if (DosHeader->e_magic != IMAGE_DOS_SIGNATURE)
-            return {};
-
-        const auto* NtHeaders = reinterpret_cast<const IMAGE_NT_HEADERS64*>(ModuleBase + DosHeader->e_lfanew);
-
-        if (NtHeaders->Signature != IMAGE_NT_SIGNATURE || NtHeaders->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC)
-            return {};
-
-        const IMAGE_SECTION_HEADER* Section = IMAGE_FIRST_SECTION(NtHeaders);
-
-        for (WORD i = 0x0; i < NtHeaders->FileHeader.NumberOfSections; ++i, ++Section)
-        {
-            if (std::strncmp(reinterpret_cast<const char*>(Section->Name), ".text", 7) != 0)
-                continue;
-
-            return {.Begin = reinterpret_cast<const uint8*>(ModuleBase + Section->VirtualAddress), .Size = Section->Misc.VirtualSize};
-        }
-
-        return {};
-    }
-
-    /*
-    * 'FPackageFileVersion' is two consecutive 'int32's, and a UE4 build always keeps the UE5 field at zero.
-    * The UE4 object version is a small, slowly increasing constant, which is what rejects garbage reads.
-    */
-    /*
-    * 'FPackageFileVersion' only exists from UE5 ('UE4.27'); older builds keep a single 'int32 GPackageFileUEVersion'
+    * 'FPackageFileVersion' only exists from UE5 onward; UE4 builds keep a single 'int32 GPackageFileUEVersion'
     * instead, where the following word belongs to whatever global sits next to it. The engine major version therefore
-    * decides which fields are meaningful, otherwise the unrelated neighbour rejects every correct (UE4) candidate.
+    * decides which fields are meaningful.
     */
     bool TryReadPackageFileVersion(const uintptr_t Address, const bool bIsUE5, int32& OutFileVersionUE4, int32& OutFileVersionUE5)
     {
         const uint32 Span = bIsUE5 ? FPackageFileVersionSize : sizeof(int32);
 
-        if (Address == 0x0 || !IsSpanReadable(Address, Span))
+        if (!Platform::IsSpanReadable(Address, Span))
             return false;
 
         const int32 FileVersionUE4 = *reinterpret_cast<const int32*>(Address);
@@ -203,20 +105,15 @@ namespace
 
         if (bIsUE5)
         {
-            /*
-            * A UE5 build tracks the UE5 version in the following field; the UE4 field only stays set while the
-            * build is still UE4-compatible, so a non-zero UE5 field means this is not the engine's own constant.
-            */
             const int32 FileVersionUE5 = *reinterpret_cast<const int32*>(Address + 0x4);
 
-            if (FileVersionUE5 != 0x0)
+            if (FileVersionUE5 < MinPackageFileVersionUE5 || FileVersionUE5 > MaxPackageFileVersionUE5)
                 return false;
 
             OutFileVersionUE5 = FileVersionUE5;
         }
         else
         {
-            /* There is no UE5 field to read, so the usmap gets a zero there. */
             OutFileVersionUE5 = 0x0;
         }
 
@@ -329,8 +226,8 @@ EngineVersioning::FRuntimeVersioning EngineVersioning::ReadRuntimeVersioning(con
 #ifdef _WIN64
         true;
 #else
-    /* Returning a non-trivial type by value uses an ABI that is not implemented here. */
-    false;
+        /* Returning a non-trivial type by value uses an ABI that is not implemented here. */
+        false;
 #endif
 
     /*
@@ -448,7 +345,7 @@ bool EngineVersioning::TryReadCustomVersionArray(const uintptr_t Elements, const
     {
         const uint64 Span = static_cast<uint64>(Count) * Stride;
 
-        if (Span > MaxSaneCustomVersionBytes || !IsSpanReadable(Elements, Span))
+        if (Span > MaxSaneCustomVersionBytes || !Platform::IsSpanReadable(Elements, Span))
             continue;
 
         std::vector<FCustomVersionEntry> Parsed;
@@ -558,7 +455,7 @@ bool EngineVersioning::FindPackageFileVersionByScan(const bool bIsUE5, int32& Ou
     * windows that really are one resolve to an 'FPackageFileVersion', and the real global collects a vote from
     * each function that reads it while coincidental hits do not repeat. The most voted target wins.
     */
-    const FTextSection Text = GetTextSection();
+    const SectionRange Text = Platform::GetSectionRange(".text");
 
     if (!Text.IsValid())
     {
@@ -566,14 +463,17 @@ bool EngineVersioning::FindPackageFileVersionByScan(const bool bIsUE5, int32& Ou
         return false;
     }
 
-    const uintptr_t TextBeginAddress = reinterpret_cast<uintptr_t>(Text.Begin);
+    const uintptr_t TextBeginAddress = Text.Start;
     const uintptr_t TextEndAddress = TextBeginAddress + Text.Size;
 
     std::vector<uintptr_t> TagSites;
 
     /* The section can contain unreadable pages, so the tag is only searched inside the readable spans. */
-    ForEachReadableRange(TextBeginAddress, Text.Size, [&TagSites](const uintptr_t RangeStart, const uintptr_t RangeSize) -> void
+    for (const std::pair<uintptr_t, int64_t>& ReadableRange : Platform::GetReadableRanges(TextBeginAddress, static_cast<int64_t>(Text.Size)))
     {
+        const uintptr_t RangeStart = ReadableRange.first;
+        const uintptr_t RangeSize = static_cast<uintptr_t>(ReadableRange.second);
+
         const uint8* Cursor = reinterpret_cast<const uint8*>(RangeStart);
         const uint8* const RangeEnd = Cursor + RangeSize;
 
@@ -590,7 +490,7 @@ bool EngineVersioning::FindPackageFileVersionByScan(const bool bIsUE5, int32& Ou
 
             ++Cursor;
         }
-    });
+    }
 
     if (TagSites.empty())
     {
@@ -608,9 +508,10 @@ bool EngineVersioning::FindPackageFileVersionByScan(const bool bIsUE5, int32& Ou
         if (WindowEnd <= WindowStart)
             continue;
 
-        ForEachReadableRange(WindowStart, WindowEnd - WindowStart, [&Votes, bIsUE5, TextBeginAddress, TextEndAddress](const uintptr_t RangeStart, const uintptr_t RangeSize) -> void
+        for (const std::pair<uintptr_t, int64_t>& ReadableRange : Platform::GetReadableRanges(WindowStart, static_cast<int64_t>(WindowEnd - WindowStart)))
         {
-            const uintptr_t RangeEnd = RangeStart + RangeSize;
+            const uintptr_t RangeStart = ReadableRange.first;
+            const uintptr_t RangeEnd = RangeStart + static_cast<uintptr_t>(ReadableRange.second);
 
             for (uintptr_t Address = RangeStart; (Address + sizeof(int32)) <= RangeEnd; ++Address)
             {
@@ -629,7 +530,7 @@ bool EngineVersioning::FindPackageFileVersionByScan(const bool bIsUE5, int32& Ou
 
                 ++Votes[Target];
             }
-        });
+        }
     }
 
     if (Votes.empty())
@@ -687,7 +588,7 @@ void* EngineVersioning::FindNetworkCompatibleChangelistByScan()
         const uintptr_t Candidate = reinterpret_cast<uintptr_t>(Reference) - Back;
 
         /* The back-scan can cross into a page the protector left unreadable. */
-        if (!IsSpanReadable(Candidate, RelativeCallInstructionSize))
+        if (!Platform::IsSpanReadable(Candidate, RelativeCallInstructionSize))
             continue;
 
         if (*reinterpret_cast<const uint8*>(Candidate) != RelativeCallOpcode)

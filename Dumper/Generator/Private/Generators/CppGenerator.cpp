@@ -28,20 +28,13 @@ constexpr std::string GetTypeFromSize(uint8 Size, bool bIsSigned = false)
 
 // GetTypeFromSize(2); -> GetTypeFromSize(2, false)
 
-/*
-* Resolves the index of an engine class for 'PredefinedMembers'.
-*
-* 'FindClassFast' compares class names exactly, but some UE versions register 'UStruct' as "struct" in
-* lowercase, which makes a plain 'FindClassFast("Struct")' return an empty class. Resolving that case here
-* keeps every caller working, and a class that still cannot be resolved yields an invalid index rather than
-* being dereferenced through 'GetIndex()', which would crash the host process.
-*/
-static int32 FindPredefinedClassIndex(const char* const Name)
+/* Resolves the index of a class by name, or an invalid index when the class cannot be found. */
+static int32 FindClassIndexByName(const char* const Name)
 {
 	UEClass Class = ObjectArray::FindClassFast(Name);
 
 	if (Class == nullptr && std::string(Name) == "Struct")
-		Class = ObjectArray::FindClassFast("struct"); // misspelled on some UE versions.
+		Class = ObjectArray::FindClassFast("struct");
 
 	if (Class == nullptr)
 	{
@@ -1893,7 +1886,7 @@ void CppGenerator::InitPredefinedMembers()
 	// Add CppGenerator specific members
 
 	// Add GObjects static member to UObject
-	PredefinedElements& UObjectPredefs = PredefinedMembers[FindPredefinedClassIndex("Object")];
+	PredefinedElements& UObjectPredefs = PredefinedMembers[FindClassIndexByName("Object")];
 	UObjectPredefs.Members.insert(UObjectPredefs.Members.begin(),
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
@@ -1903,7 +1896,7 @@ void CppGenerator::InitPredefinedMembers()
 	);
 
 	// Add FNativeFuncPtr typedef to UFunction and change ExecFunction type
-	PredefinedElements& UFunctionPredefs = PredefinedMembers[FindPredefinedClassIndex("Function")];
+	PredefinedElements& UFunctionPredefs = PredefinedMembers[FindClassIndexByName("Function")];
 	UFunctionPredefs.Members.insert(UFunctionPredefs.Members.begin(),
 		PredefinedMember{
 			.Comment = "NOT AUTO-GENERATED PROPERTY",
@@ -2106,10 +2099,10 @@ void CppGenerator::InitPredefinedMembers()
 
 	SortMembers(UObjectPredefs.Members);
 	SortMembers(UFunctionPredefs.Members);
-	SortMembers(PredefinedMembers[FindPredefinedClassIndex("Field")].Members);
-	SortMembers(PredefinedMembers[FindPredefinedClassIndex("Enum")].Members);
-	SortMembers(PredefinedMembers[FindPredefinedClassIndex("Struct")].Members);
-	SortMembers(PredefinedMembers[FindPredefinedClassIndex("Class")].Members);
+	SortMembers(PredefinedMembers[FindClassIndexByName("Field")].Members);
+	SortMembers(PredefinedMembers[FindClassIndexByName("Enum")].Members);
+	SortMembers(PredefinedMembers[FindClassIndexByName("Struct")].Members);
+	SortMembers(PredefinedMembers[FindClassIndexByName("Class")].Members);
 
 	SortMembers(PropertyMembers);
 	SortMembers(BytePropertyMembers);
@@ -2341,7 +2334,7 @@ void CppGenerator::InitPredefinedFunctions()
 		std::sort(Functions.begin(), Functions.end(), ComparePredefinedFunctions);
 	};
 
-	PredefinedElements& UObjectPredefs = PredefinedMembers[FindPredefinedClassIndex("Object")];
+	PredefinedElements& UObjectPredefs = PredefinedMembers[FindClassIndexByName("Object")];
 
 	UObjectPredefs.Functions =
 	{
@@ -2511,7 +2504,7 @@ R"({{
 		},
 	};
 
-	const int32 UStructIdx = FindPredefinedClassIndex("Struct"); // 'struct' on some UE versions.
+	const int32 UStructIdx = FindClassIndexByName("Struct"); // 'struct' on some UE versions.
 
 	PredefinedElements& UStructPredefs = PredefinedMembers[UStructIdx];
 
@@ -2567,7 +2560,7 @@ R"({
 		},
 	};
 
-	PredefinedElements& UClassPredefs = PredefinedMembers[FindPredefinedClassIndex("Class")];
+	PredefinedElements& UClassPredefs = PredefinedMembers[FindClassIndexByName("Class")];
 
 	UClassPredefs.Functions =
 	{
@@ -2632,7 +2625,7 @@ R"({
 	};
 
 
-	PredefinedElements& UEnginePredefs = PredefinedMembers[FindPredefinedClassIndex("Engine")];
+	PredefinedElements& UEnginePredefs = PredefinedMembers[FindClassIndexByName("Engine")];
 
 	UEnginePredefs.Functions =
 	{
@@ -2668,7 +2661,7 @@ R"({
 	};
 
 
-	PredefinedElements& UGameEnginePredefs = PredefinedMembers[FindPredefinedClassIndex("GameEngine")];
+	PredefinedElements& UGameEnginePredefs = PredefinedMembers[FindClassIndexByName("GameEngine")];
 
 	UGameEnginePredefs.Functions =
 	{
@@ -2684,7 +2677,7 @@ R"({
 	};
 
 
-	PredefinedElements& UWorldPredefs = PredefinedMembers[FindPredefinedClassIndex("World")];
+	PredefinedElements& UWorldPredefs = PredefinedMembers[FindClassIndexByName("World")];
 
 	constexpr const char* GetWorldThroughGWorldCode = R"(
 	if constexpr (Offsets::GWorld != 0)

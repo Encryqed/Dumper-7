@@ -885,6 +885,63 @@ int32_t OffsetFinder::FindCastFlagsOffset()
 	return FindOffset(Infos);
 }
 
+int32_t OffsetFinder::FindClassFlagsOffset()
+{
+	if (Off::UClass::CastFlags == OffsetNotFound)
+		return OffsetNotFound;
+
+	/*
+	* 'ClassFlags' sits next to 'ClassCastFlags' in the object layout, but not always on the same side and never
+	* at a distance that can be assumed: 'FFieldClass' keeps its class flags after the cast flags (0x18 against
+	* 0x10) while 'UClass' keeps them before. The offset is therefore located rather than derived, using the bits
+	* such a class must carry - every class below is a native engine class that is not an interface, which no
+	* neighbouring word satisfies for all of them at once.
+	*/
+	constexpr const char* NativeNonInterfaceClasses[] = { "Actor", "Object", "Pawn", "PlayerController" };
+
+	/* The field is adjacent to the cast flags, so the nearest offset that matches is the one being looked for. */
+	constexpr int32_t MaxDistance = 0x10;
+	constexpr int32_t Step = static_cast<int32_t>(sizeof(uint32));
+
+	for (int32_t Distance = Step; Distance <= MaxDistance; Distance += Step)
+	{
+		const int32_t CandidateOffsets[] = { Off::UClass::CastFlags - Distance, Off::UClass::CastFlags + Distance };
+
+		for (const int32_t Offset : CandidateOffsets)
+		{
+			if (Offset < OffsetFinderMinValue || Offset >= OffsetFinderMaxValue)
+				continue;
+
+			int32_t MatchedClasses = 0x0;
+			bool bMatchedAllClasses = true;
+
+			for (const char* const ClassName : NativeNonInterfaceClasses)
+			{
+				const UEClass Class = ObjectArray::FindClassFast(ClassName);
+
+				if (!Class)
+					continue;
+
+				const EClassFlags Flags = *reinterpret_cast<const EClassFlags*>(reinterpret_cast<const uint8_t*>(Class.GetAddress()) + Offset);
+
+				/* 'operator&' reports whether every bit of the mask is set, so both tests read as a boolean. */
+				if (!(Flags & EClassFlags::Native) || (Flags & EClassFlags::Interface))
+				{
+					bMatchedAllClasses = false;
+					break;
+				}
+
+				MatchedClasses++;
+			}
+
+			if (bMatchedAllClasses && MatchedClasses > 0x0)
+				return Offset;
+		}
+	}
+
+	return OffsetNotFound;
+}
+
 int32_t OffsetFinder::FindDefaultObjectOffset()
 {
 	std::vector<std::pair<void*, void*>> Infos;

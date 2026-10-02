@@ -308,10 +308,7 @@ void Off::Init()
 	Off::UClass::CastFlags = OffsetFinder::FindCastFlagsOffset();
 	std::cerr << std::format("Off::UClass::CastFlags: 0x{:X}\n", Off::UClass::CastFlags);
 
-	/* 'UClass::ClassFlags' is declared immediately before 'UClass::ClassCastFlags' ('CastFlags'). */
-	if (Off::UClass::CastFlags != OffsetFinder::OffsetNotFound)
-		Off::UClass::ClassFlags = Off::UClass::CastFlags - static_cast<int32>(sizeof(EClassFlags));
-
+	Off::UClass::ClassFlags = OffsetFinder::FindClassFlagsOffset();
 	std::cerr << std::format("Off::UClass::ClassFlags: 0x{:X}\n", Off::UClass::ClassFlags);
 
 	/* 'UScriptStruct::StructFlags' is the first member after the UStruct base, so it starts at 'sizeof(UStruct)'. */

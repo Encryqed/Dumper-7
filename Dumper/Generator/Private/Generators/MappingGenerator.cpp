@@ -21,6 +21,22 @@ namespace
 	std::vector<uint64> GFlagDict;
 	std::unordered_map<uint64, uint32> GFlagIndexOf;
 	bool GAnyMappingProperty = false;
+
+	/*
+	* 'PropertyCount' is written as an int24 whose top byte carries the Class/Struct flag: 1 for structs, 0 for
+	* classes. Keeping both fields in one struct makes the packing explicit instead of leaving it spread over
+	* shifts and masks at the write site.
+	*/
+	struct FUsmapPropertyCount
+	{
+		uint32 Count : 24 = 0x0;
+		uint32 bIsStruct : 8 = 0x0;
+
+		inline uint32 GetAsUint32() const
+		{
+			return static_cast<uint32>(Count) | (static_cast<uint32>(bIsStruct) << 24);
+		}
+	};
 }
 
 
@@ -355,9 +371,13 @@ void MappingGenerator::GeneratePropertyInfo(const PropertyWrapper& Property, std
 	WriteToStream(Data, static_cast<uint16>(Index));
 
 	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedMetadata)
+	{
 		WriteToStream(Data, static_cast<uint16>(Property.GetArrayDim()));
+	}
 	else
+	{
 		WriteToStream(Data, static_cast<uint8>(Property.GetArrayDim()));
+	}
 
 	const int32 MemberNameIdx = AddNameToData(NameTable, Property.GetUnrealProperty().GetName());
 	WriteToStream(Data, MemberNameIdx);
@@ -385,9 +405,13 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedMetadata)
 	{
 		if (Struct.IsUnrealStruct())
+		{
 			WriteOwnerPackageName(Struct.GetUnrealStruct(), Data, NameTable);
+		}
 		else
-			WriteToStream(Data, -1);
+		{
+			WriteToStream(Data, static_cast<int32>(-1));
+		}
 	}
 
 	WriteToStream(Data, StructNameIndex);
@@ -400,7 +424,7 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 	}
 	else
 	{
-		WriteToStream(Data, -1);
+		WriteToStream(Data, static_cast<int32>(-1));
 	}
 
 	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedMetadata)
@@ -435,17 +459,17 @@ void MappingGenerator::GenerateStruct(const StructWrapper& Struct, std::stringst
 		PropertyCount += Member.GetArrayDim();
 	}
 
-	uint32 PropCountClassFlag = PropertyCount;
+	FUsmapPropertyCount PropCount;
+	PropCount.Count = PropertyCount;
 
 	if constexpr (WrittenVersion >= EUsmapVersion::ExtendedMetadata)
 	{
 		/* 'PropertyCount' is int24; its top byte is the Class/Struct flag: 1 for structs, 0 for classes. */
-		if (!Struct.IsClass())
-			PropCountClassFlag = (PropertyCount & 0xFFFFFF) | 0x01000000;
+		PropCount.bIsStruct = Struct.IsClass() ? 0x0 : 0x1;
 	}
 
 	/* uint32, uint32 */
-	WriteToStream(Data, PropCountClassFlag);
+	WriteToStream(Data, PropCount.GetAsUint32());
 	WriteToStream(Data, SerializablePropertyCount);
 
 	/* Incremented by 'Property->ArrayDim' inside 'GeneratePropertyInfo()' */

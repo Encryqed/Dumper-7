@@ -138,7 +138,7 @@ private:
     static constexpr EUsmapVersion WrittenVersion = EUsmapVersion::Latest;
 
     static constexpr const char* MetadataToolName = "Dumper-7";
-    static constexpr const char* MetadataToolVersion = "";
+    static constexpr const char* MetadataToolVersion = "7.0.1";
 
     /* Dumper-7 reads the live process of a running game. */
     static constexpr EUsmapSource MetadataSource = EUsmapSource::Runtime;
