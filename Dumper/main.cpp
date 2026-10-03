@@ -83,6 +83,21 @@ DWORD MainThread(HMODULE Module)
 	{
 		if (GetAsyncKeyState(VK_F6) & 1)
 		{
+			std::cerr << "\nUnloading [Dumper-7]...\n";
+
+			HMODULE LoadedModule = nullptr;
+			const bool bIsModuleRegistered = GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&MainThread), &LoadedModule) && LoadedModule == Module;
+
+			if (bIsModuleRegistered)
+			{
+				std::cerr << "Unload successful! [Dumper-7] is being detached from the main process.\n";
+			}
+			else
+			{
+				std::cerr << "Unload failed! [Dumper-7] is not registered in the module list of the main process and will stay mapped in memory.\n";
+				std::cerr << "Only the console and the dumper thread will be detached from the main process.\n";
+			}
+
 			fclose(stderr);
 			if (Dummy) 
 			{
