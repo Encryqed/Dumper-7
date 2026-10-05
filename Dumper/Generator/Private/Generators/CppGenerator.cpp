@@ -3680,7 +3680,7 @@ R"({
 		PredefinedFunction{
 			.CustomComment = "",
 			.ReturnType = "constexpr", .NameWithParams = "FBox(const FVector& Min, const FVector& Max)", .Body =
-R"(	: Min(Min), Max(Max), IsValid(true)
+R"(	: Min(Min), Max(Max), bIsValid(true)
 {
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
@@ -3699,7 +3699,7 @@ R"(	: Min(Min), Max(Max), IsValid(true)
 			.ReturnType = "constexpr", .NameWithParams = "FBox(const FBox& Other)",
 			.Body = R"(	: FBox(Other.Min, Other.Max)
 {
-	IsValid = Other.IsValid;
+	bIsValid = Other.bIsValid;
 })",
 			.bIsStatic = false, .bIsConst = false, .bIsBodyInline = true
 		}

@@ -575,7 +575,7 @@ int32_t OffsetFinder::FindFFieldEditorOnlyMetaDataOffset()
 		}
 		else
 		{
-			if (AreValidMetadataMaps(reinterpret_cast<const TMap<Name16Byte, FString>*>(PossibleMetaDataPtr1), reinterpret_cast<const TMap<Name16Byte, FString>*>(PossibleMetaDataPtr1)))
+			if (AreValidMetadataMaps(reinterpret_cast<const TMap<Name16Byte, FString>*>(PossibleMetaDataPtr1), reinterpret_cast<const TMap<Name16Byte, FString>*>(PossibleMetaDataPtr2)))
 				return Offset;
 		}
 	}

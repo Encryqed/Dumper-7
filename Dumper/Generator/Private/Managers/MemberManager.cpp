@@ -201,8 +201,7 @@ void MemberManager::InitReservedNames()
 
 void MemberManager::InitNameReplacements()
 {
-	const UEStruct RotatorStruct = ObjectArray::FindStructFast("Rotator");
-	if (RotatorStruct)
+	if (const UEStruct RotatorStruct = ObjectArray::FindStructFast("Rotator"))
 	{
 		// make these name-replacements
 		MemberNames.AddNameReplacement(RotatorStruct, "pitch", "Pitch");
@@ -210,29 +209,19 @@ void MemberManager::InitNameReplacements()
 		MemberNames.AddNameReplacement(RotatorStruct, "roll", "Roll");
 	}
 
-	const UEStruct BoxStruct = ObjectArray::FindStructFast("Box");
-	if (BoxStruct)
+	if (const UEStruct BoxStruct = ObjectArray::FindStructFast("Box"))
 	{
 		// make these name-replacements
 		MemberNames.AddNameReplacement(BoxStruct, "min", "Min");
 		MemberNames.AddNameReplacement(BoxStruct, "max", "Max");
+		MemberNames.AddNameReplacement(BoxStruct, "IsValid", "bIsValid");
 	}
 
-	const UEStruct Box2DStruct = ObjectArray::FindStructFast("Box2D");
-	if (Box2DStruct)
+	if (const UEStruct Box2DStruct = ObjectArray::FindStructFast("Box2D"))
 	{
 		// make these name-replacements
 		MemberNames.AddNameReplacement(Box2DStruct, "min", "Min");
 		MemberNames.AddNameReplacement(Box2DStruct, "max", "Max");
+		MemberNames.AddNameReplacement(Box2DStruct, "IsValid", "bIsValid");
 	}
-
-	// TEST ONLY
-	/*
-	const UEClass ActorClass = ObjectArray::FindClassFast("Actor");
-	if (ActorClass)
-	{
-		// make these name-replacements
-		MemberNames.AddNameReplacement(ActorClass, "PrimaryActorTick", "TheActorsMainToastComponent");
-	}
-	*/
 }
