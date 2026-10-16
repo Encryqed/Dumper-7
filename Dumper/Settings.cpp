@@ -202,6 +202,25 @@ void Settings::Config::Load()
 			std::cerr << "Press " << KeyName << " to begin dump." << "\n";
 		}
 	}
+
+	bShouldAutoUnload = GetPrivateProfileIntA("Settings", "ShouldAutoUnload", bShouldAutoUnload, ConfigPath) != 0;
+	Settings::Debug::bExecuteSDKTestScript = GetPrivateProfileIntA("Settings", "ExecuteSDKTestScript", Settings::Debug::bExecuteSDKTestScript, ConfigPath) != 0;
+
+	char LogFilePath[256] = {};
+	GetPrivateProfileStringA("Settings", "LogFilePath", "", LogFilePath, sizeof(LogFilePath), ConfigPath);
+
+	if (LogFilePath[0] != '\0')
+	{
+		std::cerr << "Log File Path: " << LogFilePath << "\n";
+
+		FILE* LogFile = nullptr;
+		if (freopen_s(&LogFile, LogFilePath, "w", stderr) != 0)
+		{
+			freopen_s(&LogFile, "CONOUT$", "w", stderr);
+			std::cerr.clear();
+			std::cerr << "Failed to open log file, logging to console instead.\n";
+		}
+	}
 }
 
 void Settings::Config::DelayDumperStart()

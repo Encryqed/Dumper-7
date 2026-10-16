@@ -178,7 +178,7 @@ bool NameArray::InitializeNameArray(uint8_t* NameArray)
 					const int32 ChunkIdx = ComparisonIndex / 0x4000;
 					const int32 InChunk = ComparisonIndex % 0x4000;
 
-					if (ComparisonIndex > NameArray::GetNumElements())
+					if (ComparisonIndex >= NameArray::GetNumElements())
 						return nullptr;
 
 					return reinterpret_cast<void***>(NamesArray)[ChunkIdx][InChunk];
@@ -289,7 +289,7 @@ bool NameArray::InitializeNamePool(uint8_t* NamePool)
 
 		const bool bIsBeyondLastChunk = ChunkIdx == NameArray::GetNumChunks() && InChunkOffset > NameArray::GetByteCursor();
 
-		if (ChunkIdx < 0 || ChunkIdx > GetNumChunks() || bIsBeyondLastChunk)
+		if (ChunkIdx < 0 || ChunkIdx >= GetNumChunks() || bIsBeyondLastChunk)
 			return nullptr;
 
 		uint8_t* ChunkPtr = reinterpret_cast<uint8_t*>(NamesArray) + 0x10;

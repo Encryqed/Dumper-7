@@ -9431,7 +9431,7 @@ if __name__ == "__main__":
 
 bool CppGenerator::ExecuteSDKCompilationTestScript()
 {
-	if constexpr (!Settings::Debug::bExecuteSDKTestScript)
+	if (!Settings::Debug::bExecuteSDKTestScript)
 		return false;
 
 	constexpr bool bCreateScriptTemporarilyForExecution = !Settings::Debug::bShouldGenerateSDKCompilationTestScript;

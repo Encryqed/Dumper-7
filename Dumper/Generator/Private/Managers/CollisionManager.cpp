@@ -72,17 +72,6 @@ ParamNameCollisionCount: {};
 
 uint64 KeyFunctions::GetKeyForCollisionInfo(UEStruct Super, UEProperty Member)
 {
-	uint64 Key = 0x0;
-
-	FName Name = Member.GetFName();
-	Key += Name.GetCompIdx();
-	Key += Name.GetNumber();
-
-	Key <<= 32;
-	Key |= (static_cast<uint64>(Member.GetOffset()) << 24);
-	Key |= (static_cast<uint64>(Member.GetSize()) << 16);
-	Key |= Super.GetIndex();
-
 	return reinterpret_cast<uint64>(Member.GetAddress());
 }
 
