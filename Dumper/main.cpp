@@ -81,7 +81,7 @@ DWORD MainThread(HMODULE Module)
 
 	while (true)
 	{
-		if (GetAsyncKeyState(VK_F6) & 1)
+		if (GetAsyncKeyState(VK_F6) & 1 || Settings::Config::bShouldAutoUnload)
 		{
 			fclose(stderr);
 			if (Dummy) 
@@ -107,6 +107,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 		CreateThread(0, 0, (LPTHREAD_START_ROUTINE)MainThread, hModule, 0, 0);
 		break;
 	}
-
+	
 	return TRUE;
 }

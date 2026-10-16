@@ -23,6 +23,9 @@ namespace Settings
 		inline int DumpKey = 0;
 		inline std::string SDKNamespaceName = "SDK";
 
+		/* Whether to unload the dumper after generation instead of waiting for F6. */
+		inline bool bShouldAutoUnload = false;
+
 		void Load();
 		void DelayDumperStart();
 	};
@@ -114,7 +117,7 @@ R"(
 		inline constexpr bool bShouldGenerateSDKCompilationTestScript = false;
 
 		/* Whether to execute the SDK compilation test script after generation. */
-		inline constexpr bool bExecuteSDKTestScript = false;
+		inline bool bExecuteSDKTestScript = true;
 
 		/* Generates a dedicated file defining macros for static asserts (Make sure InlineAssertions are off) */
 		inline constexpr bool bGenerateAssertionFile = true;

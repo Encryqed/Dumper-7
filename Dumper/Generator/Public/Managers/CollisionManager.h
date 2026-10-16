@@ -2,6 +2,8 @@
 #include "Unreal/ObjectArray.h"
 #include "HashStringTable.h"
 
+#include <unordered_map>
+
 enum class ECollisionType : uint8
 {
 	MemberName,
@@ -112,6 +114,9 @@ public:
 	using NameInfoMapType = std::unordered_map<uint64, NameContainer>;
 	using TranslationMapType = std::unordered_map<uint64, uint64>;
 
+	using NameMappingType = std::pair<std::string, std::string>;
+	using NameReplacementMapType = std::vector<std::pair<UEStruct, std::vector<NameMappingType>>>;
+
 private:
 	/* Nametable used for storing the string-names of member-/function-names contained by NameInfos */
 	HashStringTable MemberNames;
@@ -128,14 +133,31 @@ private:
 	/* Names reserved for all members/parameters. Eg. "float", "operator", "return", ... */
 	NameContainer ReservedNames;
 
+	/* Member/Function names in a struct that should be replaced. Can rename "SomeStruct::myMember" to "SomeStruct::MyRenamedMember". */
+	NameReplacementMapType RemappedNames;
+
 private:
 	/* Returns index of NameInfo inside of the NameContainer it was added to */
 	uint64 AddNameToContainer(NameContainer& StructNames, UEStruct Struct, std::pair<HashStringTableIndex, bool>&& NamePair, ECollisionType CurrentType, bool bIsStruct, UEFunction Func = nullptr);
+
+	std::string GetRemappedName(UEStruct Struct, const std::string& OriginalName) const;
+
+	// returns std::vector<NameMappingType>*
+	decltype(auto) GetNameReplacements(this auto&& Self, UEStruct Struct)
+	{
+		auto It = std::ranges::find_if(Self.RemappedNames, [Struct](const auto& Entry)
+		{
+			return Entry.first == Struct;
+		});
+
+		return It != Self.RemappedNames.end() ? &It->second : nullptr;
+	}
 
 public:
 	/* For external use by 'MemberManager::InitReservedNames()' */
 	void AddReservedClassName(const std::string& Name, bool bIsParameterOrLocalVariable);
 	void AddReservedName(const std::string& Name);
+	void AddNameReplacement(UEStruct Struct, const std::string& OriginalName, const std::string& NewName);
 	void AddStructToNameContainer(UEStruct ObjAsStruct, bool bIsStruct, bool bIsFunction = false);
 
 	std::string StringifyName(UEStruct Struct, NameInfo Info);
@@ -157,6 +179,11 @@ private:
 		uint64 NameInfoIndex = TranslationMap[KeyFunctions::GetKeyForCollisionInfo(Struct, Member)];
 
 		return InfosForStruct.at(NameInfoIndex);
+	}
+
+	inline bool HasNameReplacements(UEStruct Struct)
+	{
+		return GetNameReplacements(Struct) != nullptr;
 	}
 };
 
