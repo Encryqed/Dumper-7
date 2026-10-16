@@ -71,14 +71,15 @@ void FName::Init_Windows(bool bForceGNames)
 #ifdef PLATFORM_WINDOWS
 
 #if defined(_WIN64)
-	constexpr std::array<const char*, 6> PossibleSigs = 
-	{ 
+	constexpr std::array<const char*, 7> PossibleSigs =
+	{
 		"48 8D ? ? 48 8D ? ? E8",
 		"48 8D ? ? ? 48 8D ? ? E8",
 		"48 8D ? ? 49 8B ? E8",
 		"48 8D ? ? ? 49 8B ? E8",
 		"48 8D ? ? 48 8B ? E8",
 		"48 8D ? ? ? 48 8B ? E8",
+		"E8 ? ? ? ? 48 8D ? ? ? 48 89 ? E8",
 	};
 #elif defined(_WIN32)
 	constexpr std::array<const char*, 1> PossibleSigs = 
