@@ -49,6 +49,7 @@ private:
 public:
     static void InitEngineCore();
     static void InitInternal();
+    static void FetchGameNameAndVersion();
 
 private:
     static bool SetupDumperFolder();

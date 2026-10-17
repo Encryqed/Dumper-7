@@ -27,6 +27,27 @@ constexpr std::string GetTypeFromSize(uint8 Size, bool bIsSigned = false)
 	}
 }
 
+static std::string EscapeForCppStringLiteral(const std::string& In)
+{
+	std::string Out;
+	Out.reserve(In.size());
+
+	for (const char Ch : In)
+	{
+		switch (Ch)
+		{
+		case '\\': Out += "\\\\"; break;
+		case '\"': Out += "\\\""; break;
+		case '\n': Out += "\\n"; break;
+		case '\r': Out += "\\r"; break;
+		case '\t': Out += "\\t"; break;
+		default: Out += Ch; break;
+		}
+	}
+
+	return Out;
+}
+
 // GetTypeFromSize(2); -> GetTypeFromSize(2, false)
 
 std::string CppGenerator::MakeMemberString(const std::string& Type, const std::string& Name, std::string&& Comment)
@@ -3760,7 +3781,15 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 		std::sort(Members.begin(), Members.end(), ComparePredefinedMembers);
 	};
 
+	const std::string GameNameLiteral = EscapeForCppStringLiteral(Settings::Generator::GameName);
+	const std::string GameVersionLiteral = EscapeForCppStringLiteral(Settings::Generator::GameVersion);
+
 	const std::string SDKMacroDefinitions = std::format(R"(
+
+#define DUMPER_UE_MAJOR_VERSION {}
+#define DUMPER_UE_MINOR_VERSION {}
+#define DUMPER_GAME_NAME "{}"
+#define DUMPER_GAME_VERSION "{}"
 
 /*
 * Macros for opening and closing namespaces, in order to allow to remove the SDK namespace when importing the SDK into IDA.
@@ -3786,7 +3815,7 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 #define SDK_PARAM_NAMESPACE_START namespace {} {{
 #define SDK_PARAM_NAMESPACE_END }}
 
-)", Settings::Config::SDKNamespaceName, CppSettings::ParamNamespaceName);
+)", Settings::Generator::EngineVersionMajor, Settings::Generator::EngineVersionMinor, GameNameLiteral, GameVersionLiteral, Settings::Config::SDKNamespaceName, CppSettings::ParamNamespaceName);
 
 	const std::string CustomIncludes = std::format(R"(#define VC_EXTRALEAN
 #define WIN32_LEAN_AND_MEAN

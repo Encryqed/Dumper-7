@@ -44,6 +44,8 @@ namespace Settings
 		/* Auto generated if no override is provided */
 		inline std::string GameName = "";
 		inline std::string GameVersion = "";
+		inline int32 EngineVersionMajor = 0;
+		inline int32 EngineVersionMinor = 0;
 
 		inline std::string SDKGenerationPath = "C:/Dumper-7";
 

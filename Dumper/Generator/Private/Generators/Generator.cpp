@@ -12,6 +12,48 @@
 #include "Json/json.hpp"
 
 #include <fstream>
+#include <cctype>
+#include <cstdlib>
+
+inline void ParseEngineVersion(const std::string& VersionString, int32& OutMajorVersion, int32& OutMinorVersion)
+{
+	OutMajorVersion = 0;
+	OutMinorVersion = 0;
+
+	const auto IsNumeric = [](char Ch) { return std::isdigit(static_cast<unsigned char>(Ch)); };
+
+	size_t Cursor = 0;
+	while (Cursor < VersionString.size() && !IsNumeric(VersionString[Cursor]))
+	{
+		Cursor++;
+	}
+
+	if (Cursor == VersionString.size())
+		return;
+
+	size_t EndOfMajor = Cursor;
+	while (EndOfMajor < VersionString.size() && IsNumeric(VersionString[EndOfMajor]))
+	{
+		EndOfMajor++;
+	}
+
+	OutMajorVersion = std::atoi(VersionString.substr(Cursor, EndOfMajor - Cursor).c_str());
+
+	if (EndOfMajor >= VersionString.size() || VersionString[EndOfMajor] != '.')
+		return;
+
+	size_t MinorStart = EndOfMajor + 1;
+	size_t EndOfMinor = MinorStart;
+	while (EndOfMinor < VersionString.size() && IsNumeric(VersionString[EndOfMinor]))
+	{
+		EndOfMinor++;
+	}
+
+	if (MinorStart == EndOfMinor)
+		return;
+
+	OutMinorVersion = std::atoi(VersionString.substr(MinorStart, EndOfMinor - MinorStart).c_str());
+}
 
 inline void InitSettings()
 {
@@ -76,6 +118,37 @@ void Generator::InitInternal()
 
 	// Post-Initialize PackageManager after StructManager has been initialized. 'PostInit()' handles Cyclic-Dependencies detection
 	PackageManager::PostInit();
+}
+
+void Generator::FetchGameNameAndVersion()
+{
+	if (!Settings::Generator::GameName.empty() && !Settings::Generator::GameVersion.empty())
+	{
+		ParseEngineVersion(Settings::Generator::GameVersion, Settings::Generator::EngineVersionMajor, Settings::Generator::EngineVersionMinor);
+		return;
+	}
+
+	UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
+
+	if (Settings::Generator::GameName.empty())
+	{
+		FString Name;
+		UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName");
+		Kismet.ProcessEvent(GetGameName, &Name);
+
+		Settings::Generator::GameName = Name.ToString();
+	}
+
+	if (Settings::Generator::GameVersion.empty())
+	{
+		FString Version;
+		UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion");
+		Kismet.ProcessEvent(GetEngineVersion, &Version);
+
+		Settings::Generator::GameVersion = Version.ToString();
+	}
+
+	ParseEngineVersion(Settings::Generator::GameVersion, Settings::Generator::EngineVersionMajor, Settings::Generator::EngineVersionMinor);
 }
 
 bool Generator::SetupDumperFolder()
