@@ -83,6 +83,8 @@ DWORD MainThread(HMODULE Module)
 	{
 		if (GetAsyncKeyState(VK_F6) & 1)
 		{
+			std::cerr << "\nUnloaded [Dumper-7]\n";
+
 			fclose(stderr);
 			if (Dummy) 
 			{
