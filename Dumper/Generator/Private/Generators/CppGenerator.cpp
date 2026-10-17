@@ -578,10 +578,12 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	if (bUseDynamicLookup)
 	{
 		FuncLookupBlock = std::format(
-R"(	static class FName FnName;
-	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
+			R"(	static class FName FnName;
+	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName({}, FnName));)",
 			bDispatchAsInterface ? "AsUObject()" : "this",
-			FixedFunctionName);
+			CppSettings::XORString
+			? std::format("{}(L\"{}\")", CppSettings::XORString, FixedOuterName)
+			: std::format("L\"{}\"", FixedOuterName));
 	}
 	else if (bIsUnloadableFunction)
 	{
