@@ -1,5 +1,6 @@
 #include <vector>
 #include <array>
+#include <cstdio>
 #include <unordered_set>
 
 #include "Unreal/ObjectArray.h"
@@ -578,10 +579,12 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	if (bUseDynamicLookup)
 	{
 		FuncLookupBlock = std::format(
-R"(	static class FName FnName;
-	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName(L"{}", FnName));)",
+			R"(	static class FName FnName;
+	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName({}, FnName));)",
 			bDispatchAsInterface ? "AsUObject()" : "this",
-			FixedFunctionName);
+			CppSettings::XORString
+			? std::format("{}(L\"{}\")", CppSettings::XORString, FixedOuterName)
+			: std::format("L\"{}\"", FixedOuterName));
 	}
 	else if (bIsUnloadableFunction)
 	{
@@ -3751,6 +3754,61 @@ R"(	: Min(Min), Max(Max), bIsValid(true)
 }
 
 
+namespace
+{
+	std::string EscapeDumper7MacroString(const std::string& In)
+	{
+		std::string Out;
+		Out.reserve(In.size());
+
+		for (char C : In)
+		{
+			switch (C)
+			{
+			case '\\':
+				Out += "\\\\";
+				break;
+			case '"':
+				Out += "\\\"";
+				break;
+			case '\n':
+			case '\r':
+				Out += ' ';
+				break;
+			default:
+				Out += C;
+				break;
+			}
+		}
+
+		return Out;
+	}
+
+	void ParseDumper7UeVersionMajorMinor(const std::string& GameVersion, int32& OutMajor, int32& OutMinor)
+	{
+		OutMajor = 0;
+		OutMinor = 0;
+
+		if (GameVersion.empty())
+			return;
+
+		for (size_t Offset = 0; Offset < GameVersion.size(); ++Offset)
+		{
+			int32 Major = 0;
+			int32 Minor = 0;
+			int32 Patch = 0;
+			int32 Build = 0;
+
+			if (sscanf_s(GameVersion.c_str() + Offset, "%d.%d.%d-%d", &Major, &Minor, &Patch, &Build) == 4)
+			{
+				OutMajor = Major;
+				OutMinor = Minor;
+				return;
+			}
+		}
+	}
+}
+
 void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp, StreamType& AssertionsFile)
 {
 	namespace CppSettings = Settings::CppGenerator;
@@ -3759,6 +3817,17 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 	{
 		std::sort(Members.begin(), Members.end(), ComparePredefinedMembers);
 	};
+
+	int32 UeVersionMajor = 0;
+	int32 UeVersionMinor = 0;
+	ParseDumper7UeVersionMajorMinor(Settings::Generator::GameVersion, UeVersionMajor, UeVersionMinor);
+
+	const std::string MetadataMacroDefinitions = std::format(R"(
+#define DUMPER_7_UE_VERSION_MAJOR {}
+#define DUMPER_7_UE_VERSION_MINOR {}
+#define DUMPER_7_UE_VERSION_STRING "{}"
+#define DUMPER_7_GAME_NAME "{}"
+)", UeVersionMajor, UeVersionMinor, EscapeDumper7MacroString(Settings::Generator::GameVersion), EscapeDumper7MacroString(Settings::Generator::GameName));
 
 	const std::string SDKMacroDefinitions = std::format(R"(
 
@@ -3790,12 +3859,12 @@ void CppGenerator::GenerateBasicFiles(StreamType& BasicHpp, StreamType& BasicCpp
 
 	const std::string CustomIncludes = std::format(R"(#define VC_EXTRALEAN
 #define WIN32_LEAN_AND_MEAN
-{}
+{}{}
 #include <string>
 #include <functional>
 #include <type_traits>
 #include <format>
-)", (!Settings::Config::SDKNamespaceName.empty() ? SDKMacroDefinitions : ""));
+)", (!Settings::Config::SDKNamespaceName.empty() ? SDKMacroDefinitions : ""), MetadataMacroDefinitions);
 
 	WriteFileHead(BasicHpp, nullptr, EFileType::BasicHpp, "Basic file containing structs required by the SDK", CustomIncludes);
 	WriteFileHead(BasicCpp, nullptr, EFileType::BasicCpp, "Basic file containing function-implementations from Basic.hpp", "#include <Windows.h>");
