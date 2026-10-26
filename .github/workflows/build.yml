@@ -6,26 +6,31 @@ on:
       - main
     tags:
       - "v*"
-  pull_request:
-    branches:
-      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
 
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
 
       - name: Build Dumper Project
         run: msbuild .\Dumper\Dumper.vcxproj /p:Configuration=Release /p:Platform=x64 /p:WarningLevel=0
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Dumper-7_x64-Release
           path: |
@@ -37,7 +42,8 @@ jobs:
     name: Create Release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: build
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     permissions:
       contents: write
