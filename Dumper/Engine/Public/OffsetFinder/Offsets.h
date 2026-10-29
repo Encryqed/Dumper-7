@@ -211,6 +211,8 @@ namespace Off
 		inline int32 ChildProperties;
 		inline int32 Size;
 		inline int32 MinAlignment;
+
+		inline int32 StructFlags = -1;
 	}
 
 	namespace UFunction
@@ -222,6 +224,8 @@ namespace Off
 	namespace UClass
 	{
 		inline int32 CastFlags;
+		inline int32 ClassFlags = -1;
+
 		inline int32 ClassDefaultObject;
 		inline int32 ImplementedInterfaces;
 	}

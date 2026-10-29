@@ -652,6 +652,15 @@ int32 UEStruct::GetStructSize() const
 	return *reinterpret_cast<int32*>(Object + Off::UStruct::Size);
 }
 
+EStructFlags UEStruct::GetStructFlags() const
+{
+	/* 'StructFlags' only exists on UScriptStructs; UClasses store their flags in 'UEClass::ClassFlags'. */
+	if (Off::UStruct::StructFlags <= 0)
+		return EStructFlags::NoFlags;
+
+	return *reinterpret_cast<EStructFlags*>(Object + Off::UStruct::StructFlags);
+}
+
 bool UEStruct::HasType(UEStruct Type) const
 {
 	if (Type == nullptr)
@@ -757,6 +766,14 @@ bool UEStruct::HasMembers() const
 EClassCastFlags UEClass::GetCastFlags() const
 {
 	return *reinterpret_cast<EClassCastFlags*>(Object + Off::UClass::CastFlags);
+}
+
+EClassFlags UEClass::GetClassFlags() const
+{
+	if (Off::UClass::ClassFlags <= 0)
+		return EClassFlags::None;
+
+	return *reinterpret_cast<EClassFlags*>(Object + Off::UClass::ClassFlags);
 }
 
 std::string UEClass::StringifyCastFlags() const

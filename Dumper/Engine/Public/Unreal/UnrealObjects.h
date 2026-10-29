@@ -209,6 +209,8 @@ public:
 	UEFField GetChildProperties() const;
 	int32 GetStructSize() const;
 
+	EStructFlags GetStructFlags() const;
+
 	/*
 	* The type of UStruct::MinAlignemnt was changed from int32 to int16 on UE5.6.
 	* 
@@ -248,6 +250,7 @@ class UEClass : public UEStruct
 
 public:
 	EClassCastFlags GetCastFlags() const;
+	EClassFlags GetClassFlags() const;
 	std::string StringifyCastFlags() const;
 	bool IsType(EClassCastFlags TypeFlag) const;
 	UEObject GetDefaultObject() const;

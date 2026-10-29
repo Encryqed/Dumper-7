@@ -291,7 +291,7 @@ enum class EClassFlags : uint32
 	DefaultConfig				= 0x00000002u,
 	Config						= 0x00000004u,
 	Transient					= 0x00000008u,
-	Parsed						= 0x00000010u,
+	Optional					= 0x00000010u,
 	MatchedSerializers			= 0x00000020u,
 	ProjectUserConfig			= 0x00000040u,
 	Native						= 0x00000080u,
@@ -319,6 +319,38 @@ enum class EClassFlags : uint32
 	Constructed					= 0x20000000u,
 	ConfigDoNotCheckDefaults	= 0x40000000u,
 	NewerVersionExists			= 0x80000000u,
+};
+
+enum class EStructFlags : uint32
+{
+	NoFlags						= 0x00000000u,
+	Native						= 0x00000001u,
+	IdenticalNative				= 0x00000002u,
+	HasInstancedReference		= 0x00000004u,
+	NoExport					= 0x00000008u,
+	Atomic						= 0x00000010u,
+	Immutable					= 0x00000020u,
+	AddStructReferencedObjects	= 0x00000040u,
+	RequiredAPI					= 0x00000200u,
+	NetSerializeNative			= 0x00000400u,
+	SerializeNative				= 0x00000800u,
+	CopyNative					= 0x00001000u,
+	IsPlainOldData				= 0x00002000u,
+	NoDestructor				= 0x00004000u,
+	ZeroConstructor				= 0x00008000u,
+	ExportTextItemNative		= 0x00010000u,
+	ImportTextItemNative		= 0x00020000u,
+	PostSerializeNative			= 0x00040000u,
+	SerializeFromMismatchedTag	= 0x00080000u,
+	NetDeltaSerializeNative		= 0x00100000u,
+	PostScriptConstruct			= 0x00200000u,
+	NetSharedSerialization		= 0x00400000u,
+	Trashed						= 0x00800000u,
+	NewerVersionExists			= 0x01000000u,
+	CanEditChange				= 0x02000000u,
+	Visitor						= 0x04000000u,
+	PostLoad					= 0x08000000u,
+	MoveAssignNative			= 0x10000000u,
 };
 
 enum class EMappingsTypeFlags : uint8
@@ -379,6 +411,7 @@ ENUM_OPERATORS(EFunctionFlags);
 ENUM_OPERATORS(EPropertyFlags);
 ENUM_OPERATORS(EClassCastFlags);
 ENUM_OPERATORS(EClassFlags);
+ENUM_OPERATORS(EStructFlags);
 ENUM_OPERATORS(EMappingsTypeFlags);
 ENUM_OPERATORS(EFieldClassID);
 
