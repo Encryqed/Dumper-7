@@ -199,17 +199,29 @@ void MemberManager::InitReservedNames()
 	MemberNames.AddReservedName("IGNORE");
 }
 
-void MemberManager::FixIncorrectNames()
+void MemberManager::InitNameReplacements()
 {
-	const UEStruct RotatorStruct = ObjectArray::FindStructFast("Rotator");
+	if (const UEStruct RotatorStruct = ObjectArray::FindStructFast("Rotator"))
+	{
+		// make these name-replacements
+		MemberNames.AddNameReplacement(RotatorStruct, "pitch", "Pitch");
+		MemberNames.AddNameReplacement(RotatorStruct, "yaw", "Yaw");
+		MemberNames.AddNameReplacement(RotatorStruct, "roll", "Roll");
+	}
 
-	// Search for properties with incorrect casing, if "pitch" is found correct it to "Pitch"
-	if (const UEProperty PitchProperty = RotatorStruct.FindMember("pitch"))
-		StructManager_NameAccessHelper::ReplaceName(MemberNames, RotatorStruct, PitchProperty, "Pitch");
+	if (const UEStruct BoxStruct = ObjectArray::FindStructFast("Box"))
+	{
+		// make these name-replacements
+		MemberNames.AddNameReplacement(BoxStruct, "min", "Min");
+		MemberNames.AddNameReplacement(BoxStruct, "max", "Max");
+		MemberNames.AddNameReplacement(BoxStruct, "IsValid", "bIsValid");
+	}
 
-	if (const UEProperty PitchProperty = RotatorStruct.FindMember("yaw"))
-		StructManager_NameAccessHelper::ReplaceName(MemberNames, RotatorStruct, PitchProperty, "Yaw");
-
-	if (const UEProperty PitchProperty = RotatorStruct.FindMember("roll"))
-		StructManager_NameAccessHelper::ReplaceName(MemberNames, RotatorStruct, PitchProperty, "Roll");
+	if (const UEStruct Box2DStruct = ObjectArray::FindStructFast("Box2D"))
+	{
+		// make these name-replacements
+		MemberNames.AddNameReplacement(Box2DStruct, "min", "Min");
+		MemberNames.AddNameReplacement(Box2DStruct, "max", "Max");
+		MemberNames.AddNameReplacement(Box2DStruct, "IsValid", "bIsValid");
+	}
 }

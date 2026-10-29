@@ -51,6 +51,8 @@ void Generator::InitEngineCore()
 
 	CALL_PLATFORM_SPECIFIC_FUNCTION(Off::InSDK::ProcessEvent::InitPE); // Must be at this position, relies on offsets initialized in Off::Init()
 
+	Off::InSDK::Find::InitFindFunctionChecked();
+
 	Off::InSDK::World::InitGWorld(); // Must be at this position, relies on offsets initialized in Off::Init()
 
 	Off::InSDK::Text::InitTextOffsets(); // Must be at this position, relies on offsets initialized in Off::InitPE()
@@ -74,6 +76,35 @@ void Generator::InitInternal()
 
 	// Post-Initialize PackageManager after StructManager has been initialized. 'PostInit()' handles Cyclic-Dependencies detection
 	PackageManager::PostInit();
+}
+
+void FetchGameNameAndVersion()
+{
+	/* Kismet only; a one-sided Settings.h override no longer blocks the other field. */
+	if (!Settings::Generator::GameName.empty() && !Settings::Generator::GameVersion.empty())
+		return;
+
+	UEClass Kismet = ObjectArray::FindClassFast("KismetSystemLibrary");
+
+	if (Settings::Generator::GameVersion.empty() && Kismet)
+	{
+		if (UEFunction GetEngineVersion = Kismet.GetFunction("KismetSystemLibrary", "GetEngineVersion"))
+		{
+			FString Version;
+			Kismet.ProcessEvent(GetEngineVersion, &Version);
+			Settings::Generator::GameVersion = Version.ToString();
+		}
+	}
+
+	if (Settings::Generator::GameName.empty() && Kismet)
+	{
+		if (UEFunction GetGameName = Kismet.GetFunction("KismetSystemLibrary", "GetGameName"))
+		{
+			FString Name;
+			Kismet.ProcessEvent(GetGameName, &Name);
+			Settings::Generator::GameName = Name.ToString();
+		}
+	}
 }
 
 bool Generator::SetupDumperFolder()

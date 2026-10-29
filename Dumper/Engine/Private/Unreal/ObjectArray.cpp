@@ -64,6 +64,14 @@ constexpr inline std::array FChunkedFixedUObjectArrayLayouts =
 		.NumElementsOffset = 0x14,
 		.MaxChunksOffset = 0x10,
 		.NumChunksOffset = 0x04,
+	},
+	FChunkedFixedUObjectArrayLayout // UE5.7 variant observed in Mistfall Hunter
+	{
+		.ObjectsOffset = 0x10,
+		.MaxElementsOffset = 0x20,
+		.NumElementsOffset = 0x24,
+		.MaxChunksOffset = 0x04,
+		.NumChunksOffset = 0x08,
 	}
 };
 
@@ -275,7 +283,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 			{
-				if (Index < 0 || Index > Num())
+				if (Index < 0 || Index >= Num())
 					return nullptr;
 
 				uint8_t* ChunkPtr = DecryptPtr(*reinterpret_cast<uint8_t**>(ObjectsArray));
@@ -303,7 +311,7 @@ void ObjectArray::Init(bool bScanAllMemory, const char* const ModuleName)
 
 			ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 			{
-				if (Index < 0 || Index > Num())
+				if (Index < 0 || Index >= Num())
 					return nullptr;
 
 				const int32 ChunkIndex = Index / PerChunk;
@@ -351,7 +359,7 @@ void ObjectArray::Init(int32 GObjectsOffset, const FFixedUObjectArrayLayout& Obj
 
 	ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 	{
-		if (Index < 0 || Index > Num())
+		if (Index < 0 || Index >= Num())
 			return nullptr;
 
 		uint8_t* ItemPtr = *reinterpret_cast<uint8_t**>(ObjectsArray) + (Index * FUObjectItemSize);
@@ -379,7 +387,7 @@ void ObjectArray::Init(int32 GObjectsOffset, int32 ElementsPerChunk, const FChun
 
 	ByIndex = [](void* ObjectsArray, int32 Index, uint32 FUObjectItemSize, uint32 FUObjectItemOffset, uint32 PerChunk) -> void*
 	{
-		if (Index < 0 || Index > Num())
+		if (Index < 0 || Index >= Num())
 			return nullptr;
 
 		const int32 ChunkIndex = Index / PerChunk;

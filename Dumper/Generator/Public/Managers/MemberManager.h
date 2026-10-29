@@ -221,8 +221,8 @@ public:
 	/* Add special names like "Class", "Flags, "Parms", etc. to avoid collisions on them */
 	static void InitReservedNames();
 
-	/* Fixes the casing of FRotator members. pitch -> Pitch, yaw -> Yaw, roll -> Roll */
-	static void FixIncorrectNames();
+	/* Allows replacing names of members/functions in structs. Eg. ASomeActor::snake_case -> ASomeActor::CamelCase. */
+	static void InitNameReplacements();
 
 	static inline void Init()
 	{
@@ -236,6 +236,9 @@ public:
 		/* Adds special names first, to avoid name-collisions with predefined members */
 		InitReservedNames();
 
+		/* Adds name replacements for FRotator and FBox members so their variations don't break predefined members. */
+		InitNameReplacements();
+
 		/* Initialize member-name collisions  */
 		for (auto Obj : ObjectArray())
 		{
@@ -244,8 +247,6 @@ public:
 
 			AddStructToNameContainer(Obj.Cast<UEStruct>());
 		}
-
-		FixIncorrectNames();
 	}
 
 	static inline void AddStructToNameContainer(UEStruct Struct)

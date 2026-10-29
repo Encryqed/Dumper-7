@@ -72,17 +72,6 @@ ParamNameCollisionCount: {};
 
 uint64 KeyFunctions::GetKeyForCollisionInfo(UEStruct Super, UEProperty Member)
 {
-	uint64 Key = 0x0;
-
-	FName Name = Member.GetFName();
-	Key += Name.GetCompIdx();
-	Key += Name.GetNumber();
-
-	Key <<= 32;
-	Key |= (static_cast<uint64>(Member.GetOffset()) << 24);
-	Key |= (static_cast<uint64>(Member.GetSize()) << 16);
-	Key |= Super.GetIndex();
-
 	return reinterpret_cast<uint64>(Member.GetAddress());
 }
 
@@ -268,6 +257,30 @@ void CollisionManager::AddReservedName(const std::string& Name)
 	ReservedNames.push_back(NewInfo);
 }
 
+void CollisionManager::AddNameReplacement(UEStruct Struct, const std::string& OriginalName, const std::string& NewName)
+{
+	if (OriginalName == NewName)
+		return;
+
+	auto* Replacements = GetNameReplacements(Struct);
+
+	if (Replacements)
+	{
+		for (const auto& [OldName, _] : *Replacements)
+		{
+			if (OldName == OriginalName)
+				return;
+		}
+	}
+	else
+	{
+		Replacements = &RemappedNames.emplace_back(Struct, std::vector<NameMappingType>()).second;
+	}
+
+
+	Replacements->emplace_back(std::make_pair(OriginalName, NewName));
+}
+
 void CollisionManager::AddStructToNameContainer(UEStruct Struct, bool bIsStruct, bool bIsFunction)
 {
 	if (!bIsFunction)
@@ -284,24 +297,44 @@ void CollisionManager::AddStructToNameContainer(UEStruct Struct, bool bIsStruct,
 	if (!StructNames.empty())
 		return;
 
-	auto AddToContainerAndTranslationMap = [&](auto Member, ECollisionType CollisionType, bool bIsStruct, UEFunction Func = nullptr) -> void
+	const bool bHasNameReplacements = HasNameReplacements(Struct);
+
+	auto AddToContainerAndTranslationMap = [&](auto Member, ECollisionType CollisionType, bool bIsStruct, bool bShouldCheckReplacements, UEFunction Func = nullptr) -> void
 	{
-		const uint64 Index = AddNameToContainer(StructNames, Struct, MemberNames.FindOrAdd(Member.GetValidName()), CollisionType, bIsStruct, Func);
+		std::string NameToUse = bShouldCheckReplacements ? GetRemappedName(Struct, Member.GetValidName()) : Member.GetValidName();
+
+		const uint64 Index = AddNameToContainer(StructNames, Struct, MemberNames.FindOrAdd(NameToUse), CollisionType, bIsStruct, Func);
 
 		(void)TranslationMap.emplace(KeyFunctions::GetKeyForCollisionInfo(Struct, Member), Index);
 	};
 
 	for (UEProperty Prop : Struct.GetProperties())
-		AddToContainerAndTranslationMap(Prop, ECollisionType::MemberName, bIsStruct);
+		AddToContainerAndTranslationMap(Prop, ECollisionType::MemberName, bIsStruct, bHasNameReplacements);
 
 	for (UEFunction Func : Struct.GetFunctions())
 	{
-		AddToContainerAndTranslationMap(Func, ECollisionType::FunctionName, bIsStruct);
+		AddToContainerAndTranslationMap(Func, ECollisionType::FunctionName, bIsStruct, bHasNameReplacements);
 
 		for (UEProperty Prop : Func.GetProperties())
-			AddToContainerAndTranslationMap(Prop, ECollisionType::ParameterName, bIsStruct, Func);
+			AddToContainerAndTranslationMap(Prop, ECollisionType::ParameterName, bIsStruct, false, Func);
 	}
 };
+
+std::string CollisionManager::GetRemappedName(UEStruct Struct, const std::string& OriginalName) const
+{
+	const auto* Replacements = GetNameReplacements(Struct);
+	if (!Replacements)
+		return OriginalName;
+
+	for (const auto& [OldName, NewName] : *Replacements)
+	{
+		if (OldName == OriginalName)
+			return NewName;
+	}
+
+	return OriginalName;
+}
+
 
 std::string CollisionManager::StringifyName(UEStruct Struct, NameInfo Info)
 {

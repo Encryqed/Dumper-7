@@ -89,6 +89,12 @@ You can optionally dynamically change settings through a `Dumper-7.ini` file, in
   - Generate output at the specified path instead of `C:/Dumper-7`.
   - Paths are relative to game executable unless you use an absolute path including drive letter.
   - Use `..` to access parent directories. Do not include quotes.
+- **LogFilePath:**
+  - Write the dumper's output to this file instead of the console.
+- **ShouldAutoUnload:**
+  - If non-zero the dumper unloads itself after generation, instead of waiting for F6.
+- **ExecuteSDKTestScript:**
+  - Overrides `Settings::Debug::bExecuteSDKTestScript`. If non-zero the SDK compilation test script is executed after generation.
 
 
 ### Example:
