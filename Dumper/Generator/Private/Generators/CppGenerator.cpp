@@ -583,8 +583,8 @@ std::string CppGenerator::GenerateSingleFunction(const FunctionWrapper& Func, co
 	class UFunction* Func = InSDKUtils::FindFunctionChecked({}, GetStaticName({}, FnName));)",
 			bDispatchAsInterface ? "AsUObject()" : "this",
 			CppSettings::XORString
-			? std::format("{}(L\"{}\")", CppSettings::XORString, FixedOuterName)
-			: std::format("L\"{}\"", FixedOuterName));
+			? std::format("{}(L\"{}\")", CppSettings::XORString, FixedFunctionName)
+			: std::format("L\"{}\"", FixedFunctionName));
 	}
 	else if (bIsUnloadableFunction)
 	{
