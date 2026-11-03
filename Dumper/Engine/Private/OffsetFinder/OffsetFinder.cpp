@@ -665,6 +665,31 @@ int32_t OffsetFinder::FindFieldClassCastFlagsOffset()
 void OffsetFinder::FixupFieldClassOffsets()
 {
 	/*
+	* UE5.8 adds a pointer in front of the name, moving every member back by 0x8:
+	*
+	* struct FFieldClass
+	* {
+	*     void* Vft;                     // 0x00
+	*     FName Name;                    // 0x08
+	*     EClassFlags ClassFlags;        // 0x10
+	*     uint32 Padding;                // 0x14
+	*     EFieldClassID Id;              // 0x18
+	*     EClassCastFlags CastFlags;     // 0x20
+	*     FFieldClass* SuperClass;       // 0x28
+	* };
+	*
+	* The hardcoded SuperClass offset can only be at or before the found CastFlags on this layout.
+	*/
+	if (Off::FFieldClass::CastFlags >= Off::FFieldClass::SuperClass)
+	{
+		Off::FFieldClass::Name = sizeof(void*);
+		Off::FFieldClass::ClassFlags = Off::FFieldClass::Id + sizeof(void*);
+		Off::FFieldClass::Id = Off::FFieldClass::CastFlags - sizeof(EFieldClassID);
+		Off::FFieldClass::SuperClass = Off::FFieldClass::CastFlags + sizeof(EClassCastFlags);
+		return;
+	}
+
+	/*
 	* UE5.7 uses this FFieldClass layout with an 8-byte FName:
 	*
 	* struct FFieldClass
