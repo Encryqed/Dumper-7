@@ -676,11 +676,32 @@ void OffsetFinder::FixupFieldClassOffsets()
 	*     EClassCastFlags CastFlags;     // 0x18
 	*     FFieldClass* SuperClass;       // 0x20
 	* };
+	*
+	* UE5.8 uses this FFieldClass layout with an 8-byte FName (added virtual destructor / vftable):
+	*
+	* struct FFieldClass
+	* {
+	*     void* Vft;                     // 0x00
+	*     FName Name;                    // 0x08
+	*     EClassFlags ClassFlags;        // 0x10
+	*     uint32 Padding;                // 0x14
+	*     EFieldClassID Id;              // 0x18
+	*     EClassCastFlags CastFlags;     // 0x20
+	*     FFieldClass* SuperClass;       // 0x28
+	* };
 	*/
 	constexpr int32 CastFlagsOffsetFromClassFlags = static_cast<int32>(
 		Align(sizeof(EClassFlags), alignof(EFieldClassID)) + sizeof(EFieldClassID));
 
-	if (Off::FFieldClass::CastFlags == (Off::FFieldClass::Id + CastFlagsOffsetFromClassFlags)
+	if (Off::FFieldClass::CastFlags == (Off::FFieldClass::Id + CastFlagsOffsetFromClassFlags + sizeof(void*))
+		&& (Off::FFieldClass::SuperClass + sizeof(void*)) == (Off::FFieldClass::CastFlags + sizeof(EClassCastFlags)))
+	{
+		Off::FFieldClass::Name += sizeof(void*);
+		Off::FFieldClass::ClassFlags = Off::FFieldClass::Id + sizeof(void*);
+		Off::FFieldClass::Id = Off::FFieldClass::CastFlags - sizeof(EFieldClassID);
+		Off::FFieldClass::SuperClass = Off::FFieldClass::CastFlags + sizeof(EClassCastFlags);
+	}
+	else if (Off::FFieldClass::CastFlags == (Off::FFieldClass::Id + CastFlagsOffsetFromClassFlags)
 		&& Off::FFieldClass::SuperClass == (Off::FFieldClass::CastFlags + sizeof(EClassCastFlags)))
 	{
 		Off::FFieldClass::ClassFlags = Off::FFieldClass::Id;
