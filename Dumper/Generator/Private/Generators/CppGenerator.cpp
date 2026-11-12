@@ -2461,6 +2461,17 @@ void CppGenerator::InitPredefinedMembers()
 			},
 		};
 
+		/* UE 5.8+ introduced a virtual destructor to FFieldClass, adding a VTable pointer at offset 0x0. */
+		if (Off::FFieldClass::Name > 0)
+		{
+			FFieldClass.Properties.push_back(
+				PredefinedMember{
+					.Comment = "NOT AUTO-GENERATED PROPERTY",
+					.Type = "void*", .Name = "VTable", .Offset = 0x0, .Size = sizeof(void*), .ArrayDim = 0x1, .Alignment = alignof(void*),
+					.bIsStatic = false, .bIsZeroSizeMember = false, .bIsBitField = false, .BitIndex = 0xFF
+				}
+			);
+		}
 
 		const int32 FFieldVariantSize = Settings::Internal::bUseMaskForFieldOwner ? 0x8 : 0x10;
 		const int32 IdentifierOffset = Settings::Internal::bUseMaskForFieldOwner ? 0x0 : 0x8;
