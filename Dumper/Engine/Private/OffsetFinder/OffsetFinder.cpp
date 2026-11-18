@@ -677,6 +677,22 @@ void OffsetFinder::FixupFieldClassOffsets()
 	*     FFieldClass* SuperClass;       // 0x20
 	* };
 	*/
+
+	//FFieldClass starts with a VFTable on UE5.8.1
+	if (Off::FFieldClass::Name == 0)
+	{
+		UEFFieldClass GuidClass = ObjectArray::FindStructFast("Guid").GetChildProperties().GetClass();
+		UEFFieldClass ColourClass = ObjectArray::FindStructFast("Color").GetChildProperties().GetClass();
+
+		if (!GetValidPointerOffset(GuidClass.GetAddress(), ColourClass.GetAddress(), 0, 0, true))
+		{
+			Off::FFieldClass::Name = sizeof(void*);
+			Off::FFieldClass::Id += sizeof(void*);
+			Off::FFieldClass::ClassFlags += sizeof(void*);
+			Off::FFieldClass::SuperClass += sizeof(void*);
+		}
+	}
+
 	constexpr int32 CastFlagsOffsetFromClassFlags = static_cast<int32>(
 		Align(sizeof(EClassFlags), alignof(EFieldClassID)) + sizeof(EFieldClassID));
 
