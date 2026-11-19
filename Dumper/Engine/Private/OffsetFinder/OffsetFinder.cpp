@@ -277,7 +277,11 @@ void OffsetFinder::FixupHardcodedOffsets()
 	if (Settings::Internal::bUseCasePreservingName)
 	{
 		Off::FField::Flags += 0x8;
+
+		Off::FFieldClass::Id += 0x08;
 		Off::FFieldClass::CastFlags += 0x08;
+		Off::FFieldClass::ClassFlags += 0x08;
+		Off::FFieldClass::SuperClass += 0x08;
 	}
 
 	if (Settings::Internal::bUseFProperty)
